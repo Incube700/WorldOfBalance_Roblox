@@ -62,6 +62,7 @@
 
 ### Task 00.05 — Create config modules without wiring
 
+- Статус: выполнено. Созданы read-only ModuleScript configs в `src/ReplicatedStorage/Shared/Configs/`; они не подключены к Studio gameplay scripts.
 - Цель: создать read-only ModuleScript configs в `src/ReplicatedStorage/Shared/Configs/` без подключения к Studio gameplay scripts.
 - Файлы можно трогать: только новые config modules в `src/ReplicatedStorage/Shared/Configs/` и документацию, если нужно уточнить результат.
 - Ожидаемый результат: config modules существуют, но `WOBGameplayServer`, `WOBClientController`, `WOBHudController` и другие Studio scripts еще не используют их.
@@ -70,6 +71,7 @@
 
 ### Task 00.06 — Wire first responsibility config in smallest possible slice
 
+- Статус: следующий безопасный шаг. Начинать только с одной низкорисковой группы constants, без изменения core gameplay loop.
 - Цель: подключить только одну безопасную группу constants из одного responsibility config.
 - Файлы можно трогать: один выбранный config module и минимальный один потребитель, только после отдельного согласования.
 - Ожидаемый результат: поведение в Play Mode не меняется; config начинает использоваться в одном узком месте.
