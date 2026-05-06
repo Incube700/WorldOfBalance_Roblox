@@ -6,19 +6,21 @@
 
 Аудит обновлен после анализа snapshot-файлов из `docs/studio_scripts_snapshot/`.
 
-Прочитанные документы и файлы:
+Прочитанные документы:
 
 - `docs/GDD.md`
 - `docs/TECH_CONTEXT.md`
 - `docs/CODEX_TASKS.md`
 - `docs/PROJECT_AUDIT.md`
-- `docs/studio_scripts_snapshot/README.md`
+
+Проанализированные snapshot-файлы:
+
 - `docs/studio_scripts_snapshot/WOBGameplayServer.server.luau`
 - `docs/studio_scripts_snapshot/WOBClientController.client.luau`
 - `docs/studio_scripts_snapshot/WOBHudController.client.luau`
-- `docs/studio_scripts_snapshot/WOBDummyRespawnServer.luau`
-- `docs/studio_scripts_snapshot/WOBPerformanceServer.luau`
-- `docs/studio_scripts_snapshot/WOBProjectileVisualEnhancer.luau`
+- `docs/studio_scripts_snapshot/WOBDummyRespawnServer.server.luau`
+- `docs/studio_scripts_snapshot/WOBPerformanceServer.server.luau`
+- `docs/studio_scripts_snapshot/WOBProjectileVisualEnhancer.server.luau`
 
 Ограничения аудита:
 
@@ -26,8 +28,9 @@
 - Gameplay-код не менялся.
 - Скрипты не переносились в `src/`.
 - `default.project.json` не менялся.
-- Snapshot содержит все шесть ключевых Studio-скриптов, перечисленных в `docs/studio_scripts_snapshot/README.md`.
-- Три новых snapshot-файла сохранены с именами без `.server.luau` суффикса: `WOBDummyRespawnServer.luau`, `WOBPerformanceServer.luau`, `WOBProjectileVisualEnhancer.luau`. По содержимому это серверные скрипты из `ServerScriptService/Services`.
+- Snapshot-файлы рассматриваются как read-only копии Studio-скриптов для анализа.
+
+`WOBDummyRespawnServer.server.luau` перепроверен и теперь содержит dummy respawn/reset logic. Он больше не совпадает с `WOBPerformanceServer.server.luau`.
 
 ## Rojo Context
 
@@ -37,7 +40,7 @@
 - `src/ServerScriptService/Server` -> `ServerScriptService.Server`
 - `src/StarterPlayer/StarterPlayerScripts/Client` -> `StarterPlayer.StarterPlayerScripts.Client`
 
-Текущая Rojo-часть все еще минимальная:
+Текущая Rojo-часть минимальная:
 
 ```text
 src/
@@ -52,21 +55,18 @@ src/
         ClientHello.client.luau
 ```
 
-Основная gameplay logic сейчас находится в Studio-сцене и представлена в `docs/studio_scripts_snapshot/` только как read-only копия для анализа.
+Основная gameplay logic текущего прототипа все еще живет внутри Studio-сцены, а не в `src/`.
 
 ## Current Prototype Architecture
 
 Фактическая архитектура прототипа:
 
-- серверная авторитетная логика движения танка и снарядов находится в `WOBGameplayServer`;
-- клиент отправляет input и aim через RemoteEvents из `WOBClientController`;
-- HUD читает здоровье dummy через replicated Attribute `DummyTank.Health`;
-- HUD отправляет reset request через `ResetDummyRequestEvent`, серверный обработчик находится в `WOBDummyRespawnServer`;
-- временные снаряды и VFX создаются сервером в `Workspace.WOB_Generated.Runtime`;
-- projectile trail добавляется отдельным серверным enhancer-скриптом;
-- lighting/shadow performance profile применяется отдельным серверным performance-скриптом;
-- модели танков ожидаются в `Workspace.WOB_Generated.TestObjects`;
-- конфиги не вынесены: числа и имена объектов зашиты прямо в Studio-скрипты.
+- `WOBGameplayServer` держит core gameplay: tank state, движение, башню, стрельбу, снаряды, рикошеты, урон по dummy и часть VFX.
+- `WOBClientController` читает input, считает aim point, ведет камеру и отправляет намерения на сервер.
+- `WOBHudController` читает `DummyTank.Health`, обновляет HUD и отправляет `ResetDummyRequestEvent`.
+- `WOBProjectileVisualEnhancer` добавляет trail к projectile parts.
+- `WOBPerformanceServer` применяет Lighting/performance profile.
+- `WOBDummyRespawnServer` обрабатывает reset dummy и delayed respawn после `Health <= 0`.
 
 Ключевая структура, которую используют snapshot-скрипты:
 
@@ -112,14 +112,14 @@ StarterGui/
 
 ## Studio Service Roles
 
-| Studio script | Роль | Уровень риска |
+| Studio script | Role | Risk |
 | --- | --- | --- |
-| `WOBGameplayServer` | Core gameplay: tank state, shooting, projectiles, damage, VFX flashes | High |
-| `WOBDummyRespawnServer` | Dummy health reset, delayed respawn, color restore | Medium |
-| `WOBPerformanceServer` | Lighting profile, disabled shadows for generated parts and characters | Low/Medium |
-| `WOBProjectileVisualEnhancer` | Adds Trail objects to projectile parts | Low, если остается purely visual |
+| `WOBGameplayServer` | Core gameplay: tank state, shooting, projectiles, ricochet, dummy damage, VFX flashes | High |
 | `WOBClientController` | Input, camera, aim projection, fire request | Medium/High |
 | `WOBHudController` | Dummy HP UI, reload UI, feedback, reset request | Medium |
+| `WOBDummyRespawnServer` | Dummy health reset, delayed respawn, color restore | Medium |
+| `WOBPerformanceServer` | Lighting profile and shadow disabling | Low/Medium |
+| `WOBProjectileVisualEnhancer` | Projectile trail visuals | Low if it stays visual-only |
 
 ## Filesystem Scripts in src
 
@@ -170,30 +170,37 @@ StarterGui/
 - при смерти dummy красит все BasePart в темный цвет;
 - создает muzzle flash, impact flash и sparks.
 
+Зависимости:
+
+- `Players`, `Workspace`, `RunService`, `ReplicatedStorage`, `Debris`;
+- `ReplicatedStorage.Remotes.TankInputEvent`;
+- `ReplicatedStorage.Remotes.ShootRequestEvent`;
+- `Workspace.WOB_Generated.Runtime`;
+- `Workspace.WOB_Generated.TestObjects.PlayerTankPrototype`;
+- `Workspace.WOB_Generated.TestObjects.DummyTank`;
+- точные имена частей танка: `Body`, `Turret`, `Barrel`, `ShootPoint`, `Hitboxes`;
+- Attribute `DummyTank.Health`.
+
 Механики внутри:
 
-- player assignment;
-- server-authoritative tank movement;
+- server-authoritative movement;
 - independent turret aiming;
 - shooting cooldown;
-- projectile spawning;
-- projectile movement;
-- projectile raycast collision;
+- projectile spawn/movement/lifetime;
+- raycast collision;
 - wall/object ricochet;
 - max bounce limit;
 - damage falloff after bounce;
-- dummy damage;
-- dummy death visual state;
-- projectile and impact VFX;
-- runtime cleanup через `Debris` и ручное удаление projectile parts.
+- dummy damage/death visual state;
+- VFX flashes/sparks.
 
 Важные замечания:
 
-- Self-hit сейчас не реализован: raycast исключает `playerTank`, поэтому снаряд не может попасть в стрелявшего.
-- Урон по углу не реализован: armor hitboxes раскладываются, но не используются для angle damage.
-- Player health не реализован в этом snapshot.
-- Victory/defeat не реализованы как match state.
-- Серверный код сильно зависит от конкретных имен объектов.
+- Self-hit не реализован: raycast filter исключает `playerTank`.
+- Player damage не реализован.
+- Урон по углу не реализован: armor hitboxes раскладываются, но не участвуют в damage.
+- Victory/defeat отсутствуют как match state.
+- Это главный монолит текущего прототипа. Не переписывать и не переносить первым.
 
 ### `WOBClientController.client.luau`
 
@@ -213,20 +220,18 @@ StarterGui/
 - отправляет `TankInputEvent` на сервер каждые `0.05` секунды;
 - отправляет `ShootRequestEvent` при клике мыши.
 
-Механики внутри:
+Зависимости:
 
-- keyboard input;
-- mouse aim;
-- top-down camera;
-- client-to-server input stream;
-- client-to-server fire request.
+- `Players`, `Workspace`, `RunService`, `UserInputService`, `ReplicatedStorage`;
+- `ReplicatedStorage.Remotes.TankInputEvent`;
+- `ReplicatedStorage.Remotes.ShootRequestEvent`;
+- `Workspace.WOB_Generated.TestObjects.PlayerTankPrototype.Body`;
+- текущая камера Roblox.
 
-Важные замечания:
+Риск:
 
-- Клиент не двигает танк напрямую, только отправляет намерение на сервер.
-- Камера жестко привязана к `PlayerTankPrototype.Body`.
-- Расчет aim зависит от плоскости `Y = 0`, что важно не ломать при изменении высот арены.
-- Constants камеры и input interval зашиты в скрипт.
+- камера, aim projection и input-send interval напрямую влияют на ощущение управления;
+- изменение плоскости `Y = 0` или пути к `Body` может сразу сломать прицеливание.
 
 ### `WOBHudController.client.luau`
 
@@ -247,27 +252,25 @@ StarterGui/
 - по клавише `R` отправляет `ResetDummyRequestEvent`;
 - плавно скрывает `FeedbackLabel`.
 
-Механики внутри:
+Зависимости:
 
-- dummy health UI;
-- reload UI;
-- hit feedback;
-- target destroyed feedback;
-- target reset feedback;
-- reset request input.
+- `Workspace.WOB_Generated.TestObjects.DummyTank`;
+- Attribute `DummyTank.Health`;
+- `ReplicatedStorage.Remotes.ResetDummyRequestEvent`;
+- `script.Parent.MainPanel`;
+- `DummyHpLabel`, `DummyHpBack.DummyHpFill`, `ReloadLabel`, `ReloadBack.ReloadFill`, `FeedbackLabel`.
 
-Важные замечания:
+Риск:
 
-- Reload UI не подтверждает серверный cooldown, а считает прогресс локально от момента клика.
-- HUD напрямую зависит от точных имен UI-элементов.
-- Reset request есть на клиенте, server handler подтвержден в `WOBDummyRespawnServer`.
-- Player health UI отсутствует.
+- HUD напрямую зависит от exact UI names;
+- reload UI локальный и может расходиться с server cooldown;
+- server handler для `ResetDummyRequestEvent` подтвержден в `WOBDummyRespawnServer`.
 
-### `WOBDummyRespawnServer.luau`
+### `WOBDummyRespawnServer.server.luau`
 
 - Оригинальный путь: `ServerScriptService/Services/WOBDummyRespawnServer`.
 - Тип: Server Script.
-- Snapshot: `docs/studio_scripts_snapshot/WOBDummyRespawnServer.luau`.
+- Snapshot: `docs/studio_scripts_snapshot/WOBDummyRespawnServer.server.luau`.
 - Размер: 71 строка.
 - Статус: Keep / Refactor later.
 
@@ -278,23 +281,37 @@ StarterGui/
 - хранит `MAX_HEALTH = 100` и `RESPAWN_DELAY = 2.25`;
 - восстанавливает `DummyTank.Health` до `100`;
 - восстанавливает цвета частей dummy по именам `Body`, `Turret`, `Barrel`, `ShootPoint`, `FrontArmor`, `RearArmor`, `LeftArmor`, `RightArmor`;
-- подписывается на изменение Attribute `Health`;
-- если здоровье dummy `<= 0`, запускает отложенный respawn;
-- принимает reset request от клиента и сразу вызывает reset.
+- подписывается на `DummyTank:GetAttributeChangedSignal("Health")`;
+- если здоровье dummy `<= 0`, запускает отложенный respawn через `task.delay(RESPAWN_DELAY, ...)`;
+- принимает `ResetDummyRequestEvent.OnServerEvent` и сразу вызывает reset.
 
 Зависимости:
 
-- `ReplicatedStorage.Remotes.ResetDummyRequestEvent`;
 - `Workspace.WOB_Generated.TestObjects.DummyTank`;
+- `ReplicatedStorage.Remotes.ResetDummyRequestEvent`;
 - Attribute `DummyTank.Health`;
-- точные имена деталей dummy и armor hitboxes.
+- точные имена частей dummy и armor hitboxes.
+
+RemoteEvent:
+
+- `ResetDummyRequestEvent`.
+
+Attributes:
+
+- читает `DummyTank.Health`;
+- пишет `DummyTank.Health`.
+
+Зависимость от `WOBGameplayServer`:
+
+- прямой зависимости нет;
+- есть shared state dependency через `DummyTank.Health` и визуальное состояние parts dummy.
 
 Риск конфликта с `WOBGameplayServer`:
 
-- оба скрипта пишут/читают `DummyTank.Health`;
-- `WOBGameplayServer` при смерти красит все BasePart dummy в темный цвет, а `WOBDummyRespawnServer` восстанавливает цвета;
-- если изменить max health в одном месте и не изменить в другом, HUD/damage/respawn начнут расходиться;
-- reset может сработать во время активного projectile update, но текущий код не удаляет снаряды и не сбрасывает combat state.
+- `WOBGameplayServer` уменьшает `DummyTank.Health` и затемняет dummy parts при смерти;
+- `WOBDummyRespawnServer` слушает `DummyTank.Health <= 0`, восстанавливает здоровье и цвета;
+- если изменить max health только в одном скрипте, HUD/damage/respawn начнут расходиться;
+- reset может сработать во время активных projectile updates, но текущий reset не чистит снаряды и runtime state.
 
 Безопасно выносить позже:
 
@@ -303,18 +320,18 @@ StarterGui/
 - таблицу цветов dummy parts;
 - helper `setPartColor`.
 
-### `WOBPerformanceServer.luau`
+### `WOBPerformanceServer.server.luau`
 
 - Оригинальный путь: `ServerScriptService/Services/WOBPerformanceServer`.
 - Тип: Server Script.
-- Snapshot: `docs/studio_scripts_snapshot/WOBPerformanceServer.luau`.
+- Snapshot: `docs/studio_scripts_snapshot/WOBPerformanceServer.server.luau`.
 - Размер: 57 строк.
 - Статус: Keep / Safe extraction candidate for constants.
 
 Что делает:
 
-- применяет lighting profile: `GlobalShadows = false`, `Brightness = 2`, `ClockTime = 14`, `FogEnd = 100000`;
-- пытается выставить `Lighting.Technology = Enum.Technology.Compatibility` через `pcall`;
+- применяет Lighting profile: `GlobalShadows = false`, `Brightness = 2`, `ClockTime = 14`, `FogEnd = 100000`;
+- пытается выставить `Lighting.Technology = Enum.Technology.Compatibility`;
 - отключает `CastShadow` у всех BasePart внутри `Workspace.WOB_Generated`;
 - отключает `CastShadow` у новых descendants внутри `Workspace.WOB_Generated`;
 - отключает `CastShadow` у character parts существующих и новых игроков.
@@ -326,23 +343,38 @@ StarterGui/
 - `Players`;
 - `BasePart.CastShadow`.
 
+RemoteEvent:
+
+- не использует.
+
+Attributes:
+
+- не читает и не пишет.
+
+Зависимость от `WOBGameplayServer`:
+
+- прямой зависимости нет;
+- косвенная зависимость есть через generated parts, которые создает gameplay/VFX.
+
 Риск конфликта с `WOBGameplayServer`:
 
-- низкий для gameplay: скрипт не меняет урон, движение, снаряды или remotes;
-- средний для визуала: любые новые parts, созданные gameplay/VFX, автоматически получают `CastShadow = false`;
-- может перезаписать художественные настройки Lighting, если позже появится отдельный визуальный pipeline.
+- низкий для gameplay behavior;
+- средний для визуала, потому что все новые generated parts получают `CastShadow = false`;
+- не дублируется с `WOBDummyRespawnServer.server.luau` после исправления snapshot.
 
 Безопасно выносить позже:
 
 - lighting constants;
-- helper `optimizePart`;
-- список performance defaults.
+- `optimizePart`;
+- `optimizeModel`;
+- `optimizeCharacter`;
+- performance defaults.
 
-### `WOBProjectileVisualEnhancer.luau`
+### `WOBProjectileVisualEnhancer.server.luau`
 
 - Оригинальный путь: `ServerScriptService/Services/WOBProjectileVisualEnhancer`.
 - Тип: Server Script.
-- Snapshot: `docs/studio_scripts_snapshot/WOBProjectileVisualEnhancer.luau`.
+- Snapshot: `docs/studio_scripts_snapshot/WOBProjectileVisualEnhancer.server.luau`.
 - Размер: 45 строк.
 - Статус: Keep / Safe extraction candidate for visual config.
 
@@ -362,124 +394,130 @@ StarterGui/
 - child name `WOBTrail`;
 - attachment names `TrailAttachment0`, `TrailAttachment1`.
 
+RemoteEvent:
+
+- не использует.
+
+Attributes:
+
+- не читает и не пишет.
+
+Зависимость от `WOBGameplayServer`:
+
+- косвенная: `WOBGameplayServer` создает `Runtime.Projectiles` и сами projectile BasePart;
+- enhancer не управляет movement, damage, direction, raycast или lifetime.
+
 Риск конфликта с `WOBGameplayServer`:
 
-- низкий для gameplay: скрипт не меняет projectile position, damage, direction, raycast или lifetime;
-- возможный конфликт по lifecycle: `WOBGameplayServer` уничтожает projectile Part, а enhancer добавляет children к этому Part;
-- если `WOBGameplayServer` изменит тип projectile object не на BasePart, enhancer перестанет работать;
-- если visual children начнут попадать в raycast, это может быть риск, но сейчас raycast исключает `projectileFolder`, так что trail attachments внутри projectileFolder не должны мешать collision.
+- низкий для gameplay;
+- возможен lifecycle-конфликт, если projectile уничтожается сразу после добавления attachments/trail;
+- если projectile перестанет быть BasePart, enhancer перестанет работать;
+- raycast сейчас исключает `projectileFolder`, поэтому trail/attachments не должны мешать collision.
 
 Безопасно выносить позже:
 
 - trail visual constants;
-- helper `addTrail`;
 - attachment offsets;
+- `addTrail` helper;
 - color/transparency sequences.
 
 ## Systems Already Implemented
 
-### Gameplay loop
+### Gameplay Loop
 
 - Статус: Partially implemented.
 - Где: `WOBGameplayServer`.
-- Реально есть: server Heartbeat вызывает `updateTank` и `updateProjectiles`.
+- Есть: server Heartbeat вызывает `updateTank` и `updateProjectiles`.
 - Нет: полноценного match state, victory/defeat, player death, round restart.
 
-### Tank control
+### Tank Control
 
-- Статус: Implemented for one local/controller player.
+- Статус: Implemented for one controlling player.
 - Где: `WOBClientController` + `WOBGameplayServer`.
-- Реально есть: `WASD` на клиенте, серверный throttle/steer, clamp позиции в пределах `-58..58`.
+- Есть: `WASD`, server throttle/steer, clamp позиции в пределах `-58..58`.
 - Ограничение: только один `controllingPlayer`; нет PvP.
 
-### Turret aiming
+### Turret Aiming
 
 - Статус: Implemented.
-- Где: client отправляет `AimPosition`, server считает `TurretYaw` и раскладывает turret/barrel/shootpoint.
-- Ограничение: нет ограниченной скорости поворота башни; башня мгновенно смотрит на aim direction.
+- Где: client отправляет `AimPosition`, server считает `TurretYaw`.
+- Ограничение: башня мгновенно смотрит на aim direction, без ограниченной скорости поворота.
 
-### Projectile handling
+### Projectile Handling
 
 - Статус: Implemented for MVP dummy target.
 - Где: `WOBGameplayServer`.
-- Реально есть: spawn, movement, raycast, lifetime, destroy, ricochet, max bounces, damage falloff.
-- Ограничение: нет self-hit, нет player damage, нет angle damage.
+- Есть: spawn, movement, raycast, lifetime, destroy, ricochet, max bounces, damage falloff.
+- Ограничение: нет self-hit, player damage и angle damage.
 
-### UI update flow
+### Dummy Respawn / Reset
+
+- Статус: Partially implemented.
+- Где: `WOBHudController` отправляет `ResetDummyRequestEvent`; `WOBDummyRespawnServer` обрабатывает reset и delayed respawn.
+- Есть: reset dummy health, restore part colors, auto-respawn через `task.delay(2.25)` после `Health <= 0`.
+- Ограничение: это reset dummy, а не полноценный restart матча; player state, projectiles и runtime state не сбрасываются.
+
+### UI Update Flow
 
 - Статус: Partially implemented.
 - Где: `WOBHudController`.
-- Реально есть: dummy HP, reload display, hit/destroyed/reset feedback.
-- Ограничение: UI читает `DummyTank.Health` напрямую через replicated Attribute; нет player HP и полноценного result UI.
+- Есть: dummy HP, reload display, hit/destroyed/reset feedback.
+- Ограничение: нет player HP и полноценного result UI.
 
-### Respawn / reset
-
-- Статус: Partially implemented.
-- Где: `WOBHudController` отправляет `ResetDummyRequestEvent`, `WOBDummyRespawnServer` обрабатывает reset и delayed respawn.
-- Реально есть: reset dummy health, restore part colors, auto-respawn через `task.delay(2.25)` после `Health <= 0`.
-- Ограничение: это reset dummy, а не полноценный restart матча; player state, projectiles и runtime state не сбрасываются.
-
-### Runtime objects
+### Runtime Object Handling
 
 - Статус: Implemented.
-- Где: `WOBGameplayServer` создает `Runtime/Projectiles` и `Runtime/VFX`; `WOBProjectileVisualEnhancer` подписывается на `Runtime/Projectiles`; `WOBPerformanceServer` оптимизирует generated descendants.
-- Ограничение: cleanup runtime-снарядов есть в `WOBGameplayServer`, но полного reset runtime state нет.
+- Где: `WOBGameplayServer` создает `Runtime/Projectiles` и `Runtime/VFX`; `WOBProjectileVisualEnhancer` слушает `Runtime/Projectiles`.
+- Ограничение: reset runtime state отсутствует.
 
-### Visual enhancer / VFX
+### Projectile Visuals / VFX / Readability
 
 - Статус: Implemented for prototype readability.
-- Где: `WOBGameplayServer` создает muzzle flash, impact flash и sparks; `WOBProjectileVisualEnhancer` добавляет projectile trails.
-- Ограничение: визуальные параметры зашиты в серверные скрипты, отдельного visual config нет.
+- Где: `WOBGameplayServer` создает muzzle/impact flashes and sparks; `WOBProjectileVisualEnhancer` добавляет projectile trails.
+- Ограничение: visual constants зашиты в Studio-скрипты.
 
-### Performance profile
+### Performance / Cleanup
 
-- Статус: Implemented.
+- Статус: Partially implemented.
 - Где: `WOBPerformanceServer`.
-- Реально есть: disabled shadows, simple lighting profile, optimization for generated parts and characters.
-- Ограничение: это глобально меняет Lighting и может конфликтовать с будущей визуальной задачей.
+- Есть: Lighting profile и отключение теней у generated/character parts.
+- Нет: отдельного cleanup service для старых runtime objects; projectile cleanup остается в `WOBGameplayServer`.
+- Риск: performance profile глобально меняет Lighting и может конфликтовать с будущей визуальной задачей.
 
 ## Likely Monolith Zones
 
 ### Main monolith: `WOBGameplayServer`
-
-Это главный монолит текущего прототипа.
 
 Смешанные ответственности:
 
 - поиск сервисов и объектов сцены;
 - создание runtime folders;
 - выбор controlling player;
-- скрытие стандартного character;
+- скрытие standard character;
 - хранение состояния танка;
 - движение танка;
 - наведение башни;
 - ручная раскладка модели танка;
-- управление hitboxes;
 - обработка remotes;
 - shooting cooldown;
-- создание снаряда;
-- движение снаряда;
+- создание, движение и удаление снарядов;
 - raycast collision;
 - ricochet math;
 - damage model;
-- dummy death;
-- projectile VFX;
-- cleanup.
+- dummy death visual;
+- VFX flashes/sparks.
 
 Что опасно менять:
 
-- object paths: `Workspace.WOB_Generated`, `Runtime`, `TestObjects`, `PlayerTankPrototype`, `DummyTank`;
-- part names: `Body`, `Turret`, `Barrel`, `ShootPoint`, `Hitboxes`;
-- remote names: `TankInputEvent`, `ShootRequestEvent`;
-- physics assumptions: anchored parts, `Y = 0`, clamp bounds `-58..58`;
+- `Workspace.WOB_Generated`, `Runtime`, `TestObjects`, `PlayerTankPrototype`, `DummyTank`;
+- `Body`, `Turret`, `Barrel`, `ShootPoint`, `Hitboxes`;
+- `TankInputEvent`, `ShootRequestEvent`;
+- assumptions `Anchored`, `Y = 0`, clamp bounds `-58..58`;
 - raycast filter, особенно исключение `playerTank`;
-- bounce order and damage multiplier;
-- Attribute `DummyTank.Health`;
-- `PROJECTILE_MAX_BOUNCES = 3` behavior.
+- bounce order, damage multiplier and max bounce behavior;
+- `DummyTank.Health`.
 
 ### Secondary coupling: `WOBClientController`
-
-Это не большой монолит по размеру, но сильная точка связанности input/camera/model/remotes.
 
 Смешанные ответственности:
 
@@ -494,25 +532,23 @@ StarterGui/
 - camera math;
 - mouse projection to ground plane;
 - path to `PlayerTankPrototype.Body`;
-- input send interval;
+- `INPUT_SEND_INTERVAL`;
 - fire request timing.
 
 ### UI coupling: `WOBHudController`
 
-Компактный, но связан с точными UI names и state source.
-
 Смешанные ответственности:
 
 - чтение replicated gameplay state;
-- formatting;
+- UI formatting;
 - progress bar layout;
 - feedback timing;
 - reset input.
 
 Что опасно менять:
 
-- имена `DummyHpLabel`, `DummyHpBack`, `DummyHpFill`, `ReloadLabel`, `ReloadBack`, `ReloadFill`, `FeedbackLabel`;
-- `DummyTank.Health` contract;
+- exact UI names;
+- `DummyTank.Health`;
 - `ResetDummyRequestEvent`;
 - локальную reload логику, пока server cooldown не реплицируется явно.
 
@@ -525,16 +561,21 @@ StarterGui/
 - `WOBClientController` отправляет `ShootRequestEvent` при MouseButton1.
 - Payload: `AimPosition`.
 
+### HUD -> Server
+
+- `WOBHudController` отправляет `ResetDummyRequestEvent` по клавише `R`.
+- `WOBDummyRespawnServer` принимает `ResetDummyRequestEvent` и вызывает reset dummy.
+
 ### Server -> World State
 
 - `WOBGameplayServer` пишет CFrame частей `PlayerTankPrototype`.
 - `WOBGameplayServer` создает projectile parts в `Runtime/Projectiles`.
 - `WOBGameplayServer` создает VFX parts в `Runtime/VFX`.
-- `WOBGameplayServer` пишет `DummyTank.Health` Attribute.
+- `WOBGameplayServer` пишет `DummyTank.Health`.
 - `WOBGameplayServer` красит BaseParts dummy при `Health <= 0`.
-- `WOBDummyRespawnServer` пишет `DummyTank.Health` и восстанавливает цвета dummy parts.
 - `WOBPerformanceServer` меняет Lighting и отключает shadows у generated parts.
 - `WOBProjectileVisualEnhancer` добавляет trail children к projectile parts.
+- `WOBDummyRespawnServer` пишет `DummyTank.Health` и восстанавливает цвета dummy parts.
 
 ### World State -> HUD
 
@@ -542,134 +583,110 @@ StarterGui/
 - `WOBHudController` обновляется через `GetAttributeChangedSignal("Health")`.
 - `WOBHudController` показывает feedback на основе изменения здоровья.
 
-### HUD -> Server
+### Duplicated Constants
 
-- `WOBHudController` отправляет `ResetDummyRequestEvent` по клавише `R`.
-- `WOBDummyRespawnServer` принимает `ResetDummyRequestEvent` и вызывает reset dummy.
-
-### Shared constants duplicated
-
-Одни и те же или связанные значения зашиты в разных скриптах:
-
-- `SHOOT_COOLDOWN = 0.45` есть и на сервере, и в HUD.
-- `MAX_DUMMY_HEALTH = 100`, `MAX_HEALTH = 100` и default `100` для damage logic дублируют одно значение в разных скриптах.
-- `RESPAWN_DELAY = 2.25` зашит в respawn server.
-- lighting и trail constants зашиты в отдельных server scripts.
-- object names и UI names зашиты строками в скриптах.
+- `SHOOT_COOLDOWN = 0.45` есть в `WOBGameplayServer` и `WOBHudController`.
+- `MAX_DUMMY_HEALTH = 100` в HUD дублирует server default `100` в damage logic.
+- `MAX_DUMMY_HEALTH = 100`, `MAX_HEALTH = 100` и server default `100` дублируют одно значение здоровья dummy.
+- Trail constants зашиты в `WOBProjectileVisualEnhancer`.
+- Object names, remote names and UI names зашиты строками.
 
 ## Updated Mechanics Matrix
 
 | Механика | Статус | Основание |
 | --- | --- | --- |
-| Арена | Implemented | Скрипты работают с `Workspace.WOB_Generated`; столкновения идут через raycast по world geometry. Качество карты требует Play-проверки. |
-| Танк игрока | Implemented | `PlayerTankPrototype` используется сервером и клиентом; сервер вручную раскладывает `Body`, `Turret`, `Barrel`, `ShootPoint`. |
-| Движение корпуса | Implemented | `WOBClientController` отправляет throttle/steer; `WOBGameplayServer` двигает позицию и yaw корпуса. |
-| Независимая башня | Implemented | `TurretYaw` считается отдельно от `BodyYaw`, turret/barrel/shootpoint раскладываются независимо. |
-| Прицеливание | Implemented | Клиент проецирует мышь на `Y = 0` и отправляет `AimPosition`; сервер считает yaw. |
-| Выстрел | Implemented | `ShootRequestEvent`, server cooldown `0.45`, spawn из `ShootPoint`. |
-| Снаряд | Implemented | Снаряд как neon Ball Part, state table и update loop на сервере. |
+| Арена | Implemented | Скрипты работают с `Workspace.WOB_Generated`; projectile collision идет через world raycast. |
+| Танк игрока | Implemented | `PlayerTankPrototype` используется сервером и клиентом. |
+| Движение корпуса | Implemented | Client отправляет throttle/steer, server двигает `tankState.Position` и `BodyYaw`. |
+| Независимая башня | Implemented | `TurretYaw` считается отдельно от `BodyYaw`. |
+| Прицеливание | Implemented | Client проецирует мышь на `Y = 0`, server считает yaw. |
+| Выстрел | Implemented | `ShootRequestEvent`, server cooldown, spawn из `ShootPoint`. |
+| Снаряд | Implemented | Neon Ball Part, server state table and Heartbeat update. |
 | Рикошет от стен | Implemented | Raycast collision и `reflect(direction, normal)`. |
-| Лимит рикошетов | Implemented | `PROJECTILE_MAX_BOUNCES = 3`, уничтожение после превышения. |
-| Самопопадание | Missing | Raycast filter исключает `playerTank`, поэтому self-hit невозможен. |
+| Лимит рикошетов | Implemented | `PROJECTILE_MAX_BOUNCES = 3`. |
+| Самопопадание | Missing | Raycast filter исключает `playerTank`. |
 | Урон | Partially implemented | Урон наносится только `DummyTank`; player damage отсутствует. |
 | Урон по углу | Missing | Armor hitboxes раскладываются, но angle damage не используется. |
-| Здоровье | Partially implemented | `DummyTank.Health` Attribute есть; player health не найден. |
-| Смерть | Partially implemented | Dummy death затемняет части; полноценная смерть игрока отсутствует. |
-| Победа/поражение | Missing | Match state victory/defeat в snapshot не найден. |
-| Рестарт | Partially implemented | `ResetDummyRequestEvent` подтвержден: HUD отправляет, `WOBDummyRespawnServer` сбрасывает dummy. Полный restart матча, player state и runtime cleanup отсутствуют. |
-| UI здоровья | Partially implemented | Есть Dummy HP UI; player HP UI нет. |
-| UI результата | Partially implemented | Есть feedback `TARGET DESTROYED`, но нет полноценного victory/defeat UI. |
-| Бот/болванка | Implemented | `DummyTank` получает урон и имеет health feedback. AI нет, но MVP-болванка есть. |
-| Client/server разделение | Partially implemented | Input и HUD на клиенте, движение/снаряды/урон на сервере; контракты пока через hard-coded remotes и Attributes. |
-| Конфиги | Missing | Константы зашиты в Studio-скрипты, Rojo config modules отсутствуют. |
+| Здоровье | Partially implemented | Есть `DummyTank.Health`; player health не найден. |
+| Смерть | Partially implemented | Dummy death затемняет части; player death отсутствует. |
+| Победа/поражение | Missing | Match state victory/defeat не найден. |
+| Dummy respawn/reset | Partially implemented | HUD отправляет `ResetDummyRequestEvent`; `WOBDummyRespawnServer` сбрасывает `DummyTank.Health`, восстанавливает цвета и делает delayed respawn после `Health <= 0`. |
+| Рестарт | Partially implemented | Есть reset dummy, но полный restart матча, player state и runtime cleanup отсутствуют. |
+| UI здоровья | Partially implemented | Dummy HP UI есть; player HP UI нет. |
+| UI результата | Partially implemented | Feedback `TARGET DESTROYED` есть, полноценного result UI нет. |
+| Projectile visuals | Implemented | `WOBProjectileVisualEnhancer` добавляет trail; `WOBGameplayServer` создает flashes/sparks. |
+| Performance/cleanup | Partially implemented | Lighting/shadow optimization есть; runtime cleanup как отдельная система не найден. |
+| Runtime object handling | Implemented | `Projectiles` и `VFX` создаются/используются; reset runtime state отсутствует. |
+| Бот/болванка | Implemented | `DummyTank` получает урон и имеет HUD feedback. |
+| Client/server разделение | Partially implemented | Input/HUD на клиенте, movement/projectiles/damage на сервере; contracts hard-coded. |
+| Конфиги | Missing | Константы зашиты в Studio-скрипты. |
 
 ## Safe Extraction Candidates
 
-Можно выносить первыми в `src` через Rojo только как маленькие read-only модули, без подключения к gameplay до отдельной задачи и Play-проверки.
+Можно выносить первыми в `src` через Rojo только маленькими read-only модулями и без подключения к core gameplay loop до отдельной Play-проверки.
 
-### Configs
+### Configs / Constants
 
-Самый безопасный кандидат:
+Безопасные кандидаты:
 
-- `MOVE_SPEED = 34`
-- `TURN_SPEED = math.rad(115)`
-- `SHOOT_COOLDOWN = 0.45`
-- `PROJECTILE_SPEED = 160`
-- `PROJECTILE_DAMAGE = 35`
-- `PROJECTILE_MAX_BOUNCES = 3`
-- `PROJECTILE_DAMAGE_MULTIPLIER = 0.75`
-- `PROJECTILE_LIFETIME = 4`
-- `CAMERA_HEIGHT = 95`
-- `CAMERA_FIELD_OF_VIEW = 42`
-- `INPUT_SEND_INTERVAL = 0.05`
-- `MAX_DUMMY_HEALTH = 100`
-- `MAX_HEALTH = 100`
-- `RESPAWN_DELAY = 2.25`
-- `FEEDBACK_TIME = 0.8`
-- Lighting defaults: shadows, brightness, clock time, fog end, technology;
-- Trail defaults: attachment offsets, lifetime, min length, light emission, color, transparency.
+- tank: `MOVE_SPEED`, `TURN_SPEED`;
+- projectile: `SHOOT_COOLDOWN`, `PROJECTILE_SPEED`, `PROJECTILE_DAMAGE`, `PROJECTILE_MAX_BOUNCES`, `PROJECTILE_DAMAGE_MULTIPLIER`, `PROJECTILE_LIFETIME`;
+- camera: `CAMERA_HEIGHT`, `CAMERA_FIELD_OF_VIEW`, `INPUT_SEND_INTERVAL`;
+- HUD: `MAX_DUMMY_HEALTH`, `FEEDBACK_TIME`, feedback text;
+- respawn: `MAX_HEALTH`, `RESPAWN_DELAY`, dummy part colors;
+- visual: projectile colors, flash sizes/lifetimes, trail lifetime, trail color, trail transparency;
+- performance: `GlobalShadows`, `Brightness`, `ClockTime`, `FogEnd`, `Lighting.Technology`;
+- names: remote names, workspace root/folder names, model names, part names, UI names, trail child names.
 
-Рекомендуемые будущие модули:
+`RespawnConfig` теперь допустим как future safe extraction candidate, но подключать его к gameplay нельзя без отдельной задачи и Play-проверки.
 
-- `src/ReplicatedStorage/Shared/Configs/TankConfig.luau`
-- `src/ReplicatedStorage/Shared/Configs/ProjectileConfig.luau`
-- `src/ReplicatedStorage/Shared/Configs/CameraConfig.luau`
-- `src/ReplicatedStorage/Shared/Configs/HudConfig.luau`
-- `src/ReplicatedStorage/Shared/Configs/RespawnConfig.luau`
-- `src/ReplicatedStorage/Shared/Configs/VisualConfig.luau`
-
-### Constants
-
-Безопасные для выноса после config:
-
-- remote names;
-- workspace root name `WOB_Generated`;
-- folder names `Runtime`, `Projectiles`, `VFX`, `TestObjects`;
-- model names `PlayerTankPrototype`, `DummyTank`;
-- part names `Body`, `Turret`, `Barrel`, `ShootPoint`, `Hitboxes`;
-- UI names.
-- trail child names `WOBTrail`, `TrailAttachment0`, `TrailAttachment1`.
-
-### Helper utils
+### Helper Utils
 
 Относительно безопасные pure helpers:
 
 - `reflect(direction, normal)`;
 - `clamp01(value)`;
 - `getYawFromDirection(direction)`;
-- safe instance lookup helpers.
+- safe instance lookup helpers;
+- visual-only `addTrail`, если остается без gameplay effects.
 
-### UI formatting
+### UI Formatting
 
-Безопасно выносить после HUD constants:
+Безопасно выносить после constants:
 
-- формат `"Dummy HP: x / max"`;
-- формат `"Reload: READY"`;
-- формат `"Reload: N%"`;
-- feedback text constants.
+- формат `Dummy HP: x / max`;
+- формат `Reload: READY`;
+- формат `Reload: N%`;
+- feedback text/color constants.
 
-### Projectile visuals
+### Visual / Projectile Enhancer
 
-Можно выносить после configs/constants:
+Хороший ранний кандидат:
 
-- `createFlash`;
-- `createMuzzleFlash`;
-- `createImpactFlash`;
-- spark visual creation;
-- projectile color/light visual defaults.
-- `WOBProjectileVisualEnhancer.addTrail`;
-- trail visual constants.
+- trail constants;
+- attachment offsets;
+- `addTrail` helper;
+- visual-only projectile readability defaults.
 
-Важно: projectile visuals разделены между `WOBGameplayServer` и `WOBProjectileVisualEnhancer`. Safe extraction должен начинаться с visual constants и helper functions, без изменения projectile lifecycle.
+Не трогать при этом:
 
-### Performance helpers
+- projectile spawn;
+- projectile movement;
+- raycast;
+- bounce count;
+- damage.
 
-Низкорисковые кандидаты:
+### Cleanup / Performance Constants
 
-- `applyLightingProfile` constants;
+Низкий риск:
+
+- lighting defaults;
+- shadow toggle;
 - `optimizePart`;
 - `optimizeModel`;
 - `optimizeCharacter`.
+
+Риск: не подключать к gameplay loop и не менять художественный профиль без отдельной задачи.
 
 ## Dangerous Areas
 
@@ -693,21 +710,23 @@ StarterGui/
 
 ## Risks
 
-- Текущий рабочий прототип держится на hard-coded Studio hierarchy.
-- `WOBGameplayServer` является монолитом и точкой наибольшего риска.
+- Текущий прототип держится на hard-coded Studio hierarchy.
+- `WOBGameplayServer` является главным монолитом и точкой наибольшего риска.
+- `WOBDummyRespawnServer` и `WOBGameplayServer` оба завязаны на `DummyTank.Health`; изменение одного без другого может сломать reset/damage/HUD consistency.
+- Dummy reset не очищает активные снаряды и runtime state, поэтому это не полноценный restart матча.
 - HUD reload может показывать готовность локально, даже если сервер отклонил выстрел по cooldown.
-- Self-hit из GDD не реализован, но простое включение playerTank в raycast может резко изменить gameplay и должно быть отдельной задачей.
-- Armor hitboxes уже раскладываются, но не используются; их нельзя удалять, потому что они могут быть заделом под angle damage.
-- Reset/performance/extra VFX теперь понятны на уровне snapshot, но все еще завязаны на hard-coded Studio hierarchy.
+- Self-hit из GDD не реализован, но простое включение playerTank в raycast резко изменит gameplay и должно быть отдельной задачей.
+- Armor hitboxes уже раскладываются, но не используются; их нельзя удалять, потому что это задел под angle damage.
+- Performance и VFX завязаны на hard-coded `Workspace.WOB_Generated`.
 - Любой перенос в `src` с подключением к текущим Studio scripts может сломать Rojo workflow или порядок инициализации.
 
 ## Recommended Next Safe Step
 
-Следующий безопасный шаг: создать read-only config plan в документации для `TankConfig`, `ProjectileConfig`, `HudConfig`, `RespawnConfig` и `VisualConfig`, не создавая и не подключая gameplay modules. После этого отдельной задачей можно аккуратно добавить config modules в `src/ReplicatedStorage/Shared/Configs/`, но не подключать их к core gameplay loop без Play-проверки.
+Следующий безопасный шаг: создать read-only config plan в документации для `TankConfig`, `ProjectileConfig`, `HudConfig`, `RespawnConfig` и `VisualConfig`, не создавая и не подключая gameplay modules. Core gameplay loop и damage пока не трогать.
 
 Рекомендуемый коммит для текущего анализа:
 
 ```bash
-git add docs/PROJECT_AUDIT.md docs/studio_scripts_snapshot/WOBDummyRespawnServer.luau docs/studio_scripts_snapshot/WOBPerformanceServer.luau docs/studio_scripts_snapshot/WOBProjectileVisualEnhancer.luau
-git commit -m "Analyze remaining Studio script snapshots"
+git add docs/PROJECT_AUDIT.md docs/studio_scripts_snapshot/WOBDummyRespawnServer.server.luau
+git commit -m "Fix dummy respawn snapshot audit"
 ```
