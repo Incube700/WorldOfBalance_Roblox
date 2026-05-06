@@ -80,6 +80,18 @@
 
 Важно: не создавать и не подключать `GameplayConfig` как общий контейнер. Если позже понадобится `GameplayConfig`, он может содержать только global match/round values, которых сейчас в snapshot нет.
 
+### Task 00.07 — Migrate WOBPerformanceServer to Rojo ownership
+
+- Статус: подготовлено в уже Rojo-owned ветке `Server`; не добавлять mapping на Studio-owned `ServerScriptService/Services`.
+- Цель: подготовить Rojo-managed замену `WOBPerformanceServer`, которая читает значения из `PerformanceConfig`, без передачи всей Studio-папки `Services` под Rojo ownership.
+- Файлы можно трогать: `src/ServerScriptService/Server/Services/WOBPerformanceServer.server.luau`, `src/ReplicatedStorage/Shared/Configs/PerformanceConfig.luau`, `docs/CODEX_TASKS.md`.
+- Ожидаемый результат: Rojo-managed версия живет как `ServerScriptService/Server/Services/WOBPerformanceServer`, а Studio-owned папка `ServerScriptService/Services` остается нетронутой.
+- Ручной шаг перед Play test: в Roblox Studio отключить или удалить старый `ServerScriptService/Services/WOBPerformanceServer`, иначе одновременно будут работать старая Studio-owned и новая Rojo-managed версии.
+- План миграции: первый active migration идет через уже Rojo-owned `ServerScriptService/Server`; не добавлять mapping на всю Studio `ServerScriptService/Services`, пока все скрипты из нее не мигрированы отдельными задачами.
+- Критерий проверки в Roblox Studio после будущего включения: Play без ошибок; в Output один раз появляется performance message; shadows disabled; generated parts and characters keep `CastShadow = false`.
+- Риск дубля: высокий, если старый Studio-owned script останется включенным во время Play test.
+- Какой коммит сделать: `Move WOBPerformanceServer migration to Rojo Server folder`.
+
 ## Milestone 1 — Рабочая песочница
 
 ### Task 01.01 — Создать простую тестовую арену, если её нет
