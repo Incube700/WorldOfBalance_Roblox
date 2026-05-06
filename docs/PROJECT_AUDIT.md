@@ -437,6 +437,16 @@ Attributes:
 - Есть: `WASD`, server throttle/steer, clamp позиции в пределах `-58..58`.
 - Ограничение: только один `controllingPlayer`; нет PvP.
 
+### Tank Wall Blocking
+
+- Статус: Patch prepared, not active until manually pasted into Studio-owned `WOBGameplayServer`.
+- Где патч: `docs/patches/WOBGameplayServer_tank_wall_blocking.server.luau`.
+- Что меняет: перед применением новой позиции танка server-side `Blockcast` проверяет swept body box по направлению движения.
+- Какие obstacles блокируются: `Workspace/WOB_Generated/Map/RicochetWalls`, `Workspace/WOB_Generated/Map/Cover`, `Wall_North`, `Wall_South`, `Wall_East`, `Wall_West`, `RicochetWall_*`, `Cover_Block_*`.
+- Что исключается из cast: `PlayerTankPrototype`, `Runtime`, `Projectiles`, `VFX`.
+- Что не меняется: RemoteEvent contracts, WASD input, turret aim, projectile damage, projectile ricochet logic, dummy damage.
+- MVP-ограничение: при blocked movement позиция не применяется для этого кадра; sliding вдоль стены не реализован.
+
 ### Turret Aiming
 
 - Статус: Implemented.
@@ -475,6 +485,16 @@ Attributes:
 - Статус: Implemented for prototype readability.
 - Где: `WOBGameplayServer` создает muzzle/impact flashes and sparks; `WOBProjectileVisualEnhancer` добавляет projectile trails.
 - Ограничение: visual constants зашиты в Studio-скрипты.
+
+### Projectile Ground Glow / Readability
+
+- Статус: Config updated + patch prepared; active Studio-owned `WOBProjectileVisualEnhancer` must be manually replaced to enable glow.
+- Где config: `src/ReplicatedStorage/Shared/Configs/ProjectileVisualConfig.luau`.
+- Где патч: `docs/patches/WOBProjectileVisualEnhancer_ground_glow.server.luau`.
+- Новые visual-only поля: `GroundGlowEnabled`, `GroundGlowSize`, `GroundGlowTransparency`, `GroundGlowHeightOffset`, `GroundGlowColor`.
+- Что меняет: visual enhancer создает `WOBGroundGlow` под projectile, обновляет его на `RunService.Heartbeat`, и glow уничтожается вместе с projectile part.
+- Collision/raycast safety: glow uses `Anchored = true`, `CanCollide = false`, `CanTouch = false`, `CanQuery = false`; `WOBGameplayServer` projectile raycast already excludes `Runtime/Projectiles`.
+- Что не меняется: projectile speed, damage, lifetime, max ricochets, damage multiplier and ricochet raycast behavior.
 
 ### Performance / Cleanup
 
@@ -598,6 +618,7 @@ Attributes:
 | Арена | Implemented | Скрипты работают с `Workspace.WOB_Generated`; projectile collision идет через world raycast. |
 | Танк игрока | Implemented | `PlayerTankPrototype` используется сервером и клиентом. |
 | Движение корпуса | Implemented | Client отправляет throttle/steer, server двигает `tankState.Position` и `BodyYaw`. |
+| Tank wall blocking | Patch prepared | `docs/patches/WOBGameplayServer_tank_wall_blocking.server.luau` добавляет server-side `Blockcast`; нужно вручную вставить в Studio-owned `WOBGameplayServer`. |
 | Независимая башня | Implemented | `TurretYaw` считается отдельно от `BodyYaw`. |
 | Прицеливание | Implemented | Client проецирует мышь на `Y = 0`, server считает yaw. |
 | Выстрел | Implemented | `ShootRequestEvent`, server cooldown, spawn из `ShootPoint`. |
@@ -614,7 +635,7 @@ Attributes:
 | Рестарт | Partially implemented | Есть reset dummy, но полный restart матча, player state и runtime cleanup отсутствуют. |
 | UI здоровья | Partially implemented | Dummy HP UI есть; player HP UI нет. |
 | UI результата | Partially implemented | Feedback `TARGET DESTROYED` есть, полноценного result UI нет. |
-| Projectile visuals | Implemented | `WOBProjectileVisualEnhancer` добавляет trail; `WOBGameplayServer` создает flashes/sparks. |
+| Projectile visuals | Implemented + glow patch prepared | `WOBProjectileVisualEnhancer` добавляет trail; `WOBGameplayServer` создает flashes/sparks; `docs/patches/WOBProjectileVisualEnhancer_ground_glow.server.luau` добавляет visual-only ground glow. |
 | Performance/cleanup | Partially implemented | Lighting/shadow optimization есть; runtime cleanup как отдельная система не найден. |
 | Runtime object handling | Implemented | `Projectiles` и `VFX` создаются/используются; reset runtime state отсутствует. |
 | Бот/болванка | Implemented | `DummyTank` получает урон и имеет HUD feedback. |
@@ -719,14 +740,34 @@ Attributes:
 - Armor hitboxes уже раскладываются, но не используются; их нельзя удалять, потому что это задел под angle damage.
 - Performance и VFX завязаны на hard-coded `Workspace.WOB_Generated`.
 - Любой перенос в `src` с подключением к текущим Studio scripts может сломать Rojo workflow или порядок инициализации.
+- Tank blocking patch uses `Workspace:Blockcast`; проверить в Play Mode, что cast не блокируется floor/spawns and does block `RicochetWalls`/`Cover`.
+- Projectile ground glow patch requires `ReplicatedStorage.Shared.Configs.ProjectileVisualConfig` to exist via Rojo before Play.
+- Ground glow is visual-only, but проверить, что `CanQuery = false` and projectile raycast still ignores projectile visuals.
+
+## Manual Studio Patch Files
+
+Так как `WOBGameplayServer` и `WOBProjectileVisualEnhancer` остаются Studio-owned, активные скрипты в `.rbxl` не изменены автоматически.
+
+Manual apply instructions:
+
+- `docs/patches/TANK_BLOCKING_AND_PROJECTILE_GLOW_STUDIO_STEPS.md`
+
+Patch sources to paste into Roblox Studio:
+
+- `docs/patches/WOBGameplayServer_tank_wall_blocking.server.luau` -> `ServerScriptService/Services/WOBGameplayServer`
+- `docs/patches/WOBProjectileVisualEnhancer_ground_glow.server.luau` -> `ServerScriptService/Services/WOBProjectileVisualEnhancer`
+
+Rojo-owned config that should sync before Play:
+
+- `src/ReplicatedStorage/Shared/Configs/ProjectileVisualConfig.luau`
 
 ## Recommended Next Safe Step
 
-Следующий безопасный шаг: создать read-only config plan в документации для `TankConfig`, `ProjectileConfig`, `HudConfig`, `RespawnConfig` и `VisualConfig`, не создавая и не подключая gameplay modules. Core gameplay loop и damage пока не трогать.
+Следующий безопасный шаг: вручную вставить prepared patches в Studio-owned scripts, подключить Rojo, пройти Play Mode checklist, затем сохранить `.rbxl` через `File -> Save to File`, если проверка прошла.
 
-Рекомендуемый коммит для текущего анализа:
+Рекомендуемый коммит для текущей подготовки patch-файлов:
 
 ```bash
-git add docs/PROJECT_AUDIT.md docs/studio_scripts_snapshot/WOBDummyRespawnServer.server.luau
-git commit -m "Fix dummy respawn snapshot audit"
+git add docs/PROJECT_AUDIT.md docs/CODEX_TASKS.md docs/patches src/ReplicatedStorage/Shared/Configs/ProjectileVisualConfig.luau
+git commit -m "Prepare tank blocking and projectile glow patches"
 ```

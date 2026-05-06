@@ -136,6 +136,17 @@
 - Критерий проверки в Roblox Studio: игрок не может выехать за пределы тестовой карты.
 - Какой коммит сделать: `Constrain tank movement to arena`.
 
+### Task 02.04 — Prepare tank wall blocking patch for Studio-owned gameplay script
+
+- Статус: patch prepared; active `.rbxl` script still needs manual Studio paste.
+- Цель: не дать `PlayerTankPrototype` проходить через `Workspace/WOB_Generated/Map/RicochetWalls`, `Workspace/WOB_Generated/Map/Cover`, `Wall_North`, `Wall_South`, `Wall_East`, `Wall_West`, `RicochetWall_*`, `Cover_Block_*`.
+- Файлы можно трогать: `docs/patches/WOBGameplayServer_tank_wall_blocking.server.luau`, `docs/patches/TANK_BLOCKING_AND_PROJECTILE_GLOW_STUDIO_STEPS.md`, `docs/PROJECT_AUDIT.md`, `docs/CODEX_TASKS.md`.
+- Ожидаемый результат: minimal server-side movement check in `WOBGameplayServer` before applying proposed tank position; blocked direction stops movement for that frame.
+- Ручной шаг: replace `ServerScriptService/Services/WOBGameplayServer` Source in Roblox Studio with `docs/patches/WOBGameplayServer_tank_wall_blocking.server.luau`.
+- Риски: `WOBGameplayServer` remains the main monolith; `Workspace:Blockcast` must not hit floor/spawns; no sliding in MVP; do not change RemoteEvent contracts, WASD, turret aim, projectile damage, or ricochet logic.
+- Play Mode checks: WASD works; turret aims with mouse; tank cannot pass through perimeter walls, `RicochetWall_*`, or `Cover_Block_*`; Output has no movement/cast errors.
+- Какой коммит сделать: `Add tank wall blocking patch`.
+
 ## Milestone 3 — Башня и стрельба
 
 ### Task 03.01 — Добавить независимый поворот башни
@@ -259,6 +270,17 @@
 - Ожидаемый результат: игрок легко читает арену, угол башни и полет снаряда.
 - Критерий проверки в Roblox Studio: на Play без объяснений понятно, где игрок, цель, стены и снаряд.
 - Какой коммит сделать: `Improve MVP readability`.
+
+### Task 08.01a — Prepare projectile ground glow patch
+
+- Статус: config updated + patch prepared; active `.rbxl` script still needs manual Studio paste.
+- Цель: добавить visual-only glow under projectile so fast shots are easier to read in top-down camera.
+- Файлы можно трогать: `src/ReplicatedStorage/Shared/Configs/ProjectileVisualConfig.luau`, `docs/patches/WOBProjectileVisualEnhancer_ground_glow.server.luau`, `docs/patches/TANK_BLOCKING_AND_PROJECTILE_GLOW_STUDIO_STEPS.md`, `docs/PROJECT_AUDIT.md`, `docs/CODEX_TASKS.md`.
+- Ожидаемый результат: `ProjectileVisualConfig` owns `GroundGlowEnabled`, `GroundGlowSize`, `GroundGlowTransparency`, `GroundGlowHeightOffset`, `GroundGlowColor`; visual enhancer creates and follows a non-colliding `WOBGroundGlow`.
+- Ручной шаг: replace `ServerScriptService/Services/WOBProjectileVisualEnhancer` Source in Roblox Studio with `docs/patches/WOBProjectileVisualEnhancer_ground_glow.server.luau` after Rojo syncs `ProjectileVisualConfig`.
+- Риски: do not move damage/speed/max ricochets into `ProjectileVisualConfig`; glow must keep `CanQuery = false`; cleanup must stay tied to projectile visual destruction.
+- Play Mode checks: projectile flies as before; ricochets and dummy damage still work; glow is visible under projectile; glow does not block raycast; glow is removed with projectile; Output has no errors.
+- Какой коммит сделать: `Add projectile ground glow patch`.
 
 ### Task 08.02 — Проверить MVP по GDD
 
