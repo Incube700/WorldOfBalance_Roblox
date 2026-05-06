@@ -155,6 +155,24 @@ RicochetTanksPrototype.rbxl
 
 Shared не должен превращаться в папку для всего подряд.
 
+## Dependency separation
+
+Конфиги должны группироваться по будущей ответственности системы, а не по тому, где значения сейчас лежат в монолитном Studio-скрипте.
+
+Правила:
+
+- `TankConfig` отвечает за параметры танка и заметки о модели танка.
+- `WeaponConfig` отвечает за правила выстрела и выбор типа снаряда.
+- `ProjectileCatalog` отвечает за механику снарядов: скорость, урон, lifetime, лимит рикошетов и behavior type.
+- `ProjectileVisualConfig` отвечает только за визуальную читаемость снарядов и VFX.
+- `DummyRespawnConfig` отвечает за reset/respawn dummy и связанные reset colors.
+- `HudConfig` отвечает за отображение и форматирование UI.
+- `PerformanceConfig` отвечает за lighting/performance profile.
+- Projectile mechanics должны быть отделены от weapon firing и projectile visuals.
+- Server gameplay logic не должен зависеть от UI или visual configs.
+- Visual configs могут ссылаться на projectile type ids, но не должны владеть правилами damage, speed, lifetime или ricochet behavior.
+- `GameplayConfig` не используется как свалка. Если он понадобится позже, он должен содержать только global match/round values, например round duration, round start delay, round end delay и score to win.
+
 ## Правила сохранения сцены
 
 - Код из `src/` Git видит сразу.

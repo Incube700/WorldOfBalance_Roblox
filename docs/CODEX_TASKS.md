@@ -52,6 +52,32 @@
 - Критерий проверки в Roblox Studio: Rojo синхронизируется без ошибок.
 - Какой коммит сделать: `Prepare source folders for MVP`.
 
+### Task 00.04 — Prepare read-only configs
+
+- Цель: описать будущий вынос hard-coded constants без изменения поведения прототипа.
+- Файлы можно трогать: `docs/CONFIG_EXTRACTION_PLAN.md`, `docs/TECH_CONTEXT.md`, `docs/CODEX_TASKS.md`.
+- Ожидаемый результат: есть план config extraction по ответственности: `TankConfig`, `WeaponConfig`, `ProjectileCatalog`, `ProjectileVisualConfig`, `DummyRespawnConfig`, `CameraConfig`, `HudConfig`, `PerformanceConfig`.
+- Критерий проверки в Roblox Studio: не требуется, задача только документационная.
+- Какой коммит сделать: `Add config extraction plan`.
+
+### Task 00.05 — Create config modules without wiring
+
+- Цель: создать read-only ModuleScript configs в `src/ReplicatedStorage/Shared/Configs/` без подключения к Studio gameplay scripts.
+- Файлы можно трогать: только новые config modules в `src/ReplicatedStorage/Shared/Configs/` и документацию, если нужно уточнить результат.
+- Ожидаемый результат: config modules существуют, но `WOBGameplayServer`, `WOBClientController`, `WOBHudController` и другие Studio scripts еще не используют их.
+- Критерий проверки в Roblox Studio: Rojo синхронизируется без ошибок; Play behavior не меняется.
+- Какой коммит сделать: `Create read-only config modules`.
+
+### Task 00.06 — Wire first responsibility config in smallest possible slice
+
+- Цель: подключить только одну безопасную группу constants из одного responsibility config.
+- Файлы можно трогать: один выбранный config module и минимальный один потребитель, только после отдельного согласования.
+- Ожидаемый результат: поведение в Play Mode не меняется; config начинает использоваться в одном узком месте.
+- Критерий проверки в Roblox Studio: Play без ошибок, проверка именно той механики/визуала, к которой подключен config.
+- Какой коммит сделать: `Wire first config slice`.
+
+Важно: не создавать и не подключать `GameplayConfig` как общий контейнер. Если позже понадобится `GameplayConfig`, он может содержать только global match/round values, которых сейчас в snapshot нет.
+
 ## Milestone 1 — Рабочая песочница
 
 ### Task 01.01 — Создать простую тестовую арену, если её нет
