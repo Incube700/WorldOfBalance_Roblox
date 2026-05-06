@@ -429,4 +429,12 @@ Unknown dependencies to verify in Studio:
 
 ## Recommended Next Step
 
-Открыть в Roblox Studio исходники `WOBGameplayServer`, `WOBClientController`, `WOBHudController`, `WOBDummyRespawnServer`, `WOBPerformanceServer` и `WOBProjectileVisualEnhancer`, затем вручную добавить в этот аудит краткий `Script Source Notes` без изменения кода. Первый технический шаг после этого: вынести только configs/constants в `src/ReplicatedStorage/Shared/Configs` через strangler refactor, не трогая core gameplay loop.
+Manual script source snapshot:
+
+1. Открыть `RicochetTanksPrototype.rbxl` в Roblox Studio.
+2. Открыть исходники `WOBGameplayServer`, `WOBClientController`, `WOBHudController`, `WOBDummyRespawnServer`, `WOBPerformanceServer` и `WOBProjectileVisualEnhancer`.
+3. Вручную скопировать их код в `docs/studio_scripts_snapshot/` по инструкции из `docs/studio_scripts_snapshot/README.md`.
+4. Не менять оригинальные Studio-скрипты и не переносить их в `src/`.
+5. После snapshot обновить этот аудит разделом `Script Source Notes`.
+
+Первый технический шаг после анализа snapshot: вынести только configs/constants в `src/ReplicatedStorage/Shared/Configs` через strangler refactor, не трогая core gameplay loop.
