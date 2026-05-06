@@ -1,60 +1,81 @@
 # Start Here: Ricochet Tanks
 
-Ты хотел простую Roblox-идею: танк сверху, стены, снаряды с рикошетами.
+Ты делаешь простую Roblox-игру: танк сверху, стены, снаряды и рикошеты.
 
-Сейчас проект в переходном состоянии: часть кода уже лежит в `src/`, но главные игровые скрипты все еще живут внутри `.rbxl` сцены в Roblox Studio. Поэтому не все изменения автоматически видны как обычные файлы.
+Сейчас часть игры живет в Roblox Studio внутри `.rbxl`, а часть уже синкается через Rojo из `src/`. В этом спринте есть реальные видимые изменения через Rojo.
 
-## Что уже есть
+## 1. Что уже работает
 
 - Танк игрока ездит на `WASD`.
-- Башня целится мышью.
-- Танк стреляет.
-- Снаряд летит и рикошетит.
+- Башня целится мышью отдельно от корпуса.
+- Левая кнопка мыши стреляет.
+- Снаряд летит и рикошетит от стен.
 - Dummy получает урон.
-- Есть базовый HUD для dummy.
+- HUD показывает dummy HP и reload.
 
-## Чего пока не хватает
+## 2. Что видно сразу через Rojo
 
-- Танк игрока не должен проходить сквозь стены и cover.
-- Снаряд слишком быстрый и его сложно читать сверху.
-- Нет нормального player health.
-- Нет полноценной победы/поражения.
-- Нет полного restart матча.
-- Главные скрипты еще не перенесены в Rojo `src/`.
+Эти файлы лежат в mapped папке `src/StarterPlayer/StarterPlayerScripts/Client`:
 
-## Что я подготовил сейчас
+- `WOBTankDirectionIndicator.client.luau`
+- `WOBProjectileReadabilityOverlay.client.luau`
+- `WOBImpactFeedbackOverlay.client.luau`
 
-Файлы патчей:
+После `rojo serve` и `Connect` в Roblox Studio должно быть видно:
+
+- яркий индикатор направления корпуса танка;
+- подсветку под снарядом;
+- короткий pulse на bounce/hit VFX.
+
+Для этого не нужно менять `.rbxl` вручную.
+
+## 3. Что требует ручной вставки patch
+
+Танк все еще проходит сквозь стены, потому что `WOBGameplayServer` пока Studio-owned внутри `.rbxl`.
+
+Для wall blocking нужен ручной patch:
 
 - `docs/patches/WOBGameplayServer_tank_wall_blocking.server.luau`
-- `docs/patches/WOBProjectileVisualEnhancer_ground_glow.server.luau`
 
-Config для glow:
+Куда вставить:
 
-- `src/ReplicatedStorage/Shared/Configs/ProjectileVisualConfig.luau`
+1. Roblox Studio.
+2. `ServerScriptService/Services/WOBGameplayServer`.
+3. Заменить весь Source на содержимое patch-файла.
 
-## Что сделать вручную в Roblox Studio
+Подробнее:
 
-1. Открой `ServerScriptService/Services/WOBGameplayServer`.
-2. Замени весь Source на содержимое:
-   `docs/patches/WOBGameplayServer_tank_wall_blocking.server.luau`
-3. Открой `ServerScriptService/Services/WOBProjectileVisualEnhancer`.
-4. Замени весь Source на содержимое:
-   `docs/patches/WOBProjectileVisualEnhancer_ground_glow.server.luau`
-5. Нажми Play и проверь:
-   - танк ездит;
-   - башня целится;
-   - танк не проходит через стены/cover;
-   - снаряд рикошетит как раньше;
-   - под снарядом видна подсветка;
-   - в Output нет ошибок.
+- `docs/patches/README_VISIBLE_SPRINT.md`
 
-## Самый простой следующий план
+## 4. Что проверить в Play Mode
 
-1. Сначала добиться, чтобы танк не проходил сквозь стены.
-2. Потом сделать снаряд читаемым.
-3. Потом добавить здоровье игрока.
-4. Потом добавить победу/поражение.
-5. Потом уже переносить большие Studio-скрипты в `src/`.
+Сначала Rojo-visible часть:
 
-Не надо сейчас переписывать весь проект. Двигаемся маленькими кусками.
+- Танк ездит как раньше.
+- Башня целится мышью отдельно.
+- Перед корпусом виден direction marker.
+- Снаряд летит как раньше.
+- Под снарядом видна подсветка.
+- Рикошеты работают.
+- Dummy получает урон.
+- Bounce/hit стали заметнее.
+- В Output нет ошибок.
+
+После ручного wall blocking patch:
+
+- Танк не проходит через `Wall_North`, `Wall_South`, `Wall_East`, `Wall_West`.
+- Танк не проходит через `RicochetWall_*`.
+- Танк не проходит через `Cover_Block_*`.
+- WASD, mouse aim, shooting, ricochet, dummy damage and HUD still work.
+
+## 5. Порядок работы
+
+1. Запусти `rojo serve`.
+2. Подключи Rojo plugin в Studio.
+3. Проверь visible scripts: direction marker, projectile glow, impact pulse.
+4. Если это работает, вставь wall blocking patch в `WOBGameplayServer`.
+5. Проверь Play Mode checklist.
+6. Если patch применен вручную и все работает, сохрани сцену через `File -> Save to File`.
+7. Потом делай коммит.
+
+Не надо сейчас переписывать весь проект. Этот sprint только про видимость и базовую блокировку стен.
