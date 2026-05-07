@@ -171,9 +171,11 @@
 
 ## Next Milestone — Player HP / Damage / Win-Lose-Restart
 
-- Статус: следующий gameplay milestone после ручной проверки tank wall blocking и безопасной Rojo migration подготовки; не реализовывать в задаче migration.
-- Scope: player health, projectile damage to player, win/lose state, restart flow.
-- Риски: не смешивать с wall blocking, не менять projectile ricochet rules без отдельной задачи, не добавлять state machine раньше согласованного шага.
+- Статус: first code slice implemented in Rojo-managed `WOBGameplayServer` + `WOBRoundStatusOverlay`.
+- Scope: player health attributes, ricochet self-hit player damage after first bounce, win/lose attributes, R reset through existing `ResetDummyRequestEvent`.
+- Play Mode checks: one active `WOBGameplayServer`; Player HP visible; dummy death shows WIN; player death shows LOSE; R resets player/dummy HP and round result.
+- TODO: tune self-hit grace/rules later; no angle damage, PvP, or full state machine yet.
+- Какой коммит сделать: `Add player health and round result loop`.
 
 ## Milestone 3 — Башня и стрельба
 

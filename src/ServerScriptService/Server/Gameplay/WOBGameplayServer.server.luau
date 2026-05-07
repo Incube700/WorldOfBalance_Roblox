@@ -10,6 +10,7 @@ local Debris = game:GetService("Debris")
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local tankInputEvent = remotes:WaitForChild("TankInputEvent")
 local shootRequestEvent = remotes:WaitForChild("ShootRequestEvent")
+local resetDummyRequestEvent = remotes:WaitForChild("ResetDummyRequestEvent")
 
 local root = Workspace:WaitForChild("WOB_Generated")
 local runtime = root:WaitForChild("Runtime")
@@ -48,6 +49,19 @@ local PROJECTILE_MAX_BOUNCES = 3
 local PROJECTILE_DAMAGE_MULTIPLIER = 0.75
 local PROJECTILE_LIFETIME = 4
 
+local MAX_PLAYER_HEALTH = 100
+local MAX_DUMMY_HEALTH = 100
+local ROUND_RESULT_PLAYING = "Playing"
+local ROUND_RESULT_WIN = "Win"
+local ROUND_RESULT_LOSE = "Lose"
+
+local PLAYER_INITIAL_POSITION = Vector3.new(-42, 0, -42)
+local PLAYER_INITIAL_BODY_YAW = math.rad(0)
+local PLAYER_INITIAL_TURRET_YAW = math.rad(0)
+local DUMMY_INITIAL_POSITION = Vector3.new(42, 0, 42)
+local DUMMY_INITIAL_BODY_YAW = math.rad(180)
+local DUMMY_INITIAL_TURRET_YAW = math.rad(180)
+
 local TANK_MOVEMENT_CAST_PADDING = -0.25
 local TANK_MOVEMENT_CAST_HEIGHT = 1.4
 local TANK_MOVEMENT_CAST_Y_OFFSET = 2
@@ -61,10 +75,15 @@ local inputByPlayer = {}
 local projectiles = {}
 local lastWallBlockPrintTime = 0
 
+local roundState = {
+	Ended = false,
+	Result = ROUND_RESULT_PLAYING,
+}
+
 local tankState = {
-	Position = Vector3.new(-42, 0, -42),
-	BodyYaw = math.rad(0),
-	TurretYaw = math.rad(0),
+	Position = PLAYER_INITIAL_POSITION,
+	BodyYaw = PLAYER_INITIAL_BODY_YAW,
+	TurretYaw = PLAYER_INITIAL_TURRET_YAW,
 }
 
 local function setPartPhysics(model)
@@ -79,6 +98,59 @@ end
 
 setPartPhysics(playerTank)
 setPartPhysics(dummyTank)
+
+local function capturePartColors(model)
+	local colorsByPart = {}
+
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			colorsByPart[descendant] = descendant.Color
+		end
+	end
+
+	return colorsByPart
+end
+
+local playerTankPartColors = capturePartColors(playerTank)
+local dummyTankPartColors = capturePartColors(dummyTank)
+
+local function restorePartColors(colorsByPart)
+	for part, color in pairs(colorsByPart) do
+		if part.Parent ~= nil then
+			part.Color = color
+		end
+	end
+end
+
+local function darkenTank(model)
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			descendant.Color = Color3.fromRGB(30, 30, 30)
+		end
+	end
+end
+
+local function setTankHealthAttributes(tank, health)
+	tank:SetAttribute("MaxHealth", health)
+	tank:SetAttribute("Health", health)
+	tank:SetAttribute("IsDead", false)
+end
+
+local function setRoundResult(result)
+	roundState.Result = result
+	roundState.Ended = result ~= ROUND_RESULT_PLAYING
+
+	root:SetAttribute("RoundResult", result)
+	root:SetAttribute("RoundEnded", roundState.Ended)
+end
+
+local function resetCombatAttributes()
+	setTankHealthAttributes(playerTank, MAX_PLAYER_HEALTH)
+	setTankHealthAttributes(dummyTank, MAX_DUMMY_HEALTH)
+	setRoundResult(ROUND_RESULT_PLAYING)
+end
+
+resetCombatAttributes()
 
 local function setCharacterHidden(character)
 	for _, descendant in ipairs(character:GetDescendants()) do
@@ -435,7 +507,7 @@ local function layoutTank(tank, position, bodyYaw, turretYaw)
 end
 
 layoutTank(playerTank, tankState.Position, tankState.BodyYaw, tankState.TurretYaw)
-layoutTank(dummyTank, Vector3.new(42, 0, 42), math.rad(180), math.rad(180))
+layoutTank(dummyTank, DUMMY_INITIAL_POSITION, DUMMY_INITIAL_BODY_YAW, DUMMY_INITIAL_TURRET_YAW)
 
 local function createFlash(position, color, size, lifetime)
 	local flash = Instance.new("Part")
@@ -519,24 +591,85 @@ local function destroyProjectile(projectile)
 	projectile.Destroyed = true
 end
 
-local function damageDummy(amount)
-	local currentHealth = dummyTank:GetAttribute("Health") or 100
+local function destroyAllProjectiles()
+	for i = #projectiles, 1, -1 do
+		destroyProjectile(projectiles[i])
+		table.remove(projectiles, i)
+	end
+end
+
+local function endRound(result)
+	if roundState.Ended then
+		return
+	end
+
+	setRoundResult(result)
+
+	print("[ROUND] " .. result)
+end
+
+local function resetRound()
+	destroyAllProjectiles()
+
+	tankState.Position = PLAYER_INITIAL_POSITION
+	tankState.BodyYaw = PLAYER_INITIAL_BODY_YAW
+	tankState.TurretYaw = PLAYER_INITIAL_TURRET_YAW
+
+	restorePartColors(playerTankPartColors)
+	restorePartColors(dummyTankPartColors)
+	resetCombatAttributes()
+
+	layoutTank(playerTank, tankState.Position, tankState.BodyYaw, tankState.TurretYaw)
+	layoutTank(dummyTank, DUMMY_INITIAL_POSITION, DUMMY_INITIAL_BODY_YAW, DUMMY_INITIAL_TURRET_YAW)
+
+	print("[ROUND] reset")
+end
+
+local function applyDamageToTank(tank, tankName, maxHealth, amount)
+	if roundState.Ended or tank:GetAttribute("IsDead") == true then
+		return false
+	end
+
+	local currentHealth = tank:GetAttribute("Health") or maxHealth
 	local newHealth = math.max(0, currentHealth - amount)
 
-	dummyTank:SetAttribute("Health", newHealth)
+	tank:SetAttribute("Health", newHealth)
 
-	print("[DAMAGE] DummyTank -" .. math.floor(amount) .. " HP: " .. math.floor(currentHealth) .. " -> " .. math.floor(newHealth))
+	print("[DAMAGE] " .. tankName .. " -" .. math.floor(amount) .. " HP: " .. math.floor(currentHealth) .. " -> " .. math.floor(newHealth))
+
+	if newHealth > 0 then
+		return true
+	end
+
+	tank:SetAttribute("IsDead", true)
+	darkenTank(tank)
+
+	print("[DEAD] " .. tankName .. " destroyed")
+
+	return true
+end
+
+local function damageDummy(amount)
+	if not applyDamageToTank(dummyTank, "DummyTank", MAX_DUMMY_HEALTH, amount) then
+		return
+	end
 
 	createImpactFlash(dummyBody.Position + Vector3.new(0, 3, 0))
 
-	if newHealth <= 0 then
-		print("[DEAD] DummyTank destroyed")
+	if dummyTank:GetAttribute("IsDead") == true then
+		endRound(ROUND_RESULT_WIN)
+	end
+end
 
-		for _, descendant in ipairs(dummyTank:GetDescendants()) do
-			if descendant:IsA("BasePart") then
-				descendant.Color = Color3.fromRGB(30, 30, 30)
-			end
-		end
+local function damagePlayer(amount)
+	if not applyDamageToTank(playerTank, "PlayerTankPrototype", MAX_PLAYER_HEALTH, amount) then
+		return
+	end
+
+	createImpactFlash(body.Position + Vector3.new(0, 3, 0))
+
+	if playerTank:GetAttribute("IsDead") == true then
+		endRound(ROUND_RESULT_LOSE)
 	end
 end
 
@@ -556,11 +689,16 @@ local function createProjectile(owner, origin, direction)
 		MaxLifeTime = PROJECTILE_LIFETIME,
 		Part = projectilePart,
 		Destroyed = false,
+		CanHitOwner = false,
 	}
 
 	table.insert(projectiles, projectile)
 	createMuzzleFlash(origin)
 end
+
+resetDummyRequestEvent.OnServerEvent:Connect(function()
+	resetRound()
+end)
 
 tankInputEvent.OnServerEvent:Connect(function(player, inputData)
 	if player ~= controllingPlayer then
@@ -592,6 +730,10 @@ shootRequestEvent.OnServerEvent:Connect(function(player, aimPosition)
 	end
 
 	if typeof(aimPosition) ~= "Vector3" then
+		return
+	end
+
+	if roundState.Ended then
 		return
 	end
 
@@ -663,12 +805,17 @@ local function updateProjectiles(deltaTime)
 		end
 
 		local distance = projectile.Speed * deltaTime
-		local raycastParams = RaycastParams.new()
-		raycastParams.FilterDescendantsInstances = {
+		local raycastExclusions = {
 			projectileFolder,
 			vfxFolder,
-			playerTank,
 		}
+
+		if not projectile.CanHitOwner then
+			table.insert(raycastExclusions, playerTank)
+		end
+
+		local raycastParams = RaycastParams.new()
+		raycastParams.FilterDescendantsInstances = raycastExclusions
 		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
 		raycastParams.IgnoreWater = true
 
@@ -687,6 +834,10 @@ local function updateProjectiles(deltaTime)
 				damageDummy(projectile.Damage)
 				destroyProjectile(projectile)
 				table.remove(projectiles, i)
+			elseif hitInstance:IsDescendantOf(playerTank) then
+				damagePlayer(projectile.Damage)
+				destroyProjectile(projectile)
+				table.remove(projectiles, i)
 			else
 				createImpactFlash(hitPosition)
 
@@ -698,6 +849,7 @@ local function updateProjectiles(deltaTime)
 					projectile.Position = hitPosition + projectile.Direction * 0.35
 					projectile.BounceCount += 1
 					projectile.Damage *= projectile.DamageMultiplierPerBounce
+					projectile.CanHitOwner = true
 
 					print("[BOUNCE] count=" .. projectile.BounceCount .. " damage=" .. math.floor(projectile.Damage))
 				end
