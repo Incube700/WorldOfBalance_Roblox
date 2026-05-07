@@ -45,11 +45,12 @@ local PROJECTILE_MAX_BOUNCES = 3
 local PROJECTILE_DAMAGE_MULTIPLIER = 0.75
 local PROJECTILE_LIFETIME = 4
 
-local TANK_MOVEMENT_CAST_PADDING = 0.45
+local TANK_MOVEMENT_CAST_PADDING = -0.25
 local TANK_MOVEMENT_CAST_HEIGHT = 1.4
 local TANK_MOVEMENT_CAST_Y_OFFSET = 2
 local TANK_MOVEMENT_EPSILON = 0.03
-local WALL_BLOCK_PRINT_INTERVAL = 0.35
+local TANK_UNSTICK_DISTANCE_EPSILON = 0.02
+local WALL_BLOCK_PRINT_INTERVAL = 0.5
 
 local controllingPlayer = nil
 local lastShotTimeByPlayer = {}
@@ -214,14 +215,36 @@ end
 
 local function getTankMovementCastSize()
 	return Vector3.new(
-		body.Size.X + TANK_MOVEMENT_CAST_PADDING,
+		math.max(1, body.Size.X + TANK_MOVEMENT_CAST_PADDING),
 		TANK_MOVEMENT_CAST_HEIGHT,
-		body.Size.Z + TANK_MOVEMENT_CAST_PADDING
+		math.max(1, body.Size.Z + TANK_MOVEMENT_CAST_PADDING)
 	)
 end
 
 local function getTankMovementCastCFrame(position, bodyYaw)
 	return CFrame.new(position + Vector3.new(0, TANK_MOVEMENT_CAST_Y_OFFSET, 0)) * CFrame.Angles(0, bodyYaw, 0)
+end
+
+local function getFlatSeparationSquaredFromPart(position, obstaclePart)
+	local localPoint = obstaclePart.CFrame:PointToObjectSpace(Vector3.new(position.X, obstaclePart.Position.Y, position.Z))
+	local halfSize = obstaclePart.Size * 0.5
+	local clampedX = math.clamp(localPoint.X, -halfSize.X, halfSize.X)
+	local clampedZ = math.clamp(localPoint.Z, -halfSize.Z, halfSize.Z)
+	local deltaX = localPoint.X - clampedX
+	local deltaZ = localPoint.Z - clampedZ
+
+	return deltaX * deltaX + deltaZ * deltaZ
+end
+
+local function isMovementAwayFromObstacle(fromPosition, movement, obstaclePart)
+	if obstaclePart == nil then
+		return false
+	end
+
+	local beforeDistance = getFlatSeparationSquaredFromPart(fromPosition, obstaclePart)
+	local afterDistance = getFlatSeparationSquaredFromPart(fromPosition + movement, obstaclePart)
+
+	return afterDistance >= beforeDistance - TANK_UNSTICK_DISTANCE_EPSILON
 end
 
 local function findTankBlockcastObstacle(fromPosition, bodyYaw, movement)
@@ -296,16 +319,73 @@ local function isTankMovementBlocked(fromPosition, bodyYaw, movement)
 	local blockcastObstacle = findTankBlockcastObstacle(fromPosition, bodyYaw, movement)
 
 	if blockcastObstacle ~= nil then
+		if isMovementAwayFromObstacle(fromPosition, movement, blockcastObstacle) then
+			return false, nil
+		end
+
 		return true, blockcastObstacle
 	end
 
 	local overlapObstacle = findTankOverlapObstacle(fromPosition + movement, bodyYaw)
 
 	if overlapObstacle ~= nil then
+		local currentOverlapObstacle = findTankOverlapObstacle(fromPosition, bodyYaw)
+
+		if currentOverlapObstacle == overlapObstacle
+			and isMovementAwayFromObstacle(fromPosition, movement, overlapObstacle)
+		then
+			return false, nil
+		end
+
 		return true, overlapObstacle
 	end
 
 	return false, nil
+end
+
+local function clampTankPosition(position)
+	return Vector3.new(
+		math.clamp(position.X, -58, 58),
+		0,
+		math.clamp(position.Z, -58, 58)
+	)
+end
+
+local function resolveTankMovement(fromPosition, bodyYaw, desiredMove)
+	local fullMove = clampTankPosition(fromPosition + desiredMove) - fromPosition
+	local fullBlocked, fullBlockingPart = isTankMovementBlocked(fromPosition, bodyYaw, fullMove)
+
+	if not fullBlocked then
+		return fromPosition + fullMove, nil
+	end
+
+	local xMove = Vector3.new(fullMove.X, 0, 0)
+	local xBlockingPart = nil
+
+	if xMove.Magnitude > TANK_MOVEMENT_EPSILON then
+		local xBlocked
+		xBlocked, xBlockingPart = isTankMovementBlocked(fromPosition, bodyYaw, xMove)
+
+		if not xBlocked then
+			return fromPosition + xMove, nil
+		end
+	end
+
+	local zMove = Vector3.new(0, 0, fullMove.Z)
+	local zBlockingPart = nil
+
+	if zMove.Magnitude <= TANK_MOVEMENT_EPSILON then
+		return fromPosition, xBlockingPart or fullBlockingPart
+	end
+
+	local zBlocked
+	zBlocked, zBlockingPart = isTankMovementBlocked(fromPosition, bodyYaw, zMove)
+
+	if not zBlocked then
+		return fromPosition + zMove, nil
+	end
+
+	return fromPosition, zBlockingPart or xBlockingPart or fullBlockingPart
 end
 
 local function layoutTank(tank, position, bodyYaw, turretYaw)
@@ -547,25 +627,13 @@ local function updateTank(deltaTime)
 	local bodyCFrame = CFrame.new(tankState.Position) * CFrame.Angles(0, tankState.BodyYaw, 0)
 	local forward = bodyCFrame.LookVector
 
-	local movement = forward * input.Throttle * MOVE_SPEED * deltaTime
-	local proposedPosition = tankState.Position + movement
+	local desiredMove = forward * input.Throttle * MOVE_SPEED * deltaTime
+	local resolvedPosition, blockingPart = resolveTankMovement(tankState.Position, tankState.BodyYaw, desiredMove)
 
-	proposedPosition = Vector3.new(
-		math.clamp(proposedPosition.X, -58, 58),
-		0,
-		math.clamp(proposedPosition.Z, -58, 58)
-	)
-
-	local isBlocked, blockingPart = isTankMovementBlocked(
-		tankState.Position,
-		tankState.BodyYaw,
-		proposedPosition - tankState.Position
-	)
-
-	if isBlocked then
+	if blockingPart ~= nil then
 		printTankMovementBlocked(blockingPart)
 	else
-		tankState.Position = proposedPosition
+		tankState.Position = resolvedPosition
 	end
 
 	local aimDirection = input.AimPosition - tankState.Position

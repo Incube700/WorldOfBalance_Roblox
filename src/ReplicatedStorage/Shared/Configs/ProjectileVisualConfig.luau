@@ -14,10 +14,10 @@ local ProjectileVisualConfig = table.freeze({
 			}),
 
 			GroundGlowEnabled = true,
-			GroundGlowSize = Vector3.new(3.6, 0.08, 3.6),
-			GroundGlowTransparency = 0.42,
-			GroundGlowHeightOffset = 0.08,
-			GroundGlowColor = Color3.fromRGB(255, 180, 70),
+			GroundGlowSize = Vector3.new(2.8, 0.06, 2.8),
+			GroundGlowTransparency = 0.58,
+			GroundGlowHeightOffset = 0.09,
+			GroundGlowColor = Color3.fromRGB(255, 205, 105),
 
 			Trail = table.freeze({
 				Name = "WOBTrail",

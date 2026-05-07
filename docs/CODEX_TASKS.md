@@ -136,20 +136,42 @@
 - Критерий проверки в Roblox Studio: игрок не может выехать за пределы тестовой карты.
 - Какой коммит сделать: `Constrain tank movement to arena`.
 
-### Task 02.04 — Finalize tank wall blocking patch for Studio-owned gameplay script
+### Task 02.04 — Improve tank wall blocking unstuck behavior
 
-- Статус: текущий milestone; full-source patch подготовлен, active `.rbxl` script still needs manual Studio paste.
+- Статус: текущий milestone; Wall Blocking V1 блокирует стены, но имеет sticky-wall issue при плотном контакте; V2 patch подготовлен, active `.rbxl` script still needs manual Studio paste.
 - Цель: не дать `PlayerTankPrototype` проходить через `Workspace/WOB_Generated/Map/RicochetWalls`, `Workspace/WOB_Generated/Map/Cover`, `Wall_North`, `Wall_South`, `Wall_East`, `Wall_West`, `RicochetWall_*`, `Cover_Block_*`.
 - Файлы можно трогать: `docs/patches/WOBGameplayServer_tank_wall_blocking.server.luau`, `docs/patches/README_VISIBLE_SPRINT.md`, `docs/PROJECT_AUDIT.md`, `docs/CODEX_TASKS.md`.
-- Ожидаемый результат: minimal server-side movement check in `WOBGameplayServer` before applying proposed tank position; blocked direction stops movement for that frame; fallback overlap check prevents passing through walls if `Blockcast` misses.
+- Ожидаемый результат: minimal server-side movement check in `WOBGameplayServer` before applying proposed tank position; full movement is tried first, then X-only, then Z-only, then stop; fallback overlap check prevents passing through walls if `Blockcast` misses.
 - Ручной шаг: replace `ServerScriptService/Services/WOBGameplayServer` Source in Roblox Studio with `docs/patches/WOBGameplayServer_tank_wall_blocking.server.luau`.
-- Риски: `WOBGameplayServer` remains the main monolith; `Workspace:Blockcast` must not hit floor/spawns; overlap box must not be too large; no sliding in MVP; do not change RemoteEvent contracts, WASD, turret aim, projectile damage, or ricochet logic.
-- Play Mode checks: WASD works; tank rotates; turret aims with mouse; tank cannot pass through perimeter walls, `RicochetWall_*`, or `Cover_Block_*`; tank does not start stuck; projectile still flies/ricochets; dummy damage and HUD still work; Output has no red errors.
-- Какой коммит сделать: `Finalize tank wall blocking patch`.
+- Риски: `WOBGameplayServer` remains the main monolith; `Workspace:Blockcast` must not hit floor/spawns; overlap box must not be too large; V2 is axis fallback rather than full physics sliding; do not change RemoteEvent contracts, WASD, turret aim, projectile damage, or ricochet logic.
+- Play Mode checks: WASD works; tank rotates; turret aims with mouse; tank cannot pass through perimeter walls, `RicochetWall_*`, or `Cover_Block_*`; tank can reverse away from wall contact; tank can turn near walls; projectile still flies/ricochets; dummy damage and HUD still work; Output has no red errors and `[WALL]` debug is not noisy.
+- Какой коммит сделать: `Improve tank wall blocking unstuck behavior`.
+
+## Milestone 2.5 — Migrate WOBGameplayServer to Rojo Ownership
+
+### Task 02.50 — Add WOBGameplayServer Rojo migration plan
+
+- Статус: planning step.
+- Цель: описать безопасный путь отказа от ручной вставки patch-кода в Studio-owned `ServerScriptService/Services/WOBGameplayServer`.
+- Файлы можно трогать: `docs/WOBGAMEPLAYSERVER_ROJO_MIGRATION_PLAN.md`, `docs/CODEX_TASKS.md`.
+- Ожидаемый результат: есть понятный план, почему migration нужна, какие риски у duplicate server scripts, как использовать уже существующий Rojo mapping `src/ServerScriptService/Server`, и что все еще требует manual `File -> Save to File`.
+- Критерий проверки в Roblox Studio: не требуется, задача только документационная.
+- Какой коммит сделать: `Add WOBGameplayServer Rojo migration plan`.
+
+### Task 02.51 — Prepare WOBGameplayServer Rojo-managed replacement, without enabling duplicate
+
+- Статус: следующая безопасная задача после planning step.
+- Цель: создать replacement в уже Rojo-owned зоне, чтобы будущий gameplay-код менялся через Git/Rojo, а не через manual Source paste.
+- Предпочтительный путь: `src/ServerScriptService/Server/Gameplay/WOBGameplayServer.server.luau`.
+- Файлы можно трогать: `src/ServerScriptService/Server/Gameplay/WOBGameplayServer.server.luau`, optional Rojo meta file for disabled startup, docs with manual switch steps.
+- Запрещено: менять `.rbxl`, менять `default.project.json`, включать два `WOBGameplayServer`, мигрировать всю `ServerScriptService/Services`, рефакторить gameplay monolith одновременно с migration.
+- Ручной шаг после подготовки: в Studio отключить старый `ServerScriptService/Services/WOBGameplayServer`, включить Rojo-managed replacement, выполнить Play Mode test, затем один раз `File -> Save to File`.
+- Play Mode checks: ровно один `[WOB] Gameplay server started`; WASD, turret aim, shoot, ricochet, dummy damage, wall blocking and HUD still work; Output has no duplicate event behavior or red errors.
+- Какой коммит сделать: `Prepare WOBGameplayServer Rojo replacement`.
 
 ## Next Milestone — Player HP / Damage / Win-Lose-Restart
 
-- Статус: следующий milestone после ручной проверки tank wall blocking; не реализовывать в задаче wall blocking.
+- Статус: следующий gameplay milestone после ручной проверки tank wall blocking и безопасной Rojo migration подготовки; не реализовывать в задаче migration.
 - Scope: player health, projectile damage to player, win/lose state, restart flow.
 - Риски: не смешивать с wall blocking, не менять projectile ricochet rules без отдельной задачи, не добавлять state machine раньше согласованного шага.
 
