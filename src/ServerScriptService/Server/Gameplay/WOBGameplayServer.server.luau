@@ -57,7 +57,13 @@ local shootPoint = playerTank:WaitForChild("ShootPoint")
 local hitboxes = playerTank:WaitForChild("Hitboxes")
 
 local dummyBody = dummyTank:WaitForChild("Body")
+local dummyTurret = dummyTank:WaitForChild("Turret")
+local dummyBarrel = dummyTank:WaitForChild("Barrel")
+local dummyShootPoint = dummyTank:WaitForChild("ShootPoint")
 local dummyHitboxes = dummyTank:WaitForChild("Hitboxes")
+
+local MAX_PLAYER_HEALTH = 100
+local MAX_DUMMY_HEALTH = 100
 
 local armorHitboxNames = {
 	FrontArmor = true,
@@ -66,27 +72,92 @@ local armorHitboxNames = {
 	RightArmor = true,
 }
 
-local function isArmorHitbox(instance)
-	return instance ~= nil
-		and instance:IsA("BasePart")
-		and armorHitboxNames[instance.Name] == true
-		and (instance:IsDescendantOf(hitboxes) or instance:IsDescendantOf(dummyHitboxes))
+local tankParticipants = {}
+local tankParticipantsById = {}
+local tankParticipantsByModel = {}
+
+local function registerTankParticipant(participant)
+	table.insert(tankParticipants, participant)
+	tankParticipantsById[participant.TankId] = participant
+	tankParticipantsByModel[participant.Model] = participant
+
+	return participant
 end
 
-local function getTankFromArmorHitbox(hitInstance)
-	if not isArmorHitbox(hitInstance) then
+local playerParticipant = registerTankParticipant({
+	TankId = "PlayerTankPrototype",
+	Model = playerTank,
+	Body = body,
+	Turret = turret,
+	Barrel = barrel,
+	ShootPoint = shootPoint,
+	Hitboxes = hitboxes,
+	OwnerPlayer = nil,
+	OwnerUserId = nil,
+	TeamId = "Player",
+	IsBot = false,
+	SpawnName = "PlayerSpawn",
+	SpawnTransform = nil,
+	WeaponTypeId = primaryWeaponConfig.Id,
+	WeaponConfig = primaryWeaponConfig,
+	LastShotTime = 0,
+	WeaponReadyAt = 0,
+	Health = MAX_PLAYER_HEALTH,
+	MaxHealth = MAX_PLAYER_HEALTH,
+	DefaultMaxHealth = MAX_PLAYER_HEALTH,
+	IsDead = false,
+})
+
+local dummyParticipant = registerTankParticipant({
+	TankId = "DummyTank",
+	Model = dummyTank,
+	Body = dummyBody,
+	Turret = dummyTurret,
+	Barrel = dummyBarrel,
+	ShootPoint = dummyShootPoint,
+	Hitboxes = dummyHitboxes,
+	OwnerPlayer = nil,
+	OwnerUserId = nil,
+	TeamId = "Dummy",
+	IsBot = true,
+	SpawnName = "DummySpawn",
+	SpawnTransform = nil,
+	WeaponTypeId = primaryWeaponConfig.Id,
+	WeaponConfig = primaryWeaponConfig,
+	LastShotTime = 0,
+	WeaponReadyAt = 0,
+	Health = MAX_DUMMY_HEALTH,
+	MaxHealth = MAX_DUMMY_HEALTH,
+	DefaultMaxHealth = MAX_DUMMY_HEALTH,
+	IsDead = false,
+})
+
+local function getParticipantFromModel(model)
+	return tankParticipantsByModel[model]
+end
+
+local function getParticipantFromArmorHitbox(hitInstance)
+	if hitInstance == nil
+		or not hitInstance:IsA("BasePart")
+		or armorHitboxNames[hitInstance.Name] ~= true
+	then
 		return nil
 	end
 
-	if hitInstance:IsDescendantOf(hitboxes) then
-		return playerTank
-	end
+	local participant = getParticipantFromModel(hitInstance:FindFirstAncestorWhichIsA("Model"))
 
-	if hitInstance:IsDescendantOf(dummyHitboxes) then
-		return dummyTank
+	if participant ~= nil
+		and participant.Hitboxes ~= nil
+		and hitInstance:IsDescendantOf(participant.Hitboxes)
+	then
+		return participant
 	end
 
 	return nil
+end
+
+local function isArmorHitbox(instance)
+	return getParticipantFromArmorHitbox(instance) ~= nil
 end
 
 local function getArmorZoneFromHitbox(hitInstance)
@@ -129,8 +200,6 @@ local FRONT_ARMOR_COLOR = TANK_ARMOR.FrontArmorColor or Color3.fromRGB(80, 255, 
 local REAR_ARMOR_COLOR = TANK_ARMOR.RearArmorColor or Color3.fromRGB(255, 90, 90)
 local SIDE_ARMOR_COLOR = TANK_ARMOR.SideArmorColor or Color3.fromRGB(255, 220, 80)
 
-local MAX_PLAYER_HEALTH = 100
-local MAX_DUMMY_HEALTH = 100
 local ROUND_RESULT_PLAYING = "Playing"
 local ROUND_RESULT_WIN = "Win"
 local ROUND_RESULT_LOSE = "Lose"
@@ -288,7 +357,6 @@ local function getArmorHitboxMaterial()
 end
 
 local controllingPlayer = nil
-local lastShotTimeByPlayer = {}
 local inputByPlayer = {}
 local projectiles = {}
 local lastWallBlockPrintTime = 0
@@ -308,6 +376,7 @@ local matchState = {
 }
 
 local initialPlayerSpawnState = getPlayerSpawnTransform()
+playerParticipant.SpawnTransform = initialPlayerSpawnState
 
 local tankState = {
 	Position = initialPlayerSpawnState.Position,
@@ -365,10 +434,50 @@ local function darkenTank(model)
 	end
 end
 
-local function setTankHealthAttributes(tank, health)
-	tank:SetAttribute("MaxHealth", health)
-	tank:SetAttribute("Health", health)
-	tank:SetAttribute("IsDead", false)
+local function getParticipantMaxHealth(participant)
+	local maxHealth = participant.Model:GetAttribute("MaxHealth")
+
+	if typeof(maxHealth) == "number" then
+		participant.MaxHealth = maxHealth
+		return maxHealth
+	end
+
+	return participant.MaxHealth
+end
+
+local function getParticipantHealth(participant)
+	local health = participant.Model:GetAttribute("Health")
+
+	if typeof(health) == "number" then
+		participant.Health = health
+		return health
+	end
+
+	return participant.Health or getParticipantMaxHealth(participant)
+end
+
+local function setParticipantHealth(participant, health)
+	participant.Health = health
+	participant.Model:SetAttribute("Health", health)
+end
+
+local function getParticipantIsDead(participant)
+	local isDead = participant.Model:GetAttribute("IsDead") == true
+	participant.IsDead = isDead
+
+	return isDead
+end
+
+local function setParticipantIsDead(participant, isDead)
+	participant.IsDead = isDead == true
+	participant.Model:SetAttribute("IsDead", participant.IsDead)
+end
+
+local function resetParticipantHealth(participant)
+	participant.MaxHealth = participant.DefaultMaxHealth
+	participant.Model:SetAttribute("MaxHealth", participant.MaxHealth)
+	setParticipantHealth(participant, participant.MaxHealth)
+	setParticipantIsDead(participant, false)
 end
 
 local function setRoundResult(result)
@@ -400,8 +509,8 @@ local function resetMatchState()
 end
 
 local function resetCombatAttributes()
-	setTankHealthAttributes(playerTank, MAX_PLAYER_HEALTH)
-	setTankHealthAttributes(dummyTank, MAX_DUMMY_HEALTH)
+	resetParticipantHealth(playerParticipant)
+	resetParticipantHealth(dummyParticipant)
 	setRoundResult(ROUND_RESULT_PLAYING)
 end
 
@@ -425,6 +534,9 @@ local function assignPlayer(player)
 	end
 
 	controllingPlayer = player
+	playerParticipant.OwnerPlayer = player
+	playerParticipant.OwnerUserId = player.UserId
+
 	inputByPlayer[player] = {
 		Throttle = 0,
 		Steer = 0,
@@ -446,10 +558,13 @@ Players.PlayerAdded:Connect(assignPlayer)
 
 Players.PlayerRemoving:Connect(function(player)
 	inputByPlayer[player] = nil
-	lastShotTimeByPlayer[player] = nil
 
 	if controllingPlayer == player then
 		controllingPlayer = nil
+		playerParticipant.OwnerPlayer = nil
+		playerParticipant.OwnerUserId = nil
+		playerParticipant.LastShotTime = 0
+		playerParticipant.WeaponReadyAt = 0
 	end
 end)
 
@@ -516,10 +631,12 @@ projectileRaycastParams.IgnoreWater = true
 local function getProjectileRaycastTargets(projectile)
 	local targets = table.clone(projectileMapRaycastTargets)
 
-	table.insert(targets, dummyHitboxes)
-
-	if projectile.CanHitOwner then
-		table.insert(targets, hitboxes)
+	for _, participant in ipairs(tankParticipants) do
+		if participant.Hitboxes ~= nil
+			and (participant ~= projectile.OwnerParticipant or projectile.CanHitOwner)
+		then
+			table.insert(targets, participant.Hitboxes)
+		end
 	end
 
 	return targets
@@ -831,6 +948,7 @@ end
 
 layoutTank(playerTank, tankState.Position, tankState.BodyYaw, tankState.TurretYaw)
 local initialDummySpawnState = getDummySpawnTransform()
+dummyParticipant.SpawnTransform = initialDummySpawnState
 layoutTank(dummyTank, initialDummySpawnState.Position, initialDummySpawnState.BodyYaw, initialDummySpawnState.TurretYaw)
 
 local function createFlash(position, color, size, lifetime)
@@ -987,6 +1105,9 @@ local function resetRound()
 	local playerSpawnState = getPlayerSpawnTransform()
 	local dummySpawnState = getDummySpawnTransform()
 
+	playerParticipant.SpawnTransform = playerSpawnState
+	dummyParticipant.SpawnTransform = dummySpawnState
+
 	tankState.Position = playerSpawnState.Position
 	tankState.BodyYaw = playerSpawnState.BodyYaw
 	tankState.TurretYaw = playerSpawnState.TurretYaw
@@ -1001,50 +1122,53 @@ local function resetRound()
 	print("[ROUND] reset")
 end
 
-local function applyDamageToTank(tank, tankName, maxHealth, amount)
-	if roundState.Ended or tank:GetAttribute("IsDead") == true then
+local function applyDamageToParticipant(participant, amount)
+	if roundState.Ended or getParticipantIsDead(participant) then
 		return false
 	end
 
-	local currentHealth = tank:GetAttribute("Health") or maxHealth
+	local currentHealth = getParticipantHealth(participant)
 	local newHealth = math.max(0, currentHealth - amount)
 
-	tank:SetAttribute("Health", newHealth)
+	setParticipantHealth(participant, newHealth)
 
-	print("[DAMAGE] " .. tankName .. " -" .. math.floor(amount) .. " HP: " .. math.floor(currentHealth) .. " -> " .. math.floor(newHealth))
+	print(
+		"[DAMAGE] "
+			.. participant.TankId
+			.. " -"
+			.. math.floor(amount)
+			.. " HP: "
+			.. math.floor(currentHealth)
+			.. " -> "
+			.. math.floor(newHealth)
+	)
 
 	if newHealth > 0 then
 		return true
 	end
 
-	tank:SetAttribute("IsDead", true)
-	darkenTank(tank)
+	setParticipantIsDead(participant, true)
+	darkenTank(participant.Model)
 
-	print("[DEAD] " .. tankName .. " destroyed")
+	print("[DEAD] " .. participant.TankId .. " destroyed")
 
 	return true
 end
 
-local function damageDummy(amount)
-	if not applyDamageToTank(dummyTank, "DummyTank", MAX_DUMMY_HEALTH, amount) then
+local function damageParticipant(participant, amount)
+	if not applyDamageToParticipant(participant, amount) then
 		return
 	end
 
-	createImpactFlash(dummyBody.Position + Vector3.new(0, 3, 0))
+	createImpactFlash(participant.Body.Position + Vector3.new(0, 3, 0))
 
-	if dummyTank:GetAttribute("IsDead") == true then
+	if not getParticipantIsDead(participant) then
+		return
+	end
+
+	if participant == dummyParticipant then
 		endRound(ROUND_RESULT_WIN)
-	end
-end
-
-local function damagePlayer(amount)
-	if not applyDamageToTank(playerTank, "PlayerTankPrototype", MAX_PLAYER_HEALTH, amount) then
-		return
-	end
-
-	createImpactFlash(body.Position + Vector3.new(0, 3, 0))
-
-	if playerTank:GetAttribute("IsDead") == true then
+	elseif participant == playerParticipant then
 		endRound(ROUND_RESULT_LOSE)
 	end
 end
@@ -1062,11 +1186,11 @@ local function sendCombatFeedback(feedbackType, position, text, color)
 	})
 end
 
-local function resolveArmorHit(projectile, targetBody, hitNormal, armorZone)
+local function resolveArmorHit(projectile, targetParticipant, hitNormal, armorZone)
 	return RicochetMath.ResolveArmorHit({
 		incomingDirection = projectile.Direction,
 		hitNormal = hitNormal,
-		tankBodyCFrame = targetBody.CFrame,
+		tankBodyCFrame = targetParticipant.Body.CFrame,
 		armorZone = armorZone,
 		projectilePenetration = projectile.Penetration,
 		currentDamage = projectile.Damage,
@@ -1103,12 +1227,30 @@ local function applyProjectileRicochet(projectile, hitPosition, hitNormal)
 	projectile.CanHitOwner = true
 end
 
-local function createProjectile(owner, origin, direction)
+local function createProjectile(ownerParticipant, origin, direction)
 	local projectilePart = createProjectilePart(origin)
 
+	projectilePart:SetAttribute("OwnerTankId", ownerParticipant.TankId)
+	projectilePart:SetAttribute("OwnerTeamId", ownerParticipant.TeamId)
+	projectilePart:SetAttribute("OwnerIsBot", ownerParticipant.IsBot)
+	projectilePart:SetAttribute("WeaponTypeId", ownerParticipant.WeaponTypeId)
+
+	if ownerParticipant.OwnerUserId ~= nil then
+		projectilePart:SetAttribute("OwnerUserId", ownerParticipant.OwnerUserId)
+	end
+
 	local projectile = {
-		Owner = owner,
+		Owner = ownerParticipant.OwnerPlayer,
+		OwnerPlayer = ownerParticipant.OwnerPlayer,
+		OwnerParticipant = ownerParticipant,
+		OwnerTank = ownerParticipant.Model,
+		OwnerTankId = ownerParticipant.TankId,
+		OwnerUserId = ownerParticipant.OwnerUserId,
+		OwnerTeamId = ownerParticipant.TeamId,
+		OwnerIsBot = ownerParticipant.IsBot,
 		ProjectileTypeId = projectileConfig.Id,
+		WeaponTypeId = ownerParticipant.WeaponTypeId,
+		WeaponConfig = ownerParticipant.WeaponConfig,
 		Position = origin,
 		Direction = Vector3.new(direction.X, 0, direction.Z).Unit,
 		Speed = PROJECTILE_SPEED,
@@ -1128,6 +1270,33 @@ local function createProjectile(owner, origin, direction)
 
 	table.insert(projectiles, projectile)
 	createMuzzleFlash(origin)
+end
+
+local function tryShoot(participant, direction)
+	if roundState.Ended then
+		return false
+	end
+
+	local flatDirection = Vector3.new(direction.X, 0, direction.Z)
+
+	if flatDirection.Magnitude < 0.001 then
+		return false
+	end
+
+	local currentTime = os.clock()
+	local cooldown = participant.WeaponConfig.ShootCooldown or SHOOT_COOLDOWN
+	local lastShotTime = participant.LastShotTime or 0
+
+	if currentTime - lastShotTime < cooldown then
+		return false
+	end
+
+	participant.LastShotTime = currentTime
+	participant.WeaponReadyAt = currentTime + cooldown
+
+	createProjectile(participant, participant.ShootPoint.Position, flatDirection.Unit)
+
+	return true
 end
 
 resetDummyRequestEvent.OnServerEvent:Connect(function()
@@ -1167,27 +1336,14 @@ shootRequestEvent.OnServerEvent:Connect(function(player, aimPosition)
 		return
 	end
 
-	if roundState.Ended then
-		return
-	end
-
-	local currentTime = os.clock()
-	local lastShotTime = lastShotTimeByPlayer[player] or 0
-
-	if currentTime - lastShotTime < SHOOT_COOLDOWN then
-		return
-	end
-
-	lastShotTimeByPlayer[player] = currentTime
-
-	local origin = shootPoint.Position
+	local origin = playerParticipant.ShootPoint.Position
 	local direction = Vector3.new(aimPosition.X - origin.X, 0, aimPosition.Z - origin.Z)
 
 	if direction.Magnitude < 0.1 then
 		direction = (CFrame.Angles(0, tankState.TurretYaw, 0)).LookVector
 	end
 
-	createProjectile(player, origin, direction.Unit)
+	tryShoot(playerParticipant, direction.Unit)
 end)
 
 local function printBounce(projectile)
@@ -1201,23 +1357,23 @@ local function printBounce(projectile)
 	)
 end
 
-local function handleProjectileTankHit(projectile, targetTank, targetName, targetBody, hitPosition, hitNormal, armorZone, applyDamage)
+local function handleProjectileTankHit(projectile, targetParticipant, hitPosition, hitNormal, armorZone)
 	createImpactFlash(hitPosition)
 
-	if roundState.Ended or targetTank:GetAttribute("IsDead") == true then
+	if roundState.Ended or getParticipantIsDead(targetParticipant) then
 		destroyProjectile(projectile)
 		return true
 	end
 
-	local armorHit = resolveArmorHit(projectile, targetBody, hitNormal, armorZone)
+	local armorHit = resolveArmorHit(projectile, targetParticipant, hitNormal, armorZone)
 
 	if armorHit.Result == "Penetrated" then
-		printArmorResult("[PEN]", targetName, armorHit, projectile)
+		printArmorResult("[PEN]", targetParticipant.TankId, armorHit, projectile)
 
 		local damageText = "-" .. math.floor(armorHit.Damage)
 
-		if targetTank == playerTank and projectile.Owner == controllingPlayer then
-			print("[SELF-HIT] PlayerTankPrototype hit by own ricochet")
+		if targetParticipant == projectile.OwnerParticipant and projectile.OwnerPlayer == controllingPlayer then
+			print("[SELF-HIT] " .. targetParticipant.TankId .. " hit by own ricochet")
 			damageText = "SELF HIT " .. damageText
 		end
 
@@ -1228,13 +1384,13 @@ local function handleProjectileTankHit(projectile, targetTank, targetName, targe
 			Color3.fromRGB(255, 105, 75)
 		)
 
-		applyDamage(armorHit.Damage)
+		damageParticipant(targetParticipant, armorHit.Damage)
 		destroyProjectile(projectile)
 		return true
 	end
 
 	if armorHit.Result == "Ricochet" then
-		printArmorResult("[ARMOR-RICOCHET]", targetName, armorHit, projectile)
+		printArmorResult("[ARMOR-RICOCHET]", targetParticipant.TankId, armorHit, projectile)
 
 		sendCombatFeedback(
 			"ArmorRicochet",
@@ -1243,7 +1399,7 @@ local function handleProjectileTankHit(projectile, targetTank, targetName, targe
 			Color3.fromRGB(255, 220, 70)
 		)
 	else
-		printArmorResult("[NO-PEN]", targetName, armorHit, projectile)
+		printArmorResult("[NO-PEN]", targetParticipant.TankId, armorHit, projectile)
 
 		sendCombatFeedback(
 			"NoPenetration",
@@ -1332,34 +1488,16 @@ local function updateProjectiles(deltaTime)
 			local hitInstance = result.Instance
 			local hitPosition = result.Position
 			local hitNormal = result.Normal
-			local targetTank = getTankFromArmorHitbox(hitInstance)
+			local targetParticipant = getParticipantFromArmorHitbox(hitInstance)
 			local armorZone = getArmorZoneFromHitbox(hitInstance)
 
-			if targetTank == dummyTank then
+			if targetParticipant ~= nil then
 				local destroyed = handleProjectileTankHit(
 					projectile,
-					dummyTank,
-					"DummyTank",
-					dummyBody,
+					targetParticipant,
 					hitPosition,
 					hitNormal,
-					armorZone,
-					damageDummy
-				)
-
-				if destroyed then
-					table.remove(projectiles, i)
-				end
-			elseif targetTank == playerTank then
-				local destroyed = handleProjectileTankHit(
-					projectile,
-					playerTank,
-					"PlayerTankPrototype",
-					body,
-					hitPosition,
-					hitNormal,
-					armorZone,
-					damagePlayer
+					armorZone
 				)
 
 				if destroyed then

@@ -15,6 +15,12 @@
 - Не создавать случайные тестовые файлы вне Roblox workflow.
 - Не смешивать в одном изменении механику, UI, сцену и документацию без причины.
 
+## Project folder quarantine note
+
+- `New project 2` is quarantine; real project is `/Users/sergoburnheart/RobloxProjects/WorldOfBalanceRoblox`.
+- Do not apply old TankParticipant refactor wholesale.
+- Use old refactor only as reference.
+
 ## Текущий статус
 
 - Проект: `World of Balance: Ricochet Tanks`.
@@ -228,6 +234,16 @@
 - Статус: code-first sprint. Direction arrow removed; armor panels are now the primary hull orientation visual.
 - Изменения: armor panels are thinner/config-driven; SpawnPoints are the source of truth for initial spawn and `R` reset; match series to `MatchConfig.TargetWins` started with round/score attributes.
 - Какой коммит сделать: `Remove direction arrow fix spawns and add match series`.
+
+## Current Sprint — TankParticipant v1 Architecture Slice
+
+- Статус: small code slice in current real project only; `New project 2` remains quarantine/reference only.
+- Contract: `WOBGameplayServer` now creates runtime participants for `PlayerTankPrototype` and `DummyTank` with `TankId`, `Model`, `Body`, `Turret`, `Barrel`, `ShootPoint`, `Hitboxes`, `OwnerPlayer`, `OwnerUserId`, `TeamId`, `IsBot`, `SpawnName`, `SpawnTransform`, `WeaponTypeId`, `WeaponConfig`, `LastShotTime`, `WeaponReadyAt`, `Health`, `MaxHealth`, `DefaultMaxHealth`, and `IsDead`.
+- What changed: health attribute get/set/reset, damage application, death handling, armor-hitbox-to-target resolution, projectile owner metadata, and player shooting cooldown now flow through participant helpers.
+- Preserved behavior: movement, turret aim, shooting, ricochet, armor/penetration, combat feedback events/overlay compatibility, modular HUD attributes, match series to `MatchConfig.TargetWins`, `R` reset, and projectile cleanup on reset.
+- Intentionally still hardcoded: only two participants exist (`PlayerTankPrototype`, `DummyTank`); player input still controls one tank through `controllingPlayer`; dummy has no AI/shooting; teams are simple string ids; health defaults remain `100`; layout, movement, and round/match state still live inside the monolithic `WOBGameplayServer`.
+- Next recommended task: add a read-only participant debug/audit helper or tiny module boundary only after Play Mode verifies no behavior drift; do not start bot AI, PvP, DataStore, menu, scene edits, or service splitting yet.
+- Recommended commit message: `Add TankParticipant v1 runtime slice`.
 
 ## GDD Parity Backlog
 
