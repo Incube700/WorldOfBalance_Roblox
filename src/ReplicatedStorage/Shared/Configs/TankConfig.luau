@@ -9,6 +9,14 @@ local TankConfig = table.freeze({
 		-- TODO: No turret turn speed exists in the snapshot; current turret yaw follows client aim direction directly.
 	}),
 
+	Armor = table.freeze({
+		FrontArmor = 50,
+		SideArmor = 40,
+		RearArmor = 10,
+		AutoRicochetAngleDegrees = 72,
+		SafeMinCos = 0.15,
+	}),
+
 	PlayerInitialState = table.freeze({
 		Position = Vector3.new(-42, 0, -42),
 		BodyYawRadians = 0,

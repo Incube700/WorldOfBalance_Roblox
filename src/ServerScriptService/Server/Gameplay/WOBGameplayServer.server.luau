@@ -7,8 +7,16 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Debris = game:GetService("Debris")
 
-local configs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
+local shared = ReplicatedStorage:WaitForChild("Shared")
+local configs = shared:WaitForChild("Configs")
 local TankConfig = require(configs:WaitForChild("TankConfig"))
+local WeaponConfig = require(configs:WaitForChild("WeaponConfig"))
+local ProjectileCatalog = require(configs:WaitForChild("ProjectileCatalog"))
+local RicochetMath = require(shared:WaitForChild("Utils"):WaitForChild("RicochetMath"))
+local primaryWeaponConfig = WeaponConfig.PrimaryWeapon
+local projectileTypeId = primaryWeaponConfig.ProjectileTypeId or ProjectileCatalog.DefaultProjectileTypeId
+local projectileConfig = ProjectileCatalog.Projectiles[projectileTypeId]
+	or ProjectileCatalog.Projectiles[ProjectileCatalog.DefaultProjectileTypeId]
 
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local tankInputEvent = remotes:WaitForChild("TankInputEvent")
@@ -45,13 +53,19 @@ local dummyHitboxes = dummyTank:WaitForChild("Hitboxes")
 local MOVE_SPEED = TankConfig.Movement.MoveSpeed
 local REVERSE_MOVE_SPEED_MULTIPLIER = TankConfig.Movement.ReverseMoveSpeedMultiplier or 1
 local TURN_SPEED = TankConfig.Movement.BodyTurnSpeedRadians
-local SHOOT_COOLDOWN = 0.45
+local TANK_ARMOR = TankConfig.Armor
+local SHOOT_COOLDOWN = primaryWeaponConfig.ShootCooldown
 
-local PROJECTILE_SPEED = 160
-local PROJECTILE_DAMAGE = 35
-local PROJECTILE_MAX_BOUNCES = 3
-local PROJECTILE_DAMAGE_MULTIPLIER = 0.75
-local PROJECTILE_LIFETIME = 4
+local PROJECTILE_SPEED = projectileConfig.Speed
+local PROJECTILE_MAX_DAMAGE = projectileConfig.MaxDamage
+local PROJECTILE_PENETRATION = projectileConfig.Penetration
+local PROJECTILE_MAX_BOUNCES = projectileConfig.MaxRicochets
+local PROJECTILE_BOUNCE_SPEED_MULTIPLIER = projectileConfig.BounceSpeedMultiplier
+local PROJECTILE_DAMAGE_MULTIPLIER = projectileConfig.DamageMultiplierPerBounce
+local PROJECTILE_MIN_SPEED = projectileConfig.MinProjectileSpeed
+local PROJECTILE_LIFETIME = projectileConfig.Lifetime
+local PROJECTILE_RICOCHET_OFFSET = 0.45
+local MODEL_TO_ARMOR_ZONE_CFRAME = CFrame.Angles(0, math.pi, 0)
 
 local MAX_PLAYER_HEALTH = 100
 local MAX_DUMMY_HEALTH = 100
@@ -583,12 +597,13 @@ local function createProjectilePart(position)
 end
 
 local function reflect(direction, normal)
-	return (direction - 2 * direction:Dot(normal) * normal).Unit
+	return RicochetMath.Reflect(direction, normal)
 end
 
 local function destroyProjectile(projectile)
 	if projectile.Part ~= nil then
 		projectile.Part:Destroy()
+		projectile.Part = nil
 	end
 
 	projectile.Destroyed = true
@@ -676,18 +691,70 @@ local function damagePlayer(amount)
 	end
 end
 
+local function formatNumber(value)
+	return string.format("%.1f", value)
+end
+
+local function resolveArmorHit(projectile, targetBody, hitNormal)
+	-- Current tank art/muzzle uses Roblox LookVector (-Z) as the visual front.
+	-- RicochetMath uses the design armor space where +Z is Front.
+	local armorZoneCFrame = targetBody.CFrame * MODEL_TO_ARMOR_ZONE_CFRAME
+
+	return RicochetMath.ResolveArmorHit({
+		incomingDirection = projectile.Direction,
+		hitNormal = hitNormal,
+		tankBodyCFrame = armorZoneCFrame,
+		projectilePenetration = projectile.Penetration,
+		currentDamage = projectile.Damage,
+		armorConfig = TANK_ARMOR,
+		autoRicochetAngleDegrees = TANK_ARMOR.AutoRicochetAngleDegrees,
+		safeMinCos = TANK_ARMOR.SafeMinCos,
+	})
+end
+
+local function printArmorResult(prefix, targetName, armorHit, projectile)
+	print(
+		prefix
+			.. " "
+			.. targetName
+			.. " zone="
+			.. armorHit.Zone
+			.. " angle="
+			.. formatNumber(armorHit.HitAngleDegrees)
+			.. " effectiveArmor="
+			.. formatNumber(armorHit.EffectiveArmor)
+			.. " penetration="
+			.. formatNumber(projectile.Penetration)
+			.. " damage="
+			.. math.floor(armorHit.Damage)
+	)
+end
+
+local function applyProjectileRicochet(projectile, hitPosition, hitNormal)
+	projectile.Direction = reflect(projectile.Direction, hitNormal)
+	projectile.Position = hitPosition + projectile.Direction * PROJECTILE_RICOCHET_OFFSET
+	projectile.BounceCount += 1
+	projectile.Damage *= projectile.DamageMultiplierPerBounce
+	projectile.Speed = math.max(projectile.MinSpeed, projectile.Speed * projectile.BounceSpeedMultiplier)
+	projectile.CanHitOwner = true
+end
+
 local function createProjectile(owner, origin, direction)
 	local projectilePart = createProjectilePart(origin)
 
 	local projectile = {
 		Owner = owner,
+		ProjectileTypeId = projectileConfig.Id,
 		Position = origin,
 		Direction = Vector3.new(direction.X, 0, direction.Z).Unit,
 		Speed = PROJECTILE_SPEED,
-		Damage = PROJECTILE_DAMAGE,
+		Damage = PROJECTILE_MAX_DAMAGE,
+		Penetration = PROJECTILE_PENETRATION,
 		BounceCount = 0,
 		MaxBounces = PROJECTILE_MAX_BOUNCES,
+		BounceSpeedMultiplier = PROJECTILE_BOUNCE_SPEED_MULTIPLIER,
 		DamageMultiplierPerBounce = PROJECTILE_DAMAGE_MULTIPLIER,
+		MinSpeed = PROJECTILE_MIN_SPEED,
 		LifeTime = 0,
 		MaxLifeTime = PROJECTILE_LIFETIME,
 		Part = projectilePart,
@@ -758,6 +825,56 @@ shootRequestEvent.OnServerEvent:Connect(function(player, aimPosition)
 
 	createProjectile(player, origin, direction.Unit)
 end)
+
+local function printBounce(projectile)
+	print(
+		"[BOUNCE] count="
+			.. projectile.BounceCount
+			.. " damage="
+			.. math.floor(projectile.Damage)
+			.. " speed="
+			.. math.floor(projectile.Speed)
+	)
+end
+
+local function handleProjectileTankHit(projectile, targetTank, targetName, targetBody, hitPosition, hitNormal, applyDamage)
+	createImpactFlash(hitPosition)
+
+	if roundState.Ended or targetTank:GetAttribute("IsDead") == true then
+		destroyProjectile(projectile)
+		return true
+	end
+
+	local armorHit = resolveArmorHit(projectile, targetBody, hitNormal)
+
+	if armorHit.Result == "Penetrated" then
+		printArmorResult("[PEN]", targetName, armorHit, projectile)
+
+		if targetTank == playerTank and projectile.Owner == controllingPlayer then
+			print("[SELF-HIT] PlayerTankPrototype hit by own ricochet")
+		end
+
+		applyDamage(armorHit.Damage)
+		destroyProjectile(projectile)
+		return true
+	end
+
+	if armorHit.Result == "Ricochet" then
+		printArmorResult("[ARMOR-RICOCHET]", targetName, armorHit, projectile)
+	else
+		printArmorResult("[NO-PEN]", targetName, armorHit, projectile)
+	end
+
+	if projectile.BounceCount >= projectile.MaxBounces then
+		destroyProjectile(projectile)
+		return true
+	end
+
+	applyProjectileRicochet(projectile, hitPosition, hitNormal)
+	printBounce(projectile)
+
+	return false
+end
 
 local function updateTank(deltaTime)
 	if controllingPlayer == nil then
@@ -841,13 +958,33 @@ local function updateProjectiles(deltaTime)
 			local hitNormal = result.Normal
 
 			if hitInstance:IsDescendantOf(dummyTank) then
-				damageDummy(projectile.Damage)
-				destroyProjectile(projectile)
-				table.remove(projectiles, i)
+				local destroyed = handleProjectileTankHit(
+					projectile,
+					dummyTank,
+					"DummyTank",
+					dummyBody,
+					hitPosition,
+					hitNormal,
+					damageDummy
+				)
+
+				if destroyed then
+					table.remove(projectiles, i)
+				end
 			elseif hitInstance:IsDescendantOf(playerTank) then
-				damagePlayer(projectile.Damage)
-				destroyProjectile(projectile)
-				table.remove(projectiles, i)
+				local destroyed = handleProjectileTankHit(
+					projectile,
+					playerTank,
+					"PlayerTankPrototype",
+					body,
+					hitPosition,
+					hitNormal,
+					damagePlayer
+				)
+
+				if destroyed then
+					table.remove(projectiles, i)
+				end
 			else
 				createImpactFlash(hitPosition)
 
@@ -855,13 +992,8 @@ local function updateProjectiles(deltaTime)
 					destroyProjectile(projectile)
 					table.remove(projectiles, i)
 				else
-					projectile.Direction = reflect(projectile.Direction, hitNormal)
-					projectile.Position = hitPosition + projectile.Direction * 0.35
-					projectile.BounceCount += 1
-					projectile.Damage *= projectile.DamageMultiplierPerBounce
-					projectile.CanHitOwner = true
-
-					print("[BOUNCE] count=" .. projectile.BounceCount .. " damage=" .. math.floor(projectile.Damage))
+					applyProjectileRicochet(projectile, hitPosition, hitNormal)
+					printBounce(projectile)
 				end
 			end
 		else

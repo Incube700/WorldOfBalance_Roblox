@@ -191,6 +191,50 @@
 - Ручной шаг: run `docs/patches/CREATE_PLAYER_ROUND_UI_COMMAND.lua` in Roblox Studio Command Bar outside Play Mode, then `File -> Save to File`.
 - Какой коммит сделать: `Make player round UI editable in Studio`.
 
+## Current Sprint — Armor / Penetration / Tank Ricochet
+
+- Статус: code-first implementation in Rojo-managed `WOBGameplayServer`, `ProjectileCatalog`, `TankConfig`, and `RicochetMath`.
+- Изменения: shells now have penetration/max damage/speed loss; tanks have Front/Side/Rear armor; non-penetrating or auto-ricochet tank hits bounce instead of applying damage; aim laser is visual-only and stops on raycast obstacles.
+- Future skeleton: `RicochetMath` is the shared pure module for later corner detection, critical zones, and richer armor math.
+- Какой коммит сделать: `Add armor penetration and tank ricochet combat rules`.
+
+## GDD Parity Backlog
+
+1. Core combat parity:
+   - penetration;
+   - max damage;
+   - armor zones;
+   - effective armor;
+   - tank armor ricochet.
+
+2. Feedback parity:
+   - `NO PEN` / `RICOCHET` / `DAMAGE` feedback;
+   - floating hit text;
+   - death/wreck feedback.
+
+3. Match flow parity:
+   - series to 3 wins;
+   - round break timer;
+   - final result.
+
+4. Product loop parity:
+   - main menu;
+   - statistics;
+   - recent matches.
+
+5. AI parity:
+   - enemy tank AI;
+   - aim at player;
+   - line of sight;
+   - obstacle avoidance.
+
+6. Mobile parity:
+   - mobile arcade controls;
+   - thumb UI.
+
+- Аудит: `docs/GDD_PARITY_AUDIT.md`.
+- Какой коммит сделать: `Audit Roblox GDD parity with Unity design`.
+
 ## Milestone 3 — Башня и стрельба
 
 ### Task 03.01 — Добавить независимый поворот башни
