@@ -107,27 +107,27 @@
 		<Item class="Camera" referent="RBX2f07fa43115b43c2a06550fb27d97700">
 			<Properties>
 				<CoordinateFrame name="CFrame">
-					<X>-80.2109375</X>
-					<Y>127.978729</Y>
-					<Z>-39.1797485</Z>
-					<R00>-0.40855822</R00>
-					<R01>0.773208559</R01>
-					<R02>-0.48500374</R02>
+					<X>0.625767946</X>
+					<Y>92.9908066</Y>
+					<Z>-3.95358801</Z>
+					<R00>0.839381933</R00>
+					<R01>0.533373773</R01>
+					<R02>-0.104643881</R02>
 					<R10>-0</R10>
-					<R11>0.531375706</R11>
-					<R12>0.847136259</R12>
-					<R20>0.912732244</R20>
-					<R21>0.346104473</R21>
-					<R22>-0.217097923</R22>
+					<R11>0.192522153</R11>
+					<R12>0.981292725</R12>
+					<R20>0.543541968</R20>
+					<R21>-0.823679388</R21>
+					<R22>0.161599636</R22>
 				</CoordinateFrame>
 				<Ref name="CameraSubject">null</Ref>
 				<token name="CameraType">0</token>
 				<float name="FieldOfView">70</float>
 				<token name="FieldOfViewMode">0</token>
 				<CoordinateFrame name="Focus">
-					<X>-79.2409286</X>
-					<Y>126.284454</Y>
-					<Z>-38.7455521</Z>
+					<X>0.835055709</X>
+					<Y>91.0282211</Y>
+					<Z>-4.27678728</Z>
 					<R00>1</R00>
 					<R01>0</R01>
 					<R02>0</R02>
@@ -557,9 +557,9 @@ zNLfaoZA///+//PAj5CH]]></BinaryString>
 							<token name="BottomSurface">0</token>
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
-								<X>50</X>
-								<Y>0.25</Y>
-								<Z>50</Z>
+								<X>54</X>
+								<Y>0.199999988</Y>
+								<Z>55</Z>
 								<R00>1</R00>
 								<R01>0</R01>
 								<R02>0</R02>
@@ -2124,9 +2124,9 @@ AABSaWNvY2hldA==]]></BinaryString>
 					<Properties>
 						<token name="LevelOfDetail">0</token>
 						<CoordinateFrame name="ModelMeshCFrame">
-							<X>-3.59999847</X>
-							<Y>-0.399999976</Y>
-							<Z>12.4000015</Z>
+							<X>12</X>
+							<Y>0</Y>
+							<Z>11.5</Z>
 							<R00>1</R00>
 							<R01>0</R01>
 							<R02>0</R02>
@@ -2150,9 +2150,9 @@ AABSaWNvY2hldA==]]></BinaryString>
 						<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 						<OptionalCoordinateFrame name="WorldPivotData">
 							<CFrame>
-								<X>38.4000015</X>
-								<Y>1.60000002</Y>
-								<Z>54.4000015</Z>
+								<X>54</X>
+								<Y>2</Y>
+								<Z>53.5</Z>
 								<R00>1</R00>
 								<R01>0</R01>
 								<R02>0</R02>
@@ -2188,9 +2188,9 @@ AABSaWNvY2hldA==]]></BinaryString>
 							<token name="BottomSurface">0</token>
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
-								<X>38.4000015</X>
-								<Y>1.60000002</Y>
-								<Z>54.4000015</Z>
+								<X>54</X>
+								<Y>2</Y>
+								<Z>53.5</Z>
 								<R00>1</R00>
 								<R01>0</R01>
 								<R02>0</R02>
@@ -2289,9 +2289,9 @@ AABSaWNvY2hldA==]]></BinaryString>
 							<token name="BottomSurface">0</token>
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
-								<X>38.4000015</X>
-								<Y>4.19999981</Y>
-								<Z>54.4000015</Z>
+								<X>54</X>
+								<Y>4.5999999</Y>
+								<Z>53.5</Z>
 								<R00>1</R00>
 								<R01>0</R01>
 								<R02>0</R02>
@@ -2390,9 +2390,9 @@ AABSaWNvY2hldA==]]></BinaryString>
 							<token name="BottomSurface">0</token>
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
-								<X>38.4000015</X>
-								<Y>4.19999981</Y>
-								<Z>48.6000023</Z>
+								<X>54</X>
+								<Y>4.5999999</Y>
+								<Z>47.7000008</Z>
 								<R00>1</R00>
 								<R01>0</R01>
 								<R02>0</R02>
@@ -2491,9 +2491,9 @@ AABSaWNvY2hldA==]]></BinaryString>
 							<token name="BottomSurface">0</token>
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
-								<X>38.4000015</X>
-								<Y>4.19999981</Y>
-								<Z>44.4000015</Z>
+								<X>54</X>
+								<Y>4.5999999</Y>
+								<Z>43.5</Z>
 								<R00>1</R00>
 								<R01>0</R01>
 								<R02>0</R02>
@@ -2603,9 +2603,9 @@ AABSaWNvY2hldA==]]></BinaryString>
 								<token name="BottomSurface">0</token>
 								<token name="BottomSurfaceInput">0</token>
 								<CoordinateFrame name="CFrame">
-									<X>38.4000015</X>
-									<Y>1.60000002</Y>
-									<Z>48.7000008</Z>
+									<X>54</X>
+									<Y>2</Y>
+									<Z>47.7999992</Z>
 									<R00>1</R00>
 									<R01>0</R01>
 									<R02>0</R02>
@@ -2704,9 +2704,9 @@ AABSaWNvY2hldA==]]></BinaryString>
 								<token name="BottomSurface">0</token>
 								<token name="BottomSurfaceInput">0</token>
 								<CoordinateFrame name="CFrame">
-									<X>38.4000015</X>
-									<Y>1.60000002</Y>
-									<Z>60.1000023</Z>
+									<X>54</X>
+									<Y>2</Y>
+									<Z>59.2000008</Z>
 									<R00>1</R00>
 									<R01>0</R01>
 									<R02>0</R02>
@@ -2805,9 +2805,9 @@ AABSaWNvY2hldA==]]></BinaryString>
 								<token name="BottomSurface">0</token>
 								<token name="BottomSurfaceInput">0</token>
 								<CoordinateFrame name="CFrame">
-									<X>34.2000008</X>
-									<Y>1.60000002</Y>
-									<Z>54.4000015</Z>
+									<X>49.7999992</X>
+									<Y>2</Y>
+									<Z>53.5</Z>
 									<R00>1</R00>
 									<R01>0</R01>
 									<R02>0</R02>
@@ -2906,9 +2906,9 @@ AABSaWNvY2hldA==]]></BinaryString>
 								<token name="BottomSurface">0</token>
 								<token name="BottomSurfaceInput">0</token>
 								<CoordinateFrame name="CFrame">
-									<X>42.6000023</X>
-									<Y>1.60000002</Y>
-									<Z>54.4000015</Z>
+									<X>58.2000008</X>
+									<Y>2</Y>
+									<Z>53.5</Z>
 									<R00>1</R00>
 									<R01>0</R01>
 									<R02>0</R02>
@@ -2998,9 +2998,9 @@ AABSaWNvY2hldA==]]></BinaryString>
 					<Properties>
 						<token name="LevelOfDetail">0</token>
 						<CoordinateFrame name="ModelMeshCFrame">
-							<X>0</X>
-							<Y>0</Y>
-							<Z>0</Z>
+							<X>-7.5</X>
+							<Y>0.599999905</Y>
+							<Z>-9.5</Z>
 							<R00>1</R00>
 							<R01>0</R01>
 							<R02>0</R02>
@@ -3022,7 +3022,22 @@ AABSaWNvY2hldA==]]></BinaryString>
 						<Ref name="PrimaryPart">RBX2c29306a9dc94c5bace9387475585ef6</Ref>
 						<float name="ScaleFactor">1</float>
 						<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
-						<OptionalCoordinateFrame name="WorldPivotData"></OptionalCoordinateFrame>
+						<OptionalCoordinateFrame name="WorldPivotData">
+							<CFrame>
+								<X>-49.5</X>
+								<Y>2.5999999</Y>
+								<Z>-51.5</Z>
+								<R00>1</R00>
+								<R01>0</R01>
+								<R02>0</R02>
+								<R10>0</R10>
+								<R11>1</R11>
+								<R12>0</R12>
+								<R20>0</R20>
+								<R21>0</R21>
+								<R22>1</R22>
+							</CFrame>
+						</OptionalCoordinateFrame>
 						<BinaryString name="AttributesSerialize">AgAAAAsAAABHYW1lcGxheVRhZwIEAAAAVGFuawYAAABIZWFsdGgGAAAAAAAAWUA=</BinaryString>
 						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
 						<bool name="DefinesCapabilities">false</bool>
@@ -3047,9 +3062,9 @@ AABSaWNvY2hldA==]]></BinaryString>
 							<token name="BottomSurface">0</token>
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
-								<X>-42</X>
-								<Y>2</Y>
-								<Z>-42</Z>
+								<X>-49.5</X>
+								<Y>2.5999999</Y>
+								<Z>-51.5</Z>
 								<R00>1</R00>
 								<R01>0</R01>
 								<R02>0</R02>
@@ -3148,9 +3163,9 @@ AABSaWNvY2hldA==]]></BinaryString>
 							<token name="BottomSurface">0</token>
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
-								<X>-42</X>
-								<Y>4.5999999</Y>
-								<Z>-42</Z>
+								<X>-49.5</X>
+								<Y>5.19999981</Y>
+								<Z>-51.5</Z>
 								<R00>1</R00>
 								<R01>0</R01>
 								<R02>0</R02>
@@ -3249,9 +3264,9 @@ AABSaWNvY2hldA==]]></BinaryString>
 							<token name="BottomSurface">0</token>
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
-								<X>-42</X>
-								<Y>4.5999999</Y>
-								<Z>-47.7999992</Z>
+								<X>-49.5</X>
+								<Y>5.19999981</Y>
+								<Z>-57.2999992</Z>
 								<R00>1</R00>
 								<R01>0</R01>
 								<R02>0</R02>
@@ -3350,9 +3365,9 @@ AABSaWNvY2hldA==]]></BinaryString>
 							<token name="BottomSurface">0</token>
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
-								<X>-42</X>
-								<Y>4.5999999</Y>
-								<Z>-52</Z>
+								<X>-49.5</X>
+								<Y>5.19999981</Y>
+								<Z>-61.5</Z>
 								<R00>1</R00>
 								<R01>0</R01>
 								<R02>0</R02>
@@ -3462,9 +3477,9 @@ AABSaWNvY2hldA==]]></BinaryString>
 								<token name="BottomSurface">0</token>
 								<token name="BottomSurfaceInput">0</token>
 								<CoordinateFrame name="CFrame">
-									<X>-42</X>
-									<Y>2</Y>
-									<Z>-47.7000008</Z>
+									<X>-49.5</X>
+									<Y>2.5999999</Y>
+									<Z>-57.2000008</Z>
 									<R00>1</R00>
 									<R01>0</R01>
 									<R02>0</R02>
@@ -3563,9 +3578,9 @@ AABSaWNvY2hldA==]]></BinaryString>
 								<token name="BottomSurface">0</token>
 								<token name="BottomSurfaceInput">0</token>
 								<CoordinateFrame name="CFrame">
-									<X>-42</X>
-									<Y>2</Y>
-									<Z>-36.2999992</Z>
+									<X>-49.5</X>
+									<Y>2.5999999</Y>
+									<Z>-45.7999992</Z>
 									<R00>1</R00>
 									<R01>0</R01>
 									<R02>0</R02>
@@ -3664,9 +3679,9 @@ AABSaWNvY2hldA==]]></BinaryString>
 								<token name="BottomSurface">0</token>
 								<token name="BottomSurfaceInput">0</token>
 								<CoordinateFrame name="CFrame">
-									<X>-46.2000008</X>
-									<Y>2</Y>
-									<Z>-42</Z>
+									<X>-53.7000008</X>
+									<Y>2.5999999</Y>
+									<Z>-51.5</Z>
 									<R00>1</R00>
 									<R01>0</R01>
 									<R02>0</R02>
@@ -3765,9 +3780,9 @@ AABSaWNvY2hldA==]]></BinaryString>
 								<token name="BottomSurface">0</token>
 								<token name="BottomSurfaceInput">0</token>
 								<CoordinateFrame name="CFrame">
-									<X>-37.7999992</X>
-									<Y>2</Y>
-									<Z>-42</Z>
+									<X>-45.2999992</X>
+									<Y>2.5999999</Y>
+									<Z>-51.5</Z>
 									<R00>1</R00>
 									<R01>0</R01>
 									<R02>0</R02>
@@ -4698,6 +4713,495 @@ print("[WOB] Client controller started")
 						<int64 name="SourceAssetId">-1</int64>
 						<BinaryString name="Tags"></BinaryString>
 						<UniqueId name="UniqueId">10a5b6ad489a534b0a0c605000000ba0</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="LocalScript" referent="RBX34c712e967b04767a60acd386ca42e2d">
+					<Properties>
+						<ProtectedString name="Source"><![CDATA[local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local configs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
+local ProjectileVisualConfig = require(configs:WaitForChild("ProjectileVisualConfig"))
+
+local root = Workspace:WaitForChild("WOB_Generated")
+local runtime = root:WaitForChild("Runtime")
+local vfxFolder = runtime:WaitForChild("VFX")
+local testObjects = root:WaitForChild("TestObjects")
+local dummyTank = testObjects:WaitForChild("DummyTank")
+local dummyBody = dummyTank:WaitForChild("Body")
+
+local localVisuals = Workspace:FindFirstChild("WOB_LocalVisuals")
+
+if localVisuals == nil then
+	localVisuals = Instance.new("Folder")
+	localVisuals.Name = "WOB_LocalVisuals"
+	localVisuals.Parent = Workspace
+end
+
+local impactFolder = localVisuals:FindFirstChild("ImpactFeedback")
+
+if impactFolder == nil then
+	impactFolder = Instance.new("Folder")
+	impactFolder.Name = "ImpactFeedback"
+	impactFolder.Parent = localVisuals
+end
+
+local IMPACT_MARKER_HEIGHT = 0.16
+local PULSE_DEDUPE_SECONDS = 0.11
+local DUMMY_HIT_RADIUS = 9.5
+
+local recentPulseByCell = {}
+
+local function getPulseCell(position)
+	return math.floor(position.X * 2) .. ":" .. math.floor(position.Z * 2)
+end
+
+local function isNearDummy(position)
+	local flatImpact = Vector3.new(position.X, 0, position.Z)
+	local flatDummy = Vector3.new(dummyBody.Position.X, 0, dummyBody.Position.Z)
+
+	return (flatImpact - flatDummy).Magnitude <= DUMMY_HIT_RADIUS
+end
+
+local function getPulseStyle(position)
+	if isNearDummy(position) then
+		return {
+			Lifetime = 0.26,
+			OuterStartSize = Vector3.new(2.8, 0.08, 2.8),
+			OuterEndSize = Vector3.new(8.4, 0.08, 8.4),
+			CoreStartSize = Vector3.new(1.35, 0.1, 1.35),
+			CoreEndSize = Vector3.new(3.1, 0.1, 3.1),
+			OuterColor = Color3.fromRGB(255, 105, 45),
+			CoreColor = Color3.fromRGB(255, 220, 120),
+			OuterTransparency = 0.28,
+			CoreTransparency = 0.08,
+		}
+	end
+
+	return {
+		Lifetime = 0.18,
+		OuterStartSize = Vector3.new(2.1, 0.07, 2.1),
+		OuterEndSize = Vector3.new(5.8, 0.07, 5.8),
+		CoreStartSize = Vector3.new(0.95, 0.09, 0.95),
+		CoreEndSize = Vector3.new(2.15, 0.09, 2.15),
+		OuterColor = ProjectileVisualConfig.RicochetSparks.Color,
+		CoreColor = Color3.fromRGB(255, 245, 170),
+		OuterTransparency = 0.34,
+		CoreTransparency = 0.12,
+	}
+end
+
+local function preparePulsePart(name, position, size, color, transparency, heightOffset)
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Shape = Enum.PartType.Ball
+	part.Size = size
+	part.CFrame = CFrame.new(position.X, IMPACT_MARKER_HEIGHT + heightOffset, position.Z)
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanTouch = false
+	part.CanQuery = false
+	part.CastShadow = false
+	part.Material = Enum.Material.Neon
+	part.Color = color
+	part.Transparency = transparency
+	part.Parent = impactFolder
+
+	return part
+end
+
+local function animatePulsePart(part, position, startSize, endSize, startTransparency, lifetime, heightOffset, elapsed)
+	local alpha = math.clamp(elapsed / lifetime, 0, 1)
+	part.Size = startSize:Lerp(endSize, alpha)
+	part.Transparency = startTransparency + alpha * (1 - startTransparency)
+	part.CFrame = CFrame.new(position.X, IMPACT_MARKER_HEIGHT + heightOffset, position.Z)
+end
+
+local function createPulse(position)
+	local now = os.clock()
+	local cell = getPulseCell(position)
+	local lastPulse = recentPulseByCell[cell]
+
+	if lastPulse ~= nil and now - lastPulse < PULSE_DEDUPE_SECONDS then
+		return
+	end
+
+	recentPulseByCell[cell] = now
+	local style = getPulseStyle(position)
+
+	local outerPulse = preparePulsePart(
+		"WOBLocalImpactPulse",
+		position,
+		style.OuterStartSize,
+		style.OuterColor,
+		style.OuterTransparency,
+		0
+	)
+	local coreFlash = preparePulsePart(
+		"WOBLocalImpactPulseCore",
+		position,
+		style.CoreStartSize,
+		style.CoreColor,
+		style.CoreTransparency,
+		0.03
+	)
+
+	task.spawn(function()
+		local elapsed = 0
+
+		while elapsed < style.Lifetime and outerPulse.Parent ~= nil and coreFlash.Parent ~= nil do
+			animatePulsePart(
+				outerPulse,
+				position,
+				style.OuterStartSize,
+				style.OuterEndSize,
+				style.OuterTransparency,
+				style.Lifetime,
+				0,
+				elapsed
+			)
+			animatePulsePart(
+				coreFlash,
+				position,
+				style.CoreStartSize,
+				style.CoreEndSize,
+				style.CoreTransparency,
+				style.Lifetime,
+				0.03,
+				elapsed
+			)
+
+			elapsed += RunService.RenderStepped:Wait()
+		end
+
+		if outerPulse.Parent ~= nil then
+			outerPulse:Destroy()
+		end
+
+		if coreFlash.Parent ~= nil then
+			coreFlash:Destroy()
+		end
+	end)
+end
+
+local function isImpactSpark(instance)
+	return instance:IsA("BasePart") and instance.Name == "VFX_Spark"
+end
+
+vfxFolder.ChildAdded:Connect(function(child)
+	if isImpactSpark(child) then
+		createPulse(child.Position)
+	end
+end)
+
+print("[WOB] Impact feedback overlay started")
+]]></ProtectedString>
+						<bool name="Disabled">false</bool>
+						<Content name="LinkedSource"><null></null></Content>
+						<token name="RunContext">0</token>
+						<string name="ScriptGuid">{653b5638-0e87-4323-bb83-df25660a584c}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">WOBImpactFeedbackOverlay</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<BinaryString name="Tags"></BinaryString>
+						<UniqueId name="UniqueId">10a5b6ad489a534b0a0c605000001edf</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="LocalScript" referent="RBXe420daa43e834bec8859eb1b02dd3bec">
+					<Properties>
+						<ProtectedString name="Source"><![CDATA[local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+
+local root = Workspace:WaitForChild("WOB_Generated")
+local testObjects = root:WaitForChild("TestObjects")
+local playerTank = testObjects:WaitForChild("PlayerTankPrototype")
+local tankBody = playerTank:WaitForChild("Body")
+
+local localVisuals = Workspace:FindFirstChild("WOB_LocalVisuals")
+
+if localVisuals == nil then
+	localVisuals = Instance.new("Folder")
+	localVisuals.Name = "WOB_LocalVisuals"
+	localVisuals.Parent = Workspace
+end
+
+local indicatorFolder = localVisuals:FindFirstChild("TankDirectionIndicator")
+
+if indicatorFolder == nil then
+	indicatorFolder = Instance.new("Folder")
+	indicatorFolder.Name = "TankDirectionIndicator"
+	indicatorFolder.Parent = localVisuals
+else
+	indicatorFolder:ClearAllChildren()
+end
+
+local GROUND_Y = 0.14
+local TOP_Y = 0.22
+local SHAFT_SIZE = Vector3.new(0.9, 0.08, 3.7)
+local HEAD_SIZE = Vector3.new(0.9, 0.08, 2.9)
+local OUTLINE_GROW = Vector3.new(0.42, 0.02, 0.42)
+local GREEN = Color3.fromRGB(80, 255, 105)
+local GREEN_CORE = Color3.fromRGB(180, 255, 175)
+local OUTLINE_GREEN = Color3.fromRGB(12, 80, 34)
+local HEAD_ANGLE = math.rad(36)
+
+local arrowPieces = {}
+
+local function prepareVisualPart(part, color, transparency, material)
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanTouch = false
+	part.CanQuery = false
+	part.CastShadow = false
+	part.Material = material
+	part.Color = color
+	part.Transparency = transparency
+	part.Parent = indicatorFolder
+end
+
+local function createPiece(name, size, color, transparency, material)
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Size = size
+	prepareVisualPart(part, color, transparency, material)
+
+	return part
+end
+
+local function addArrowStroke(name, size, localOffset, yawOffset, color)
+	local outline = createPiece(
+		name .. "Outline",
+		size + OUTLINE_GROW,
+		OUTLINE_GREEN,
+		0.28,
+		Enum.Material.SmoothPlastic
+	)
+	local top = createPiece(name, size, color, 0.02, Enum.Material.Neon)
+
+	table.insert(arrowPieces, {
+		Outline = outline,
+		Top = top,
+		LocalOffset = localOffset,
+		YawOffset = yawOffset,
+	})
+end
+
+addArrowStroke("DirectionShaft", SHAFT_SIZE, Vector3.new(0, 0, -8.2), 0, GREEN)
+addArrowStroke("DirectionHeadLeft", HEAD_SIZE, Vector3.new(-1.05, 0, -10.4), -HEAD_ANGLE, GREEN)
+addArrowStroke("DirectionHeadRight", HEAD_SIZE, Vector3.new(1.05, 0, -10.4), HEAD_ANGLE, GREEN)
+addArrowStroke("DirectionTipCore", Vector3.new(0.7, 0.09, 1.35), Vector3.new(0, 0, -11.45), 0, GREEN_CORE)
+
+local function getFlatBodyCFrame(height)
+	local position = tankBody.Position
+	local flatPosition = Vector3.new(position.X, height, position.Z)
+	local forward = Vector3.new(tankBody.CFrame.LookVector.X, 0, tankBody.CFrame.LookVector.Z)
+
+	if forward.Magnitude < 0.001 then
+		forward = Vector3.new(0, 0, -1)
+	end
+
+	return CFrame.lookAt(flatPosition, flatPosition + forward.Unit, Vector3.yAxis)
+end
+
+local function updateIndicator()
+	local outlineFrame = getFlatBodyCFrame(GROUND_Y)
+	local topFrame = getFlatBodyCFrame(TOP_Y)
+
+	for _, piece in ipairs(arrowPieces) do
+		local rotation = CFrame.Angles(0, piece.YawOffset, 0)
+		piece.Outline.CFrame = outlineFrame * CFrame.new(piece.LocalOffset) * rotation
+		piece.Top.CFrame = topFrame * CFrame.new(piece.LocalOffset) * rotation
+	end
+end
+
+RunService.RenderStepped:Connect(updateIndicator)
+updateIndicator()
+
+print("[WOB] Tank direction indicator started")
+]]></ProtectedString>
+						<bool name="Disabled">false</bool>
+						<Content name="LinkedSource"><null></null></Content>
+						<token name="RunContext">0</token>
+						<string name="ScriptGuid">{d5472ab1-693f-4589-af22-f3478dbf41fa}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">WOBTankDirectionIndicator</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<BinaryString name="Tags"></BinaryString>
+						<UniqueId name="UniqueId">10a5b6ad489a534b0a0c605000001ee1</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="LocalScript" referent="RBX04b8bbfd0b5b430c8f411d6918c808ae">
+					<Properties>
+						<ProtectedString name="Source"><![CDATA[local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local configs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
+local ProjectileVisualConfig = require(configs:WaitForChild("ProjectileVisualConfig"))
+local projectileVisual = ProjectileVisualConfig.ProjectileTypeVisuals.PrototypeRicochetShell
+
+local root = Workspace:WaitForChild("WOB_Generated")
+local runtime = root:WaitForChild("Runtime")
+local projectileFolder = runtime:WaitForChild("Projectiles")
+
+local localVisuals = Workspace:FindFirstChild("WOB_LocalVisuals")
+
+if localVisuals == nil then
+	localVisuals = Instance.new("Folder")
+	localVisuals.Name = "WOB_LocalVisuals"
+	localVisuals.Parent = Workspace
+end
+
+local glowFolder = localVisuals:FindFirstChild("ProjectileReadabilityGlows")
+
+if glowFolder == nil then
+	glowFolder = Instance.new("Folder")
+	glowFolder.Name = "ProjectileReadabilityGlows"
+	glowFolder.Parent = localVisuals
+end
+
+local trackedProjectiles = {}
+
+local CORE_SCALE = 0.42
+local CORE_HEIGHT_OFFSET = 0.025
+local CORE_TRANSPARENCY_OFFSET = -0.18
+
+local function setVisualPhysics(part)
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanTouch = false
+	part.CanQuery = false
+	part.CastShadow = false
+	part.Material = Enum.Material.Neon
+end
+
+local function updateGlowCFrame(projectile, glowParts)
+	glowParts.Outer.CFrame = CFrame.new(
+		projectile.Position.X,
+		projectileVisual.GroundGlowHeightOffset,
+		projectile.Position.Z
+	)
+	glowParts.Core.CFrame = CFrame.new(
+		projectile.Position.X,
+		projectileVisual.GroundGlowHeightOffset + CORE_HEIGHT_OFFSET,
+		projectile.Position.Z
+	)
+end
+
+local function isSmallRuntimePart(part)
+	local size = part.Size
+	return math.max(size.X, size.Y, size.Z) <= 4
+end
+
+local function isProjectileCandidate(instance)
+	if not instance:IsA("BasePart") then
+		return false
+	end
+
+	local lowerName = string.lower(instance.Name)
+
+	if string.find(lowerName, "glow") ~= nil or string.find(lowerName, "spark") ~= nil or string.find(lowerName, "flash") ~= nil then
+		return false
+	end
+
+	if string.find(lowerName, "projectile") ~= nil or string.find(lowerName, "bullet") ~= nil or string.find(lowerName, "shell") ~= nil then
+		return true
+	end
+
+	return instance:IsDescendantOf(projectileFolder) and isSmallRuntimePart(instance)
+end
+
+local function attachGlow(projectile)
+	if projectileVisual.GroundGlowEnabled ~= true then
+		return
+	end
+
+	if trackedProjectiles[projectile] ~= nil or not isProjectileCandidate(projectile) then
+		return
+	end
+
+	local outerGlow = Instance.new("Part")
+	outerGlow.Name = "WOBLocalProjectileGroundGlow"
+	outerGlow.Shape = Enum.PartType.Ball
+	outerGlow.Size = projectileVisual.GroundGlowSize
+	setVisualPhysics(outerGlow)
+	outerGlow.Color = projectileVisual.GroundGlowColor
+	outerGlow.Transparency = projectileVisual.GroundGlowTransparency
+	outerGlow.Parent = glowFolder
+
+	local coreGlow = Instance.new("Part")
+	coreGlow.Name = "WOBLocalProjectileGroundGlowCore"
+	coreGlow.Shape = Enum.PartType.Ball
+	coreGlow.Size = Vector3.new(
+		projectileVisual.GroundGlowSize.X * CORE_SCALE,
+		projectileVisual.GroundGlowSize.Y,
+		projectileVisual.GroundGlowSize.Z * CORE_SCALE
+	)
+	setVisualPhysics(coreGlow)
+	coreGlow.Color = Color3.fromRGB(255, 240, 160)
+	coreGlow.Transparency = math.clamp(projectileVisual.GroundGlowTransparency + CORE_TRANSPARENCY_OFFSET, 0, 1)
+	coreGlow.Parent = glowFolder
+
+	local glowParts = {
+		Outer = outerGlow,
+		Core = coreGlow,
+	}
+
+	updateGlowCFrame(projectile, glowParts)
+	trackedProjectiles[projectile] = glowParts
+end
+
+for _, descendant in ipairs(projectileFolder:GetDescendants()) do
+	attachGlow(descendant)
+end
+
+projectileFolder.DescendantAdded:Connect(attachGlow)
+
+runtime.DescendantAdded:Connect(function(descendant)
+	if isProjectileCandidate(descendant) then
+		attachGlow(descendant)
+	end
+end)
+
+RunService.RenderStepped:Connect(function()
+	for projectile, glowParts in pairs(trackedProjectiles) do
+		if projectile.Parent == nil or glowParts.Outer.Parent == nil or glowParts.Core.Parent == nil then
+			if glowParts.Outer.Parent ~= nil then
+				glowParts.Outer:Destroy()
+			end
+
+			if glowParts.Core.Parent ~= nil then
+				glowParts.Core:Destroy()
+			end
+
+			trackedProjectiles[projectile] = nil
+		else
+			updateGlowCFrame(projectile, glowParts)
+		end
+	end
+end)
+
+print("[WOB] Projectile readability overlay started")
+]]></ProtectedString>
+						<bool name="Disabled">false</bool>
+						<Content name="LinkedSource"><null></null></Content>
+						<token name="RunContext">0</token>
+						<string name="ScriptGuid">{46613157-49d2-4d8f-bc8a-7ec9cf0da3e0}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">WOBProjectileReadabilityOverlay</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<BinaryString name="Tags"></BinaryString>
+						<UniqueId name="UniqueId">10a5b6ad489a534b0a0c605000001ee3</UniqueId>
 					</Properties>
 				</Item>
 			</Item>
@@ -6270,6 +6774,401 @@ print("[WOB] HUD controller started")
 				<BinaryString name="Tags"></BinaryString>
 				<UniqueId name="UniqueId">7c6c896485ebc3490a09ceb2000009f1</UniqueId>
 			</Properties>
+			<Item class="Folder" referent="RBXfd292d1ee4194e2ab53fdca830d3c5d2">
+				<Properties>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+					<string name="Name">Configs</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<BinaryString name="Tags"></BinaryString>
+					<UniqueId name="UniqueId">10a5b6ad489a534b0a0c605000001926</UniqueId>
+				</Properties>
+				<Item class="ModuleScript" referent="RBXb92afc73001742ab8d6202766c8172db">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[-- Read-only snapshot config. Do not wire without a dedicated task.
+
+local TankConfig = table.freeze({
+	Movement = table.freeze({
+		MoveSpeed = 34,
+		BodyTurnSpeedRadians = 2.007128639793479,
+		BodyTurnSpeedDegrees = 115,
+		-- TODO: No separate reverse speed exists in the snapshot; current code applies MoveSpeed to signed throttle.
+		-- TODO: No turret turn speed exists in the snapshot; current turret yaw follows client aim direction directly.
+	}),
+
+	PlayerInitialState = table.freeze({
+		Position = Vector3.new(-42, 0, -42),
+		BodyYawRadians = 0,
+		TurretYawRadians = 0,
+	}),
+
+	DummyInitialState = table.freeze({
+		Position = Vector3.new(42, 0, 42),
+		BodyYawRadians = 3.141592653589793,
+		TurretYawRadians = 3.141592653589793,
+	}),
+
+	ModelNames = table.freeze({
+		PlayerTank = "PlayerTankPrototype",
+		DummyTank = "DummyTank",
+		Body = "Body",
+		Turret = "Turret",
+		Barrel = "Barrel",
+		ShootPoint = "ShootPoint",
+		Hitboxes = "Hitboxes",
+		FrontArmor = "FrontArmor",
+		RearArmor = "RearArmor",
+		LeftArmor = "LeftArmor",
+		RightArmor = "RightArmor",
+	}),
+
+	Layout = table.freeze({
+		BodyOffset = Vector3.new(0, 2, 0),
+		TurretOffset = Vector3.new(0, 4.6, 0),
+		BarrelOffset = Vector3.new(0, 0, -5.8),
+		ShootPointOffset = Vector3.new(0, 0, -10),
+		HitboxOffsets = table.freeze({
+			FrontArmor = Vector3.new(0, 0, -5.7),
+			RearArmor = Vector3.new(0, 0, 5.7),
+			LeftArmor = Vector3.new(-4.2, 0, 0),
+			RightArmor = Vector3.new(4.2, 0, 0),
+		}),
+	}),
+})
+
+return TankConfig
+]]></ProtectedString>
+						<string name="ScriptGuid">{1fde95b3-ca40-4a79-8313-241644e6fe9c}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">TankConfig</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<BinaryString name="Tags"></BinaryString>
+						<UniqueId name="UniqueId">10a5b6ad489a534b0a0c605000001927</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="ModuleScript" referent="RBX423318683620451899a6898897c92c94">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[-- Read-only snapshot config. Do not wire without a dedicated task.
+
+local WeaponConfig = table.freeze({
+	PrimaryWeapon = table.freeze({
+		Id = "PrototypeCannon",
+		ShootCooldown = 0.45,
+		ProjectileTypeId = "PrototypeRicochetShell",
+		BarrelOffset = Vector3.new(0, 0, -5.8),
+		MuzzleOffset = Vector3.new(0, 0, -10),
+		-- TODO: ProjectileTypeId is a new config id; the Studio snapshot has no projectile id system yet.
+		-- TODO: Spread, burst, reload, ammo, and weapon switching are not present in the snapshot.
+	}),
+})
+
+return WeaponConfig
+]]></ProtectedString>
+						<string name="ScriptGuid">{32114d11-0bac-4696-8ce0-2d6bd87fc7a1}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">WeaponConfig</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<BinaryString name="Tags"></BinaryString>
+						<UniqueId name="UniqueId">10a5b6ad489a534b0a0c605000001928</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="ModuleScript" referent="RBX898a6510722c441494e307b1a7e4b6fd">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[-- Read-only snapshot config. Do not wire without a dedicated task.
+
+local ProjectileCatalog = table.freeze({
+	BehaviorTypes = table.freeze({
+		Ricochet = "Ricochet",
+		Piercing = "Piercing",
+		Explosive = "Explosive",
+		Heavy = "Heavy",
+		NoRicochet = "NoRicochet",
+	}),
+
+	DefaultProjectileTypeId = "PrototypeRicochetShell",
+
+	Projectiles = table.freeze({
+		PrototypeRicochetShell = table.freeze({
+			Id = "PrototypeRicochetShell",
+			BehaviorType = "Ricochet",
+			Speed = 160,
+			Damage = 35,
+			MaxRicochets = 3,
+			DamageMultiplierPerRicochet = 0.75,
+			Lifetime = 4,
+
+			Raycast = table.freeze({
+				FilterType = "Exclude",
+				IgnoreWater = true,
+				ExcludedRuntimeGroups = table.freeze({
+					"Projectiles",
+					"VFX",
+					"PlayerTankPrototype",
+				}),
+				-- TODO: Current snapshot excludes PlayerTankPrototype, so self-hit is not active yet.
+			}),
+		}),
+	}),
+})
+
+return ProjectileCatalog
+]]></ProtectedString>
+						<string name="ScriptGuid">{5fcba720-9dd9-495d-b3e5-7a6e5c8ae591}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">ProjectileCatalog</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<BinaryString name="Tags"></BinaryString>
+						<UniqueId name="UniqueId">10a5b6ad489a534b0a0c605000001929</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="ModuleScript" referent="RBXc82ef31360574b64a8d744af2d8f79b1">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[-- Read-only snapshot config. Do not wire without a dedicated task.
+
+local ProjectileVisualConfig = table.freeze({
+	ProjectileTypeVisuals = table.freeze({
+		PrototypeRicochetShell = table.freeze({
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(1.2, 1.2, 1.2),
+			Material = Enum.Material.Neon,
+			Color = Color3.fromRGB(255, 230, 120),
+
+			PointLight = table.freeze({
+				Brightness = 1,
+				Range = 6,
+			}),
+
+			GroundGlowEnabled = true,
+			GroundGlowSize = Vector3.new(2.8, 0.06, 2.8),
+			GroundGlowTransparency = 0.58,
+			GroundGlowHeightOffset = 0.09,
+			GroundGlowColor = Color3.fromRGB(255, 205, 105),
+
+			Trail = table.freeze({
+				Name = "WOBTrail",
+				Attachment0Name = "TrailAttachment0",
+				Attachment0Position = Vector3.new(0, 0, -0.45),
+				Attachment1Name = "TrailAttachment1",
+				Attachment1Position = Vector3.new(0, 0, 0.45),
+				Lifetime = 0.18,
+				MinLength = 0.1,
+				LightEmission = 1,
+				FaceCamera = true,
+				ColorStart = Color3.fromRGB(255, 230, 120),
+				ColorEnd = Color3.fromRGB(255, 120, 40),
+				TransparencyStart = 0.05,
+				TransparencyEnd = 1,
+			}),
+		}),
+	}),
+
+	MuzzleFlash = table.freeze({
+		Color = Color3.fromRGB(255, 220, 80),
+		Size = 3.2,
+		Lifetime = 0.09,
+	}),
+
+	ImpactFlash = table.freeze({
+		Color = Color3.fromRGB(255, 130, 40),
+		Size = 2.5,
+		Lifetime = 0.12,
+	}),
+
+	RicochetSparks = table.freeze({
+		Count = 3,
+		Size = Vector3.new(0.25, 0.25, 1.2),
+		Color = Color3.fromRGB(255, 200, 90),
+		Lifetime = 0.12,
+	}),
+
+	DummyDestroyedVisual = table.freeze({
+		PartColor = Color3.fromRGB(30, 30, 30),
+		-- TODO: No separate death VFX exists in the snapshot; current behavior only darkens dummy parts.
+	}),
+})
+
+return ProjectileVisualConfig
+]]></ProtectedString>
+						<string name="ScriptGuid">{9560e367-552f-43b2-9d80-c03519bca518}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">ProjectileVisualConfig</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<BinaryString name="Tags"></BinaryString>
+						<UniqueId name="UniqueId">10a5b6ad489a534b0a0c60500000192a</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="ModuleScript" referent="RBX5f4f786789cb475b8048ea1b8a6e49b3">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[-- Read-only snapshot config. Do not wire without a dedicated task.
+
+local CameraConfig = table.freeze({
+	TopDown = table.freeze({
+		Height = 95,
+		FieldOfView = 42,
+		LookAtOffset = Vector3.new(0, 0, 0),
+		UpVector = Vector3.new(0, 0, -1),
+	}),
+
+	Input = table.freeze({
+		SendInterval = 0.05,
+		AimPlaneY = 0,
+	}),
+})
+
+return CameraConfig
+]]></ProtectedString>
+						<string name="ScriptGuid">{4b4dcd02-60ce-4620-93d1-e2ff32330fbd}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">CameraConfig</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<BinaryString name="Tags"></BinaryString>
+						<UniqueId name="UniqueId">10a5b6ad489a534b0a0c60500000192b</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="ModuleScript" referent="RBX2a0ea2ebbb664a1785118f2dbd9cbc8d">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[-- Read-only snapshot config. Do not wire without a dedicated task.
+
+local DummyRespawnConfig = table.freeze({
+	MaxHealth = 100,
+	RespawnDelay = 2.25,
+
+	ResetColors = table.freeze({
+		Body = Color3.fromRGB(160, 65, 65),
+		Turret = Color3.fromRGB(45, 45, 50),
+		Barrel = Color3.fromRGB(30, 30, 35),
+		ShootPoint = Color3.fromRGB(255, 230, 80),
+		FrontArmor = Color3.fromRGB(80, 180, 255),
+		RearArmor = Color3.fromRGB(255, 150, 80),
+		LeftArmor = Color3.fromRGB(180, 255, 120),
+		RightArmor = Color3.fromRGB(180, 255, 120),
+	}),
+
+	AttributeNames = table.freeze({
+		Health = "Health",
+	}),
+
+	-- TODO: Snapshot reset does not clear projectiles or Runtime/VFX folders.
+})
+
+return DummyRespawnConfig
+]]></ProtectedString>
+						<string name="ScriptGuid">{7e7b1503-a7ec-4c56-86f0-70aa06aa761c}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">DummyRespawnConfig</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<BinaryString name="Tags"></BinaryString>
+						<UniqueId name="UniqueId">10a5b6ad489a534b0a0c60500000192c</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="ModuleScript" referent="RBX2d459b77554f4073b217f255a1714b11">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[-- Read-only snapshot config. Do not wire without a dedicated task.
+
+local HudConfig = table.freeze({
+	DummyHealth = table.freeze({
+		MaxHealthDisplay = 100,
+		LabelPrefix = "Dummy HP: ",
+		Separator = " / ",
+		-- TODO: This display value mirrors DummyRespawnConfig.MaxHealth but is not wired yet.
+	}),
+
+	Reload = table.freeze({
+		DisplayCooldown = 0.45,
+		ReadyText = "Reload: READY",
+		Prefix = "Reload: ",
+		Suffix = "%",
+		-- TODO: This display cooldown mirrors WeaponConfig.PrimaryWeapon.ShootCooldown but is not wired yet.
+	}),
+
+	Feedback = table.freeze({
+		Time = 0.8,
+		Messages = table.freeze({
+			HitPrefix = "HIT -",
+			Destroyed = "TARGET DESTROYED",
+			Reset = "TARGET RESET",
+		}),
+		Colors = table.freeze({
+			Hit = Color3.fromRGB(255, 220, 90),
+			Destroyed = Color3.fromRGB(255, 80, 80),
+			Reset = Color3.fromRGB(120, 255, 150),
+		}),
+	}),
+})
+
+return HudConfig
+]]></ProtectedString>
+						<string name="ScriptGuid">{25e25a30-891b-494a-8054-dab01e773aef}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">HudConfig</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<BinaryString name="Tags"></BinaryString>
+						<UniqueId name="UniqueId">10a5b6ad489a534b0a0c60500000192d</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="ModuleScript" referent="RBXaf3a0bcfded0444088de7e71e598955e">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[-- Read-only snapshot config. Do not wire without a dedicated task.
+
+local PerformanceConfig = table.freeze({
+	Lighting = table.freeze({
+		GlobalShadows = false,
+		Brightness = 2,
+		ClockTime = 14,
+		FogEnd = 100000,
+		Technology = "Compatibility",
+	}),
+
+	BasePart = table.freeze({
+		CastShadow = false,
+	}),
+})
+
+return PerformanceConfig
+]]></ProtectedString>
+						<string name="ScriptGuid">{6de45167-e893-4a1e-bc5c-7a631b97fe80}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">PerformanceConfig</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<BinaryString name="Tags"></BinaryString>
+						<UniqueId name="UniqueId">10a5b6ad489a534b0a0c60500000192e</UniqueId>
+					</Properties>
+				</Item>
+			</Item>
 		</Item>
 		<Item class="Folder" referent="RBXbecb7c5719944a2e92c42e92ff8e2371">
 			<Properties>
@@ -6436,7 +7335,10 @@ local shootRequestEvent = remotes:WaitForChild("ShootRequestEvent")
 
 local root = Workspace:WaitForChild("WOB_Generated")
 local runtime = root:WaitForChild("Runtime")
+local map = root:WaitForChild("Map")
 local testObjects = root:WaitForChild("TestObjects")
+local ricochetWalls = map:FindFirstChild("RicochetWalls")
+local cover = map:FindFirstChild("Cover")
 
 local projectileFolder = runtime:FindFirstChild("Projectiles") or Instance.new("Folder")
 projectileFolder.Name = "Projectiles"
@@ -6468,10 +7370,17 @@ local PROJECTILE_MAX_BOUNCES = 3
 local PROJECTILE_DAMAGE_MULTIPLIER = 0.75
 local PROJECTILE_LIFETIME = 4
 
+local TANK_MOVEMENT_CAST_PADDING = 0.45
+local TANK_MOVEMENT_CAST_HEIGHT = 1.4
+local TANK_MOVEMENT_CAST_Y_OFFSET = 2
+local TANK_MOVEMENT_EPSILON = 0.03
+local WALL_BLOCK_PRINT_INTERVAL = 0.35
+
 local controllingPlayer = nil
 local lastShotTimeByPlayer = {}
 local inputByPlayer = {}
 local projectiles = {}
+local lastWallBlockPrintTime = 0
 
 local tankState = {
 	Position = Vector3.new(-42, 0, -42),
@@ -6547,6 +7456,181 @@ local function getYawFromDirection(direction)
 	local unit = flat.Unit
 
 	return math.atan2(-unit.X, -unit.Z)
+end
+
+local tankMovementRaycastParams = RaycastParams.new()
+tankMovementRaycastParams.FilterDescendantsInstances = {
+	playerTank,
+	dummyTank,
+	runtime,
+	projectileFolder,
+	vfxFolder,
+}
+tankMovementRaycastParams.FilterType = Enum.RaycastFilterType.Exclude
+tankMovementRaycastParams.IgnoreWater = true
+
+local tankMovementOverlapParams = OverlapParams.new()
+tankMovementOverlapParams.FilterType = Enum.RaycastFilterType.Include
+tankMovementOverlapParams.MaxParts = 20
+
+local boundaryWallNames = {
+	Wall_North = true,
+	Wall_South = true,
+	Wall_East = true,
+	Wall_West = true,
+}
+
+local function isObstacleName(name)
+	return boundaryWallNames[name] == true
+		or string.match(name, "^RicochetWall_") ~= nil
+		or string.match(name, "^Cover_Block_") ~= nil
+end
+
+local function isTankMovementObstacle(instance)
+	if instance == nil then
+		return false
+	end
+
+	if not instance:IsA("BasePart") then
+		return false
+	end
+
+	if not instance.CanQuery then
+		return false
+	end
+
+	if instance:IsDescendantOf(playerTank)
+		or instance:IsDescendantOf(dummyTank)
+		or instance:IsDescendantOf(runtime)
+	then
+		return false
+	end
+
+	if ricochetWalls == nil then
+		ricochetWalls = map:FindFirstChild("RicochetWalls")
+	end
+
+	if cover == nil then
+		cover = map:FindFirstChild("Cover")
+	end
+
+	if ricochetWalls ~= nil and instance:IsDescendantOf(ricochetWalls) then
+		return true
+	end
+
+	if cover ~= nil and instance:IsDescendantOf(cover) then
+		return true
+	end
+
+	return isObstacleName(instance.Name)
+end
+
+local function getTankMovementObstacleParts()
+	local obstacleParts = {}
+
+	for _, descendant in ipairs(map:GetDescendants()) do
+		if isTankMovementObstacle(descendant) then
+			table.insert(obstacleParts, descendant)
+		end
+	end
+
+	return obstacleParts
+end
+
+local function getTankMovementCastSize()
+	return Vector3.new(
+		body.Size.X + TANK_MOVEMENT_CAST_PADDING,
+		TANK_MOVEMENT_CAST_HEIGHT,
+		body.Size.Z + TANK_MOVEMENT_CAST_PADDING
+	)
+end
+
+local function getTankMovementCastCFrame(position, bodyYaw)
+	return CFrame.new(position + Vector3.new(0, TANK_MOVEMENT_CAST_Y_OFFSET, 0)) * CFrame.Angles(0, bodyYaw, 0)
+end
+
+local function findTankBlockcastObstacle(fromPosition, bodyYaw, movement)
+	local castCFrame = getTankMovementCastCFrame(fromPosition, bodyYaw)
+	local success, result = pcall(function()
+		return Workspace:Blockcast(
+			castCFrame,
+			getTankMovementCastSize(),
+			movement,
+			tankMovementRaycastParams
+		)
+	end)
+
+	if not success or result == nil then
+		return nil
+	end
+
+	if isTankMovementObstacle(result.Instance) then
+		return result.Instance
+	end
+
+	return nil
+end
+
+local function findTankOverlapObstacle(position, bodyYaw)
+	local obstacleParts = getTankMovementObstacleParts()
+
+	if #obstacleParts == 0 then
+		return nil
+	end
+
+	tankMovementOverlapParams.FilterDescendantsInstances = obstacleParts
+
+	local overlappingParts = Workspace:GetPartBoundsInBox(
+		getTankMovementCastCFrame(position, bodyYaw),
+		getTankMovementCastSize(),
+		tankMovementOverlapParams
+	)
+
+	for _, overlappingPart in ipairs(overlappingParts) do
+		if isTankMovementObstacle(overlappingPart) then
+			return overlappingPart
+		end
+	end
+
+	return nil
+end
+
+local function printTankMovementBlocked(blockingPart)
+	local currentTime = os.clock()
+
+	if currentTime - lastWallBlockPrintTime < WALL_BLOCK_PRINT_INTERVAL then
+		return
+	end
+
+	lastWallBlockPrintTime = currentTime
+
+	local blockingName = "unknown"
+
+	if blockingPart ~= nil then
+		blockingName = blockingPart.Name
+	end
+
+	print("[WALL] blocked by " .. blockingName)
+end
+
+local function isTankMovementBlocked(fromPosition, bodyYaw, movement)
+	if movement.Magnitude <= TANK_MOVEMENT_EPSILON then
+		return false, nil
+	end
+
+	local blockcastObstacle = findTankBlockcastObstacle(fromPosition, bodyYaw, movement)
+
+	if blockcastObstacle ~= nil then
+		return true, blockcastObstacle
+	end
+
+	local overlapObstacle = findTankOverlapObstacle(fromPosition + movement, bodyYaw)
+
+	if overlapObstacle ~= nil then
+		return true, overlapObstacle
+	end
+
+	return false, nil
 end
 
 local function layoutTank(tank, position, bodyYaw, turretYaw)
@@ -6788,13 +7872,26 @@ local function updateTank(deltaTime)
 	local bodyCFrame = CFrame.new(tankState.Position) * CFrame.Angles(0, tankState.BodyYaw, 0)
 	local forward = bodyCFrame.LookVector
 
-	tankState.Position += forward * input.Throttle * MOVE_SPEED * deltaTime
+	local movement = forward * input.Throttle * MOVE_SPEED * deltaTime
+	local proposedPosition = tankState.Position + movement
 
-	tankState.Position = Vector3.new(
-		math.clamp(tankState.Position.X, -58, 58),
+	proposedPosition = Vector3.new(
+		math.clamp(proposedPosition.X, -58, 58),
 		0,
-		math.clamp(tankState.Position.Z, -58, 58)
+		math.clamp(proposedPosition.Z, -58, 58)
 	)
+
+	local isBlocked, blockingPart = isTankMovementBlocked(
+		tankState.Position,
+		tankState.BodyYaw,
+		proposedPosition - tankState.Position
+	)
+
+	if isBlocked then
+		printTankMovementBlocked(blockingPart)
+	else
+		tankState.Position = proposedPosition
+	end
 
 	local aimDirection = input.AimPosition - tankState.Position
 	tankState.TurretYaw = getYawFromDirection(aimDirection)
@@ -7143,6 +8240,105 @@ print("[WOB] Performance profile applied: shadows disabled, generated parts opti
 					<BinaryString name="Tags"></BinaryString>
 					<UniqueId name="UniqueId">10a5b6ad489a534b0a0c605000000b9d</UniqueId>
 				</Properties>
+			</Item>
+			<Item class="Folder" referent="RBX4b49dcecd9c84521b5107e6b43e95404">
+				<Properties>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+					<string name="Name">Services</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<BinaryString name="Tags"></BinaryString>
+					<UniqueId name="UniqueId">10a5b6ad489a534b0a0c605000001937</UniqueId>
+				</Properties>
+				<Item class="Script" referent="RBXe2dc9a5237d84ac5a53929e812c9732e">
+					<Properties>
+						<ProtectedString name="Source"><![CDATA[-- Rojo-managed replacement for Studio WOBPerformanceServer.
+-- This lives under ServerScriptService/Server/Services to avoid Rojo ownership of the Studio Services folder.
+-- Before Play testing this, disable/remove the old Studio-owned ServerScriptService/Services/WOBPerformanceServer.
+
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local PerformanceConfig = require(
+	ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs"):WaitForChild("PerformanceConfig")
+)
+
+local root = Workspace:WaitForChild("WOB_Generated")
+
+local function applyLightingProfile()
+	local lightingConfig = PerformanceConfig.Lighting
+
+	Lighting.GlobalShadows = lightingConfig.GlobalShadows
+	Lighting.Brightness = lightingConfig.Brightness
+	Lighting.ClockTime = lightingConfig.ClockTime
+	Lighting.FogEnd = lightingConfig.FogEnd
+
+	pcall(function()
+		if lightingConfig.Technology == "Compatibility" then
+			Lighting.Technology = Enum.Technology.Compatibility
+		end
+	end)
+end
+
+local function optimizePart(part)
+	if not part:IsA("BasePart") then
+		return
+	end
+
+	part.CastShadow = PerformanceConfig.BasePart.CastShadow
+end
+
+local function optimizeModel(model)
+	for _, descendant in ipairs(model:GetDescendants()) do
+		optimizePart(descendant)
+	end
+end
+
+local function optimizeCharacter(character)
+	optimizeModel(character)
+end
+
+applyLightingProfile()
+optimizeModel(root)
+
+root.DescendantAdded:Connect(function(descendant)
+	optimizePart(descendant)
+end)
+
+Players.PlayerAdded:Connect(function(player)
+	player.CharacterAdded:Connect(optimizeCharacter)
+
+	if player.Character ~= nil then
+		optimizeCharacter(player.Character)
+	end
+end)
+
+for _, player in ipairs(Players:GetPlayers()) do
+	if player.Character ~= nil then
+		optimizeCharacter(player.Character)
+	end
+end
+
+print("[WOB] Performance profile applied: shadows disabled, generated parts optimized.")
+]]></ProtectedString>
+						<bool name="Disabled">true</bool>
+						<Content name="LinkedSource"><null></null></Content>
+						<token name="RunContext">0</token>
+						<string name="ScriptGuid">{c3769419-c47f-46f4-a046-df1e9552abeb}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">WOBPerformanceServer</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<BinaryString name="Tags"></BinaryString>
+						<UniqueId name="UniqueId">10a5b6ad489a534b0a0c605000001938</UniqueId>
+					</Properties>
+				</Item>
 			</Item>
 		</Item>
 	</Item>
