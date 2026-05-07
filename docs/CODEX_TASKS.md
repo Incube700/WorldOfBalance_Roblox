@@ -160,13 +160,13 @@
 
 ### Task 02.51 — Prepare WOBGameplayServer Rojo-managed replacement, without enabling duplicate
 
-- Статус: следующая безопасная задача после planning step.
+- Статус: prepared in `src/ServerScriptService/Server/Gameplay/WOBGameplayServer.server.luau`.
 - Цель: создать replacement в уже Rojo-owned зоне, чтобы будущий gameplay-код менялся через Git/Rojo, а не через manual Source paste.
 - Предпочтительный путь: `src/ServerScriptService/Server/Gameplay/WOBGameplayServer.server.luau`.
 - Файлы можно трогать: `src/ServerScriptService/Server/Gameplay/WOBGameplayServer.server.luau`, optional Rojo meta file for disabled startup, docs with manual switch steps.
 - Запрещено: менять `.rbxl`, менять `default.project.json`, включать два `WOBGameplayServer`, мигрировать всю `ServerScriptService/Services`, рефакторить gameplay monolith одновременно с migration.
-- Ручной шаг после подготовки: в Studio отключить старый `ServerScriptService/Services/WOBGameplayServer`, включить Rojo-managed replacement, выполнить Play Mode test, затем один раз `File -> Save to File`.
-- Play Mode checks: ровно один `[WOB] Gameplay server started`; WASD, turret aim, shoot, ricochet, dummy damage, wall blocking and HUD still work; Output has no duplicate event behavior or red errors.
+- Ручной шаг перед Play: в Studio отключить старый `ServerScriptService/Services/WOBGameplayServer`; Rojo-managed replacement должен быть единственным active gameplay server.
+- Expected check: ровно один `[WOB] Gameplay server started`; WASD, turret aim, shoot, ricochet, dummy damage, wall blocking and HUD still work; Output has no duplicate event behavior or red errors.
 - Какой коммит сделать: `Prepare WOBGameplayServer Rojo replacement`.
 
 ## Next Milestone — Player HP / Damage / Win-Lose-Restart
