@@ -12,8 +12,8 @@ local root = Workspace:WaitForChild("WOB_Generated")
 local runtime = root:WaitForChild("Runtime")
 local map = root:WaitForChild("Map")
 local testObjects = root:WaitForChild("TestObjects")
-local ricochetWalls = map:WaitForChild("RicochetWalls")
-local cover = map:WaitForChild("Cover")
+local ricochetWalls = map:FindFirstChild("RicochetWalls")
+local cover = map:FindFirstChild("Cover")
 
 local projectileFolder = runtime:FindFirstChild("Projectiles") or Instance.new("Folder")
 projectileFolder.Name = "Projectiles"
@@ -45,15 +45,17 @@ local PROJECTILE_MAX_BOUNCES = 3
 local PROJECTILE_DAMAGE_MULTIPLIER = 0.75
 local PROJECTILE_LIFETIME = 4
 
-local TANK_MOVEMENT_CAST_PADDING = 0.6
-local TANK_MOVEMENT_CAST_HEIGHT = 1.5
+local TANK_MOVEMENT_CAST_PADDING = 0.45
+local TANK_MOVEMENT_CAST_HEIGHT = 1.4
 local TANK_MOVEMENT_CAST_Y_OFFSET = 2
-local TANK_MOVEMENT_EPSILON = 0.05
+local TANK_MOVEMENT_EPSILON = 0.03
+local WALL_BLOCK_PRINT_INTERVAL = 0.35
 
 local controllingPlayer = nil
 local lastShotTimeByPlayer = {}
 local inputByPlayer = {}
 local projectiles = {}
+local lastWallBlockPrintTime = 0
 
 local tankState = {
 	Position = Vector3.new(-42, 0, -42),
@@ -134,12 +136,17 @@ end
 local tankMovementRaycastParams = RaycastParams.new()
 tankMovementRaycastParams.FilterDescendantsInstances = {
 	playerTank,
+	dummyTank,
 	runtime,
 	projectileFolder,
 	vfxFolder,
 }
 tankMovementRaycastParams.FilterType = Enum.RaycastFilterType.Exclude
 tankMovementRaycastParams.IgnoreWater = true
+
+local tankMovementOverlapParams = OverlapParams.new()
+tankMovementOverlapParams.FilterType = Enum.RaycastFilterType.Include
+tankMovementOverlapParams.MaxParts = 20
 
 local boundaryWallNames = {
 	Wall_North = true,
@@ -148,20 +155,61 @@ local boundaryWallNames = {
 	Wall_West = true,
 }
 
+local function isObstacleName(name)
+	return boundaryWallNames[name] == true
+		or string.match(name, "^RicochetWall_") ~= nil
+		or string.match(name, "^Cover_Block_") ~= nil
+end
+
 local function isTankMovementObstacle(instance)
 	if instance == nil then
 		return false
 	end
 
-	if instance:IsDescendantOf(ricochetWalls) or instance:IsDescendantOf(cover) then
+	if not instance:IsA("BasePart") then
+		return false
+	end
+
+	if not instance.CanQuery then
+		return false
+	end
+
+	if instance:IsDescendantOf(playerTank)
+		or instance:IsDescendantOf(dummyTank)
+		or instance:IsDescendantOf(runtime)
+	then
+		return false
+	end
+
+	if ricochetWalls == nil then
+		ricochetWalls = map:FindFirstChild("RicochetWalls")
+	end
+
+	if cover == nil then
+		cover = map:FindFirstChild("Cover")
+	end
+
+	if ricochetWalls ~= nil and instance:IsDescendantOf(ricochetWalls) then
 		return true
 	end
 
-	local name = instance.Name
+	if cover ~= nil and instance:IsDescendantOf(cover) then
+		return true
+	end
 
-	return boundaryWallNames[name] == true
-		or string.match(name, "^RicochetWall_") ~= nil
-		or string.match(name, "^Cover_Block_") ~= nil
+	return isObstacleName(instance.Name)
+end
+
+local function getTankMovementObstacleParts()
+	local obstacleParts = {}
+
+	for _, descendant in ipairs(map:GetDescendants()) do
+		if isTankMovementObstacle(descendant) then
+			table.insert(obstacleParts, descendant)
+		end
+	end
+
+	return obstacleParts
 end
 
 local function getTankMovementCastSize()
@@ -172,20 +220,92 @@ local function getTankMovementCastSize()
 	)
 end
 
-local function isTankMovementBlocked(fromPosition, bodyYaw, movement)
-	if movement.Magnitude <= TANK_MOVEMENT_EPSILON then
-		return false
+local function getTankMovementCastCFrame(position, bodyYaw)
+	return CFrame.new(position + Vector3.new(0, TANK_MOVEMENT_CAST_Y_OFFSET, 0)) * CFrame.Angles(0, bodyYaw, 0)
+end
+
+local function findTankBlockcastObstacle(fromPosition, bodyYaw, movement)
+	local castCFrame = getTankMovementCastCFrame(fromPosition, bodyYaw)
+	local success, result = pcall(function()
+		return Workspace:Blockcast(
+			castCFrame,
+			getTankMovementCastSize(),
+			movement,
+			tankMovementRaycastParams
+		)
+	end)
+
+	if not success or result == nil then
+		return nil
 	end
 
-	local castCFrame = CFrame.new(fromPosition + Vector3.new(0, TANK_MOVEMENT_CAST_Y_OFFSET, 0)) * CFrame.Angles(0, bodyYaw, 0)
-	local result = Workspace:Blockcast(
-		castCFrame,
+	if isTankMovementObstacle(result.Instance) then
+		return result.Instance
+	end
+
+	return nil
+end
+
+local function findTankOverlapObstacle(position, bodyYaw)
+	local obstacleParts = getTankMovementObstacleParts()
+
+	if #obstacleParts == 0 then
+		return nil
+	end
+
+	tankMovementOverlapParams.FilterDescendantsInstances = obstacleParts
+
+	local overlappingParts = Workspace:GetPartBoundsInBox(
+		getTankMovementCastCFrame(position, bodyYaw),
 		getTankMovementCastSize(),
-		movement,
-		tankMovementRaycastParams
+		tankMovementOverlapParams
 	)
 
-	return result ~= nil and isTankMovementObstacle(result.Instance)
+	for _, overlappingPart in ipairs(overlappingParts) do
+		if isTankMovementObstacle(overlappingPart) then
+			return overlappingPart
+		end
+	end
+
+	return nil
+end
+
+local function printTankMovementBlocked(blockingPart)
+	local currentTime = os.clock()
+
+	if currentTime - lastWallBlockPrintTime < WALL_BLOCK_PRINT_INTERVAL then
+		return
+	end
+
+	lastWallBlockPrintTime = currentTime
+
+	local blockingName = "unknown"
+
+	if blockingPart ~= nil then
+		blockingName = blockingPart.Name
+	end
+
+	print("[WALL] blocked by " .. blockingName)
+end
+
+local function isTankMovementBlocked(fromPosition, bodyYaw, movement)
+	if movement.Magnitude <= TANK_MOVEMENT_EPSILON then
+		return false, nil
+	end
+
+	local blockcastObstacle = findTankBlockcastObstacle(fromPosition, bodyYaw, movement)
+
+	if blockcastObstacle ~= nil then
+		return true, blockcastObstacle
+	end
+
+	local overlapObstacle = findTankOverlapObstacle(fromPosition + movement, bodyYaw)
+
+	if overlapObstacle ~= nil then
+		return true, overlapObstacle
+	end
+
+	return false, nil
 end
 
 local function layoutTank(tank, position, bodyYaw, turretYaw)
@@ -436,7 +556,15 @@ local function updateTank(deltaTime)
 		math.clamp(proposedPosition.Z, -58, 58)
 	)
 
-	if not isTankMovementBlocked(tankState.Position, tankState.BodyYaw, proposedPosition - tankState.Position) then
+	local isBlocked, blockingPart = isTankMovementBlocked(
+		tankState.Position,
+		tankState.BodyYaw,
+		proposedPosition - tankState.Position
+	)
+
+	if isBlocked then
+		printTankMovementBlocked(blockingPart)
+	else
 		tankState.Position = proposedPosition
 	end
 

@@ -136,16 +136,22 @@
 - Критерий проверки в Roblox Studio: игрок не может выехать за пределы тестовой карты.
 - Какой коммит сделать: `Constrain tank movement to arena`.
 
-### Task 02.04 — Prepare tank wall blocking patch for Studio-owned gameplay script
+### Task 02.04 — Finalize tank wall blocking patch for Studio-owned gameplay script
 
-- Статус: patch prepared; active `.rbxl` script still needs manual Studio paste.
+- Статус: текущий milestone; full-source patch подготовлен, active `.rbxl` script still needs manual Studio paste.
 - Цель: не дать `PlayerTankPrototype` проходить через `Workspace/WOB_Generated/Map/RicochetWalls`, `Workspace/WOB_Generated/Map/Cover`, `Wall_North`, `Wall_South`, `Wall_East`, `Wall_West`, `RicochetWall_*`, `Cover_Block_*`.
-- Файлы можно трогать: `docs/patches/WOBGameplayServer_tank_wall_blocking.server.luau`, `docs/patches/TANK_BLOCKING_AND_PROJECTILE_GLOW_STUDIO_STEPS.md`, `docs/PROJECT_AUDIT.md`, `docs/CODEX_TASKS.md`.
-- Ожидаемый результат: minimal server-side movement check in `WOBGameplayServer` before applying proposed tank position; blocked direction stops movement for that frame.
+- Файлы можно трогать: `docs/patches/WOBGameplayServer_tank_wall_blocking.server.luau`, `docs/patches/README_VISIBLE_SPRINT.md`, `docs/PROJECT_AUDIT.md`, `docs/CODEX_TASKS.md`.
+- Ожидаемый результат: minimal server-side movement check in `WOBGameplayServer` before applying proposed tank position; blocked direction stops movement for that frame; fallback overlap check prevents passing through walls if `Blockcast` misses.
 - Ручной шаг: replace `ServerScriptService/Services/WOBGameplayServer` Source in Roblox Studio with `docs/patches/WOBGameplayServer_tank_wall_blocking.server.luau`.
-- Риски: `WOBGameplayServer` remains the main monolith; `Workspace:Blockcast` must not hit floor/spawns; no sliding in MVP; do not change RemoteEvent contracts, WASD, turret aim, projectile damage, or ricochet logic.
-- Play Mode checks: WASD works; turret aims with mouse; tank cannot pass through perimeter walls, `RicochetWall_*`, or `Cover_Block_*`; Output has no movement/cast errors.
-- Какой коммит сделать: `Add tank wall blocking patch`.
+- Риски: `WOBGameplayServer` remains the main monolith; `Workspace:Blockcast` must not hit floor/spawns; overlap box must not be too large; no sliding in MVP; do not change RemoteEvent contracts, WASD, turret aim, projectile damage, or ricochet logic.
+- Play Mode checks: WASD works; tank rotates; turret aims with mouse; tank cannot pass through perimeter walls, `RicochetWall_*`, or `Cover_Block_*`; tank does not start stuck; projectile still flies/ricochets; dummy damage and HUD still work; Output has no red errors.
+- Какой коммит сделать: `Finalize tank wall blocking patch`.
+
+## Next Milestone — Player HP / Damage / Win-Lose-Restart
+
+- Статус: следующий milestone после ручной проверки tank wall blocking; не реализовывать в задаче wall blocking.
+- Scope: player health, projectile damage to player, win/lose state, restart flow.
+- Риски: не смешивать с wall blocking, не менять projectile ricochet rules без отдельной задачи, не добавлять state machine раньше согласованного шага.
 
 ## Milestone 3 — Башня и стрельба
 
