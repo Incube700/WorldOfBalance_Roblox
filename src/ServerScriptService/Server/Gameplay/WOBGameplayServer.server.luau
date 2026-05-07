@@ -7,6 +7,9 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Debris = game:GetService("Debris")
 
+local configs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
+local TankConfig = require(configs:WaitForChild("TankConfig"))
+
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local tankInputEvent = remotes:WaitForChild("TankInputEvent")
 local shootRequestEvent = remotes:WaitForChild("ShootRequestEvent")
@@ -39,8 +42,9 @@ local hitboxes = playerTank:WaitForChild("Hitboxes")
 local dummyBody = dummyTank:WaitForChild("Body")
 local dummyHitboxes = dummyTank:WaitForChild("Hitboxes")
 
-local MOVE_SPEED = 34
-local TURN_SPEED = math.rad(115)
+local MOVE_SPEED = TankConfig.Movement.MoveSpeed
+local REVERSE_MOVE_SPEED_MULTIPLIER = TankConfig.Movement.ReverseMoveSpeedMultiplier or 1
+local TURN_SPEED = TankConfig.Movement.BodyTurnSpeedRadians
 local SHOOT_COOLDOWN = 0.45
 
 local PROJECTILE_SPEED = 160
@@ -91,7 +95,6 @@ local function setPartPhysics(model)
 		if descendant:IsA("BasePart") then
 			descendant.Anchored = true
 			descendant.CanQuery = true
-			descendant.CastShadow = false
 		end
 	end
 end
@@ -767,12 +770,19 @@ local function updateTank(deltaTime)
 		return
 	end
 
+	-- Steering stays independent from throttle so reverse never flips A/D body rotation.
 	tankState.BodyYaw -= input.Steer * TURN_SPEED * deltaTime
 
 	local bodyCFrame = CFrame.new(tankState.Position) * CFrame.Angles(0, tankState.BodyYaw, 0)
 	local forward = bodyCFrame.LookVector
 
-	local desiredMove = forward * input.Throttle * MOVE_SPEED * deltaTime
+	local moveSpeed = MOVE_SPEED
+
+	if input.Throttle < 0 then
+		moveSpeed *= REVERSE_MOVE_SPEED_MULTIPLIER
+	end
+
+	local desiredMove = forward * input.Throttle * moveSpeed * deltaTime
 	local resolvedPosition, blockingPart = resolveTankMovement(tankState.Position, tankState.BodyYaw, desiredMove)
 
 	if blockingPart ~= nil then

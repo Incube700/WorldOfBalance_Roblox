@@ -177,6 +177,20 @@
 - TODO: tune self-hit grace/rules later; no angle damage, PvP, or full state machine yet.
 - Какой коммит сделать: `Add player health and round result loop`.
 
+## Current Sprint — Gameplay Feel & Core Rules
+
+- Статус: code-first sprint; priority is stable round loop, readability, shadows, and predictable tank controls.
+- Изменения: reverse movement uses a small reverse speed multiplier; A/D steering remains throttle-independent; Player HP overlay is locked/readable; shadows restored through `PerformanceConfig`; ricochet rules captured in `docs/RICOCHET_RULES.md`.
+- Future milestone: angle-based ricochet damage after the current round loop is stable; not implemented now.
+- Какой коммит сделать: `Improve tank controls UI shadows and ricochet rules`.
+
+## Current Sprint — Editable Player Round UI
+
+- Статус: prepared. Player HP / WIN / LOSE / restart view moves to editable `StarterGui/HUD/MainPanel` objects created by one-time Studio Command Bar setup.
+- Изменения: `WOBRoundStatusOverlay.client.luau` is now a Rojo-managed controller that binds to named Studio HUD elements and only updates text, fill size, colors, and visibility.
+- Ручной шаг: run `docs/patches/CREATE_PLAYER_ROUND_UI_COMMAND.lua` in Roblox Studio Command Bar outside Play Mode, then `File -> Save to File`.
+- Какой коммит сделать: `Make player round UI editable in Studio`.
+
 ## Milestone 3 — Башня и стрельба
 
 ### Task 03.01 — Добавить независимый поворот башни

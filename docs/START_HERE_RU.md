@@ -79,3 +79,13 @@
 7. Потом делай коммит.
 
 Не надо сейчас переписывать весь проект. Этот sprint только про видимость и базовую блокировку стен.
+
+## Как сделать Player HP UI редактируемым
+
+1. Открой Roblox Studio вне Play Mode.
+2. Открой `View -> Command Bar`.
+3. Вставь код из `docs/patches/CREATE_PLAYER_ROUND_UI_COMMAND.lua` и нажми `Enter`.
+4. Проверь, что появились элементы `StarterGui/HUD/MainPanel/PlayerHpLabel`, `PlayerHpBack/PlayerHpFill`, `RoundResultLabel`, `RestartHintLabel`.
+5. Если нужно, двигай и перекрашивай эти UI-элементы руками в Studio.
+6. Сохрани сцену через `File -> Save to File`.
+7. После этого `WOBRoundStatusOverlay.client.luau` будет только обновлять значения этих элементов через Rojo-код.

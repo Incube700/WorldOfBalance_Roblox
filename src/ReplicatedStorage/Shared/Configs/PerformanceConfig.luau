@@ -1,8 +1,9 @@
--- Read-only snapshot config. Do not wire without a dedicated task.
+-- Shared performance config used by WOBPerformanceServer.
 
 local PerformanceConfig = table.freeze({
 	Lighting = table.freeze({
-		GlobalShadows = false,
+		ShadowsEnabled = true,
+		GlobalShadows = true,
 		Brightness = 2,
 		ClockTime = 14,
 		FogEnd = 100000,
@@ -10,7 +11,13 @@ local PerformanceConfig = table.freeze({
 	}),
 
 	BasePart = table.freeze({
-		CastShadow = false,
+		DefaultCastShadow = false,
+		FloorCastShadow = false,
+		WallsCastShadow = true,
+		CoverCastShadow = true,
+		TanksCastShadow = true,
+		RuntimeCastShadow = false,
+		CharacterCastShadow = false,
 	}),
 })
 

@@ -29,7 +29,7 @@ local ProjectileCatalog = table.freeze({
 					"VFX",
 					"PlayerTankPrototype",
 				}),
-				-- TODO: Current snapshot excludes PlayerTankPrototype, so self-hit is not active yet.
+				-- Active server excludes PlayerTankPrototype before first bounce, then allows ricochet self-hit.
 			}),
 		}),
 	}),

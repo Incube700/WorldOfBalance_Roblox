@@ -12,11 +12,14 @@ local PerformanceConfig = require(
 )
 
 local root = Workspace:WaitForChild("WOB_Generated")
+local map = root:FindFirstChild("Map")
+local runtime = root:FindFirstChild("Runtime")
+local testObjects = root:FindFirstChild("TestObjects")
 
 local function applyLightingProfile()
 	local lightingConfig = PerformanceConfig.Lighting
 
-	Lighting.GlobalShadows = lightingConfig.GlobalShadows
+	Lighting.GlobalShadows = lightingConfig.ShadowsEnabled == true and lightingConfig.GlobalShadows ~= false
 	Lighting.Brightness = lightingConfig.Brightness
 	Lighting.ClockTime = lightingConfig.ClockTime
 	Lighting.FogEnd = lightingConfig.FogEnd
@@ -28,29 +31,110 @@ local function applyLightingProfile()
 	end)
 end
 
-local function optimizePart(part)
+local function isFloorPart(part)
+	local lowerName = string.lower(part.Name)
+
+	return lowerName == "arenafloor"
+		or lowerName == "floor"
+		or string.find(lowerName, "floor") ~= nil
+end
+
+local function isWallPart(part)
+	if map == nil then
+		map = root:FindFirstChild("Map")
+	end
+
+	local ricochetWalls = map ~= nil and map:FindFirstChild("RicochetWalls") or nil
+
+	return string.match(part.Name, "^Wall_") ~= nil
+		or string.match(part.Name, "^RicochetWall_") ~= nil
+		or (ricochetWalls ~= nil and part:IsDescendantOf(ricochetWalls))
+end
+
+local function isCoverPart(part)
+	if map == nil then
+		map = root:FindFirstChild("Map")
+	end
+
+	local cover = map ~= nil and map:FindFirstChild("Cover") or nil
+
+	return string.match(part.Name, "^Cover_Block_") ~= nil
+		or (cover ~= nil and part:IsDescendantOf(cover))
+end
+
+local function isTankPart(part)
+	if testObjects == nil then
+		testObjects = root:FindFirstChild("TestObjects")
+	end
+
+	if testObjects == nil then
+		return false
+	end
+
+	local playerTank = testObjects:FindFirstChild("PlayerTankPrototype")
+	local dummyTank = testObjects:FindFirstChild("DummyTank")
+
+	return (playerTank ~= nil and part:IsDescendantOf(playerTank))
+		or (dummyTank ~= nil and part:IsDescendantOf(dummyTank))
+end
+
+local function shouldCastShadow(part)
+	local shadowConfig = PerformanceConfig.BasePart
+
+	if PerformanceConfig.Lighting.ShadowsEnabled ~= true then
+		return false
+	end
+
+	if runtime ~= nil and part:IsDescendantOf(runtime) then
+		return shadowConfig.RuntimeCastShadow == true
+	end
+
+	if isFloorPart(part) then
+		return shadowConfig.FloorCastShadow == true
+	end
+
+	if isWallPart(part) then
+		return shadowConfig.WallsCastShadow == true
+	end
+
+	if isCoverPart(part) then
+		return shadowConfig.CoverCastShadow == true
+	end
+
+	if isTankPart(part) then
+		return shadowConfig.TanksCastShadow == true
+	end
+
+	return shadowConfig.DefaultCastShadow == true
+end
+
+local function applyShadowProfile(part)
 	if not part:IsA("BasePart") then
 		return
 	end
 
-	part.CastShadow = PerformanceConfig.BasePart.CastShadow
+	part.CastShadow = shouldCastShadow(part)
 end
 
 local function optimizeModel(model)
 	for _, descendant in ipairs(model:GetDescendants()) do
-		optimizePart(descendant)
+		applyShadowProfile(descendant)
 	end
 end
 
 local function optimizeCharacter(character)
-	optimizeModel(character)
+	for _, descendant in ipairs(character:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			descendant.CastShadow = PerformanceConfig.BasePart.CharacterCastShadow == true
+		end
+	end
 end
 
 applyLightingProfile()
 optimizeModel(root)
 
 root.DescendantAdded:Connect(function(descendant)
-	optimizePart(descendant)
+	applyShadowProfile(descendant)
 end)
 
 Players.PlayerAdded:Connect(function(player)
@@ -67,4 +151,4 @@ for _, player in ipairs(Players:GetPlayers()) do
 	end
 end
 
-print("[WOB] Performance profile applied: shadows disabled, generated parts optimized.")
+print("[WOB] Performance profile applied: shadows enabled for tanks/walls/cover; floor/runtime shadows controlled.")

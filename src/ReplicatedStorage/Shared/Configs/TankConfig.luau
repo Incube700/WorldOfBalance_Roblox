@@ -1,11 +1,11 @@
--- Read-only snapshot config. Do not wire without a dedicated task.
+-- Shared tank config. WOBGameplayServer reads movement values.
 
 local TankConfig = table.freeze({
 	Movement = table.freeze({
 		MoveSpeed = 34,
+		ReverseMoveSpeedMultiplier = 0.85,
 		BodyTurnSpeedRadians = 2.007128639793479,
 		BodyTurnSpeedDegrees = 115,
-		-- TODO: No separate reverse speed exists in the snapshot; current code applies MoveSpeed to signed throttle.
 		-- TODO: No turret turn speed exists in the snapshot; current turret yaw follows client aim direction directly.
 	}),
 
