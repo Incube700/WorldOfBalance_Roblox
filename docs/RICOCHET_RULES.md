@@ -70,7 +70,9 @@ Current Roblox prototype resolves tank armor hits only through explicit hull hit
 - `Hitboxes/LeftArmor` -> `Side`.
 - `Hitboxes/RightArmor` -> `Side`.
 
-`Body`, `Turret`, `Barrel`, `ShootPoint`, VFX, aim laser, projectile glow, and direction indicators are visual/readability objects. They must not decide armor penetration or tank ricochet results.
+`Body`, `Turret`, `Barrel`, `ShootPoint`, VFX, aim laser, and projectile glow are visual/readability objects. They must not decide armor penetration or tank ricochet results.
+
+Debug armor colors: front green, side yellow, rear red.
 
 Generic `RicochetMath.ClassifyArmorZone` stays available for future mesh/normal-based armor, but this prototype uses hitbox names because they are explicit and editable.
 
@@ -157,6 +159,8 @@ After ricochet:
 - current damage cap decreases by config;
 - bounce count increases;
 - after max ricochets, the next contact destroys projectile.
+
+Wall ricochets are readable through projectile motion/VFX and `[BOUNCE]` Output debug, not floating text. Armor feedback is shown only on tank interactions.
 
 ## Aim Helper
 

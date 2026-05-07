@@ -12,6 +12,7 @@ local configs = shared:WaitForChild("Configs")
 local TankConfig = require(configs:WaitForChild("TankConfig"))
 local WeaponConfig = require(configs:WaitForChild("WeaponConfig"))
 local ProjectileCatalog = require(configs:WaitForChild("ProjectileCatalog"))
+local MatchConfig = require(configs:WaitForChild("MatchConfig"))
 local RicochetMath = require(shared:WaitForChild("Utils"):WaitForChild("RicochetMath"))
 local primaryWeaponConfig = WeaponConfig.PrimaryWeapon
 local projectileTypeId = primaryWeaponConfig.ProjectileTypeId or ProjectileCatalog.DefaultProjectileTypeId
@@ -22,6 +23,14 @@ local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local tankInputEvent = remotes:WaitForChild("TankInputEvent")
 local shootRequestEvent = remotes:WaitForChild("ShootRequestEvent")
 local resetDummyRequestEvent = remotes:WaitForChild("ResetDummyRequestEvent")
+
+local combatFeedbackEvent = remotes:FindFirstChild("CombatFeedbackEvent")
+
+if combatFeedbackEvent == nil then
+	combatFeedbackEvent = Instance.new("RemoteEvent")
+	combatFeedbackEvent.Name = "CombatFeedbackEvent"
+	combatFeedbackEvent.Parent = remotes
+end
 
 local root = Workspace:WaitForChild("WOB_Generated")
 local runtime = root:WaitForChild("Runtime")
@@ -114,17 +123,24 @@ local ARMOR_HITBOX_THICKNESS = TANK_ARMOR.ArmorHitboxThickness or 1.2
 local ARMOR_HITBOX_HEIGHT = TANK_ARMOR.ArmorHitboxHeight or 5.4
 local ARMOR_HITBOX_Y_OFFSET = TANK_ARMOR.ArmorHitboxYOffset or 1.4
 local ARMOR_HITBOXES_VISIBLE = TANK_ARMOR.ArmorHitboxesVisible == true
+local ARMOR_HITBOX_TRANSPARENCY = TANK_ARMOR.ArmorHitboxTransparency or 0.4
+local ARMOR_HITBOX_MATERIAL = TANK_ARMOR.ArmorHitboxMaterial or Enum.Material.SmoothPlastic
+local FRONT_ARMOR_COLOR = TANK_ARMOR.FrontArmorColor or Color3.fromRGB(80, 255, 120)
+local REAR_ARMOR_COLOR = TANK_ARMOR.RearArmorColor or Color3.fromRGB(255, 90, 90)
+local SIDE_ARMOR_COLOR = TANK_ARMOR.SideArmorColor or Color3.fromRGB(255, 220, 80)
 
 local MAX_PLAYER_HEALTH = 100
 local MAX_DUMMY_HEALTH = 100
 local ROUND_RESULT_PLAYING = "Playing"
 local ROUND_RESULT_WIN = "Win"
 local ROUND_RESULT_LOSE = "Lose"
+local MATCH_RESULT_PLAYER_WIN = "PlayerMatchWin"
+local MATCH_RESULT_DUMMY_WIN = "DummyMatchWin"
+local MATCH_SERIES_ENABLED = MatchConfig.EnableMatchSeries == true
+local MATCH_TARGET_WINS = math.max(1, math.floor(tonumber(MatchConfig.TargetWins) or 3))
 
 local PLAYER_INITIAL_POSITION = TankConfig.PlayerInitialState.Position
-local PLAYER_INITIAL_BODY_YAW = TankConfig.PlayerInitialState.BodyYawRadians
 local DUMMY_INITIAL_POSITION = TankConfig.DummyInitialState.Position
-local DUMMY_INITIAL_BODY_YAW = TankConfig.DummyInitialState.BodyYawRadians
 
 local TANK_MOVEMENT_CAST_PADDING = -0.25
 local TANK_MOVEMENT_CAST_HEIGHT = 1.4
@@ -161,43 +177,114 @@ local function getSpawnPart(spawnName)
 	return nil
 end
 
-local function getSpawnState(spawnName, fallbackPosition, fallbackYaw)
-	local spawnPart = getSpawnPart(spawnName)
+local function formatVector3(vector)
+	return "("
+		.. string.format("%.1f", vector.X)
+		.. ", "
+		.. string.format("%.1f", vector.Y)
+		.. ", "
+		.. string.format("%.1f", vector.Z)
+		.. ")"
+end
 
-	if spawnPart == nil then
-		return {
-			Position = fallbackPosition,
-			BodyYaw = fallbackYaw,
-			TurretYaw = fallbackYaw,
-		}
-	end
-
-	local position = Vector3.new(spawnPart.Position.X, 0, spawnPart.Position.Z)
-	local yaw = getYawFromFlatDirection(spawnPart.CFrame.LookVector, fallbackYaw)
-
+local function makeSpawnTransform(position, yaw, source)
 	return {
 		Position = position,
 		BodyYaw = yaw,
 		TurretYaw = yaw,
+		Source = source,
 	}
 end
 
-local function getPlayerSpawnState()
-	local fallbackYaw = getYawFromFlatDirection(
-		DUMMY_INITIAL_POSITION - PLAYER_INITIAL_POSITION,
-		PLAYER_INITIAL_BODY_YAW
-	)
+local function getSpawnLabel(spawnName)
+	if spawnName == "PlayerSpawn" then
+		return "Player"
+	elseif spawnName == "DummySpawn" then
+		return "Dummy"
+	end
 
-	return getSpawnState("PlayerSpawn", PLAYER_INITIAL_POSITION, fallbackYaw)
+	return spawnName
 end
 
-local function getDummySpawnState()
-	local fallbackYaw = getYawFromFlatDirection(
-		PLAYER_INITIAL_POSITION - DUMMY_INITIAL_POSITION,
-		DUMMY_INITIAL_BODY_YAW
+local function getSpawnTransform(spawnName, fallbackPosition, fallbackTargetPosition)
+	local label = getSpawnLabel(spawnName)
+	local fallbackYaw = getYawFromFlatDirection(fallbackTargetPosition - fallbackPosition, 0)
+	local spawnPart = getSpawnPart(spawnName)
+
+	if spawnPart == nil then
+		local fallbackTransform = makeSpawnTransform(fallbackPosition, fallbackYaw, "Fallback")
+
+		print(
+			"[SPAWN] "
+				.. label
+				.. " using fallback pos="
+				.. formatVector3(fallbackTransform.Position)
+				.. " yaw="
+				.. string.format("%.1f", math.deg(fallbackTransform.BodyYaw))
+		)
+
+		return fallbackTransform
+	end
+
+	local position = Vector3.new(spawnPart.Position.X, 0, spawnPart.Position.Z)
+	local yaw = getYawFromFlatDirection(spawnPart.CFrame.LookVector, fallbackYaw)
+	local transform = makeSpawnTransform(position, yaw, "SpawnPoint")
+
+	print(
+		"[SPAWN] "
+			.. label
+			.. " from SpawnPoint "
+			.. spawnName
+			.. " pos="
+			.. formatVector3(transform.Position)
+			.. " yaw="
+			.. string.format("%.1f", math.deg(transform.BodyYaw))
 	)
 
-	return getSpawnState("DummySpawn", DUMMY_INITIAL_POSITION, fallbackYaw)
+	return transform
+end
+
+local function getPlayerSpawnTransform()
+	return getSpawnTransform("PlayerSpawn", PLAYER_INITIAL_POSITION, DUMMY_INITIAL_POSITION)
+end
+
+local function getDummySpawnTransform()
+	return getSpawnTransform("DummySpawn", DUMMY_INITIAL_POSITION, PLAYER_INITIAL_POSITION)
+end
+
+local resolvedArmorHitboxMaterial = nil
+
+local function getArmorHitboxMaterial()
+	if resolvedArmorHitboxMaterial ~= nil then
+		return resolvedArmorHitboxMaterial
+	end
+
+	if typeof(ARMOR_HITBOX_MATERIAL) == "EnumItem"
+		and ARMOR_HITBOX_MATERIAL.EnumType == Enum.Material
+	then
+		resolvedArmorHitboxMaterial = ARMOR_HITBOX_MATERIAL
+		return resolvedArmorHitboxMaterial
+	end
+
+	if typeof(ARMOR_HITBOX_MATERIAL) == "string" then
+		local success, material = pcall(function()
+			return Enum.Material[ARMOR_HITBOX_MATERIAL]
+		end)
+
+		if success and material ~= nil then
+			resolvedArmorHitboxMaterial = material
+			return resolvedArmorHitboxMaterial
+		end
+
+		warn(
+			"[ARMOR] Unknown ArmorHitboxMaterial "
+				.. tostring(ARMOR_HITBOX_MATERIAL)
+				.. "; using SmoothPlastic"
+		)
+	end
+
+	resolvedArmorHitboxMaterial = Enum.Material.SmoothPlastic
+	return resolvedArmorHitboxMaterial
 end
 
 local controllingPlayer = nil
@@ -211,7 +298,16 @@ local roundState = {
 	Result = ROUND_RESULT_PLAYING,
 }
 
-local initialPlayerSpawnState = getPlayerSpawnState()
+local matchState = {
+	PlayerWins = 0,
+	DummyWins = 0,
+	RoundNumber = 1,
+	TargetWins = MATCH_TARGET_WINS,
+	MatchEnded = false,
+	MatchResult = "",
+}
+
+local initialPlayerSpawnState = getPlayerSpawnTransform()
 
 local tankState = {
 	Position = initialPlayerSpawnState.Position,
@@ -283,12 +379,33 @@ local function setRoundResult(result)
 	root:SetAttribute("RoundEnded", roundState.Ended)
 end
 
+local function setMatchAttributes()
+	root:SetAttribute("PlayerWins", matchState.PlayerWins)
+	root:SetAttribute("DummyWins", matchState.DummyWins)
+	root:SetAttribute("RoundNumber", matchState.RoundNumber)
+	root:SetAttribute("TargetWins", matchState.TargetWins)
+	root:SetAttribute("MatchEnded", matchState.MatchEnded)
+	root:SetAttribute("MatchResult", matchState.MatchResult)
+end
+
+local function resetMatchState()
+	matchState.PlayerWins = 0
+	matchState.DummyWins = 0
+	matchState.RoundNumber = 1
+	matchState.TargetWins = MATCH_TARGET_WINS
+	matchState.MatchEnded = false
+	matchState.MatchResult = ""
+
+	setMatchAttributes()
+end
+
 local function resetCombatAttributes()
 	setTankHealthAttributes(playerTank, MAX_PLAYER_HEALTH)
 	setTankHealthAttributes(dummyTank, MAX_DUMMY_HEALTH)
 	setRoundResult(ROUND_RESULT_PLAYING)
 end
 
+setMatchAttributes()
 resetCombatAttributes()
 
 local function setCharacterHidden(character)
@@ -645,12 +762,9 @@ local function configureArmorHitbox(part, size, color)
 	part.CanTouch = false
 	part.CanQuery = true
 	part.CastShadow = false
-	part.Transparency = ARMOR_HITBOXES_VISIBLE and 0.58 or 1
+	part.Transparency = ARMOR_HITBOXES_VISIBLE and ARMOR_HITBOX_TRANSPARENCY or 1
 	part.Color = color
-
-	if ARMOR_HITBOXES_VISIBLE then
-		part.Material = Enum.Material.Neon
-	end
+	part.Material = getArmorHitboxMaterial()
 end
 
 local function layoutTank(tank, position, bodyYaw, turretYaw)
@@ -694,29 +808,29 @@ local function layoutTank(tank, position, bodyYaw, turretYaw)
 		local hitboxYOffset = ARMOR_HITBOX_Y_OFFSET
 
 		if frontArmor ~= nil then
-			configureArmorHitbox(frontArmor, frontRearSize, Color3.fromRGB(90, 255, 120))
+			configureArmorHitbox(frontArmor, frontRearSize, FRONT_ARMOR_COLOR)
 			frontArmor.CFrame = bodyCFrame * CFrame.new(0, hitboxYOffset, frontZ)
 		end
 
 		if rearArmor ~= nil then
-			configureArmorHitbox(rearArmor, frontRearSize, Color3.fromRGB(255, 175, 80))
+			configureArmorHitbox(rearArmor, frontRearSize, REAR_ARMOR_COLOR)
 			rearArmor.CFrame = bodyCFrame * CFrame.new(0, hitboxYOffset, rearZ)
 		end
 
 		if leftArmor ~= nil then
-			configureArmorHitbox(leftArmor, sideSize, Color3.fromRGB(90, 180, 255))
+			configureArmorHitbox(leftArmor, sideSize, SIDE_ARMOR_COLOR)
 			leftArmor.CFrame = bodyCFrame * CFrame.new(leftX, hitboxYOffset, 0)
 		end
 
 		if rightArmor ~= nil then
-			configureArmorHitbox(rightArmor, sideSize, Color3.fromRGB(90, 180, 255))
+			configureArmorHitbox(rightArmor, sideSize, SIDE_ARMOR_COLOR)
 			rightArmor.CFrame = bodyCFrame * CFrame.new(rightX, hitboxYOffset, 0)
 		end
 	end
 end
 
 layoutTank(playerTank, tankState.Position, tankState.BodyYaw, tankState.TurretYaw)
-local initialDummySpawnState = getDummySpawnState()
+local initialDummySpawnState = getDummySpawnTransform()
 layoutTank(dummyTank, initialDummySpawnState.Position, initialDummySpawnState.BodyYaw, initialDummySpawnState.TurretYaw)
 
 local function createFlash(position, color, size, lifetime)
@@ -812,6 +926,20 @@ local function destroyAllProjectiles()
 	end
 end
 
+local function printMatchScore(prefix)
+	print(
+		prefix
+			.. " round="
+			.. matchState.RoundNumber
+			.. " score=Player "
+			.. matchState.PlayerWins
+			.. " / Dummy "
+			.. matchState.DummyWins
+			.. " firstTo="
+			.. matchState.TargetWins
+	)
+end
+
 local function endRound(result)
 	if roundState.Ended then
 		return
@@ -819,14 +947,45 @@ local function endRound(result)
 
 	setRoundResult(result)
 
-	print("[ROUND] " .. result)
+	if MATCH_SERIES_ENABLED then
+		if result == ROUND_RESULT_WIN then
+			matchState.PlayerWins += 1
+		elseif result == ROUND_RESULT_LOSE then
+			matchState.DummyWins += 1
+		end
+
+		if matchState.PlayerWins >= matchState.TargetWins then
+			matchState.MatchEnded = true
+			matchState.MatchResult = MATCH_RESULT_PLAYER_WIN
+		elseif matchState.DummyWins >= matchState.TargetWins then
+			matchState.MatchEnded = true
+			matchState.MatchResult = MATCH_RESULT_DUMMY_WIN
+		end
+	end
+
+	setMatchAttributes()
+	printMatchScore("[ROUND] " .. result)
+
+	if matchState.MatchEnded then
+		print("[MATCH] " .. matchState.MatchResult)
+	end
 end
 
 local function resetRound()
 	destroyAllProjectiles()
 
-	local playerSpawnState = getPlayerSpawnState()
-	local dummySpawnState = getDummySpawnState()
+	if matchState.MatchEnded then
+		resetMatchState()
+		print("[MATCH] reset")
+	elseif roundState.Ended then
+		matchState.RoundNumber += 1
+		setMatchAttributes()
+	else
+		print("[ROUND] current round reset")
+	end
+
+	local playerSpawnState = getPlayerSpawnTransform()
+	local dummySpawnState = getDummySpawnTransform()
 
 	tankState.Position = playerSpawnState.Position
 	tankState.BodyYaw = playerSpawnState.BodyYaw
@@ -892,6 +1051,15 @@ end
 
 local function formatNumber(value)
 	return string.format("%.1f", value)
+end
+
+local function sendCombatFeedback(feedbackType, position, text, color)
+	combatFeedbackEvent:FireAllClients({
+		Type = feedbackType,
+		Position = position,
+		Text = text,
+		Color = color,
+	})
 end
 
 local function resolveArmorHit(projectile, targetBody, hitNormal, armorZone)
@@ -1046,9 +1214,19 @@ local function handleProjectileTankHit(projectile, targetTank, targetName, targe
 	if armorHit.Result == "Penetrated" then
 		printArmorResult("[PEN]", targetName, armorHit, projectile)
 
+		local damageText = "-" .. math.floor(armorHit.Damage)
+
 		if targetTank == playerTank and projectile.Owner == controllingPlayer then
 			print("[SELF-HIT] PlayerTankPrototype hit by own ricochet")
+			damageText = "SELF HIT " .. damageText
 		end
+
+		sendCombatFeedback(
+			"Damage",
+			hitPosition,
+			damageText,
+			Color3.fromRGB(255, 105, 75)
+		)
 
 		applyDamage(armorHit.Damage)
 		destroyProjectile(projectile)
@@ -1057,8 +1235,22 @@ local function handleProjectileTankHit(projectile, targetTank, targetName, targe
 
 	if armorHit.Result == "Ricochet" then
 		printArmorResult("[ARMOR-RICOCHET]", targetName, armorHit, projectile)
+
+		sendCombatFeedback(
+			"ArmorRicochet",
+			hitPosition,
+			"RICOCHET",
+			Color3.fromRGB(255, 220, 70)
+		)
 	else
 		printArmorResult("[NO-PEN]", targetName, armorHit, projectile)
+
+		sendCombatFeedback(
+			"NoPenetration",
+			hitPosition,
+			"NO PEN",
+			Color3.fromRGB(180, 220, 255)
+		)
 	end
 
 	if projectile.BounceCount >= projectile.MaxBounces then

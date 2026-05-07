@@ -186,10 +186,19 @@
 
 ## Current Sprint — Editable Player Round UI
 
-- Статус: prepared. Player HP / WIN / LOSE / restart view moves to editable `StarterGui/HUD/MainPanel` objects created by one-time Studio Command Bar setup.
+- Статус: historical helper only. Earlier Player HP / WIN / LOSE / restart view used editable `StarterGui/HUD/MainPanel`; current HUD work uses modular `StarterGui/HUD/Root/*Panel`.
 - Изменения: `WOBRoundStatusOverlay.client.luau` is now a Rojo-managed controller that binds to named Studio HUD elements and only updates text, fill size, colors, and visibility.
-- Ручной шаг: run `docs/patches/CREATE_PLAYER_ROUND_UI_COMMAND.lua` in Roblox Studio Command Bar outside Play Mode, then `File -> Save to File`.
+- Ручной шаг: do not run this for current HUD work; use `docs/patches/CREATE_MODULAR_HUD_COMMAND.lua`, then `docs/patches/CLEAN_LEGACY_HUD_COMMAND.lua` if legacy `MainPanel` UI is still present.
 - Какой коммит сделать: `Make player round UI editable in Studio`.
+
+## Current Sprint — Editable Modular HUD Panels
+
+- Статус: code-first HUD layout cleanup. `WOBRoundStatusOverlay` binds to `StarterGui/HUD/Root` modular panels; `docs/patches/CREATE_MODULAR_HUD_COMMAND.lua` creates missing editable panels.
+- Изменения: Enemy HP now binds to `EnemyStatusPanel`; reload state/progress now binds to `WeaponStatusPanel`; Player/Round/Match panels continue reading server attributes.
+- Legacy cleanup: run `docs/patches/CLEAN_LEGACY_HUD_COMMAND.lua` after modular HUD setup to remove old `MainPanel`, old dummy/reload/player/result labels, `FeedbackLabel`, and old `WOBHudController` without touching `HUD/Root`.
+- Play Mode checks: only modular panels are visible; Enemy HP, reload, Player HP, round/match labels update; `R` reset still works; Output has no red errors.
+- HUD naming rule: every logical HUD block must be its own named `*Panel`; scripts bind to named labels/fills inside panels; do not put all UI into one giant `MainPanel`; layout stays editable in Roblox Studio.
+- Какой коммит сделать: `Make HUD modular and editable by panels`.
 
 ## Current Sprint — Armor / Penetration / Tank Ricochet
 
@@ -201,10 +210,22 @@
 ## Current Sprint — Armor Hitbox Contract + Spawn Placement
 
 - Статус: code-first sprint. Projectile combat raycast should include map obstacles and tank `Hitboxes`, not turret/barrel/body visuals.
-- Изменения: armor zone comes from explicit hitbox name (`FrontArmor`, `RearArmor`, `LeftArmor`, `RightArmor`); hitboxes cover hull edges and stay invisible by default; editable `Map/SpawnPoints/PlayerSpawn` and `DummySpawn` are supported with fallback positions.
+- Изменения: armor zone comes from explicit hitbox name (`FrontArmor`, `RearArmor`, `LeftArmor`, `RightArmor`); hitboxes cover hull edges and visibility is config-driven; editable `Map/SpawnPoints/PlayerSpawn` and `DummySpawn` are supported with fallback positions.
 - Ручной Studio helper: run `docs/patches/CREATE_SPAWN_POINTS_COMMAND.lua` outside Play Mode to create editable spawn parts, then `File -> Save to File`.
 - Play Mode checks: front/side/rear armor hits resolve by hitbox; turret/barrel visual hits do not produce armor result; wall ricochets still work; player/dummy spawn symmetrically and R reset returns them to spawn parts.
 - Какой коммит сделать: `Fix armor hitbox targeting and spawn placement`.
+
+## Current Sprint — Combat Feedback Cleanup + Armor Zone Visibility
+
+- Статус: code-first cleanup. Wall ricochets keep `[BOUNCE]` Output debug but no longer show floating `BOUNCE` text.
+- Изменения: tank feedback is one screen text per armor hit: damage, `NO PEN`, `RICOCHET`, or `SELF HIT -X`; armor hitboxes are visible again through `TankConfig.Armor.ArmorHitboxesVisible`.
+- Какой коммит сделать: `Polish combat feedback and restore armor zone visuals`.
+
+## Current Sprint — Remove Direction Arrow + Thin Armor Panels + Match Series
+
+- Статус: code-first sprint. Direction arrow removed; armor panels are now the primary hull orientation visual.
+- Изменения: armor panels are thinner/config-driven; SpawnPoints are the source of truth for initial spawn and `R` reset; match series to `MatchConfig.TargetWins` started with round/score attributes.
+- Какой коммит сделать: `Remove direction arrow fix spawns and add match series`.
 
 ## GDD Parity Backlog
 
