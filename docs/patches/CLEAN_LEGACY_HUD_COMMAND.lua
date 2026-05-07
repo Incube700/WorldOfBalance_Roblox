@@ -52,6 +52,26 @@ if root == nil or not root:IsA("Frame") then
 	return
 end
 
+local roundStatusPanel = root:FindFirstChild("RoundStatusPanel")
+
+if roundStatusPanel ~= nil and roundStatusPanel:IsA("Frame") then
+	roundStatusPanel.Visible = false
+
+	local roundResultLabel = roundStatusPanel:FindFirstChild("RoundResultLabel")
+
+	if roundResultLabel ~= nil and roundResultLabel:IsA("TextLabel") then
+		roundResultLabel.Text = ""
+		roundResultLabel.Visible = false
+	end
+
+	local restartHintLabel = roundStatusPanel:FindFirstChild("RestartHintLabel")
+
+	if restartHintLabel ~= nil and restartHintLabel:IsA("TextLabel") then
+		restartHintLabel.Text = ""
+		restartHintLabel.Visible = false
+	end
+end
+
 local function isExpectedModularPanel(instance)
 	return instance.Parent == root and EXPECTED_PANELS[instance.Name] == true
 end

@@ -201,6 +201,10 @@ addStatusBar(playerPanel, "PlayerHpLabel", "PlayerHpBack", "PlayerHpFill", "Play
 local roundPanel, roundCreated = getOrCreate(root, "Frame", "RoundStatusPanel")
 stylePanel(roundPanel, roundCreated, UDim2.new(0.5, -140, 0, 18), UDim2.new(0, 280, 0, 78))
 
+if roundPanel:IsA("Frame") then
+	roundPanel.Visible = false
+end
+
 local roundResultLabel, roundResultCreated = getOrCreate(roundPanel, "TextLabel", "RoundResultLabel")
 styleTextLabel(
 	roundResultLabel,
@@ -213,6 +217,10 @@ styleTextLabel(
 	Color3.fromRGB(105, 235, 145)
 )
 
+if roundResultLabel:IsA("GuiObject") then
+	roundResultLabel.Visible = false
+end
+
 local restartHintLabel, restartHintCreated = getOrCreate(roundPanel, "TextLabel", "RestartHintLabel")
 styleTextLabel(
 	restartHintLabel,
@@ -224,6 +232,10 @@ styleTextLabel(
 	Enum.Font.GothamBold,
 	Color3.fromRGB(230, 235, 220)
 )
+
+if restartHintLabel:IsA("GuiObject") then
+	restartHintLabel.Visible = false
+end
 
 local matchPanel, matchCreated = getOrCreate(root, "Frame", "MatchSeriesPanel")
 stylePanel(matchPanel, matchCreated, UDim2.new(1, -338, 0, 18), UDim2.new(0, 320, 0, 112))

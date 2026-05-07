@@ -196,7 +196,9 @@
 - Статус: code-first HUD layout cleanup. `WOBRoundStatusOverlay` binds to `StarterGui/HUD/Root` modular panels; `docs/patches/CREATE_MODULAR_HUD_COMMAND.lua` creates missing editable panels.
 - Изменения: Enemy HP now binds to `EnemyStatusPanel`; reload state/progress now binds to `WeaponStatusPanel`; Player/Round/Match panels continue reading server attributes.
 - Legacy cleanup: run `docs/patches/CLEAN_LEGACY_HUD_COMMAND.lua` after modular HUD setup to remove old `MainPanel`, old dummy/reload/player/result labels, `FeedbackLabel`, and old `WOBHudController` without touching `HUD/Root`.
-- Play Mode checks: only modular panels are visible; Enemy HP, reload, Player HP, round/match labels update; `R` reset still works; Output has no red errors.
+- Center panel fix: the empty active-game rectangle was `RoundStatusPanel` staying visible while its labels were hidden. `WOBRoundStatusOverlay` now hides the whole panel until WIN/LOSE/restart text is needed; setup/cleanup commands also default it hidden.
+- Diagnostic helper: run `docs/patches/PRINT_VISIBLE_HUD_FRAMES_COMMAND.lua` during Play Mode to print visible HUD frames, size/position/transparency, and child label text.
+- Play Mode checks: only modular persistent panels are visible during active rounds; Enemy HP, reload, Player HP, round/match labels update; `RoundStatusPanel` appears on WIN/LOSE and disappears after `R`; Output has no red errors.
 - HUD naming rule: every logical HUD block must be its own named `*Panel`; scripts bind to named labels/fills inside panels; do not put all UI into one giant `MainPanel`; layout stays editable in Roblox Studio.
 - Какой коммит сделать: `Make HUD modular and editable by panels`.
 

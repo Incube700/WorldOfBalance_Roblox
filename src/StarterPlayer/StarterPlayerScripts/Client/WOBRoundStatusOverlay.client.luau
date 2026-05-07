@@ -149,10 +149,12 @@ local function waitForModularHud()
 		return nil, "missing modular HUD elements: " .. table.concat(missing, ", ")
 	end
 
+	roundStatusPanel.Visible = false
 	lockUiTree(hudRoot)
 
 	return {
 		Source = "Modular Studio HUD",
+		RoundStatusPanel = roundStatusPanel,
 		EnemyHpLabel = enemyHpLabel,
 		EnemyHpFill = enemyHpFill,
 		ReloadLabel = reloadLabel,
@@ -322,6 +324,8 @@ local function createEmergencyRoundUi(reason)
 		UDim2.new(0.5, -140, 0, 18),
 		UDim2.new(0, 280, 0, 78)
 	)
+	roundPanel.Visible = false
+
 	local roundResultLabel = createEmergencyLabel(
 		"RoundResultLabel",
 		roundPanel,
@@ -384,6 +388,7 @@ local function createEmergencyRoundUi(reason)
 
 	return {
 		Source = "Emergency modular runtime UI",
+		RoundStatusPanel = roundPanel,
 		EnemyHpLabel = enemyHpLabel,
 		EnemyHpFill = enemyHpFill,
 		ReloadLabel = reloadLabel,
@@ -459,6 +464,8 @@ local function updateRoundResult()
 	local result = root:GetAttribute("RoundResult") or "Playing"
 	local roundEnded = root:GetAttribute("RoundEnded") == true or result == "Win" or result == "Lose"
 	local matchEnded = root:GetAttribute("MatchEnded") == true
+	local hasRoundResult = result == "Win" or result == "Lose"
+	local hasRestartMessage = roundEnded or matchEnded
 
 	if result == "Win" then
 		roundUi.RoundResultLabel.Text = "WIN"
@@ -481,7 +488,8 @@ local function updateRoundResult()
 		roundUi.RestartHintLabel.Text = ""
 	end
 
-	roundUi.RestartHintLabel.Visible = roundEnded or matchEnded
+	roundUi.RestartHintLabel.Visible = hasRestartMessage
+	roundUi.RoundStatusPanel.Visible = hasRoundResult or hasRestartMessage
 end
 
 local function updateSeriesStatus()
