@@ -15,6 +15,11 @@ local TankConfig = table.freeze({
 		RearArmor = 10,
 		AutoRicochetAngleDegrees = 72,
 		SafeMinCos = 0.15,
+		ArmorHitboxPadding = 0.75,
+		ArmorHitboxThickness = 1.2,
+		ArmorHitboxHeight = 5.4,
+		ArmorHitboxYOffset = 1.4,
+		ArmorHitboxesVisible = false,
 	}),
 
 	PlayerInitialState = table.freeze({

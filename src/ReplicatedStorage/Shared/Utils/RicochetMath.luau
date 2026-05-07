@@ -91,7 +91,7 @@ function RicochetMath.ResolveArmorHit(params)
 		or armorConfig.AutoRicochetAngleDegrees
 		or 72
 	local hitAngleDegrees = RicochetMath.GetHitAngleDegrees(params.incomingDirection, params.hitNormal)
-	local zone = RicochetMath.ClassifyArmorZone(params.tankBodyCFrame, params.hitNormal)
+	local zone = params.armorZone or RicochetMath.ClassifyArmorZone(params.tankBodyCFrame, params.hitNormal)
 	local baseArmor = RicochetMath.GetBaseArmorForZone(zone, armorConfig)
 	local effectiveArmor = RicochetMath.CalculateEffectiveArmor(
 		baseArmor,

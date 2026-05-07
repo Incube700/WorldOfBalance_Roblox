@@ -198,6 +198,14 @@
 - Future skeleton: `RicochetMath` is the shared pure module for later corner detection, critical zones, and richer armor math.
 - Какой коммит сделать: `Add armor penetration and tank ricochet combat rules`.
 
+## Current Sprint — Armor Hitbox Contract + Spawn Placement
+
+- Статус: code-first sprint. Projectile combat raycast should include map obstacles and tank `Hitboxes`, not turret/barrel/body visuals.
+- Изменения: armor zone comes from explicit hitbox name (`FrontArmor`, `RearArmor`, `LeftArmor`, `RightArmor`); hitboxes cover hull edges and stay invisible by default; editable `Map/SpawnPoints/PlayerSpawn` and `DummySpawn` are supported with fallback positions.
+- Ручной Studio helper: run `docs/patches/CREATE_SPAWN_POINTS_COMMAND.lua` outside Play Mode to create editable spawn parts, then `File -> Save to File`.
+- Play Mode checks: front/side/rear armor hits resolve by hitbox; turret/barrel visual hits do not produce armor result; wall ricochets still work; player/dummy spawn symmetrically and R reset returns them to spawn parts.
+- Какой коммит сделать: `Fix armor hitbox targeting and spawn placement`.
+
 ## GDD Parity Backlog
 
 1. Core combat parity:

@@ -61,6 +61,19 @@ Local orientation:
 - `-Z` = Rear.
 - `+/-X` = Side.
 
+## Armor Hitbox Contract
+
+Current Roblox prototype resolves tank armor hits only through explicit hull hitboxes:
+
+- `Hitboxes/FrontArmor` -> `Front`.
+- `Hitboxes/RearArmor` -> `Rear`.
+- `Hitboxes/LeftArmor` -> `Side`.
+- `Hitboxes/RightArmor` -> `Side`.
+
+`Body`, `Turret`, `Barrel`, `ShootPoint`, VFX, aim laser, projectile glow, and direction indicators are visual/readability objects. They must not decide armor penetration or tank ricochet results.
+
+Generic `RicochetMath.ClassifyArmorZone` stays available for future mesh/normal-based armor, but this prototype uses hitbox names because they are explicit and editable.
+
 ## Angle And Effective Armor
 
 Formula:

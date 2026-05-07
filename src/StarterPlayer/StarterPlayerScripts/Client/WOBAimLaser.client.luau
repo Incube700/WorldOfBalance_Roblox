@@ -1,9 +1,7 @@
-local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local localPlayer = Players.LocalPlayer
 local configs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
 local AimAssistConfig = require(configs:WaitForChild("AimAssistConfig"))
 
@@ -12,9 +10,11 @@ if AimAssistConfig.AimLaserEnabled ~= true then
 end
 
 local root = Workspace:WaitForChild("WOB_Generated")
-local runtime = root:WaitForChild("Runtime")
+local map = root:WaitForChild("Map")
 local testObjects = root:WaitForChild("TestObjects")
 local playerTank = testObjects:WaitForChild("PlayerTankPrototype")
+local dummyTank = testObjects:WaitForChild("DummyTank")
+local dummyHitboxes = dummyTank:WaitForChild("Hitboxes")
 local shootPoint = playerTank:FindFirstChild("ShootPoint")
 local barrel = playerTank:FindFirstChild("Barrel")
 
@@ -42,8 +42,45 @@ else
 end
 
 local raycastParams = RaycastParams.new()
-raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+raycastParams.FilterType = Enum.RaycastFilterType.Include
 raycastParams.IgnoreWater = true
+
+local boundaryWallNames = {
+	Wall_North = true,
+	Wall_South = true,
+	Wall_East = true,
+	Wall_West = true,
+}
+
+local function isObstacleName(name)
+	return boundaryWallNames[name] == true
+		or string.match(name, "^RicochetWall_") ~= nil
+		or string.match(name, "^Cover_Block_") ~= nil
+end
+
+local function collectLaserMapTargets()
+	local targets = {}
+	local ricochetWalls = map:FindFirstChild("RicochetWalls")
+	local cover = map:FindFirstChild("Cover")
+
+	if ricochetWalls ~= nil then
+		table.insert(targets, ricochetWalls)
+	end
+
+	if cover ~= nil then
+		table.insert(targets, cover)
+	end
+
+	for _, descendant in ipairs(map:GetDescendants()) do
+		if descendant:IsA("BasePart") and isObstacleName(descendant.Name) then
+			table.insert(targets, descendant)
+		end
+	end
+
+	return targets
+end
+
+local laserMapTargets = collectLaserMapTargets()
 
 local function setVisualPhysics(part)
 	part.Anchored = true
@@ -99,18 +136,12 @@ local function setLaserVisible(isVisible)
 	end
 end
 
-local function getRaycastExclusions()
-	local exclusions = {
-		playerTank,
-		runtime,
-		localVisuals,
-	}
+local function getRaycastTargets()
+	local targets = table.clone(laserMapTargets)
 
-	if localPlayer.Character ~= nil then
-		table.insert(exclusions, localPlayer.Character)
-	end
+	table.insert(targets, dummyHitboxes)
 
-	return exclusions
+	return targets
 end
 
 local function updateLaser()
@@ -130,7 +161,7 @@ local function updateLaser()
 
 	local origin = muzzlePart.Position + Vector3.new(0, AimAssistConfig.AimLaserHeightOffset or 0, 0)
 	local rayOrigin = origin + direction * 1.2
-	raycastParams.FilterDescendantsInstances = getRaycastExclusions()
+	raycastParams.FilterDescendantsInstances = getRaycastTargets()
 
 	local result = Workspace:Raycast(
 		rayOrigin,

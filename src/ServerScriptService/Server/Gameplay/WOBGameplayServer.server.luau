@@ -50,6 +50,50 @@ local hitboxes = playerTank:WaitForChild("Hitboxes")
 local dummyBody = dummyTank:WaitForChild("Body")
 local dummyHitboxes = dummyTank:WaitForChild("Hitboxes")
 
+local armorHitboxNames = {
+	FrontArmor = true,
+	RearArmor = true,
+	LeftArmor = true,
+	RightArmor = true,
+}
+
+local function isArmorHitbox(instance)
+	return instance ~= nil
+		and instance:IsA("BasePart")
+		and armorHitboxNames[instance.Name] == true
+		and (instance:IsDescendantOf(hitboxes) or instance:IsDescendantOf(dummyHitboxes))
+end
+
+local function getTankFromArmorHitbox(hitInstance)
+	if not isArmorHitbox(hitInstance) then
+		return nil
+	end
+
+	if hitInstance:IsDescendantOf(hitboxes) then
+		return playerTank
+	end
+
+	if hitInstance:IsDescendantOf(dummyHitboxes) then
+		return dummyTank
+	end
+
+	return nil
+end
+
+local function getArmorZoneFromHitbox(hitInstance)
+	if hitInstance == nil then
+		return nil
+	elseif hitInstance.Name == "FrontArmor" then
+		return "Front"
+	elseif hitInstance.Name == "RearArmor" then
+		return "Rear"
+	elseif hitInstance.Name == "LeftArmor" or hitInstance.Name == "RightArmor" then
+		return "Side"
+	end
+
+	return nil
+end
+
 local MOVE_SPEED = TankConfig.Movement.MoveSpeed
 local REVERSE_MOVE_SPEED_MULTIPLIER = TankConfig.Movement.ReverseMoveSpeedMultiplier or 1
 local TURN_SPEED = TankConfig.Movement.BodyTurnSpeedRadians
@@ -65,7 +109,11 @@ local PROJECTILE_DAMAGE_MULTIPLIER = projectileConfig.DamageMultiplierPerBounce
 local PROJECTILE_MIN_SPEED = projectileConfig.MinProjectileSpeed
 local PROJECTILE_LIFETIME = projectileConfig.Lifetime
 local PROJECTILE_RICOCHET_OFFSET = 0.45
-local MODEL_TO_ARMOR_ZONE_CFRAME = CFrame.Angles(0, math.pi, 0)
+local ARMOR_HITBOX_PADDING = TANK_ARMOR.ArmorHitboxPadding or 0.75
+local ARMOR_HITBOX_THICKNESS = TANK_ARMOR.ArmorHitboxThickness or 1.2
+local ARMOR_HITBOX_HEIGHT = TANK_ARMOR.ArmorHitboxHeight or 5.4
+local ARMOR_HITBOX_Y_OFFSET = TANK_ARMOR.ArmorHitboxYOffset or 1.4
+local ARMOR_HITBOXES_VISIBLE = TANK_ARMOR.ArmorHitboxesVisible == true
 
 local MAX_PLAYER_HEALTH = 100
 local MAX_DUMMY_HEALTH = 100
@@ -73,12 +121,10 @@ local ROUND_RESULT_PLAYING = "Playing"
 local ROUND_RESULT_WIN = "Win"
 local ROUND_RESULT_LOSE = "Lose"
 
-local PLAYER_INITIAL_POSITION = Vector3.new(-42, 0, -42)
-local PLAYER_INITIAL_BODY_YAW = math.rad(0)
-local PLAYER_INITIAL_TURRET_YAW = math.rad(0)
-local DUMMY_INITIAL_POSITION = Vector3.new(42, 0, 42)
-local DUMMY_INITIAL_BODY_YAW = math.rad(180)
-local DUMMY_INITIAL_TURRET_YAW = math.rad(180)
+local PLAYER_INITIAL_POSITION = TankConfig.PlayerInitialState.Position
+local PLAYER_INITIAL_BODY_YAW = TankConfig.PlayerInitialState.BodyYawRadians
+local DUMMY_INITIAL_POSITION = TankConfig.DummyInitialState.Position
+local DUMMY_INITIAL_BODY_YAW = TankConfig.DummyInitialState.BodyYawRadians
 
 local TANK_MOVEMENT_CAST_PADDING = -0.25
 local TANK_MOVEMENT_CAST_HEIGHT = 1.4
@@ -86,6 +132,73 @@ local TANK_MOVEMENT_CAST_Y_OFFSET = 2
 local TANK_MOVEMENT_EPSILON = 0.03
 local TANK_UNSTICK_DISTANCE_EPSILON = 0.02
 local WALL_BLOCK_PRINT_INTERVAL = 0.5
+
+local function getYawFromFlatDirection(direction, fallbackYaw)
+	local flat = Vector3.new(direction.X, 0, direction.Z)
+
+	if flat.Magnitude < 0.001 then
+		return fallbackYaw
+	end
+
+	local unit = flat.Unit
+
+	return math.atan2(-unit.X, -unit.Z)
+end
+
+local function getSpawnPart(spawnName)
+	local spawnPointsFolder = map:FindFirstChild("SpawnPoints")
+
+	if spawnPointsFolder == nil then
+		return nil
+	end
+
+	local spawnPart = spawnPointsFolder:FindFirstChild(spawnName)
+
+	if spawnPart ~= nil and spawnPart:IsA("BasePart") then
+		return spawnPart
+	end
+
+	return nil
+end
+
+local function getSpawnState(spawnName, fallbackPosition, fallbackYaw)
+	local spawnPart = getSpawnPart(spawnName)
+
+	if spawnPart == nil then
+		return {
+			Position = fallbackPosition,
+			BodyYaw = fallbackYaw,
+			TurretYaw = fallbackYaw,
+		}
+	end
+
+	local position = Vector3.new(spawnPart.Position.X, 0, spawnPart.Position.Z)
+	local yaw = getYawFromFlatDirection(spawnPart.CFrame.LookVector, fallbackYaw)
+
+	return {
+		Position = position,
+		BodyYaw = yaw,
+		TurretYaw = yaw,
+	}
+end
+
+local function getPlayerSpawnState()
+	local fallbackYaw = getYawFromFlatDirection(
+		DUMMY_INITIAL_POSITION - PLAYER_INITIAL_POSITION,
+		PLAYER_INITIAL_BODY_YAW
+	)
+
+	return getSpawnState("PlayerSpawn", PLAYER_INITIAL_POSITION, fallbackYaw)
+end
+
+local function getDummySpawnState()
+	local fallbackYaw = getYawFromFlatDirection(
+		PLAYER_INITIAL_POSITION - DUMMY_INITIAL_POSITION,
+		DUMMY_INITIAL_BODY_YAW
+	)
+
+	return getSpawnState("DummySpawn", DUMMY_INITIAL_POSITION, fallbackYaw)
+end
 
 local controllingPlayer = nil
 local lastShotTimeByPlayer = {}
@@ -98,17 +211,26 @@ local roundState = {
 	Result = ROUND_RESULT_PLAYING,
 }
 
+local initialPlayerSpawnState = getPlayerSpawnState()
+
 local tankState = {
-	Position = PLAYER_INITIAL_POSITION,
-	BodyYaw = PLAYER_INITIAL_BODY_YAW,
-	TurretYaw = PLAYER_INITIAL_TURRET_YAW,
+	Position = initialPlayerSpawnState.Position,
+	BodyYaw = initialPlayerSpawnState.BodyYaw,
+	TurretYaw = initialPlayerSpawnState.TurretYaw,
 }
 
 local function setPartPhysics(model)
 	for _, descendant in ipairs(model:GetDescendants()) do
 		if descendant:IsA("BasePart") then
 			descendant.Anchored = true
-			descendant.CanQuery = true
+			descendant.CanTouch = false
+
+			if isArmorHitbox(descendant) then
+				descendant.CanCollide = false
+				descendant.CanQuery = true
+			else
+				descendant.CanQuery = false
+			end
 		end
 	end
 end
@@ -215,15 +337,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 local function getYawFromDirection(direction)
-	local flat = Vector3.new(direction.X, 0, direction.Z)
-
-	if flat.Magnitude < 0.001 then
-		return tankState.TurretYaw
-	end
-
-	local unit = flat.Unit
-
-	return math.atan2(-unit.X, -unit.Z)
+	return getYawFromFlatDirection(direction, tankState.TurretYaw)
 end
 
 local tankMovementRaycastParams = RaycastParams.new()
@@ -252,6 +366,46 @@ local function isObstacleName(name)
 	return boundaryWallNames[name] == true
 		or string.match(name, "^RicochetWall_") ~= nil
 		or string.match(name, "^Cover_Block_") ~= nil
+end
+
+local function collectProjectileMapRaycastTargets()
+	local targets = {}
+	local currentRicochetWalls = map:FindFirstChild("RicochetWalls")
+	local currentCover = map:FindFirstChild("Cover")
+
+	if currentRicochetWalls ~= nil then
+		table.insert(targets, currentRicochetWalls)
+	end
+
+	if currentCover ~= nil then
+		table.insert(targets, currentCover)
+	end
+
+	for _, descendant in ipairs(map:GetDescendants()) do
+		if descendant:IsA("BasePart") and isObstacleName(descendant.Name) then
+			table.insert(targets, descendant)
+		end
+	end
+
+	return targets
+end
+
+local projectileMapRaycastTargets = collectProjectileMapRaycastTargets()
+
+local projectileRaycastParams = RaycastParams.new()
+projectileRaycastParams.FilterType = Enum.RaycastFilterType.Include
+projectileRaycastParams.IgnoreWater = true
+
+local function getProjectileRaycastTargets(projectile)
+	local targets = table.clone(projectileMapRaycastTargets)
+
+	table.insert(targets, dummyHitboxes)
+
+	if projectile.CanHitOwner then
+		table.insert(targets, hitboxes)
+	end
+
+	return targets
 end
 
 local function isTankMovementObstacle(instance)
@@ -480,6 +634,25 @@ local function resolveTankMovement(fromPosition, bodyYaw, desiredMove)
 	return fromPosition, zBlockingPart or xBlockingPart or fullBlockingPart
 end
 
+local function configureArmorHitbox(part, size, color)
+	if part == nil or not part:IsA("BasePart") then
+		return
+	end
+
+	part.Size = size
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanTouch = false
+	part.CanQuery = true
+	part.CastShadow = false
+	part.Transparency = ARMOR_HITBOXES_VISIBLE and 0.58 or 1
+	part.Color = color
+
+	if ARMOR_HITBOXES_VISIBLE then
+		part.Material = Enum.Material.Neon
+	end
+end
+
 local function layoutTank(tank, position, bodyYaw, turretYaw)
 	local tankBody = tank:FindFirstChild("Body")
 	local tankTurret = tank:FindFirstChild("Turret")
@@ -504,27 +677,47 @@ local function layoutTank(tank, position, bodyYaw, turretYaw)
 		local rearArmor = tankHitboxes:FindFirstChild("RearArmor")
 		local leftArmor = tankHitboxes:FindFirstChild("LeftArmor")
 		local rightArmor = tankHitboxes:FindFirstChild("RightArmor")
+		local frontRearSize = Vector3.new(
+			tankBody.Size.X + ARMOR_HITBOX_PADDING * 2,
+			ARMOR_HITBOX_HEIGHT,
+			ARMOR_HITBOX_THICKNESS
+		)
+		local sideSize = Vector3.new(
+			ARMOR_HITBOX_THICKNESS,
+			ARMOR_HITBOX_HEIGHT,
+			tankBody.Size.Z + ARMOR_HITBOX_PADDING * 2
+		)
+		local frontZ = -(tankBody.Size.Z * 0.5 + ARMOR_HITBOX_THICKNESS * 0.5)
+		local rearZ = tankBody.Size.Z * 0.5 + ARMOR_HITBOX_THICKNESS * 0.5
+		local leftX = -(tankBody.Size.X * 0.5 + ARMOR_HITBOX_THICKNESS * 0.5)
+		local rightX = tankBody.Size.X * 0.5 + ARMOR_HITBOX_THICKNESS * 0.5
+		local hitboxYOffset = ARMOR_HITBOX_Y_OFFSET
 
 		if frontArmor ~= nil then
-			frontArmor.CFrame = bodyCFrame * CFrame.new(0, 0, -5.7)
+			configureArmorHitbox(frontArmor, frontRearSize, Color3.fromRGB(90, 255, 120))
+			frontArmor.CFrame = bodyCFrame * CFrame.new(0, hitboxYOffset, frontZ)
 		end
 
 		if rearArmor ~= nil then
-			rearArmor.CFrame = bodyCFrame * CFrame.new(0, 0, 5.7)
+			configureArmorHitbox(rearArmor, frontRearSize, Color3.fromRGB(255, 175, 80))
+			rearArmor.CFrame = bodyCFrame * CFrame.new(0, hitboxYOffset, rearZ)
 		end
 
 		if leftArmor ~= nil then
-			leftArmor.CFrame = bodyCFrame * CFrame.new(-4.2, 0, 0)
+			configureArmorHitbox(leftArmor, sideSize, Color3.fromRGB(90, 180, 255))
+			leftArmor.CFrame = bodyCFrame * CFrame.new(leftX, hitboxYOffset, 0)
 		end
 
 		if rightArmor ~= nil then
-			rightArmor.CFrame = bodyCFrame * CFrame.new(4.2, 0, 0)
+			configureArmorHitbox(rightArmor, sideSize, Color3.fromRGB(90, 180, 255))
+			rightArmor.CFrame = bodyCFrame * CFrame.new(rightX, hitboxYOffset, 0)
 		end
 	end
 end
 
 layoutTank(playerTank, tankState.Position, tankState.BodyYaw, tankState.TurretYaw)
-layoutTank(dummyTank, DUMMY_INITIAL_POSITION, DUMMY_INITIAL_BODY_YAW, DUMMY_INITIAL_TURRET_YAW)
+local initialDummySpawnState = getDummySpawnState()
+layoutTank(dummyTank, initialDummySpawnState.Position, initialDummySpawnState.BodyYaw, initialDummySpawnState.TurretYaw)
 
 local function createFlash(position, color, size, lifetime)
 	local flash = Instance.new("Part")
@@ -534,6 +727,7 @@ local function createFlash(position, color, size, lifetime)
 	flash.Position = position
 	flash.Anchored = true
 	flash.CanCollide = false
+	flash.CanTouch = false
 	flash.CanQuery = false
 	flash.CastShadow = false
 	flash.Material = Enum.Material.Neon
@@ -559,6 +753,7 @@ local function createImpactFlash(position)
 		spark.Position = position
 		spark.Anchored = true
 		spark.CanCollide = false
+		spark.CanTouch = false
 		spark.CanQuery = false
 		spark.CastShadow = false
 		spark.Material = Enum.Material.Neon
@@ -582,6 +777,7 @@ local function createProjectilePart(position)
 	part.Position = position
 	part.Anchored = true
 	part.CanCollide = false
+	part.CanTouch = false
 	part.CanQuery = false
 	part.CastShadow = false
 	part.Material = Enum.Material.Neon
@@ -629,16 +825,19 @@ end
 local function resetRound()
 	destroyAllProjectiles()
 
-	tankState.Position = PLAYER_INITIAL_POSITION
-	tankState.BodyYaw = PLAYER_INITIAL_BODY_YAW
-	tankState.TurretYaw = PLAYER_INITIAL_TURRET_YAW
+	local playerSpawnState = getPlayerSpawnState()
+	local dummySpawnState = getDummySpawnState()
+
+	tankState.Position = playerSpawnState.Position
+	tankState.BodyYaw = playerSpawnState.BodyYaw
+	tankState.TurretYaw = playerSpawnState.TurretYaw
 
 	restorePartColors(playerTankPartColors)
 	restorePartColors(dummyTankPartColors)
 	resetCombatAttributes()
 
 	layoutTank(playerTank, tankState.Position, tankState.BodyYaw, tankState.TurretYaw)
-	layoutTank(dummyTank, DUMMY_INITIAL_POSITION, DUMMY_INITIAL_BODY_YAW, DUMMY_INITIAL_TURRET_YAW)
+	layoutTank(dummyTank, dummySpawnState.Position, dummySpawnState.BodyYaw, dummySpawnState.TurretYaw)
 
 	print("[ROUND] reset")
 end
@@ -695,15 +894,12 @@ local function formatNumber(value)
 	return string.format("%.1f", value)
 end
 
-local function resolveArmorHit(projectile, targetBody, hitNormal)
-	-- Current tank art/muzzle uses Roblox LookVector (-Z) as the visual front.
-	-- RicochetMath uses the design armor space where +Z is Front.
-	local armorZoneCFrame = targetBody.CFrame * MODEL_TO_ARMOR_ZONE_CFRAME
-
+local function resolveArmorHit(projectile, targetBody, hitNormal, armorZone)
 	return RicochetMath.ResolveArmorHit({
 		incomingDirection = projectile.Direction,
 		hitNormal = hitNormal,
-		tankBodyCFrame = armorZoneCFrame,
+		tankBodyCFrame = targetBody.CFrame,
+		armorZone = armorZone,
 		projectilePenetration = projectile.Penetration,
 		currentDamage = projectile.Damage,
 		armorConfig = TANK_ARMOR,
@@ -837,7 +1033,7 @@ local function printBounce(projectile)
 	)
 end
 
-local function handleProjectileTankHit(projectile, targetTank, targetName, targetBody, hitPosition, hitNormal, applyDamage)
+local function handleProjectileTankHit(projectile, targetTank, targetName, targetBody, hitPosition, hitNormal, armorZone, applyDamage)
 	createImpactFlash(hitPosition)
 
 	if roundState.Ended or targetTank:GetAttribute("IsDead") == true then
@@ -845,7 +1041,7 @@ local function handleProjectileTankHit(projectile, targetTank, targetName, targe
 		return true
 	end
 
-	local armorHit = resolveArmorHit(projectile, targetBody, hitNormal)
+	local armorHit = resolveArmorHit(projectile, targetBody, hitNormal, armorZone)
 
 	if armorHit.Result == "Penetrated" then
 		printArmorResult("[PEN]", targetName, armorHit, projectile)
@@ -932,32 +1128,22 @@ local function updateProjectiles(deltaTime)
 		end
 
 		local distance = projectile.Speed * deltaTime
-		local raycastExclusions = {
-			projectileFolder,
-			vfxFolder,
-		}
-
-		if not projectile.CanHitOwner then
-			table.insert(raycastExclusions, playerTank)
-		end
-
-		local raycastParams = RaycastParams.new()
-		raycastParams.FilterDescendantsInstances = raycastExclusions
-		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-		raycastParams.IgnoreWater = true
+		projectileRaycastParams.FilterDescendantsInstances = getProjectileRaycastTargets(projectile)
 
 		local result = Workspace:Raycast(
 			projectile.Position,
 			projectile.Direction * distance,
-			raycastParams
+			projectileRaycastParams
 		)
 
 		if result ~= nil then
 			local hitInstance = result.Instance
 			local hitPosition = result.Position
 			local hitNormal = result.Normal
+			local targetTank = getTankFromArmorHitbox(hitInstance)
+			local armorZone = getArmorZoneFromHitbox(hitInstance)
 
-			if hitInstance:IsDescendantOf(dummyTank) then
+			if targetTank == dummyTank then
 				local destroyed = handleProjectileTankHit(
 					projectile,
 					dummyTank,
@@ -965,13 +1151,14 @@ local function updateProjectiles(deltaTime)
 					dummyBody,
 					hitPosition,
 					hitNormal,
+					armorZone,
 					damageDummy
 				)
 
 				if destroyed then
 					table.remove(projectiles, i)
 				end
-			elseif hitInstance:IsDescendantOf(playerTank) then
+			elseif targetTank == playerTank then
 				local destroyed = handleProjectileTankHit(
 					projectile,
 					playerTank,
@@ -979,6 +1166,7 @@ local function updateProjectiles(deltaTime)
 					body,
 					hitPosition,
 					hitNormal,
+					armorZone,
 					damagePlayer
 				)
 
