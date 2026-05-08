@@ -379,6 +379,22 @@
 - Next recommended task: TankBrain/Controller abstraction v1, then PvP lobby/free-drive test mode later.
 - Recommended commit message: `Fix PvP tank possession`.
 
+## Current Sprint — PvP Possession Stability Audit + Contract Fix
+
+- Статус: code-first stabilization after fast PvP/refactor edits.
+- Audit: `docs/PVP_POSSESSION_STABILITY_AUDIT.md` records Rojo mapping, current runtime scene expectations, snapshot mismatch, tank registration/clone points, client possession lookup points, HUD warning cause, Player2 spawn path bug, legacy conflict risks, blockers, likely root causes, and minimal fix order.
+- Server tank contract: every `TankParticipant.Model` must be the physical tank `Model`. The model must have `Body` or `Hull` or at least one `BasePart`, plus `Turret`, `Barrel`, `ShootPoint`, `Hitboxes`, `PrimaryPart`, and attributes `TankId`, `OwnerUserId`, `OwnerName`, `TeamId`, `ControllerType`, and `IsPlayerTank`. Server logs `[TANK] registered TankId model=... primaryPart=... baseParts=...`; if no part exists it warns `[TANK] warning TankId has no BasePart`.
+- Runtime self-heal: `PlayerTankSpawner` can repair missing physical parts at runtime so a wrapper-only `PlayerTankPrototype` no longer breaks camera/input/shoot immediately. This is a safety net, not a replacement for saving the fixed scene.
+- Scene repair command: run `docs/patches/CREATE_TANK_MODEL_CONTRACT_COMMAND.lua` in Roblox Studio outside Play Mode, then `File -> Save to File`. It creates/updates `Workspace/WOB_Generated/TestObjects/PlayerTankPrototype`, `Player2TankPrototype`, and `DummyTank` with physical parts, hitboxes, attributes, health attributes, and `PrimaryPart`.
+- HUD setup command: run `docs/patches/CREATE_MODULAR_HUD_COMMAND.lua` outside Play Mode, then `docs/patches/CLEAN_LEGACY_HUD_COMMAND.lua`, then `File -> Save to File`. Expected path is `StarterGui/HUD/Root` with `EnemyStatusPanel`, `WeaponStatusPanel`, `PlayerStatusPanel`, `RoundStatusPanel`, and `MatchSeriesPanel`.
+- Spawn setup commands: run `docs/patches/CREATE_SPAWN_POINTS_COMMAND.lua`, then `docs/patches/CREATE_PLAYER2_SPAWN_COMMAND.lua`, then `File -> Save to File`. `Player2Spawn` must be created at `Workspace/WOB_Generated/Map/SpawnPoints/Player2Spawn`, not `Workspace/Map`.
+- Legacy cleanup command: run `docs/patches/DISABLE_LEGACY_STUDIO_SCRIPTS_COMMAND.lua` outside Play Mode after Rojo sync to disable old Studio-owned `WOBClientController`, `WOBHudController`, `WOBDummyRespawnServer`, and old server helpers that may duplicate Rojo-managed behavior.
+- Client possession: camera, input, aim laser, team colors, and round HUD resolve the local owned physical tank by `OwnerUserId == LocalPlayer.UserId`; they do not fall back to another player's `PlayerTankPrototype`.
+- HUD PvP perspective: `WOBRoundStatusOverlay` now treats the local owned tank as Player HP and uses Dummy in Training or the other active player tank in PvP as Enemy HP.
+- Verification: 1-player Training should log `[PVP] mode = Training`, `[SERVER] Match started -> Playing mode=Training`, `[PVP] camera follow started: PlayerTankPrototype part=...`, input received/applied, aim laser/shoot/dummy damage/result/stats working. 2-player PvP should assign Player1/Player2 to separate tanks, log `[PVP] mode = PvP`, and each client camera should follow its own tank.
+- Known limitations: still only two player tank slots; no BotBrain, lobby, matchmaking, mode selection, new weapons, or changed armor formulas.
+- Recommended commit message: `Stabilize PvP tank possession contract`.
+
 ## GDD Parity Backlog
 
 1. Core combat parity:

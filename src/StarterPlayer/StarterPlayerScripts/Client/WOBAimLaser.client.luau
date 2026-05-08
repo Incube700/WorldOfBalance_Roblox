@@ -3,8 +3,11 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
-local configs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
+local shared = ReplicatedStorage:WaitForChild("Shared")
+local configs = shared:WaitForChild("Configs")
+local utils = shared:WaitForChild("Utils")
 local AimAssistConfig = require(configs:WaitForChild("AimAssistConfig"))
+local TankModelResolver = require(utils:WaitForChild("TankModelResolver"))
 
 if AimAssistConfig.AimLaserEnabled ~= true then
 	return
@@ -51,6 +54,7 @@ end
 
 local function collectLaserMapTargets()
 	local targets = {}
+	local seen = {}
 
 	local ricochetWalls = map:FindFirstChild("RicochetWalls")
 	local cover = map:FindFirstChild("Cover")
@@ -69,15 +73,19 @@ local function collectLaserMapTargets()
 		end
 	end
 
-	for _, child in ipairs(testObjects:GetChildren()) do
-		if child:IsA("Model")
-			and child ~= playerTank
-			and child:GetAttribute("IsActive") ~= false
+	for _, descendant in ipairs(testObjects:GetDescendants()) do
+		if descendant:IsA("Model")
+			and descendant:GetAttribute("IsActive") ~= false
 		then
-			local hitboxes = child:FindFirstChild("Hitboxes")
+			local tankModel = TankModelResolver.resolvePhysicalModel(root, descendant) or descendant
 
-			if hitboxes ~= nil then
-				table.insert(targets, hitboxes)
+			if tankModel ~= playerTank and seen[tankModel] ~= true then
+				seen[tankModel] = true
+				local hitboxes = tankModel:FindFirstChild("Hitboxes", true)
+
+				if hitboxes ~= nil then
+					table.insert(targets, hitboxes)
+				end
 			end
 		end
 	end
@@ -133,16 +141,7 @@ local shootPoint = nil
 local barrel = nil
 
 local function getLocalPlayerTank()
-	for _, child in ipairs(testObjects:GetChildren()) do
-		if child:IsA("Model")
-			and child:GetAttribute("IsPlayerTank") == true
-			and child:GetAttribute("OwnerUserId") == localPlayer.UserId
-		then
-			return child
-		end
-	end
-
-	return nil
+	return TankModelResolver.findOwnedTank(root, localPlayer.UserId, true)
 end
 
 local function refreshMuzzleParts()

@@ -68,14 +68,14 @@ vfxFolder.Name = "VFX"
 vfxFolder.Parent = runtime
 
 -- Tank Prototypes
-local playerTank = testObjects:WaitForChild("PlayerTankPrototype")
-local dummyTank = testObjects:WaitForChild("DummyTank")
+local playerTank = PlayerTankSpawner.ensurePhysicalTankModel(testObjects:WaitForChild("PlayerTankPrototype"))
+local dummyTank = PlayerTankSpawner.ensurePhysicalTankModel(testObjects:WaitForChild("DummyTank"))
 local player2TankParts = PlayerTankSpawner.getOrCreateRuntimePlayerTank(playerTank, testObjects, "Player2TankPrototype")
 local player2Tank = player2TankParts.Model
 
 -- Helpers
 local function findOptionalTankChild(model, childName)
-	local child = model:FindFirstChild(childName) or model:WaitForChild(childName, 5)
+	local child = model:FindFirstChild(childName, true) or model:WaitForChild(childName, 5)
 	if child == nil then
 		warn("[SERVER] " .. model.Name .. "." .. childName .. " missing; continuing without blocking startup")
 	end
@@ -84,14 +84,18 @@ end
 
 local function registerTankParticipant(config)
 	local model = config.Model
+	PlayerTankSpawner.ensurePhysicalTankModel(model)
+	local tankParts = PlayerTankSpawner.getTankParts(model)
+
 	local participant = {
 		TankId = config.TankId,
-		Model = model,
-		Body = findOptionalTankChild(model, "Body"),
-		Turret = findOptionalTankChild(model, "Turret"),
-		Barrel = findOptionalTankChild(model, "Barrel"),
-		ShootPoint = findOptionalTankChild(model, "ShootPoint"),
-		Hitboxes = findOptionalTankChild(model, "Hitboxes"),
+		Model = tankParts.Model,
+		PhysicalModel = tankParts.Model,
+		Body = tankParts.Body or findOptionalTankChild(model, "Body"),
+		Turret = tankParts.Turret or findOptionalTankChild(model, "Turret"),
+		Barrel = tankParts.Barrel or findOptionalTankChild(model, "Barrel"),
+		ShootPoint = tankParts.ShootPoint or findOptionalTankChild(model, "ShootPoint"),
+		Hitboxes = tankParts.Hitboxes or findOptionalTankChild(model, "Hitboxes"),
 		OwnerPlayer = nil,
 		OwnerUserId = nil,
 		TeamId = config.TeamId,
@@ -305,6 +309,11 @@ end)
 shootRequestEvent.OnServerEvent:Connect(function(player, aimPosition)
 	local participant = PlayerPossessionService.getPlayerParticipantByPlayer(player)
 	if participant and participant.IsActive and RoundMatchService.getGameState() == "Playing" then
+		if participant.ShootPoint == nil or participant.ShootPoint.Parent == nil then
+			warn("[SERVER] ShootRequest ignored: " .. participant.TankId .. " has no ShootPoint")
+			return
+		end
+
 		local origin = participant.ShootPoint.Position
 		local dir = typeof(aimPosition) == "Vector3" and (Vector3.new(aimPosition.X - origin.X, 0, aimPosition.Z - origin.Z)) or Vector3.new(0,0,-1)
 		ProjectileService.tryShoot(participant, dir.Magnitude > 0.1 and dir.Unit or (CFrame.Angles(0, participant.ControlState.TurretYaw, 0)).LookVector)

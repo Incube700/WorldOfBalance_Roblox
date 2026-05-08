@@ -1,9 +1,15 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local shared = ReplicatedStorage:WaitForChild("Shared")
+local utils = shared:WaitForChild("Utils")
+local TankModelResolver = require(utils:WaitForChild("TankModelResolver"))
 
 local localPlayer = Players.LocalPlayer
-local testObjects = Workspace:WaitForChild("WOB_Generated"):WaitForChild("TestObjects")
+local root = Workspace:WaitForChild("WOB_Generated")
+local testObjects = root:WaitForChild("TestObjects")
 
 local FRIENDLY_BODY_COLOR = Color3.fromRGB(55, 185, 255)
 local FRIENDLY_TURRET_COLOR = Color3.fromRGB(80, 220, 160)
@@ -78,14 +84,21 @@ local function colorTank(model)
 end
 
 local function colorAllTanks()
-	for _, child in ipairs(testObjects:GetChildren()) do
-		if child:IsA("Model") then
-			colorTank(child)
+	local colored = {}
+
+	for _, descendant in ipairs(testObjects:GetDescendants()) do
+		if descendant:IsA("Model") then
+			local tankModel = TankModelResolver.resolvePhysicalModel(root, descendant) or descendant
+
+			if colored[tankModel] ~= true then
+				colored[tankModel] = true
+				colorTank(tankModel)
+			end
 		end
 	end
 end
 
-testObjects.ChildAdded:Connect(function(child)
+root.DescendantAdded:Connect(function(child)
 	if child:IsA("Model") then
 		child:GetAttributeChangedSignal("OwnerUserId"):Connect(colorAllTanks)
 		child:GetAttributeChangedSignal("IsActive"):Connect(colorAllTanks)
@@ -95,7 +108,7 @@ testObjects.ChildAdded:Connect(function(child)
 	colorAllTanks()
 end)
 
-for _, child in ipairs(testObjects:GetChildren()) do
+for _, child in ipairs(testObjects:GetDescendants()) do
 	if child:IsA("Model") then
 		child:GetAttributeChangedSignal("OwnerUserId"):Connect(colorAllTanks)
 		child:GetAttributeChangedSignal("IsActive"):Connect(colorAllTanks)

@@ -6,8 +6,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
+local utils = shared:WaitForChild("Utils")
 local WeaponConfig = require(configs:WaitForChild("WeaponConfig"))
 local HudConfig = require(configs:WaitForChild("HudConfig"))
+local TankModelResolver = require(utils:WaitForChild("TankModelResolver"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local resetDummyRequestEvent = remotes:WaitForChild("ResetDummyRequestEvent")
 
@@ -16,8 +18,7 @@ local playerGui = localPlayer:WaitForChild("PlayerGui")
 
 local root = Workspace:WaitForChild("WOB_Generated")
 local testObjects = root:WaitForChild("TestObjects")
-local playerTank = testObjects:WaitForChild("PlayerTankPrototype")
-local dummyTank = testObjects:WaitForChild("DummyTank")
+testObjects:WaitForChild("PlayerTankPrototype")
 
 local LEGACY_RUNTIME_GUI_NAME = "WOBRoundStatusOverlayGui"
 local EMERGENCY_GUI_NAME = "WOBRoundStatusEmergencyGui"
@@ -33,6 +34,9 @@ local ENEMY_HP_PREFIX = "Enemy HP: "
 local HEALTH_SEPARATOR = HudConfig.DummyHealth.Separator or " / "
 
 local lastShotTime = -100
+local currentPlayerTank = nil
+local currentEnemyTank = nil
+local elapsedSinceTankRefresh = 0
 
 for _, guiName in ipairs({
 	LEGACY_RUNTIME_GUI_NAME,
@@ -435,9 +439,36 @@ local function clamp01(value)
 	return math.clamp(value, 0, 1)
 end
 
+local function refreshTankTargets()
+	currentPlayerTank = TankModelResolver.findOwnedTank(root, localPlayer.UserId, true)
+	currentEnemyTank = TankModelResolver.findEnemyTank(root, localPlayer.UserId)
+end
+
+local function getTankHealth(model, fallbackMaxHealth)
+	if model == nil then
+		return nil, fallbackMaxHealth
+	end
+
+	local maxHealth = model:GetAttribute("MaxHealth") or fallbackMaxHealth
+	local health = model:GetAttribute("Health") or maxHealth
+
+	return health, maxHealth
+end
+
+local function setUnknownHealth(label, fill, prefix)
+	label.Text = prefix .. "-- / --"
+	fill.Size = UDim2.new(0, 0, 1, 0)
+	fill.BackgroundColor3 = Color3.fromRGB(95, 105, 110)
+end
+
 local function updateEnemyHealth()
-	local maxHealth = dummyTank:GetAttribute("MaxHealth") or HudConfig.DummyHealth.MaxHealthDisplay or 100
-	local health = dummyTank:GetAttribute("Health") or maxHealth
+	local health, maxHealth = getTankHealth(currentEnemyTank, HudConfig.DummyHealth.MaxHealthDisplay or 100)
+
+	if health == nil then
+		setUnknownHealth(roundUi.EnemyHpLabel, roundUi.EnemyHpFill, ENEMY_HP_PREFIX)
+		return
+	end
+
 	local normalizedHealth = clamp01(health / math.max(1, maxHealth))
 
 	roundUi.EnemyHpLabel.Text = ENEMY_HP_PREFIX .. math.floor(health) .. HEALTH_SEPARATOR .. math.floor(maxHealth)
@@ -453,8 +484,13 @@ local function updateEnemyHealth()
 end
 
 local function updateHealth()
-	local maxHealth = playerTank:GetAttribute("MaxHealth") or 100
-	local health = playerTank:GetAttribute("Health") or maxHealth
+	local health, maxHealth = getTankHealth(currentPlayerTank, 100)
+
+	if health == nil then
+		setUnknownHealth(roundUi.PlayerHpLabel, roundUi.PlayerHpFill, "Player HP: ")
+		return
+	end
+
 	local normalizedHealth = clamp01(health / math.max(1, maxHealth))
 
 	roundUi.PlayerHpLabel.Text = "Player HP: " .. math.floor(health) .. " / " .. math.floor(maxHealth)
@@ -554,15 +590,20 @@ local function updateSeriesStatus()
 	end
 end
 
-playerTank:GetAttributeChangedSignal("Health"):Connect(updateHealth)
-playerTank:GetAttributeChangedSignal("MaxHealth"):Connect(updateHealth)
-dummyTank:GetAttributeChangedSignal("Health"):Connect(updateEnemyHealth)
-dummyTank:GetAttributeChangedSignal("MaxHealth"):Connect(updateEnemyHealth)
 root:GetAttributeChangedSignal("RoundResult"):Connect(updateRoundResult)
 root:GetAttributeChangedSignal("RoundEnded"):Connect(updateRoundResult)
 root:GetAttributeChangedSignal("GameState"):Connect(function()
+	refreshTankTargets()
+	updateEnemyHealth()
+	updateHealth()
 	applyCombatHudVisibility()
 	updateRoundResult()
+	updateSeriesStatus()
+end)
+root:GetAttributeChangedSignal("MatchMode"):Connect(function()
+	refreshTankTargets()
+	updateEnemyHealth()
+	updateHealth()
 	updateSeriesStatus()
 end)
 root:GetAttributeChangedSignal("PlayerWins"):Connect(updateSeriesStatus)
@@ -574,6 +615,12 @@ root:GetAttributeChangedSignal("MatchEnded"):Connect(function()
 	updateSeriesStatus()
 end)
 root:GetAttributeChangedSignal("MatchResult"):Connect(updateSeriesStatus)
+
+root.DescendantAdded:Connect(function()
+	refreshTankTargets()
+	updateEnemyHealth()
+	updateHealth()
+end)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
 	if gameProcessedEvent then
@@ -587,8 +634,20 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
 	end
 end)
 
-RunService.RenderStepped:Connect(updateReloadStatus)
+RunService.RenderStepped:Connect(function(deltaTime)
+	updateReloadStatus()
 
+	elapsedSinceTankRefresh += deltaTime
+
+	if elapsedSinceTankRefresh >= 0.2 then
+		elapsedSinceTankRefresh = 0
+		refreshTankTargets()
+		updateEnemyHealth()
+		updateHealth()
+	end
+end)
+
+refreshTankTargets()
 updateEnemyHealth()
 updateHealth()
 updateReloadStatus()

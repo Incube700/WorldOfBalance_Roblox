@@ -195,6 +195,11 @@ function ProjectileService.tryShoot(participant, direction)
 		return false
 	end
 
+	if participant.ShootPoint == nil or participant.ShootPoint.Parent == nil then
+		warn("[PROJECTILE] Shoot ignored: " .. participant.TankId .. " has no ShootPoint")
+		return false
+	end
+
 	local flatDirection = Vector3.new(direction.X, 0, direction.Z)
 
 	if flatDirection.Magnitude < 0.001 then

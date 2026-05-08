@@ -3,12 +3,15 @@ local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local configs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
+local shared = ReplicatedStorage:WaitForChild("Shared")
+local configs = shared:WaitForChild("Configs")
+local utils = shared:WaitForChild("Utils")
 local CameraConfig = require(configs:WaitForChild("CameraConfig"))
+local TankModelResolver = require(utils:WaitForChild("TankModelResolver"))
 
 local localPlayer = Players.LocalPlayer
 local root = Workspace:WaitForChild("WOB_Generated")
-local testObjects = root:WaitForChild("TestObjects")
+root:WaitForChild("TestObjects")
 
 local topDownConfig = CameraConfig.TopDown
 local cameraHeight = topDownConfig.Height or 95
@@ -21,55 +24,13 @@ local isFollowing = false
 local lastFollowedTankId = nil
 
 local function findOwnedTank()
-	for _, child in ipairs(testObjects:GetChildren()) do
-		if child:IsA("Model") and child:GetAttribute("OwnerUserId") == localPlayer.UserId then
-			return child
-		end
-	end
-	return nil
+	return TankModelResolver.findOwnedTank(root, localPlayer.UserId, false)
 end
 
 local function getTankFocusPart(tank)
-	if not tank then
-		return nil
-	end
-	
-	-- Если tank сам является BasePart, возвращаем его
-	if tank:IsA("BasePart") then
-		return tank
-	end
-	
-	-- Сначала ищем PrimaryPart
-	if tank:IsA("Model") and tank.PrimaryPart then
-		return tank.PrimaryPart
-	end
-	
-	-- Затем ищем Body, Hull или Root (могут быть глубоко)
-	local possibleNames = {"Body", "Hull", "Root"}
-	for _, name in ipairs(possibleNames) do
-		local part = tank:FindFirstChild(name, true)
-		if part and part:IsA("BasePart") then
-			return part
-		end
-	end
-	
-	-- Затем любой BasePart
-	for _, descendant in ipairs(tank:GetDescendants()) do
-		if descendant:IsA("BasePart") then
-			return descendant
-		end
-	end
-	
-	-- Если всё еще не нашли, пробуем найти физическую модель в TestObjects по TankId
-	local tankId = tank:GetAttribute("TankId")
-	if tankId and tank.Parent ~= testObjects then
-		local physicalModel = testObjects:FindFirstChild(tostring(tankId))
-		if physicalModel and physicalModel ~= tank then
-			return getTankFocusPart(physicalModel)
-		end
-	end
-	
-	return nil
+	local physicalTank = TankModelResolver.resolvePhysicalModel(root, tank) or tank
+
+	return TankModelResolver.findFocusPart(physicalTank)
 end
 
 local function printTankDiagnostics(tank)
@@ -110,12 +71,15 @@ local function updateCamera()
 			lastFollowedTankId = nil
 			print("[PVP] camera follow stopped")
 		end
+		if camera.CameraType == Enum.CameraType.Scriptable then
+			camera.CameraType = Enum.CameraType.Custom
+		end
 		-- В других состояниях не форсируем камеру, позволяя работать меню/результатам
 		return
 	end
 
 	-- В состоянии Playing ищем или обновляем ownedTank
-	if not ownedTank or ownedTank.Parent ~= testObjects then
+	if not ownedTank or ownedTank.Parent == nil or ownedTank:GetAttribute("OwnerUserId") ~= localPlayer.UserId then
 		ownedTank = findOwnedTank()
 		if ownedTank then
 			local tankId = ownedTank:GetAttribute("TankId") or ownedTank.Name
@@ -148,7 +112,7 @@ local function updateCamera()
 
 	local tankId = ownedTank:GetAttribute("TankId") or ownedTank.Name
 
-	if not isFollowing then
+	if not isFollowing or lastFollowedTankId ~= tankId then
 		isFollowing = true
 		lastFollowedTankId = tankId
 		print("[PVP] camera follow started: " .. tostring(tankId) .. " part=" .. tostring(focusPart.Name))
@@ -166,8 +130,8 @@ local function updateCamera()
 	camera.CFrame = CFrame.lookAt(cameraPosition, lookAt, upVector)
 end
 
--- Следим за добавлением детей, чтобы быстрее найти танк при спавне
-testObjects.ChildAdded:Connect(function()
+-- Следим за добавлением потомков, чтобы быстрее найти танк при спавне/ремонте модели
+root.DescendantAdded:Connect(function()
 	if root:GetAttribute("GameState") == "Playing" and not ownedTank then
 		ownedTank = findOwnedTank()
 	end

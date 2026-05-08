@@ -6,7 +6,9 @@ local Players = game:GetService("Players")
 
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
+local utils = shared:WaitForChild("Utils")
 local CameraConfig = require(configs:WaitForChild("CameraConfig"))
+local TankModelResolver = require(utils:WaitForChild("TankModelResolver"))
 
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local tankInputEvent = remotes:WaitForChild("TankInputEvent")
@@ -14,7 +16,7 @@ local shootRequestEvent = remotes:WaitForChild("ShootRequestEvent")
 
 local localPlayer = Players.LocalPlayer
 local root = Workspace:WaitForChild("WOB_Generated")
-local testObjects = root:WaitForChild("TestObjects")
+root:WaitForChild("TestObjects")
 local camera = Workspace.CurrentCamera
 
 local LEGACY_INPUT_CONTROLLER_NAME = "WOBClientController"
@@ -77,16 +79,7 @@ if playerScriptsRoot ~= nil then
 end
 
 local function getOwnedTank()
-	for _, child in ipairs(testObjects:GetChildren()) do
-		if child:IsA("Model")
-			and child:GetAttribute("IsPlayerTank") == true
-			and child:GetAttribute("OwnerUserId") == localPlayer.UserId
-		then
-			return child
-		end
-	end
-
-	return nil
+	return TankModelResolver.findOwnedTank(root, localPlayer.UserId, false)
 end
 
 local function refreshOwnedTank()

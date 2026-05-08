@@ -29,6 +29,7 @@ local SIDE_ARMOR_COLOR = TANK_ARMOR.SideArmorColor or Color3.fromRGB(255, 220, 8
 local map = nil
 local tankColors = {}
 local resolvedArmorHitboxMaterial = nil
+local missingLayoutWarningByModel = {}
 
 function TankSpawnResetService.init(gameMap)
 	map = gameMap
@@ -188,32 +189,73 @@ local function configureArmorHitbox(part, size, color)
 	part.Material = getArmorHitboxMaterial()
 end
 
-function TankSpawnResetService.layoutTank(tank, position, bodyYaw, turretYaw)
-	local tankBody = tank:FindFirstChild("Body")
-	local tankTurret = tank:FindFirstChild("Turret")
-	local tankBarrel = tank:FindFirstChild("Barrel")
-	local tankShootPoint = tank:FindFirstChild("ShootPoint")
-	local tankHitboxes = tank:FindFirstChild("Hitboxes")
+local function findBasePart(model, partName)
+	local directChild = model:FindFirstChild(partName)
 
-	if tankBody == nil or tankTurret == nil or tankBarrel == nil or tankShootPoint == nil then
-		return
+	if directChild ~= nil and directChild:IsA("BasePart") then
+		return directChild
 	end
 
-	-- Обеспечиваем наличие PrimaryPart для камеры и других систем
-	if not tank.PrimaryPart then
-		local body = tank:FindFirstChild("Body", true)
-		if body and body:IsA("BasePart") then
-			tank.PrimaryPart = body
-		else
-			-- Если Body не найден, ищем любой BasePart
-			for _, child in ipairs(tank:GetDescendants()) do
-				if child:IsA("BasePart") then
-					tank.PrimaryPart = child
-					break
-				end
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant.Name == partName and descendant:IsA("BasePart") then
+			return descendant
+		end
+	end
+
+	return nil
+end
+
+local function findTankFolder(model, folderName)
+	local directChild = model:FindFirstChild(folderName)
+
+	if directChild ~= nil and directChild:IsA("Folder") then
+		return directChild
+	end
+
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant.Name == folderName and descendant:IsA("Folder") then
+			return descendant
+		end
+	end
+
+	return nil
+end
+
+local function assignPrimaryPart(model)
+	local primaryPart = findBasePart(model, "Body") or findBasePart(model, "Hull")
+
+	if primaryPart == nil then
+		for _, descendant in ipairs(model:GetDescendants()) do
+			if descendant:IsA("BasePart") then
+				primaryPart = descendant
+				break
 			end
 		end
 	end
+
+	if primaryPart ~= nil then
+		model.PrimaryPart = primaryPart
+	end
+
+	return primaryPart
+end
+
+function TankSpawnResetService.layoutTank(tank, position, bodyYaw, turretYaw)
+	local tankBody = findBasePart(tank, "Body")
+	local tankTurret = findBasePart(tank, "Turret")
+	local tankBarrel = findBasePart(tank, "Barrel")
+	local tankShootPoint = findBasePart(tank, "ShootPoint")
+	local tankHitboxes = findTankFolder(tank, "Hitboxes")
+
+	if tankBody == nil or tankTurret == nil or tankBarrel == nil or tankShootPoint == nil then
+		if missingLayoutWarningByModel[tank] ~= true then
+			missingLayoutWarningByModel[tank] = true
+			warn("[TANK] warning " .. tank:GetFullName() .. " cannot layout: Body/Turret/Barrel/ShootPoint missing")
+		end
+		return
+	end
+
+	assignPrimaryPart(tank)
 
 	local bodyCFrame = CFrame.new(position + Vector3.new(0, 2, 0)) * CFrame.Angles(0, bodyYaw, 0)
 	local turretCFrame = CFrame.new(position + Vector3.new(0, 4.6, 0)) * CFrame.Angles(0, turretYaw, 0)
@@ -305,6 +347,12 @@ end
 
 function TankSpawnResetService.applySpawnToParticipant(participant, spawnState)
 	participant.SpawnTransform = spawnState
+	participant.Model = TankParticipantRegistry.getParticipantPhysicalModel(participant)
+	participant.Body = findBasePart(participant.Model, "Body")
+	participant.Turret = findBasePart(participant.Model, "Turret")
+	participant.Barrel = findBasePart(participant.Model, "Barrel")
+	participant.ShootPoint = findBasePart(participant.Model, "ShootPoint")
+	participant.Hitboxes = findTankFolder(participant.Model, "Hitboxes")
 
 	if participant.ControlState == nil then
 		participant.ControlState = {}
