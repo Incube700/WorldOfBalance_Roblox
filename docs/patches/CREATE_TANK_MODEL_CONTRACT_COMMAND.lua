@@ -2,6 +2,12 @@
 -- Run outside Play Mode, then File -> Save to File.
 
 local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+
+if RunService:IsRunning() then
+	warn("[TANK CONTRACT] Run this command outside Play Mode.")
+	return
+end
 
 local GENERATED_ROOT_NAME = "WOB_Generated"
 local TEST_OBJECTS_NAME = "TestObjects"
@@ -99,6 +105,7 @@ local function getOrCreateFolder(parent, name)
 			error(existing:GetFullName() .. " exists but is " .. existing.ClassName .. ", expected Folder")
 		end
 
+		print("[TANK CONTRACT] kept existing " .. existing:GetFullName())
 		return existing
 	end
 
@@ -187,6 +194,7 @@ local function getOrCreateTankModel(name)
 			error(existing:GetFullName() .. " exists but is " .. existing.ClassName .. ", expected Model")
 		end
 
+		print("[TANK CONTRACT] kept existing " .. existing:GetFullName())
 		return existing
 	end
 
@@ -226,6 +234,7 @@ local function ensurePart(model, partName, pivot, colorOverride)
 
 	if part ~= nil then
 		preserveExistingVisualPart(part)
+		print("[TANK CONTRACT] kept existing " .. part:GetFullName())
 		return part, false
 	end
 
@@ -273,6 +282,8 @@ local function ensureHitboxes(model, pivot)
 		hitboxes.Name = "Hitboxes"
 		hitboxes.Parent = model
 		print("[TANK CONTRACT] created " .. hitboxes:GetFullName())
+	else
+		print("[TANK CONTRACT] kept existing " .. hitboxes:GetFullName())
 	end
 
 	for hitboxName, spec in pairs(HITBOX_SPECS) do
@@ -290,6 +301,7 @@ local function ensureHitboxes(model, pivot)
 			print("[TANK CONTRACT] created " .. hitbox:GetFullName())
 		else
 			preserveExistingHitbox(hitbox)
+			print("[TANK CONTRACT] kept existing " .. hitbox:GetFullName())
 		end
 	end
 

@@ -18,6 +18,7 @@ local map = root:WaitForChild("Map")
 local testObjects = root:WaitForChild("TestObjects")
 local localPlayer = Players.LocalPlayer
 
+local DEBUG_AIM_LASER = false
 local playerTank = nil
 local loggedOwnedTankId = nil
 
@@ -155,7 +156,7 @@ local function refreshMuzzleParts()
 		if playerTank ~= nil then
 			local tankId = playerTank:GetAttribute("TankId") or playerTank.Name
 
-			if loggedOwnedTankId ~= tankId then
+			if DEBUG_AIM_LASER and loggedOwnedTankId ~= tankId then
 				loggedOwnedTankId = tankId
 				print("[PVP] local owned tank found: " .. tostring(tankId))
 			end

@@ -2,6 +2,12 @@
 -- Run outside Play Mode.
 
 local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+
+if RunService:IsRunning() then
+	warn("[WOB SPAWN] Run this command outside Play Mode.")
+	return
+end
 
 local function getOrCreate(parent, className, name)
 	local existing = parent:FindFirstChild(name)
@@ -9,12 +15,14 @@ local function getOrCreate(parent, className, name)
 		if not existing:IsA(className) then
 			warn(("[WOB SPAWN] %s exists but is %s, expected %s."):format(existing:GetFullName(), existing.ClassName, className))
 		end
+		print("[WOB SPAWN] Kept existing " .. existing:GetFullName())
 		return existing, false
 	end
 
 	local instance = Instance.new(className)
 	instance.Name = name
 	instance.Parent = parent
+	print("[WOB SPAWN] Created " .. instance:GetFullName())
 	return instance, true
 end
 
@@ -25,6 +33,9 @@ local function setupPlayer2Spawn()
 		root = Instance.new("Folder")
 		root.Name = "WOB_Generated"
 		root.Parent = Workspace
+		print("[WOB SPAWN] Created " .. root:GetFullName())
+	else
+		print("[WOB SPAWN] Kept existing " .. root:GetFullName())
 	end
 
 	local map = root:FindFirstChild("Map")

@@ -44,6 +44,8 @@ local matchState = {
 	TargetWins = MATCH_TARGET_WINS,
 	MatchEnded = false,
 	MatchResult = "",
+	MatchWinnerTankId = "",
+	MatchLoserTankId = "",
 }
 
 local callbacks = {
@@ -135,6 +137,8 @@ function RoundMatchService.setMatchAttributes()
 	root:SetAttribute("TargetWins", matchState.TargetWins)
 	root:SetAttribute("MatchEnded", matchState.MatchEnded)
 	root:SetAttribute("MatchResult", matchState.MatchResult)
+	root:SetAttribute("MatchWinnerTankId", matchState.MatchWinnerTankId)
+	root:SetAttribute("MatchLoserTankId", matchState.MatchLoserTankId)
 end
 
 function RoundMatchService.resetMatchState()
@@ -144,9 +148,31 @@ function RoundMatchService.resetMatchState()
 	matchState.TargetWins = MATCH_TARGET_WINS
 	matchState.MatchEnded = false
 	matchState.MatchResult = ""
+	matchState.MatchWinnerTankId = ""
+	matchState.MatchLoserTankId = ""
 
 	MatchStatsService.resetRuntimeMatchStats()
 	RoundMatchService.setMatchAttributes()
+end
+
+local function getOpponentTankId()
+	if matchMode == RoundMatchService.MATCH_MODE_PVP then
+		return "Player2TankPrototype"
+	end
+
+	return "DummyTank"
+end
+
+local function getParticipantMatchResult(participant)
+	if participant.TankId == matchState.MatchWinnerTankId then
+		return RoundMatchService.ROUND_RESULT_WIN
+	end
+
+	if participant.TankId == matchState.MatchLoserTankId then
+		return RoundMatchService.ROUND_RESULT_LOSE
+	end
+
+	return ""
 end
 
 local function printMatchScore(prefix)
@@ -154,9 +180,9 @@ local function printMatchScore(prefix)
 		prefix
 			.. " round="
 			.. matchState.RoundNumber
-			.. " score=Player "
+			.. " score=PlayerSide "
 			.. matchState.PlayerWins
-			.. " / Dummy "
+			.. " / OpponentSide "
 			.. matchState.DummyWins
 			.. " firstTo="
 			.. matchState.TargetWins
@@ -180,20 +206,33 @@ function RoundMatchService.endRound(result)
 		if matchState.PlayerWins >= matchState.TargetWins then
 			matchState.MatchEnded = true
 			matchState.MatchResult = RoundMatchService.MATCH_RESULT_PLAYER_WIN
+			matchState.MatchWinnerTankId = "PlayerTankPrototype"
+			matchState.MatchLoserTankId = getOpponentTankId()
 		elseif matchState.DummyWins >= matchState.TargetWins then
 			matchState.MatchEnded = true
 			matchState.MatchResult = RoundMatchService.MATCH_RESULT_DUMMY_WIN
+			matchState.MatchWinnerTankId = getOpponentTankId()
+			matchState.MatchLoserTankId = "PlayerTankPrototype"
 		end
 	end
 
-	MatchStatsService.recordRoundStats(result, RoundMatchService.ROUND_RESULT_WIN, RoundMatchService.ROUND_RESULT_LOSE)
+	MatchStatsService.recordRoundStats(
+		roundState.WinnerTankId,
+		roundState.LoserTankId,
+		TankParticipantRegistry.getPlayerParticipants()
+	)
 
 	if matchState.MatchEnded then
 		MatchStatsService.setMatchStat("StatsMatchResult", matchState.MatchResult)
 
 		for _, participant in ipairs(TankParticipantRegistry.getPlayerParticipants()) do
 			if participant.OwnerPlayer ~= nil then
-				MatchStatsService.persistFinalMatchStats(participant, matchState.MatchResult)
+				local participantMatchResult = getParticipantMatchResult(participant)
+
+				if participantMatchResult ~= "" then
+					MatchStatsService.setParticipantMatchResult(participant, participantMatchResult)
+					MatchStatsService.persistFinalMatchStats(participant, participantMatchResult)
+				end
 			end
 		end
 	end

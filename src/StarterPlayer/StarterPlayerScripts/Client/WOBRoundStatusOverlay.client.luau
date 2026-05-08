@@ -30,7 +30,8 @@ local RELOAD_DISPLAY_COOLDOWN = math.max(
 local RELOAD_READY_TEXT = HudConfig.Reload.ReadyText or "Reload: READY"
 local RELOAD_PREFIX = HudConfig.Reload.Prefix or "Reload: "
 local RELOAD_SUFFIX = HudConfig.Reload.Suffix or "%"
-local ENEMY_HP_PREFIX = "Enemy HP: "
+local OPPONENT_HP_PREFIX = "Opponent HP: "
+local PLAYER_HP_PREFIX = "You HP: "
 local HEALTH_SEPARATOR = HudConfig.DummyHealth.Separator or " / "
 
 local lastShotTime = -100
@@ -444,6 +445,66 @@ local function refreshTankTargets()
 	currentEnemyTank = TankModelResolver.findEnemyTank(root, localPlayer.UserId)
 end
 
+local function getCurrentPlayerTankId()
+	if currentPlayerTank == nil or currentPlayerTank.Parent == nil then
+		refreshTankTargets()
+	end
+
+	if currentPlayerTank == nil then
+		return nil
+	end
+
+	return currentPlayerTank:GetAttribute("TankId") or currentPlayerTank.Name
+end
+
+local function getLocalRoundResult(globalResult)
+	local tankId = getCurrentPlayerTankId()
+	local winnerTankId = root:GetAttribute("RoundWinnerTankId")
+	local loserTankId = root:GetAttribute("RoundLoserTankId")
+
+	if tankId ~= nil and winnerTankId == tankId then
+		return "Win"
+	end
+
+	if tankId ~= nil and loserTankId == tankId then
+		return "Lose"
+	end
+
+	return globalResult
+end
+
+local function getLocalSeriesScore(playerSideWins, opponentSideWins)
+	if root:GetAttribute("MatchMode") == "PvP"
+		and getCurrentPlayerTankId() == "Player2TankPrototype"
+	then
+		return opponentSideWins, playerSideWins
+	end
+
+	return playerSideWins, opponentSideWins
+end
+
+local function getLocalMatchResult(matchResult)
+	local tankId = getCurrentPlayerTankId()
+	local winnerTankId = root:GetAttribute("MatchWinnerTankId")
+	local loserTankId = root:GetAttribute("MatchLoserTankId")
+
+	if tankId ~= nil and winnerTankId == tankId then
+		return "Win"
+	end
+
+	if tankId ~= nil and loserTankId == tankId then
+		return "Loss"
+	end
+
+	if matchResult == "PlayerMatchWin" then
+		return tankId == "Player2TankPrototype" and "Loss" or "Win"
+	elseif matchResult == "DummyMatchWin" then
+		return tankId == "Player2TankPrototype" and "Win" or "Loss"
+	end
+
+	return ""
+end
+
 local function getTankHealth(model, fallbackMaxHealth)
 	if model == nil then
 		return nil, fallbackMaxHealth
@@ -465,13 +526,13 @@ local function updateEnemyHealth()
 	local health, maxHealth = getTankHealth(currentEnemyTank, HudConfig.DummyHealth.MaxHealthDisplay or 100)
 
 	if health == nil then
-		setUnknownHealth(roundUi.EnemyHpLabel, roundUi.EnemyHpFill, ENEMY_HP_PREFIX)
+		setUnknownHealth(roundUi.EnemyHpLabel, roundUi.EnemyHpFill, OPPONENT_HP_PREFIX)
 		return
 	end
 
 	local normalizedHealth = clamp01(health / math.max(1, maxHealth))
 
-	roundUi.EnemyHpLabel.Text = ENEMY_HP_PREFIX .. math.floor(health) .. HEALTH_SEPARATOR .. math.floor(maxHealth)
+	roundUi.EnemyHpLabel.Text = OPPONENT_HP_PREFIX .. math.floor(health) .. HEALTH_SEPARATOR .. math.floor(maxHealth)
 	roundUi.EnemyHpFill.Size = UDim2.new(normalizedHealth, 0, 1, 0)
 
 	if normalizedHealth <= 0.3 then
@@ -487,13 +548,13 @@ local function updateHealth()
 	local health, maxHealth = getTankHealth(currentPlayerTank, 100)
 
 	if health == nil then
-		setUnknownHealth(roundUi.PlayerHpLabel, roundUi.PlayerHpFill, "Player HP: ")
+		setUnknownHealth(roundUi.PlayerHpLabel, roundUi.PlayerHpFill, PLAYER_HP_PREFIX)
 		return
 	end
 
 	local normalizedHealth = clamp01(health / math.max(1, maxHealth))
 
-	roundUi.PlayerHpLabel.Text = "Player HP: " .. math.floor(health) .. " / " .. math.floor(maxHealth)
+	roundUi.PlayerHpLabel.Text = PLAYER_HP_PREFIX .. math.floor(health) .. " / " .. math.floor(maxHealth)
 	roundUi.PlayerHpFill.Size = UDim2.new(normalizedHealth, 0, 1, 0)
 
 	if normalizedHealth <= 0.3 then
@@ -523,7 +584,7 @@ local function updateRoundResult()
 		return
 	end
 
-	local result = root:GetAttribute("RoundResult") or "Playing"
+	local result = getLocalRoundResult(root:GetAttribute("RoundResult") or "Playing")
 	local roundEnded = root:GetAttribute("RoundEnded") == true or result == "Win" or result == "Lose"
 	local matchEnded = root:GetAttribute("MatchEnded") == true
 	local hasRoundResult = result == "Win" or result == "Lose"
@@ -562,20 +623,22 @@ local function updateSeriesStatus()
 
 	local playerWins = root:GetAttribute("PlayerWins") or 0
 	local dummyWins = root:GetAttribute("DummyWins") or 0
+	local youWins, opponentWins = getLocalSeriesScore(playerWins, dummyWins)
 	local roundNumber = root:GetAttribute("RoundNumber") or 1
 	local targetWins = root:GetAttribute("TargetWins") or 3
 	local matchEnded = root:GetAttribute("MatchEnded") == true
 	local matchResult = root:GetAttribute("MatchResult") or ""
+	local localMatchResult = getLocalMatchResult(matchResult)
 
 	roundUi.RoundLabel.Text = "Round: " .. roundNumber
-	roundUi.ScoreLabel.Text = "Score: Player " .. playerWins .. " / Enemy " .. dummyWins
+	roundUi.ScoreLabel.Text = "Score: You " .. youWins .. " / Opponent " .. opponentWins
 	roundUi.TargetWinsLabel.Text = "First to " .. targetWins
 
 	if matchEnded then
-		if matchResult == "PlayerMatchWin" then
+		if localMatchResult == "Win" then
 			roundUi.MatchResultLabel.Text = "MATCH WIN"
 			roundUi.MatchResultLabel.TextColor3 = Color3.fromRGB(105, 235, 145)
-		elseif matchResult == "DummyMatchWin" then
+		elseif localMatchResult == "Loss" then
 			roundUi.MatchResultLabel.Text = "MATCH LOSE"
 			roundUi.MatchResultLabel.TextColor3 = Color3.fromRGB(245, 95, 80)
 		else
@@ -592,6 +655,8 @@ end
 
 root:GetAttributeChangedSignal("RoundResult"):Connect(updateRoundResult)
 root:GetAttributeChangedSignal("RoundEnded"):Connect(updateRoundResult)
+root:GetAttributeChangedSignal("RoundWinnerTankId"):Connect(updateRoundResult)
+root:GetAttributeChangedSignal("RoundLoserTankId"):Connect(updateRoundResult)
 root:GetAttributeChangedSignal("GameState"):Connect(function()
 	refreshTankTargets()
 	updateEnemyHealth()
@@ -615,6 +680,8 @@ root:GetAttributeChangedSignal("MatchEnded"):Connect(function()
 	updateSeriesStatus()
 end)
 root:GetAttributeChangedSignal("MatchResult"):Connect(updateSeriesStatus)
+root:GetAttributeChangedSignal("MatchWinnerTankId"):Connect(updateSeriesStatus)
+root:GetAttributeChangedSignal("MatchLoserTankId"):Connect(updateSeriesStatus)
 
 root.DescendantAdded:Connect(function()
 	refreshTankTargets()

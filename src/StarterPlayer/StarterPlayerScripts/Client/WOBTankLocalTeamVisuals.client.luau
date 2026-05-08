@@ -16,6 +16,7 @@ local FRIENDLY_TURRET_COLOR = Color3.fromRGB(80, 220, 160)
 local ENEMY_BODY_COLOR = Color3.fromRGB(230, 65, 70)
 local ENEMY_TURRET_COLOR = Color3.fromRGB(255, 105, 80)
 local DEAD_COLOR = Color3.fromRGB(30, 30, 30)
+local DEBUG_VISUALS = false
 
 local VISUAL_PART_NAMES = {
 	Body = true,
@@ -51,7 +52,7 @@ local function getTankColors(model)
 	then
 		local tankId = model:GetAttribute("TankId") or model.Name
 
-		if loggedOwnedTankId ~= tankId then
+		if DEBUG_VISUALS and loggedOwnedTankId ~= tankId then
 			loggedOwnedTankId = tankId
 			print("[PVP] local owned tank found: " .. tostring(tankId))
 		end

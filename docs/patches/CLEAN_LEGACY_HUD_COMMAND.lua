@@ -2,6 +2,12 @@
 -- Run outside Play Mode after CREATE_MODULAR_HUD_COMMAND.lua. It keeps StarterGui/HUD/Root and modular panels.
 
 local StarterGui = game:GetService("StarterGui")
+local RunService = game:GetService("RunService")
+
+if RunService:IsRunning() then
+	warn("[WOB HUD CLEANUP] Run this command outside Play Mode.")
+	return
+end
 
 local EXPECTED_PANELS = {
 	EnemyStatusPanel = true,

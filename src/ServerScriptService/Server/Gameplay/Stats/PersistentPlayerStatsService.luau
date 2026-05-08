@@ -155,11 +155,13 @@ end
 
 local function getMatchDeltas(runtimeStats)
 	local matchResult = runtimeStats.MatchResult
+	local isWin = matchResult == "Win" or matchResult == "PlayerMatchWin"
+	local isLoss = matchResult == "Loss" or matchResult == "DummyMatchWin"
 
 	return {
 		TotalMatches = 1,
-		TotalWins = matchResult == "PlayerMatchWin" and 1 or 0,
-		TotalLosses = matchResult == "DummyMatchWin" and 1 or 0,
+		TotalWins = isWin and 1 or 0,
+		TotalLosses = isLoss and 1 or 0,
 		TotalShotsFired = getRuntimeNumber(runtimeStats, "StatsShotsFired"),
 		TotalHits = getRuntimeNumber(runtimeStats, "StatsHits"),
 		TotalRicochets = getRuntimeNumber(runtimeStats, "StatsRicochets"),

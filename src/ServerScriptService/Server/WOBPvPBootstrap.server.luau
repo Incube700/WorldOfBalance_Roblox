@@ -4,9 +4,9 @@ local StarterPlayer = game:GetService("StarterPlayer")
 local Workspace = game:GetService("Workspace")
 
 Players.CharacterAutoLoads = false
-print("[PVP] CharacterAutoLoads disabled")
 
 local LEGACY_INPUT_CONTROLLER_NAME = "WOBClientController"
+local DEBUG_BOOTSTRAP = false
 local REMOTE_EVENT_NAMES = {
 	"TankInputEvent",
 	"ShootRequestEvent",
@@ -47,7 +47,9 @@ local function disableLegacyInputController(instance)
 
 	if instance.Enabled ~= false then
 		instance.Enabled = false
-		print("[PVP] legacy input controller disabled: " .. instance.Name)
+		if DEBUG_BOOTSTRAP then
+			print("[PVP] legacy input controller disabled: " .. instance.Name)
+		end
 	end
 end
 
@@ -69,7 +71,9 @@ for _, remoteName in ipairs(REMOTE_EVENT_NAMES) do
 	ensureRemoteEvent(remotes, remoteName)
 end
 
-print("[PVP] remotes bootstrapped")
+if DEBUG_BOOTSTRAP then
+	print("[PVP] remotes bootstrapped")
+end
 
 local root = Workspace:FindFirstChild("WOB_Generated") or Workspace:WaitForChild("WOB_Generated", 20)
 
@@ -79,7 +83,9 @@ else
 	local runtime = ensureFolder(root, "Runtime")
 	ensureFolder(runtime, "Projectiles")
 	ensureFolder(runtime, "VFX")
-	print("[PVP] runtime folders bootstrapped")
+	if DEBUG_BOOTSTRAP then
+		print("[PVP] runtime folders bootstrapped")
+	end
 end
 
 local starterPlayerScripts = StarterPlayer:FindFirstChild("StarterPlayerScripts")
@@ -134,7 +140,9 @@ local function suppressCharacter(player, character)
 		character:Destroy()
 	end)
 
-	print("[PVP] character removed/suppressed for " .. player.Name)
+	if DEBUG_BOOTSTRAP then
+		print("[PVP] character removed/suppressed for " .. player.Name)
+	end
 end
 
 local function watchPlayer(player)

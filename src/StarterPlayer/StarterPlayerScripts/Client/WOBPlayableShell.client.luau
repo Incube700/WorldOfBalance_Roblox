@@ -102,6 +102,7 @@ local statValueLabels = {}
 local totalStatValueLabels = {}
 local connectedButtons = {}
 local activeShellPanel = SHELL_PANEL_MENU
+local DEBUG_SHELL = false
 
 local function findDescendant(parent, name)
 	local directChild = parent:FindFirstChild(name)
@@ -329,7 +330,7 @@ local function createResultScreen(screenGui)
 	local title = getOrCreate(content, "TextLabel", "ResultTitleLabel")
 	title.Position = UDim2.new(0.08, 0, 0, 24)
 	title.Size = UDim2.new(0.84, 0, 0, 52)
-	styleLabel(title, "Match Result", 30, Color3.fromRGB(241, 255, 247))
+	styleLabel(title, "Your Match Result", 30, Color3.fromRGB(241, 255, 247))
 	title.Font = Enum.Font.GothamBold
 
 	local list = getOrCreate(content, "Frame", "StatsList")
@@ -391,7 +392,7 @@ local function createStatsPanel(screenGui)
 	local title = getOrCreate(content, "TextLabel", "StatsTitleLabel")
 	title.Position = UDim2.new(0.08, 0, 0, 24)
 	title.Size = UDim2.new(0.84, 0, 0, 52)
-	styleLabel(title, "Player Stats", 30, Color3.fromRGB(241, 255, 247))
+	styleLabel(title, "Your Stats", 30, Color3.fromRGB(241, 255, 247))
 	title.Font = Enum.Font.GothamBold
 
 	local list = getOrCreate(content, "Frame", "StatsList")
@@ -472,6 +473,22 @@ local function hasAllTotalStatLabels()
 	return true
 end
 
+local function updateStaticShellText()
+	for _, screenGui in ipairs(getShellScreenGuis()) do
+		local resultTitleLabel = findDescendant(screenGui, "ResultTitleLabel")
+
+		if resultTitleLabel ~= nil and resultTitleLabel:IsA("TextLabel") then
+			resultTitleLabel.Text = "Your Match Result"
+		end
+
+		local statsTitleLabel = findDescendant(screenGui, "StatsTitleLabel")
+
+		if statsTitleLabel ~= nil and statsTitleLabel:IsA("TextLabel") then
+			statsTitleLabel.Text = "Your Stats"
+		end
+	end
+end
+
 local function createShellGui()
 	local screenGui = findPrimaryShellGui()
 
@@ -507,6 +524,7 @@ local function createShellGui()
 
 	bindResultStatLabels(resultPanel)
 	bindTotalStatLabels(statsPanel)
+	updateStaticShellText()
 
 	local playButton = findDescendant(menuPanel, "PlayButton")
 	local statsButton = findDescendant(menuPanel, "StatsButton")
@@ -540,7 +558,7 @@ local function createShellGui()
 
 	if playButton == nil or not playButton:IsA("TextButton") then
 		warn("[SHELL] PlayButton not found under " .. menuPanel:GetFullName())
-	else
+	elseif DEBUG_SHELL then
 		print("[SHELL] bound main menu")
 	end
 
@@ -575,8 +593,18 @@ end
 
 local shell = createShellGui()
 
-local function asNumber(attributeName)
-	local value = root:GetAttribute(attributeName)
+local function runtimeAttribute(attributeName)
+	local value = localPlayer:GetAttribute(attributeName)
+
+	if value ~= nil then
+		return value
+	end
+
+	return root:GetAttribute(attributeName)
+end
+
+local function runtimeNumber(attributeName)
+	local value = runtimeAttribute(attributeName)
 
 	if typeof(value) == "number" then
 		return value
@@ -585,8 +613,8 @@ local function asNumber(attributeName)
 	return tonumber(value) or 0
 end
 
-local function asIntText(attributeName)
-	return tostring(math.floor(asNumber(attributeName)))
+local function runtimeIntText(attributeName)
+	return tostring(math.floor(runtimeNumber(attributeName)))
 end
 
 local function playerAttributeNumber(attributeName)
@@ -643,9 +671,9 @@ local function getAccumulatedTotals()
 end
 
 local function formatMatchResult(result)
-	if result == "PlayerMatchWin" then
+	if result == "Win" or result == "PlayerMatchWin" then
 		return "Victory"
-	elseif result == "DummyMatchWin" then
+	elseif result == "Loss" or result == "DummyMatchWin" then
 		return "Defeat"
 	elseif result == "" or result == nil then
 		return "-"
@@ -655,15 +683,15 @@ local function formatMatchResult(result)
 end
 
 local function updateResultStats()
-	local shots = asNumber("StatsShotsFired")
-	local hits = asNumber("StatsHits")
+	local shots = runtimeNumber("StatsShotsFired")
+	local hits = runtimeNumber("StatsHits")
 	local accuracy = 0
 
 	if shots > 0 then
 		accuracy = math.floor((hits / shots) * 100 + 0.5)
 	end
 
-	local result = root:GetAttribute("StatsMatchResult")
+	local result = runtimeAttribute("StatsMatchResult")
 
 	if result == nil or result == "" then
 		result = root:GetAttribute("MatchResult")
@@ -671,16 +699,16 @@ local function updateResultStats()
 
 	local values = {
 		MatchResult = formatMatchResult(result),
-		RoundsWon = asIntText("StatsRoundsWon"),
-		RoundsLost = asIntText("StatsRoundsLost"),
-		ShotsFired = asIntText("StatsShotsFired"),
-		Hits = asIntText("StatsHits"),
+		RoundsWon = runtimeIntText("StatsRoundsWon"),
+		RoundsLost = runtimeIntText("StatsRoundsLost"),
+		ShotsFired = runtimeIntText("StatsShotsFired"),
+		Hits = runtimeIntText("StatsHits"),
 		Accuracy = tostring(accuracy) .. "%",
-		Ricochets = asIntText("StatsRicochets"),
-		RicochetHits = asIntText("StatsRicochetHits"),
-		SelfHits = asIntText("StatsSelfHits"),
-		DamageDealt = asIntText("StatsDamageDealt"),
-		DamageTaken = asIntText("StatsDamageTaken"),
+		Ricochets = runtimeIntText("StatsRicochets"),
+		RicochetHits = runtimeIntText("StatsRicochetHits"),
+		SelfHits = runtimeIntText("StatsSelfHits"),
+		DamageDealt = runtimeIntText("StatsDamageDealt"),
+		DamageTaken = runtimeIntText("StatsDamageTaken"),
 	}
 
 	for key, text in pairs(values) do
@@ -825,7 +853,9 @@ local function connectActionButton(button, logMessage, callback)
 	end)
 
 	button.Activated:Connect(function()
-		print(logMessage)
+		if DEBUG_SHELL then
+			print(logMessage)
+		end
 		callback()
 	end)
 end
@@ -838,6 +868,13 @@ local function connectRemoteButton(button, logMessage, requestedState, remoteEve
 	end)
 end
 
+local function openStatsPanel()
+	activeShellPanel = SHELL_PANEL_STATS
+	updateStatsPanel()
+	print("[STATS] panel showing userId=" .. tostring(localPlayer.UserId))
+	applyShellState(GAME_STATE_MENU)
+end
+
 local function bindShellButtons(screenGui)
 	local menuPanel = findDescendant(screenGui, MAIN_MENU_PANEL_NAME)
 	local resultPanel = findDescendant(screenGui, RESULT_PANEL_NAME)
@@ -845,11 +882,7 @@ local function bindShellButtons(screenGui)
 
 	if menuPanel ~= nil then
 		connectRemoteButton(findDescendant(menuPanel, "PlayButton"), "[SHELL] Play clicked", GAME_STATE_PLAYING, startMatchRequestEvent)
-		connectActionButton(findDescendant(menuPanel, "StatsButton"), "[SHELL] Stats clicked", function()
-			activeShellPanel = SHELL_PANEL_STATS
-			updateStatsPanel()
-			applyShellState(GAME_STATE_MENU)
-		end)
+		connectActionButton(findDescendant(menuPanel, "StatsButton"), "[SHELL] Stats clicked", openStatsPanel)
 	end
 
 	if resultPanel ~= nil then
@@ -888,11 +921,7 @@ if shell.PlayButton ~= nil and shell.PlayButton:IsA("TextButton") then
 end
 
 if shell.StatsButton ~= nil and shell.StatsButton:IsA("TextButton") then
-	connectActionButton(shell.StatsButton, "[SHELL] Stats clicked", function()
-		activeShellPanel = SHELL_PANEL_STATS
-		updateStatsPanel()
-		applyShellState(GAME_STATE_MENU)
-	end)
+	connectActionButton(shell.StatsButton, "[SHELL] Stats clicked", openStatsPanel)
 end
 
 if shell.PlayAgainButton ~= nil and shell.PlayAgainButton:IsA("TextButton") then
@@ -911,12 +940,16 @@ if shell.StatsBackButton ~= nil and shell.StatsBackButton:IsA("TextButton") then
 end
 
 root:GetAttributeChangedSignal("GameState"):Connect(function()
-	print("[SHELL] GameState changed -> " .. tostring(root:GetAttribute("GameState")))
+	if DEBUG_SHELL then
+		print("[SHELL] GameState changed -> " .. tostring(root:GetAttribute("GameState")))
+	end
+
 	updateShell()
 end)
 
 for _, attributeName in ipairs(STAT_ATTRIBUTES) do
 	root:GetAttributeChangedSignal(attributeName):Connect(updateResultStats)
+	localPlayer:GetAttributeChangedSignal(attributeName):Connect(updateResultStats)
 end
 
 for _, key in ipairs(TOTAL_STAT_KEYS) do
@@ -933,6 +966,7 @@ playerGui.ChildAdded:Connect(function(child)
 		if isShellScreenGui(child) then
 			task.defer(function()
 				bindShellButtons(child)
+				updateStaticShellText()
 			end)
 		end
 

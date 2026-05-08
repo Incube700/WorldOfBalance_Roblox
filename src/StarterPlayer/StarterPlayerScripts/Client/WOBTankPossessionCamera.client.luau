@@ -19,6 +19,7 @@ local fieldOfView = topDownConfig.FieldOfView or 42
 local lookAtOffset = topDownConfig.LookAtOffset or Vector3.new(0, 0, 0)
 local upVector = topDownConfig.UpVector or Vector3.new(0, 0, -1)
 
+local DEBUG_CAMERA = false
 local ownedTank = nil
 local isFollowing = false
 local lastFollowedTankId = nil
@@ -71,7 +72,9 @@ local function updateCamera()
 		if isFollowing then
 			isFollowing = false
 			lastFollowedTankId = nil
-			print("[PVP] camera follow stopped")
+			if DEBUG_CAMERA then
+				print("[PVP] camera follow stopped")
+			end
 		end
 		if camera.CameraType == Enum.CameraType.Scriptable then
 			camera.CameraType = Enum.CameraType.Custom
@@ -85,7 +88,9 @@ local function updateCamera()
 		ownedTank = findOwnedTank()
 		if ownedTank then
 			local tankId = ownedTank:GetAttribute("TankId") or ownedTank.Name
-			print("[PVP] camera owned tank found: " .. tostring(tankId))
+			if DEBUG_CAMERA then
+				print("[PVP] camera owned tank found: " .. tostring(tankId))
+			end
 		end
 	end
 
@@ -94,7 +99,9 @@ local function updateCamera()
 		if isFollowing then
 			isFollowing = false
 			lastFollowedTankId = nil
-			print("[PVP] camera follow stopped (tank lost)")
+			if DEBUG_CAMERA then
+				print("[PVP] camera follow stopped (tank lost)")
+			end
 		end
 		
 		-- Добавляем throttled лог ошибки поиска частей
@@ -103,7 +110,7 @@ local function updateCamera()
 			local tankId = ownedTank:GetAttribute("TankId") or ownedTank.Name
 			print("[PVP] camera cannot follow: no BasePart for " .. tostring(tankId))
 			
-			if not diagnosedTanks[ownedTank] then
+			if DEBUG_CAMERA and not diagnosedTanks[ownedTank] then
 				diagnosedTanks[ownedTank] = true
 				printTankDiagnostics(ownedTank)
 			end

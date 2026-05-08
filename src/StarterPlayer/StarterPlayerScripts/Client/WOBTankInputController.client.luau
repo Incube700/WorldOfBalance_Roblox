@@ -20,6 +20,7 @@ root:WaitForChild("TestObjects")
 local camera = Workspace.CurrentCamera
 
 local LEGACY_INPUT_CONTROLLER_NAME = "WOBClientController"
+local DEBUG_INPUT = false
 local sendInterval = CameraConfig.Input.SendInterval or 0.05
 local aimPlaneY = CameraConfig.Input.AimPlaneY or 0
 local pressedKeys = {}
@@ -91,7 +92,7 @@ local function refreshOwnedTank()
 
 	ownedTank = nextOwnedTank
 
-	if ownedTank ~= nil then
+	if DEBUG_INPUT and ownedTank ~= nil then
 		local tankId = ownedTank:GetAttribute("TankId") or ownedTank.Name
 
 		if loggedOwnedTankId ~= tankId then
@@ -179,7 +180,7 @@ local function sendTankInput()
 	})
 
 	local now = os.clock()
-	if now - lastInputLogTime > 2 then
+	if DEBUG_INPUT and now - lastInputLogTime > 2 then
 		lastInputLogTime = now
 		local tankId = ownedTank:GetAttribute("TankId") or ownedTank.Name
 		print(string.format("[INPUT] client sending move for %s: T=%.1f, S=%.1f", tostring(tankId), throttle, steer))
@@ -206,7 +207,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
 		shootRequestEvent:FireServer(aimPos)
 
 		local now = os.clock()
-		if now - lastShootLogTime > 1 then
+		if DEBUG_INPUT and now - lastShootLogTime > 1 then
 			lastShootLogTime = now
 			local tankId = ownedTank:GetAttribute("TankId") or ownedTank.Name
 			print(string.format("[INPUT] client sending shoot for %s at %s", tostring(tankId), tostring(aimPos)))

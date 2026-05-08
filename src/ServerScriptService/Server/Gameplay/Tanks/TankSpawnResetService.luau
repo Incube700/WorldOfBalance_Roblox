@@ -30,6 +30,7 @@ local map = nil
 local tankColors = {}
 local resolvedArmorHitboxMaterial = nil
 local missingLayoutWarningByModel = {}
+local DEBUG_SPAWN = false
 
 function TankSpawnResetService.init(gameMap)
 	map = gameMap
@@ -107,7 +108,7 @@ function TankSpawnResetService.getSpawnTransform(spawnName, fallbackPosition, fa
 	if spawnPart == nil then
 		local fallbackTransform = makeSpawnTransform(fallbackPosition, fallbackYaw, "Fallback")
 
-		print(
+		warn(
 			"[SPAWN] "
 				.. label
 				.. " using fallback pos="
@@ -123,16 +124,18 @@ function TankSpawnResetService.getSpawnTransform(spawnName, fallbackPosition, fa
 	local yaw = getYawFromFlatDirection(spawnPart.CFrame.LookVector, fallbackYaw)
 	local transform = makeSpawnTransform(position, yaw, "SpawnPoint")
 
-	print(
-		"[SPAWN] "
-			.. label
-			.. " from SpawnPoint "
-			.. spawnName
-			.. " pos="
-			.. formatVector3(transform.Position)
-			.. " yaw="
-			.. string.format("%.1f", math.deg(transform.BodyYaw))
-	)
+	if DEBUG_SPAWN then
+		print(
+			"[SPAWN] "
+				.. label
+				.. " from SpawnPoint "
+				.. spawnName
+				.. " pos="
+				.. formatVector3(transform.Position)
+				.. " yaw="
+				.. string.format("%.1f", math.deg(transform.BodyYaw))
+		)
+	end
 
 	return transform
 end

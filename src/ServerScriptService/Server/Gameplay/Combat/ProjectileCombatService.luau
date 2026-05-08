@@ -79,18 +79,17 @@ local function resolveArmorHit(projectile, targetParticipant, hitNormal, armorZo
 	})
 end
 
-local function applyProjectileRicochet(projectile, hitPosition, hitNormal, playerParticipant)
+local function applyProjectileRicochet(projectile, hitPosition, hitNormal)
 	projectile.Direction = reflect(projectile.Direction, hitNormal)
 	projectile.Position = hitPosition + projectile.Direction * PROJECTILE_RICOCHET_OFFSET
 	projectile.BounceCount += 1
 	projectile.Damage *= projectile.DamageMultiplierPerBounce
 	projectile.Speed = math.max(projectile.MinSpeed, projectile.Speed * projectile.BounceSpeedMultiplier)
 	projectile.CanHitOwner = true
-	MatchStatsService.recordProjectileRicochet(projectile, playerParticipant)
+	MatchStatsService.recordProjectileRicochet(projectile)
 end
 
 function ProjectileCombatService.handleProjectileTankHit(projectile, targetParticipant, hitPosition, hitNormal, armorZone, options)
-	local playerParticipant = options.playerParticipant
 	local roundState = options.roundState
 	local getParticipantIsDead = dependencies.getParticipantIsDead
 	local createImpactFlash = dependencies.createImpactFlash
@@ -105,7 +104,7 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 		return true
 	end
 
-	MatchStatsService.recordProjectileTankHitStats(projectile, playerParticipant)
+	MatchStatsService.recordProjectileTankHitStats(projectile)
 
 	local armorHit = resolveArmorHit(projectile, targetParticipant, hitNormal, armorZone)
 
@@ -115,7 +114,9 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 		local damageText = "-" .. math.floor(armorHit.Damage)
 
 		if targetParticipant == projectile.OwnerParticipant and projectile.OwnerPlayer ~= nil then
-			print("[SELF-HIT] " .. targetParticipant.TankId .. " hit by own ricochet")
+			if DEBUG_PROJECTILES then
+				print("[SELF-HIT] " .. targetParticipant.TankId .. " hit by own ricochet")
+			end
 			damageText = "SELF HIT " .. damageText
 		end
 
@@ -127,7 +128,7 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 		)
 
 		if damageParticipant(targetParticipant, armorHit.Damage) then
-			MatchStatsService.recordProjectileDamageStats(projectile, targetParticipant, armorHit.Damage, playerParticipant)
+			MatchStatsService.recordProjectileDamageStats(projectile, targetParticipant, armorHit.Damage)
 		end
 
 		destroyProjectile(projectile)
@@ -159,7 +160,7 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 		return true
 	end
 
-	applyProjectileRicochet(projectile, hitPosition, hitNormal, playerParticipant)
+	applyProjectileRicochet(projectile, hitPosition, hitNormal)
 	printBounce(projectile)
 
 	return false

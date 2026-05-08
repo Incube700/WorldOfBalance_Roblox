@@ -7,6 +7,7 @@ local PersistentPlayerStatsService = require(script.Parent.Parent:WaitForChild("
 local playerParticipantByPlayer = {}
 local inputByPlayer = {}
 local controllingPlayer = nil
+local DEBUG_POSSESSION = false
 local callbacks = {
 	onParticipantAssigned = nil,
 }
@@ -60,7 +61,9 @@ function PlayerPossessionService.suppressCharacter(player, character)
 		character:Destroy()
 	end)
 
-	print("[PVP] character removed/suppressed for " .. player.Name)
+	if DEBUG_POSSESSION then
+		print("[PVP] character removed/suppressed for " .. player.Name)
+	end
 end
 
 function PlayerPossessionService.setInitialInputForParticipant(player, participant)

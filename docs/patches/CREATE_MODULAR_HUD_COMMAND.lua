@@ -2,6 +2,12 @@
 -- Run outside Play Mode. It creates only missing UI objects under StarterGui/HUD/Root.
 
 local StarterGui = game:GetService("StarterGui")
+local RunService = game:GetService("RunService")
+
+if RunService:IsRunning() then
+	warn("[WOB HUD] Run this command outside Play Mode.")
+	return
+end
 
 local function setPropertyIfPossible(instance, propertyName, value)
 	pcall(function()
@@ -31,12 +37,14 @@ local function getOrCreate(parent, className, name)
 			))
 		end
 
+		print("[WOB HUD] Kept existing " .. existing:GetFullName())
 		return existing, false
 	end
 
 	local instance = Instance.new(className)
 	instance.Name = name
 	instance.Parent = parent
+	print("[WOB HUD] Created " .. instance:GetFullName())
 
 	return instance, true
 end
@@ -188,7 +196,7 @@ end
 
 local enemyPanel, enemyCreated = getOrCreate(root, "Frame", "EnemyStatusPanel")
 stylePanel(enemyPanel, enemyCreated, UDim2.new(0, 18, 0, 18), UDim2.new(0, 280, 0, 70))
-addStatusBar(enemyPanel, "EnemyHpLabel", "EnemyHpBack", "EnemyHpFill", "Enemy HP: 100 / 100", Color3.fromRGB(235, 90, 80))
+addStatusBar(enemyPanel, "EnemyHpLabel", "EnemyHpBack", "EnemyHpFill", "Opponent HP: 100 / 100", Color3.fromRGB(235, 90, 80))
 
 local weaponPanel, weaponCreated = getOrCreate(root, "Frame", "WeaponStatusPanel")
 stylePanel(weaponPanel, weaponCreated, UDim2.new(0, 18, 0, 96), UDim2.new(0, 280, 0, 70))
@@ -196,7 +204,7 @@ addStatusBar(weaponPanel, "ReloadLabel", "ReloadBack", "ReloadFill", "Reload: RE
 
 local playerPanel, playerCreated = getOrCreate(root, "Frame", "PlayerStatusPanel")
 stylePanel(playerPanel, playerCreated, UDim2.new(0, 18, 0, 174), UDim2.new(0, 280, 0, 70))
-addStatusBar(playerPanel, "PlayerHpLabel", "PlayerHpBack", "PlayerHpFill", "Player HP: 100 / 100", Color3.fromRGB(80, 220, 135))
+addStatusBar(playerPanel, "PlayerHpLabel", "PlayerHpBack", "PlayerHpFill", "You HP: 100 / 100", Color3.fromRGB(80, 220, 135))
 
 local roundPanel, roundCreated = getOrCreate(root, "Frame", "RoundStatusPanel")
 stylePanel(roundPanel, roundCreated, UDim2.new(0.5, -140, 0, 18), UDim2.new(0, 280, 0, 78))
@@ -256,7 +264,7 @@ local scoreLabel, scoreLabelCreated = getOrCreate(matchPanel, "TextLabel", "Scor
 styleTextLabel(
 	scoreLabel,
 	scoreLabelCreated,
-	"Score: Player 0 / Enemy 0",
+	"Score: You 0 / Opponent 0",
 	UDim2.new(0, 12, 0, 32),
 	UDim2.new(1, -24, 0, 22),
 	16,

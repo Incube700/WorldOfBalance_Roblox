@@ -2,12 +2,21 @@
 -- Run outside Play Mode. It creates editable spawn marker parts used by WOBGameplayServer.
 
 local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+
+if RunService:IsRunning() then
+	warn("[WOB SPAWN] Run this command outside Play Mode.")
+	return
+end
 
 local root = Workspace:FindFirstChild("WOB_Generated")
 if root == nil then
 	root = Instance.new("Folder")
 	root.Name = "WOB_Generated"
 	root.Parent = Workspace
+	print("[WOB SPAWN] Created " .. root:GetFullName())
+else
+	print("[WOB SPAWN] Kept existing " .. root:GetFullName())
 end
 
 local spawnPoints = root:FindFirstChild("SpawnPoints")
@@ -15,6 +24,9 @@ if spawnPoints == nil then
 	spawnPoints = Instance.new("Folder")
 	spawnPoints.Name = "SpawnPoints"
 	spawnPoints.Parent = root
+	print("[WOB SPAWN] Created " .. spawnPoints:GetFullName())
+else
+	print("[WOB SPAWN] Kept existing " .. spawnPoints:GetFullName())
 end
 
 local playerPosition = Vector3.new(-42, 0.3, -42)

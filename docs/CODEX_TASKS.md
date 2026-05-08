@@ -219,6 +219,60 @@
     - `TankSpawnResetService.luau`: улучшена логика установки `PrimaryPart` — теперь используется глубокий поиск `Body` или любого `BasePart` внутри модели.
 - Результат: камера успешно находит физическую часть танка для фокуса, даже если локальный `ownedTank` ссылается на метаданные. Исправлен баг "no BasePart for PlayerTankPrototype".
 
+## Stable MVP Contracts
+
+### Tank Model Contract
+
+- Physical tank models live under `Workspace/WOB_Generated/TestObjects`.
+- Required models for MVP: `PlayerTankPrototype`, `Player2TankPrototype`, `DummyTank`.
+- Each physical tank model must contain visible/physical parts: `Body` or `Hull`, `Turret`, `Barrel`, `ShootPoint`, and `Hitboxes`.
+- `Hitboxes` must not be the only descendant of a physical tank model.
+- `PrimaryPart` must be assigned as `Body`, else `Hull`, else the first descendant `BasePart`.
+- Required attributes on the physical model: `TankId`, `OwnerUserId`, `OwnerName`, `TeamId`, `ControllerType`, `IsPlayerTank`.
+- Scene repair source of truth: `docs/patches/CREATE_TANK_MODEL_CONTRACT_COMMAND.lua`. It is a repair tool, not a per-run dependency.
+
+### TankParticipant Contract
+
+- `TankParticipant` is the combat entity for a tank.
+- `ControllerType` identifies the decision source: `Player`, `Dummy`, and later `Bot`.
+- `OwnerUserId` and `OwnerName` are set only for player-controlled tanks.
+- `Dummy` and future non-player controllers do not write DataStore player stats.
+- The registry must register the physical model, not a wrapper, and must warn critically when the model has no `BasePart`.
+
+### Possession Contract
+
+- Client code finds the owned physical tank by `OwnerUserId == LocalPlayer.UserId`.
+- If a wrapper is ever found, client code resolves the physical tank by `TankId` through `TankModelResolver`.
+- Camera follows `PrimaryPart`, then `Body`, then first descendant `BasePart`.
+- Input sends `TankId`; server validates `Player -> TankParticipant` ownership before applying movement or shooting.
+- `WOBGameplayServer` stays a thin orchestrator. Possession, reset, projectiles, combat, and stats stay in services.
+
+### Stats Contract
+
+- Runtime match stats are per player-controlled `TankParticipant` and mirrored to the owning `Player` as `Stats*` attributes.
+- Legacy root `Workspace.WOB_Generated.Stats*` attributes remain a compatibility fallback for `PlayerTankPrototype` only.
+- Persistent stats are stored by the existing per-user DataStore key format (`Player_<UserId>`).
+- Training: local player receives Win/Loss relative to `DummyTank`; `DummyTank` is never saved to DataStore.
+- PvP: winner and loser receive separate Win/Loss and separate shots/hits/ricochets/self-hits/damage/round stats.
+- Studio DataStore warnings are acceptable; session/unsaved attributes must still let UI show useful stats.
+
+### Scene Repair Scripts
+
+- Run repair scripts only from Studio Command Bar outside Play Mode, then `File -> Save to File`.
+- Tank contract: `docs/patches/CREATE_TANK_MODEL_CONTRACT_COMMAND.lua`.
+- Spawn points: `docs/patches/CREATE_SPAWN_POINTS_COMMAND.lua` and, if only Player2 needs repair, `docs/patches/CREATE_PLAYER2_SPAWN_COMMAND.lua`.
+- Modular HUD: `docs/patches/CREATE_MODULAR_HUD_COMMAND.lua`, then `docs/patches/CLEAN_LEGACY_HUD_COMMAND.lua` if old HUD objects remain.
+- Legacy Studio-owned duplicates: `docs/patches/DISABLE_LEGACY_STUDIO_SCRIPTS_COMMAND.lua`.
+- These scripts are repair tools after scene corruption or migration, not commands that should be required for every Play test.
+
+### Smoke Test Checklist
+
+- 1-player Training: menu opens, Play starts `Training`, camera follows `PlayerTankPrototype`, WASD/A-D movement works, laser/shoot works, dummy takes damage, result and stats show local player data.
+- 2-player PvP: Studio test with 2 clients assigns `PlayerTankPrototype` and `Player2TankPrototype`, each client follows and controls only its own tank, shots/damage replicate, winner/loser stats are separate.
+- HUD: `StarterGui/HUD/Root` exists, persistent combat HUD is visible only while playing, `RoundStatusPanel` appears only for round/match result.
+- Result/Stats: text is local perspective (`You/Opponent` or local player stats), not global `Player/Enemy` stats for both clients.
+- Output: no red errors, no `Out of local registers`, no repeated `camera cannot follow`, and no per-frame debug spam.
+
 ## Next Milestone — Player HP / Damage / Win-Lose-Restart
 
 - Статус: first code slice implemented in Rojo-managed `WOBGameplayServer` + `WOBRoundStatusOverlay`.

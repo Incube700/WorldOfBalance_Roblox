@@ -221,10 +221,7 @@ function ProjectileService.tryShoot(participant, direction)
 	participant.WeaponState.WeaponReadyAt = participant.WeaponReadyAt
 
 	ProjectileService.createProjectile(participant, participant.ShootPoint.Position, flatDirection.Unit)
-	
-	-- Legacy playerParticipant support
-	local playerParticipant = callbacks.getPlayerParticipant and callbacks.getPlayerParticipant()
-	MatchStatsService.recordShotFired(participant, playerParticipant)
+	MatchStatsService.recordShotFired(participant)
 
 	return true
 end
@@ -297,7 +294,6 @@ function ProjectileService.updateProjectiles(deltaTime)
 					hitNormal,
 					armorZone,
 					{
-						playerParticipant = callbacks.getPlayerParticipant and callbacks.getPlayerParticipant(),
 						roundState = callbacks.getRoundState(),
 					}
 				)

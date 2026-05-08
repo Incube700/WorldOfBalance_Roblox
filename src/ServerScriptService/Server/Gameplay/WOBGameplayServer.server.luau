@@ -32,6 +32,7 @@ local primaryWeaponConfig = WeaponConfig.PrimaryWeapon
 local MOVE_SPEED = TankConfig.Movement.MoveSpeed
 local REVERSE_MOVE_SPEED_MULTIPLIER = TankConfig.Movement.ReverseMoveSpeedMultiplier or 1
 local TURN_SPEED = TankConfig.Movement.BodyTurnSpeedRadians
+local DEBUG_INPUT = false
 
 -- Remote Events
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -267,7 +268,10 @@ Players.PlayerRemoving:Connect(function(player) PlayerPossessionService.removePl
 
 -- Remote Connections
 startMatchRequestEvent.OnServerEvent:Connect(function(player)
-	print("[SERVER] StartMatch requested by " .. player.Name)
+	if DEBUG_INPUT then
+		print("[SERVER] StartMatch requested by " .. player.Name)
+	end
+
 	if PlayerPossessionService.getPlayerParticipantByPlayer(player) then
 		RoundMatchService.startNewMatch()
 	end
@@ -295,11 +299,11 @@ tankInputEvent.OnServerEvent:Connect(function(player, inputData)
 		}
 
 		local now = os.clock()
-		if now - (lastInputReceivedLogTimes[player] or 0) > 5 then
+		if DEBUG_INPUT and now - (lastInputReceivedLogTimes[player] or 0) > 5 then
 			lastInputReceivedLogTimes[player] = now
 			print(string.format("[SERVER] TankInput received from %s for %s", player.Name, participant.TankId))
 		end
-	elseif participant == nil then
+	elseif DEBUG_INPUT and participant == nil then
 		if os.clock() % 5 < 0.1 then
 			print("[SERVER] TankInput ignored: participant not found for " .. player.Name)
 		end
@@ -326,7 +330,7 @@ RunService.Heartbeat:Connect(function(deltaTime)
 
 	local inputs = PlayerPossessionService.getInputByPlayer()
 	local now = os.clock()
-	local shouldLogApply = now - lastInputAppliedLogTime > 5
+	local shouldLogApply = DEBUG_INPUT and now - lastInputAppliedLogTime > 5
 	if shouldLogApply then
 		lastInputAppliedLogTime = now
 	end
