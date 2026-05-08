@@ -241,9 +241,88 @@
 - Contract: `WOBGameplayServer` now creates runtime participants for `PlayerTankPrototype` and `DummyTank` with `TankId`, `Model`, `Body`, `Turret`, `Barrel`, `ShootPoint`, `Hitboxes`, `OwnerPlayer`, `OwnerUserId`, `TeamId`, `IsBot`, `SpawnName`, `SpawnTransform`, `WeaponTypeId`, `WeaponConfig`, `LastShotTime`, `WeaponReadyAt`, `Health`, `MaxHealth`, `DefaultMaxHealth`, and `IsDead`.
 - What changed: health attribute get/set/reset, damage application, death handling, armor-hitbox-to-target resolution, projectile owner metadata, and player shooting cooldown now flow through participant helpers.
 - Preserved behavior: movement, turret aim, shooting, ricochet, armor/penetration, combat feedback events/overlay compatibility, modular HUD attributes, match series to `MatchConfig.TargetWins`, `R` reset, and projectile cleanup on reset.
-- Intentionally still hardcoded: only two participants exist (`PlayerTankPrototype`, `DummyTank`); player input still controls one tank through `controllingPlayer`; dummy has no AI/shooting; teams are simple string ids; health defaults remain `100`; layout, movement, and round/match state still live inside the monolithic `WOBGameplayServer`.
+- Intentionally still hardcoded: the original slice started with `PlayerTankPrototype` and `DummyTank`; PvP Foundation v1 adds a second player slot, but dummy has no AI/shooting, teams are still simple string ids, health defaults remain `100`, and layout, movement, round/match state, and player-slot perspective still live inside the monolithic `WOBGameplayServer`.
 - Next recommended task: add a read-only participant debug/audit helper or tiny module boundary only after Play Mode verifies no behavior drift; do not start bot AI, PvP, DataStore, menu, scene edits, or service splitting yet.
 - Recommended commit message: `Add TankParticipant v1 runtime slice`.
+
+## Current Sprint — Runtime Match Stats v1
+
+- Статус: runtime-only stats slice in `WOBGameplayServer`; no DataStore, menu, result screen, `.rbxl`, or `default.project.json` changes.
+- Storage: stats are exposed as attributes directly on `Workspace.WOB_Generated`: `StatsShotsFired`, `StatsHits`, `StatsRicochets`, `StatsRicochetHits`, `StatsSelfHits`, `StatsDamageDealt`, `StatsDamageTaken`, `StatsRoundsWon`, `StatsRoundsLost`, and `StatsMatchResult`.
+- Semantics: `StatsShotsFired` counts accepted player shots; `StatsHits` counts valid tank armor hits from player-fired projectiles; `StatsRicochets` counts actual wall or armor ricochets from player-fired projectiles; `StatsRicochetHits` counts tank armor hits after at least one ricochet; `StatsSelfHits` counts player self-damage from their own projectile; `StatsDamageDealt` excludes self-damage; `StatsDamageTaken` includes self-damage and future enemy damage.
+- Reset behavior: stats reset on server start and when `R` starts a new match after `MatchConfig.TargetWins` has ended the current match. Stats do not reset on every round, and `R` during an active or non-final ended round preserves current-match totals.
+- Verification: in Play Mode, select `Workspace/WOB_Generated` and inspect Attributes while firing, hitting dummy armor, ricocheting off walls/armor, self-hitting after ricochet, winning/losing rounds, and pressing `R`.
+- Preserved behavior: HUD, match flow, `CombatFeedbackEvent`, ricochet/armor rules, participant ownership, projectile cleanup, and current reset behavior are unchanged.
+- Next recommended task: Result Screen v1 should read these runtime attributes and display final match stats after `MatchEnded`, without adding DataStore or menu flow yet.
+- Recommended commit message: `Add runtime match stats attributes`.
+
+## Current Sprint — WOBGameplayServer Decomposition Plan
+
+- Статус: documentation-only plan in `docs/WOBGAMEPLAYSERVER_DECOMPOSITION_PLAN.md`.
+- Context: `WOBGameplayServer` is the current prototype orchestrator for input, movement, participants, shooting, projectiles, ricochet, combat, feedback, round/match state, runtime stats, HUD attributes, and reset flow.
+- Rule: do not rewrite it all at once; use phased extraction with Play Mode checks after every phase.
+- Next safe extraction candidate: MatchStats, because it is runtime-only, attribute-based, and has low gameplay risk compared with movement, projectile runtime, or match state.
+- Recommended commit message: `Add WOBGameplayServer decomposition plan`.
+
+## Current Sprint — Playable Shell v1
+
+- Статус: visible playable shell is implemented and button flow is fixed for editable Studio-created UI plus runtime fallback pieces in `src/StarterPlayer/StarterPlayerScripts/Client/WOBPlayableShell.client.luau`.
+- Expected UI hierarchy/names: `StarterGui/WOBPlayableShellGui`; `MainMenuPanel/MenuContent/PlayButton`; optional placeholders `TrainingButton`, `StatsButton`, `SettingsButton`; `StatsPanel/StatsContent/StatsList/*Row/*Label` with `TotalMatchesLabel`, `TotalWinsLabel`, `TotalLossesLabel`, `WinRateLabel`, `TotalShotsFiredLabel`, `TotalHitsLabel`, `AccuracyLabel`, `TotalRicochetsLabel`, `TotalRicochetHitsLabel`, `TotalSelfHitsLabel`, `TotalDamageDealtLabel`, `TotalDamageTakenLabel`, and `StatsBackButton`; `ResultScreenPanel/ResultContent/StatsList/*Row/*Value`; result value labels `MatchResultValue`, `RoundsWonValue`, `RoundsLostValue`, `ShotsFiredValue`, `HitsValue`, `AccuracyValue`, `RicochetsValue`, `RicochetHitsValue`, `SelfHitsValue`, `DamageDealtValue`, `DamageTakenValue`; result buttons `PlayAgainButton` and `BackToMenuButton`. `MenuButton` is accepted as a Back to Menu alias.
+- UI ownership: editable Studio setup helpers are `docs/patches/CREATE_MAIN_MENU_COMMAND.lua`, `docs/patches/CREATE_STATS_PANEL_COMMAND.lua`, and `docs/patches/CREATE_RESULT_SCREEN_COMMAND.lua`; the client binds recursively to the editable UI and only creates fallback panels/buttons/labels when required names are missing.
+- GameState flow: server starts at `Workspace.WOB_Generated.GameState = "Menu"`; Play and Play Again immediately hide all shell menu panels locally, fire `StartMatchRequestEvent`, reset tanks/projectiles/match/runtime stats on the server, then server confirms `GameState = "Playing"`; reaching final `MatchConfig.TargetWins` sets `GameState = "Result"`; Back to Menu immediately returns the shell locally, fires `ReturnToMenuRequestEvent`, clears projectiles on the server, and confirms `GameState = "Menu"`. Active-game `R` reset remains gameplay-only while `GameState = "Playing"`.
+- Runtime stats storage: result screen reads `StatsShotsFired`, `StatsHits`, `StatsRicochets`, `StatsRicochetHits`, `StatsSelfHits`, `StatsDamageDealt`, `StatsDamageTaken`, `StatsRoundsWon`, `StatsRoundsLost`, and `StatsMatchResult` directly from `Workspace.WOB_Generated`.
+- Debug verification logs: client prints `[SHELL] bound main menu`, `[SHELL] Play clicked`, `[SHELL] PlayAgain clicked`, `[SHELL] BackToMenu clicked`, and `[SHELL] GameState changed -> ...`; server prints `[SERVER] StartMatch requested ...` and `[SERVER] ReturnToMenu requested ...`.
+- Play Mode verification: start Play Mode and confirm Main Menu appears with HUD hidden; Play immediately hides every `WOBPlayableShellGui` menu panel, changes `GameState` to `Playing`, and shows HUD; tank movement, turret aim, shooting, ricochet, armor/penetration, combat feedback, match score to `TargetWins`, runtime stats, and active-game `R` reset still work; final match result changes `GameState` to `Result`; Result Screen displays stats; Play Again starts a fresh match and resets runtime stats; Back to Menu returns to menu and combat stops; no duplicate MainMenu/ResultScreen UI and no red Output errors.
+- Recommended commit message: `Fix playable shell flow`.
+
+## Current Sprint — Persistent Player Stats v1
+
+- Статус: DataStore-backed cumulative stats are added as a small module at `src/ServerScriptService/Server/Gameplay/Stats/PersistentPlayerStatsService.luau`; no DataStore writes happen during shots or rounds.
+- Save timing: persistent totals save once at final match result, after `MatchConfig.TargetWins` ends the match and `StatsMatchResult` is set.
+- DataStore storage: store name is `WOBPersistentPlayerStatsV1`; player key is `Player_<UserId>`.
+- Exposed loaded totals: player attributes `PersistentTotalMatches`, `PersistentTotalWins`, `PersistentTotalLosses`, `PersistentTotalShotsFired`, `PersistentTotalHits`, `PersistentTotalRicochets`, `PersistentTotalRicochetHits`, `PersistentTotalSelfHits`, `PersistentTotalDamageDealt`, and `PersistentTotalDamageTaken`.
+- Local/session fallback totals: every completed match also updates `SessionTotalMatches`, `SessionTotalWins`, `SessionTotalLosses`, `SessionTotalShotsFired`, `SessionTotalHits`, `SessionTotalRicochets`, `SessionTotalRicochetHits`, `SessionTotalSelfHits`, `SessionTotalDamageDealt`, `SessionTotalDamageTaken`, plus `UnsavedTotal*` attributes for DataStore failures/retries.
+- Failure behavior: DataStore access is acquired lazily, not during module require; all `DataStoreService` reads/writes are wrapped in `pcall`; failure logs use `[DATASTORE]` warnings and gameplay continues. `PersistentStatsLoaded` and `PersistentStatsLastSaveSucceeded` tell the client whether to prefer persistent totals or local fallback totals.
+- Studio DataStore requirements: publish the experience, then enable `Game Settings -> Security -> Enable Studio Access to API Services`; test final-match saving in Studio or Roblox. Without API access, persistent load/save can warn with `[DATASTORE]`, but gameplay should continue.
+- Verification: after a final match with API services enabled, inspect the controlling `Player` attributes and confirm totals increased by the match's runtime stats; with API services disabled, confirm only `[DATASTORE]` warnings appear and the shell/gameplay flow still works.
+- Next recommended task: Result Screen polish or Main Menu mode selection.
+- Recommended commit message: `Add persistent player stats`.
+
+## Current Sprint — Stats Panel v1 + Clean Shell HUD
+
+- Статус: `StatsButton` now opens an in-shell `StatsPanel`; no profile screen, monetization, multiplayer, `.rbxl`, or `default.project.json` changes.
+- Stats source: `WOBPlayableShell.client.luau` prefers `PersistentTotal*` player attributes when they are loaded and current; when DataStore is unavailable or the last save failed, it displays `SessionTotal*` or persistent plus `UnsavedTotal*` fallback values.
+- Calculated values: `WinRate` is `TotalWins / TotalMatches * 100`; `Accuracy` is `TotalHits / TotalShotsFired * 100`; both safely show `0%` when the denominator is zero.
+- HUD visibility rules: `Menu`, `StatsPanel`, and `Result` hide combat HUD ScreenGuis/panels, aim laser, combat feedback, and impact feedback; `Playing` shows the combat HUD and hides Main Menu, StatsPanel, and Result Screen.
+- HUD cooperation: `WOBRoundStatusOverlay` respects `Workspace.WOB_Generated.GameState` and keeps its ScreenGui disabled outside `Playing`; combat/impact feedback clear themselves outside `Playing`.
+- Play Mode verification: start game and confirm Main Menu is clean with no Enemy HP/Reload/Player HP/MatchSeries behind it; click Stats and confirm totals/win rate/accuracy display; Stats Back returns to Main Menu; Play shows HUD and starts gameplay; final match shows only Result Screen; completed match increments persistent totals when DataStore works or session/unsaved totals when DataStore is unavailable; BackToMenu returns to clean Main Menu.
+- Next recommended task: Result Screen polish or Main Menu mode selection.
+- Recommended commit message: `Add stats panel and clean shell HUD visibility`.
+
+## Current Sprint — Playable Shell Editor UI Helpers
+
+- Статус: editor-only command scripts live in `docs/patches`; they are for Roblox Studio outside Play Mode and do not change runtime `GameState` behavior.
+- Hide shell UI in editor: run `docs/patches/HIDE_PLAYABLE_SHELL_UI_EDITOR_COMMAND.lua` to set `StarterGui/WOBPlayableShellGui/MainMenuPanel`, `ResultScreenPanel`, and `StatsPanel` invisible without disabling `WOBPlayableShellGui.Enabled`.
+- Show main menu for editing: run `docs/patches/SHOW_MAIN_MENU_EDITOR_COMMAND.lua`; it shows `MainMenuPanel` and hides `ResultScreenPanel` plus `StatsPanel`.
+- Show stats panel for editing: run `docs/patches/SHOW_STATS_PANEL_EDITOR_COMMAND.lua`; it shows `StatsPanel` and hides `MainMenuPanel` plus `ResultScreenPanel`.
+- After manual UI edits in Studio, use `File -> Save to File` so `RicochetTanksPrototype.rbxl` captures the editable UI changes.
+- Play Mode rule: the game still shows/hides shell panels from `WOBPlayableShell.client.luau` using `Workspace.WOB_Generated.GameState`; editor helper visibility is only for Studio editing comfort.
+- Recommended commit message: `Add playable shell editor UI helpers`.
+
+## Current Sprint — PvP Foundation v1
+
+- Статус: small foundation slice inside the current `WOBGameplayServer`; no matchmaking, lobby, DataStore, `.rbxl`, `default.project.json`, or full orchestrator rewrite.
+- Server tank layer: `src/ServerScriptService/Server/Gameplay/PlayerTankSpawner.luau` creates or reuses a runtime `Player2TankPrototype` clone from `PlayerTankPrototype` under `Workspace/WOB_Generated/TestObjects`.
+- Participant contract: player slots now use two player-side `TankParticipant` records with `TankId`, `OwnerPlayer`, `OwnerUserId`, `TeamId`, `SpawnName`/spawn transform, health state, and `WeaponState`; `DummyTank` remains active for single-player Training.
+- Mode behavior: `Workspace/WOB_Generated.MatchMode` is `Training` with one assigned player and `PvP` when two player tank slots are occupied. In Training the dummy is active; in PvP the dummy is hidden/inactive and `Player2TankPrototype` is active.
+- Control rule: each client is assigned to exactly one player tank participant, and server input/shoot requests are applied only to that player's participant. Projectile metadata keeps `OwnerPlayer`, `OwnerUserId`, `OwnerTankId`, `OwnerTeamId`, and `OwnerParticipant`.
+- Avatar handling: regular Roblox characters are hidden and made non-colliding; `Players.CharacterAutoLoads = false` was not enabled yet to avoid risking the existing shell/camera flow.
+- Round result: damage/death resolution now checks the destroyed `TankParticipant`; in PvP, death of `PlayerTankPrototype` counts as a loss for player slot 1 and death of `Player2TankPrototype` counts as a win for player slot 1. Existing `TargetWins`, `PlayerWins`, `DummyWins`, and result screen flow are preserved for now.
+- Aim laser: client laser resolves the local player's owned tank via `OwnerUserId`, so Studio 2-player clients aim from their own tank instead of always using `PlayerTankPrototype`.
+- Studio 2-player test: in Roblox Studio use `Test -> Clients and Servers` with `Players = 2`, keep only one active Rojo-managed `WOBGameplayServer`, click `Play` from the shell, confirm each client drives/shoots only its own tank, projectiles/armor damage replicate to both, and destroying one tank ends the round.
+- Still hardcoded: two player slots only; no matchmaking/lobby/mode selection; player 2 tank is a clone of player 1 art; score attributes are still player-slot-1 perspective (`PlayerWins` vs `DummyWins`); HUD labels are not yet fully per-client PvP perspective; disconnect handling is minimal.
+- Next recommended task: PvP HUD/score perspective v1 or Main Menu mode selection (`Training` vs local `1v1`).
+- Recommended commit message: `Add PvP foundation tank participants`.
 
 ## GDD Parity Backlog
 

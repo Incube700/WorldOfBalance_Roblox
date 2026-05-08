@@ -100,6 +100,11 @@ local function animatePulsePart(part, position, startSize, endSize, startTranspa
 end
 
 local function createPulse(position)
+	if root:GetAttribute("GameState") ~= "Playing" then
+		impactFolder:ClearAllChildren()
+		return
+	end
+
 	local now = os.clock()
 	local cell = getPulseCell(position)
 	local lastPulse = recentPulseByCell[cell]
@@ -171,8 +176,14 @@ local function isImpactSpark(instance)
 end
 
 vfxFolder.ChildAdded:Connect(function(child)
-	if isImpactSpark(child) then
+	if root:GetAttribute("GameState") == "Playing" and isImpactSpark(child) then
 		createPulse(child.Position)
+	end
+end)
+
+root:GetAttributeChangedSignal("GameState"):Connect(function()
+	if root:GetAttribute("GameState") ~= "Playing" then
+		impactFolder:ClearAllChildren()
 	end
 end)
 

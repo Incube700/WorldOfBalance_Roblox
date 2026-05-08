@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local combatFeedbackEvent = remotes:WaitForChild("CombatFeedbackEvent")
 
+local root = Workspace:WaitForChild("WOB_Generated")
 local localVisuals = Workspace:FindFirstChild("WOB_LocalVisuals")
 
 if localVisuals == nil then
@@ -108,6 +109,14 @@ local function removeFeedbackAt(index)
 	table.remove(activeFeedback, index)
 end
 
+local function clearFeedback()
+	for i = #activeFeedback, 1, -1 do
+		removeFeedbackAt(i)
+	end
+
+	feedbackFolder:ClearAllChildren()
+end
+
 local function trimOldFeedback()
 	while #activeFeedback > MAX_ACTIVE_FEEDBACK do
 		removeFeedbackAt(1)
@@ -115,6 +124,11 @@ local function trimOldFeedback()
 end
 
 local function showFeedback(payload)
+	if root:GetAttribute("GameState") ~= "Playing" then
+		clearFeedback()
+		return
+	end
+
 	local data = normalizePayload(payload)
 
 	if data == nil then
@@ -137,6 +151,12 @@ local function showFeedback(payload)
 end
 
 combatFeedbackEvent.OnClientEvent:Connect(showFeedback)
+
+root:GetAttributeChangedSignal("GameState"):Connect(function()
+	if root:GetAttribute("GameState") ~= "Playing" then
+		clearFeedback()
+	end
+end)
 
 RunService.RenderStepped:Connect(function()
 	local currentTime = os.clock()

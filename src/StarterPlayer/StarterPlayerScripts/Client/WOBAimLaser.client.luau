@@ -1,6 +1,7 @@
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 
 local configs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
 local AimAssistConfig = require(configs:WaitForChild("AimAssistConfig"))
@@ -12,10 +13,10 @@ end
 local root = Workspace:WaitForChild("WOB_Generated")
 local map = root:WaitForChild("Map")
 local testObjects = root:WaitForChild("TestObjects")
+local localPlayer = Players.LocalPlayer
 
-local playerTank = testObjects:WaitForChild("PlayerTankPrototype")
-local dummyTank = testObjects:WaitForChild("DummyTank")
-local dummyHitboxes = dummyTank:WaitForChild("Hitboxes")
+local fallbackPlayerTank = testObjects:WaitForChild("PlayerTankPrototype")
+local playerTank = fallbackPlayerTank
 
 local localVisuals = Workspace:FindFirstChild("WOB_LocalVisuals")
 
@@ -68,7 +69,18 @@ local function collectLaserMapTargets()
 		end
 	end
 
-	table.insert(targets, dummyHitboxes)
+	for _, child in ipairs(testObjects:GetChildren()) do
+		if child:IsA("Model")
+			and child ~= playerTank
+			and child:GetAttribute("IsActive") ~= false
+		then
+			local hitboxes = child:FindFirstChild("Hitboxes")
+
+			if hitboxes ~= nil then
+				table.insert(targets, hitboxes)
+			end
+		end
+	end
 
 	return targets
 end
@@ -120,7 +132,25 @@ beam.Parent = startPart
 local shootPoint = nil
 local barrel = nil
 
+local function getLocalPlayerTank()
+	for _, child in ipairs(testObjects:GetChildren()) do
+		if child:IsA("Model") and child:GetAttribute("OwnerUserId") == localPlayer.UserId then
+			return child
+		end
+	end
+
+	return fallbackPlayerTank
+end
+
 local function refreshMuzzleParts()
+	local assignedTank = getLocalPlayerTank()
+
+	if playerTank ~= assignedTank then
+		playerTank = assignedTank
+		shootPoint = nil
+		barrel = nil
+	end
+
 	if shootPoint == nil or shootPoint.Parent == nil then
 		shootPoint = playerTank:FindFirstChild("ShootPoint", true)
 	end
@@ -176,6 +206,11 @@ local function setLaserVisible(isVisible)
 end
 
 local function updateLaser()
+	if root:GetAttribute("GameState") ~= "Playing" then
+		setLaserVisible(false)
+		return
+	end
+
 	local muzzlePart = getMuzzlePart()
 
 	if muzzlePart == nil then
@@ -220,7 +255,7 @@ local function updateLaser()
 end
 
 if not waitForMuzzlePart(10) then
-	warn("[WOB] Aim laser disabled: PlayerTankPrototype ShootPoint/Barrel not found after wait")
+	warn("[WOB] Aim laser disabled: owned tank ShootPoint/Barrel not found after wait")
 	return
 end
 

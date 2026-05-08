@@ -154,6 +154,7 @@ local function waitForModularHud()
 
 	return {
 		Source = "Modular Studio HUD",
+		ScreenGui = hud,
 		RoundStatusPanel = roundStatusPanel,
 		EnemyHpLabel = enemyHpLabel,
 		EnemyHpFill = enemyHpFill,
@@ -388,6 +389,7 @@ local function createEmergencyRoundUi(reason)
 
 	return {
 		Source = "Emergency modular runtime UI",
+		ScreenGui = screenGui,
 		RoundStatusPanel = roundPanel,
 		EnemyHpLabel = enemyHpLabel,
 		EnemyHpFill = enemyHpFill,
@@ -408,6 +410,25 @@ local roundUi, bindError = waitForModularHud()
 
 if roundUi == nil then
 	roundUi = createEmergencyRoundUi(bindError or "unknown reason")
+end
+
+local function isCombatHudVisible()
+	return root:GetAttribute("GameState") == "Playing"
+end
+
+local function applyCombatHudVisibility()
+	local isVisible = isCombatHudVisible()
+
+	if roundUi.ScreenGui ~= nil then
+		roundUi.ScreenGui.Enabled = isVisible
+	end
+
+	if not isVisible then
+		roundUi.RoundStatusPanel.Visible = false
+		roundUi.RoundResultLabel.Visible = false
+		roundUi.RestartHintLabel.Visible = false
+		roundUi.MatchResultLabel.Visible = false
+	end
 end
 
 local function clamp01(value)
@@ -461,6 +482,11 @@ local function updateReloadStatus()
 end
 
 local function updateRoundResult()
+	if not isCombatHudVisible() then
+		applyCombatHudVisibility()
+		return
+	end
+
 	local result = root:GetAttribute("RoundResult") or "Playing"
 	local roundEnded = root:GetAttribute("RoundEnded") == true or result == "Win" or result == "Lose"
 	local matchEnded = root:GetAttribute("MatchEnded") == true
@@ -493,6 +519,11 @@ local function updateRoundResult()
 end
 
 local function updateSeriesStatus()
+	if not isCombatHudVisible() then
+		applyCombatHudVisibility()
+		return
+	end
+
 	local playerWins = root:GetAttribute("PlayerWins") or 0
 	local dummyWins = root:GetAttribute("DummyWins") or 0
 	local roundNumber = root:GetAttribute("RoundNumber") or 1
@@ -529,6 +560,11 @@ dummyTank:GetAttributeChangedSignal("Health"):Connect(updateEnemyHealth)
 dummyTank:GetAttributeChangedSignal("MaxHealth"):Connect(updateEnemyHealth)
 root:GetAttributeChangedSignal("RoundResult"):Connect(updateRoundResult)
 root:GetAttributeChangedSignal("RoundEnded"):Connect(updateRoundResult)
+root:GetAttributeChangedSignal("GameState"):Connect(function()
+	applyCombatHudVisibility()
+	updateRoundResult()
+	updateSeriesStatus()
+end)
 root:GetAttributeChangedSignal("PlayerWins"):Connect(updateSeriesStatus)
 root:GetAttributeChangedSignal("DummyWins"):Connect(updateSeriesStatus)
 root:GetAttributeChangedSignal("RoundNumber"):Connect(updateSeriesStatus)
@@ -558,5 +594,6 @@ updateHealth()
 updateReloadStatus()
 updateRoundResult()
 updateSeriesStatus()
+applyCombatHudVisibility()
 
 print("[WOB] Round status overlay bound to " .. roundUi.Source)
