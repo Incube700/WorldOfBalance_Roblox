@@ -6,11 +6,42 @@ local configs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
 local ProjectileVisualConfig = require(configs:WaitForChild("ProjectileVisualConfig"))
 
 local root = Workspace:WaitForChild("WOB_Generated")
-local runtime = root:WaitForChild("Runtime")
-local vfxFolder = runtime:WaitForChild("VFX")
-local testObjects = root:WaitForChild("TestObjects")
-local dummyTank = testObjects:WaitForChild("DummyTank")
-local dummyBody = dummyTank:WaitForChild("Body")
+local runtime = root:WaitForChild("Runtime", 20)
+
+if runtime == nil then
+	warn("[WOB] Impact feedback overlay disabled: Runtime folder was not found")
+	return
+end
+
+local vfxFolder = runtime:WaitForChild("VFX", 20)
+
+if vfxFolder == nil then
+	warn("[WOB] Impact feedback overlay disabled: VFX folder was not found")
+	return
+end
+
+local testObjects = root:WaitForChild("TestObjects", 20)
+local dummyBody = nil
+
+local function refreshDummyBody()
+	if dummyBody ~= nil and dummyBody.Parent ~= nil then
+		return dummyBody
+	end
+
+	if testObjects == nil then
+		return nil
+	end
+
+	local dummyTank = testObjects:FindFirstChild("DummyTank")
+
+	if dummyTank == nil then
+		return nil
+	end
+
+	dummyBody = dummyTank:FindFirstChild("Body")
+
+	return dummyBody
+end
 
 local localVisuals = Workspace:FindFirstChild("WOB_LocalVisuals")
 
@@ -39,8 +70,14 @@ local function getPulseCell(position)
 end
 
 local function isNearDummy(position)
+	local currentDummyBody = refreshDummyBody()
+
+	if currentDummyBody == nil then
+		return false
+	end
+
 	local flatImpact = Vector3.new(position.X, 0, position.Z)
-	local flatDummy = Vector3.new(dummyBody.Position.X, 0, dummyBody.Position.Z)
+	local flatDummy = Vector3.new(currentDummyBody.Position.X, 0, currentDummyBody.Position.Z)
 
 	return (flatImpact - flatDummy).Magnitude <= DUMMY_HIT_RADIUS
 end

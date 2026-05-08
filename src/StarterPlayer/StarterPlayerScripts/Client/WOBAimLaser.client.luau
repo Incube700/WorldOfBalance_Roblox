@@ -15,8 +15,8 @@ local map = root:WaitForChild("Map")
 local testObjects = root:WaitForChild("TestObjects")
 local localPlayer = Players.LocalPlayer
 
-local fallbackPlayerTank = testObjects:WaitForChild("PlayerTankPrototype")
-local playerTank = fallbackPlayerTank
+local playerTank = nil
+local loggedOwnedTankId = nil
 
 local localVisuals = Workspace:FindFirstChild("WOB_LocalVisuals")
 
@@ -134,12 +134,15 @@ local barrel = nil
 
 local function getLocalPlayerTank()
 	for _, child in ipairs(testObjects:GetChildren()) do
-		if child:IsA("Model") and child:GetAttribute("OwnerUserId") == localPlayer.UserId then
+		if child:IsA("Model")
+			and child:GetAttribute("IsPlayerTank") == true
+			and child:GetAttribute("OwnerUserId") == localPlayer.UserId
+		then
 			return child
 		end
 	end
 
-	return fallbackPlayerTank
+	return nil
 end
 
 local function refreshMuzzleParts()
@@ -149,6 +152,19 @@ local function refreshMuzzleParts()
 		playerTank = assignedTank
 		shootPoint = nil
 		barrel = nil
+
+		if playerTank ~= nil then
+			local tankId = playerTank:GetAttribute("TankId") or playerTank.Name
+
+			if loggedOwnedTankId ~= tankId then
+				loggedOwnedTankId = tankId
+				print("[PVP] local owned tank found: " .. tostring(tankId))
+			end
+		end
+	end
+
+	if playerTank == nil then
+		return
 	end
 
 	if shootPoint == nil or shootPoint.Parent == nil then
@@ -252,11 +268,6 @@ local function updateLaser()
 	endPart.Position = endPosition
 
 	setLaserVisible(true)
-end
-
-if not waitForMuzzlePart(10) then
-	warn("[WOB] Aim laser disabled: owned tank ShootPoint/Barrel not found after wait")
-	return
 end
 
 RunService.RenderStepped:Connect(updateLaser)

@@ -157,7 +157,7 @@
 
 ### Task 02.50 — Add WOBGameplayServer Rojo migration plan
 
-- Статус: planning step.
+- Статус: выполнено.
 - Цель: описать безопасный путь отказа от ручной вставки patch-кода в Studio-owned `ServerScriptService/Services/WOBGameplayServer`.
 - Файлы можно трогать: `docs/WOBGAMEPLAYSERVER_ROJO_MIGRATION_PLAN.md`, `docs/CODEX_TASKS.md`.
 - Ожидаемый результат: есть понятный план, почему migration нужна, какие риски у duplicate server scripts, как использовать уже существующий Rojo mapping `src/ServerScriptService/Server`, и что все еще требует manual `File -> Save to File`.
@@ -166,14 +166,58 @@
 
 ### Task 02.51 — Prepare WOBGameplayServer Rojo-managed replacement, without enabling duplicate
 
-- Статус: prepared in `src/ServerScriptService/Server/Gameplay/WOBGameplayServer.server.luau`.
+- Статус: выполнено.
 - Цель: создать replacement в уже Rojo-owned зоне, чтобы будущий gameplay-код менялся через Git/Rojo, а не через manual Source paste.
 - Предпочтительный путь: `src/ServerScriptService/Server/Gameplay/WOBGameplayServer.server.luau`.
 - Файлы можно трогать: `src/ServerScriptService/Server/Gameplay/WOBGameplayServer.server.luau`, optional Rojo meta file for disabled startup, docs with manual switch steps.
-- Запрещено: менять `.rbxl`, менять `default.project.json`, включать два `WOBGameplayServer`, мигрировать всю `ServerScriptService/Services`, рефакторить gameplay monolith одновременно с migration.
+- Запрещено: менять `.rbxl`, менять `default.project.json`, включать два `WOBGameplayServer`, мигрировать всю `ServerScriptService/Services`, рефакторить gameplay monolith одновременно with migration.
 - Ручной шаг перед Play: в Studio отключить старый `ServerScriptService/Services/WOBGameplayServer`; Rojo-managed replacement должен быть единственным active gameplay server.
 - Expected check: ровно один `[WOB] Gameplay server started`; WASD, turret aim, shoot, ricochet, dummy damage, wall blocking and HUD still work; Output has no duplicate event behavior or red errors.
 - Какой коммит сделать: `Prepare WOBGameplayServer Rojo replacement`.
+
+### Task 02.52 — Extract services from WOBGameplayServer to prevent Luau register limit
+
+- Статус: выполнено.
+- Цель: превратить `WOBGameplayServer` в тонкий оркестратор, вынеся логику в специализированные сервисы.
+- Созданные сервисы:
+    - `RoundMatchService.luau`: управление состоянием раундов и матчей, переходы между `Menu`, `Playing`, `Result`.
+    - `ProjectileService.luau`: жизненный цикл снарядов, стрельба, обновление позиций, VFX выстрелов.
+    - `TankSpawnResetService.luau`: расчет точек спавна, расстановка моделей (`layoutTank`), управление цветами и видимостью.
+    - `PlayerPossessionService.luau`: привязка игроков к танкам, подавление персонажей Roblox, управление вводом.
+- Ожидаемый результат: `WOBGameplayServer` содержит менее 400 строк кода, Luau register limit больше не является проблемой, функциональность игры сохранена.
+- Какой коммит сделать: `Implement Thin Gameplay Orchestrator Refactor v1`.
+
+### Task 02.53 — PvP Foundation and Refactor Verification
+
+- Статус: выполнено.
+- Цель: превратить WOBGameplayServer в тонкий оркестратор и подготовить PvP.
+- Результаты:
+    - Исправлена ошибка `Out of local registers`.
+    - Логика вынесена в `RoundMatchService`, `ProjectileService`, `TankSpawnResetService`, `PlayerPossessionService` и `ProjectileCombatService`.
+    - Исправлена привязка камеры к танку владельца (Task 02.53a), теперь она стабильно следует за танком в состоянии `Playing`.
+    - Добавлен `Player2Spawn` (Task 02.53b).
+    - Отключен дебаг-спам `[BOUNCE]` (Task 02.53c).
+- Какой коммит сделать: `Implement thin gameplay orchestrator and fix PvP camera/spawn`.
+
+### Task 02.55 — Training Possession and Camera Part Fix
+
+- Статус: выполнено.
+- Цель: починить 1-player Training режим и следование камеры за танком.
+- Изменения:
+    - `WOBTankPossessionCamera.client.luau`: реализована функция `getTankFocusPart` с глубоким поиском `Body` и fallback на любой `BasePart`. Добавлено информативное логирование `camera follow started` с именем найденной части.
+    - `TankSpawnResetService.luau`: добавлена безопасная установка `PrimaryPart = Body` для модели танка при спавне на сервере.
+    - `WOBTankInputController.client.luau` & `WOBGameplayServer.server.luau`: добавлено throttled логирование для отладки ввода.
+- Результат: камера стабильно следует за танком даже если `Body` не является прямым потомком модели, в Output четко видны этапы владения танком и передачи ввода.
+
+### Task 02.56 — Physical Tank Model Resolution for Camera
+
+- Статус: выполнено.
+- Цель: исправить ситуацию, когда камера находит пустой proxy-объект вместо физической модели танка.
+- Изменения:
+    - `WOBTankPossessionCamera.client.luau`: расширен `getTankFocusPart`. Теперь если BasePart не найден в текущем объекте, скрипт ищет физическую модель в `Workspace.WOB_Generated.TestObjects` по атрибуту `TankId`. Добавлена функция `printTankDiagnostics` для вывода структуры объекта при ошибках.
+    - `TankParticipantRegistry.luau`: обеспечена установка всех атрибутов (включая `OwnerUserId` и `TankId`) на физическую модель при регистрации и обновлении видимости.
+    - `TankSpawnResetService.luau`: улучшена логика установки `PrimaryPart` — теперь используется глубокий поиск `Body` или любого `BasePart` внутри модели.
+- Результат: камера успешно находит физическую часть танка для фокуса, даже если локальный `ownedTank` ссылается на метаданные. Исправлен баг "no BasePart for PlayerTankPrototype".
 
 ## Next Milestone — Player HP / Damage / Win-Lose-Restart
 
@@ -311,18 +355,29 @@
 
 ## Current Sprint — PvP Foundation v1
 
-- Статус: small foundation slice inside the current `WOBGameplayServer`; no matchmaking, lobby, DataStore, `.rbxl`, `default.project.json`, or full orchestrator rewrite.
+- Статус: possession-oriented foundation slice inside the current `WOBGameplayServer`; no matchmaking, lobby, DataStore, `.rbxl`, `default.project.json`, or full orchestrator rewrite.
+- Bootstrap order: `src/ServerScriptService/Server/WOBPvPBootstrap.server.luau` runs as a small early server script. It sets `Players.CharacterAutoLoads = false`, creates `ReplicatedStorage/Remotes` with `TankInputEvent`, `ShootRequestEvent`, `ResetDummyRequestEvent`, `StartMatchRequestEvent`, `ReturnToMenuRequestEvent`, and `CombatFeedbackEvent`, removes/suppresses any already spawned characters, and guarantees `Workspace/WOB_Generated/Runtime`, `Runtime/Projectiles`, and `Runtime/VFX` exist before client overlays need them.
+- StartMatch startup fix: `WOBGameplayServer` connects `StartMatchRequestEvent.OnServerEvent` before waiting on full scene objects, logs `[SERVER] StartMatch handler connected`, and queues early Play clicks until the gameplay server is ready. This avoids the failure mode where `[SHELL] Play clicked` appears but no server handler has been connected yet.
 - Server tank layer: `src/ServerScriptService/Server/Gameplay/PlayerTankSpawner.luau` creates or reuses a runtime `Player2TankPrototype` clone from `PlayerTankPrototype` under `Workspace/WOB_Generated/TestObjects`.
-- Participant contract: player slots now use two player-side `TankParticipant` records with `TankId`, `OwnerPlayer`, `OwnerUserId`, `TeamId`, `SpawnName`/spawn transform, health state, and `WeaponState`; `DummyTank` remains active for single-player Training.
+- Participant contract: `TankParticipant` is the combat entity for a tank, independent from who controls it. Current participants include `TankId`, `OwnerPlayer`, `OwnerUserId`, `TeamId`, `SpawnName`/spawn transform, health state, `WeaponState`, `ControllerType`, and replicated model attributes `OwnerUserId`, `OwnerName`, `TankId`, `TeamId`, `IsPlayerTank`, and `ControllerType`.
+- Controller/Brain model: `ControllerType` is the current seam for future control sources. Supported contract values are `"Player"`, `"Bot"`, and `"Dummy"`; this slice only implements `"Player"` tanks plus the existing `"Dummy"` training target. `BotBrain` is not implemented yet, but the participant model should allow a future brain to drive any `TankParticipant`.
+- Player assignment: first joined/assigned player gets `PlayerTankPrototype`; second joined/assigned player gets `Player2TankPrototype`; server-side `TankInputEvent` and `ShootRequestEvent` resolve `player -> TankParticipant` before moving or firing, so one client cannot drive another client's tank.
 - Mode behavior: `Workspace/WOB_Generated.MatchMode` is `Training` with one assigned player and `PvP` when two player tank slots are occupied. In Training the dummy is active; in PvP the dummy is hidden/inactive and `Player2TankPrototype` is active.
-- Control rule: each client is assigned to exactly one player tank participant, and server input/shoot requests are applied only to that player's participant. Projectile metadata keeps `OwnerPlayer`, `OwnerUserId`, `OwnerTankId`, `OwnerTeamId`, and `OwnerParticipant`.
-- Avatar handling: regular Roblox characters are hidden and made non-colliding; `Players.CharacterAutoLoads = false` was not enabled yet to avoid risking the existing shell/camera flow.
+- Possession behavior: `Players.CharacterAutoLoads = false` is set as early as possible; any already existing character is hidden, made non-colliding/non-querying, anchored, moved far below the arena, and destroyed. Players should not run around as humanoid characters during menu, training, or PvP.
+- Client tank control: `WOBTankInputController.client.luau` is the single active possession input controller. The server bootstrap disables the legacy Studio-owned `StarterPlayerScripts/WOBClientController` before it is copied when possible; the client controller also safely disables any remaining `PlayerScripts/WOBClientController` copy, then waits for the local owned tank by `OwnerUserId == LocalPlayer.UserId` before sending WASD/arrow movement or mouse shoot through existing remotes. Server validation remains the authority.
+- Camera possession: `WOBTankPossessionCamera.client.luau` finds the local owned tank by `OwnerUserId == LocalPlayer.UserId` and follows its `Body` with the top-down camera config; it logs `[PVP] local owned tank found: ...` and `[PVP] camera following ...`.
+- Client-local team colors: `WOBTankLocalTeamVisuals.client.luau` recolors only local visual parts (`Body`, `Turret`, `Barrel`) so the owned tank appears friendly blue/green and enemy player/dummy tanks appear red. Armor hitbox parts are not recolored and damage/armor logic does not depend on these colors.
+- Projectile metadata: projectiles keep `OwnerPlayer`, `OwnerUserId`, `OwnerTankId`, `OwnerTeamId`, and `OwnerParticipant` for both player tanks.
 - Round result: damage/death resolution now checks the destroyed `TankParticipant`; in PvP, death of `PlayerTankPrototype` counts as a loss for player slot 1 and death of `Player2TankPrototype` counts as a win for player slot 1. Existing `TargetWins`, `PlayerWins`, `DummyWins`, and result screen flow are preserved for now.
-- Aim laser: client laser resolves the local player's owned tank via `OwnerUserId`, so Studio 2-player clients aim from their own tank instead of always using `PlayerTankPrototype`.
-- Studio 2-player test: in Roblox Studio use `Test -> Clients and Servers` with `Players = 2`, keep only one active Rojo-managed `WOBGameplayServer`, click `Play` from the shell, confirm each client drives/shoots only its own tank, projectiles/armor damage replicate to both, and destroying one tank ends the round.
-- Still hardcoded: two player slots only; no matchmaking/lobby/mode selection; player 2 tank is a clone of player 1 art; score attributes are still player-slot-1 perspective (`PlayerWins` vs `DummyWins`); HUD labels are not yet fully per-client PvP perspective; disconnect handling is minimal.
-- Next recommended task: PvP HUD/score perspective v1 or Main Menu mode selection (`Training` vs local `1v1`).
-- Recommended commit message: `Add PvP foundation tank participants`.
+- Aim laser: client laser resolves the local player's owned tank via `OwnerUserId`, so Studio 2-player clients aim from their own tank. It no longer falls back to a possibly чужой `PlayerTankPrototype` while ownership is still replicating.
+- Studio 1-player test: start Play with one player, confirm no humanoid walking, Play starts `Training`, camera follows `PlayerTankPrototype`, dummy is target, shooting/ricochet/damage/result still work.
+- Startup order contract: bootstrap remotes/folders and disable legacy input, gameplay server assigns tanks, clients find owned tank, then input/camera/laser start. Clients must not fall back to another player's `PlayerTankPrototype`.
+- Impact feedback rule: `WOBImpactFeedbackOverlay` must not infinite-yield on `DummyTank.Body`; in PvP the dummy can be inactive or late, so dummy-specific pulse styling is skipped when the body is unavailable.
+- Studio 2-player test: use `Test -> Clients and Servers` with `Players = 2`, keep only one active Rojo-managed `WOBGameplayServer`, click `Play`, confirm no humanoid walking, no infinite-yield warnings for `StartMatchRequestEvent`, `CombatFeedbackEvent`, `Runtime/Projectiles`, or `Runtime/VFX`, client 1 camera/aim/input uses `PlayerTankPrototype`, client 2 camera/aim/input uses `Player2TankPrototype`, own tank is friendly color, enemy tank is red, projectiles/damage replicate to both, and destroying one tank ends the round to `TargetWins`.
+- Useful logs: server logs `[PVP] CharacterAutoLoads disabled`, `[PVP] remotes bootstrapped`, `[PVP] runtime folders bootstrapped`, `[PVP] assigned PlayerName -> TankId`, `[PVP] mode = Training/PvP`, `[PVP] character removed/suppressed for PlayerName`, and first input ownership; clients log local tank/camera possession and `[PVP] legacy input controller disabled: WOBClientController` when the old controller is suppressed.
+- Still hardcoded: two player controller slots only; no matchmaking/lobby/mode selection; player 2 tank is a clone of player 1 art; score attributes are still player-slot-1 perspective (`PlayerWins` vs `DummyWins`); HUD labels are not yet fully per-client PvP perspective; disconnect handling is minimal; the old Studio-owned scripts still need to stay non-conflicting until fully migrated.
+- Next recommended task: TankBrain/Controller abstraction v1, then PvP lobby/free-drive test mode later.
+- Recommended commit message: `Fix PvP tank possession`.
 
 ## GDD Parity Backlog
 

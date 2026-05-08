@@ -7,8 +7,19 @@ local ProjectileVisualConfig = require(configs:WaitForChild("ProjectileVisualCon
 local projectileVisual = ProjectileVisualConfig.ProjectileTypeVisuals.PrototypeRicochetShell
 
 local root = Workspace:WaitForChild("WOB_Generated")
-local runtime = root:WaitForChild("Runtime")
-local projectileFolder = runtime:WaitForChild("Projectiles")
+local runtime = root:WaitForChild("Runtime", 20)
+
+if runtime == nil then
+	warn("[WOB] Projectile readability overlay disabled: Runtime folder was not found")
+	return
+end
+
+local projectileFolder = runtime:WaitForChild("Projectiles", 20)
+
+if projectileFolder == nil then
+	warn("[WOB] Projectile readability overlay disabled: Projectiles folder was not found")
+	return
+end
 
 local localVisuals = Workspace:FindFirstChild("WOB_LocalVisuals")
 
