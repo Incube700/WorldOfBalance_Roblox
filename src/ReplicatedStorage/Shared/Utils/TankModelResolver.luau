@@ -6,6 +6,8 @@ local DEFAULT_FOCUS_PART_NAMES = {
 	"Root",
 }
 
+local HITBOX_FOLDER_NAME = "Hitboxes"
+
 local function getSearchRoots(root)
 	local searchRoots = {}
 	local testObjects = root:FindFirstChild("TestObjects")
@@ -77,6 +79,50 @@ local function findNamedBasePart(model, partName)
 	return nil
 end
 
+local function isInsideHitboxes(instance)
+	local current = instance.Parent
+
+	while current ~= nil do
+		if current.Name == HITBOX_FOLDER_NAME then
+			return true
+		end
+
+		if current:IsA("Model") then
+			return false
+		end
+
+		current = current.Parent
+	end
+
+	return false
+end
+
+local function findFirstPhysicalBasePart(model)
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant:IsA("BasePart") and not isInsideHitboxes(descendant) then
+			return descendant
+		end
+	end
+
+	return nil
+end
+
+function TankModelResolver.countBaseParts(model)
+	if model == nil then
+		return 0
+	end
+
+	local count = 0
+
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			count += 1
+		end
+	end
+
+	return count
+end
+
 function TankModelResolver.findFocusPart(model)
 	if model == nil then
 		return nil
@@ -90,7 +136,7 @@ function TankModelResolver.findFocusPart(model)
 		return nil
 	end
 
-	if model.PrimaryPart ~= nil then
+	if model.PrimaryPart ~= nil and not isInsideHitboxes(model.PrimaryPart) then
 		return model.PrimaryPart
 	end
 
@@ -102,13 +148,7 @@ function TankModelResolver.findFocusPart(model)
 		end
 	end
 
-	for _, descendant in ipairs(model:GetDescendants()) do
-		if descendant:IsA("BasePart") then
-			return descendant
-		end
-	end
-
-	return nil
+	return findFirstPhysicalBasePart(model)
 end
 
 function TankModelResolver.hasBasePart(model)

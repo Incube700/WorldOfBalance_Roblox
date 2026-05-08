@@ -96,6 +96,11 @@ function PlayerPossessionService.assignPlayer(player)
 	playerParticipantByPlayer[player] = assignedParticipant
 	TankParticipantRegistry.setPlayerParticipant(player, assignedParticipant)
 	TankParticipantRegistry.setParticipantOwner(assignedParticipant, player)
+	local physicalModel = TankParticipantRegistry.getParticipantPhysicalModel(assignedParticipant)
+	if physicalModel ~= nil then
+		physicalModel:SetAttribute("OwnerUserId", player.UserId)
+		physicalModel:SetAttribute("OwnerName", player.Name)
+	end
 	PlayerPossessionService.setInitialInputForParticipant(player, assignedParticipant)
 	
 	if callbacks.onParticipantAssigned then

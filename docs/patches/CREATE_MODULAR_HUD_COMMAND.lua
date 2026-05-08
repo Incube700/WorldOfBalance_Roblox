@@ -288,4 +288,4 @@ styleTextLabel(
 	Color3.fromRGB(105, 235, 145)
 )
 
-print("[WOB] Modular HUD ready. Move panels in Studio, then File -> Save to File.")
+print("[WOB] Modular HUD ready at StarterGui/HUD/Root. Move panels in Studio if needed, then File -> Save to File.")

@@ -147,6 +147,7 @@ end
 
 function ProjectileService.createProjectile(ownerParticipant, origin, direction)
 	local projectilePart = createProjectilePart(origin)
+	local ownerTankModel = TankParticipantRegistry.getParticipantPhysicalModel(ownerParticipant)
 
 	projectilePart:SetAttribute("OwnerTankId", ownerParticipant.TankId)
 	projectilePart:SetAttribute("OwnerTeamId", ownerParticipant.TeamId)
@@ -161,7 +162,7 @@ function ProjectileService.createProjectile(ownerParticipant, origin, direction)
 		Owner = ownerParticipant.OwnerPlayer,
 		OwnerPlayer = ownerParticipant.OwnerPlayer,
 		OwnerParticipant = ownerParticipant,
-		OwnerTank = ownerParticipant.Model,
+		OwnerTank = ownerTankModel,
 		OwnerTankId = ownerParticipant.TankId,
 		OwnerUserId = ownerParticipant.OwnerUserId,
 		OwnerTeamId = ownerParticipant.TeamId,
@@ -232,11 +233,19 @@ local function getProjectileRaycastTargets(projectile)
 	local targets = table.clone(projectileMapRaycastTargets)
 
 	for _, participant in ipairs(TankParticipantRegistry.getParticipants()) do
+		local physicalModel = TankParticipantRegistry.getParticipantPhysicalModel(participant)
+		local hitboxes = participant.Hitboxes
+
+		if (hitboxes == nil or hitboxes.Parent == nil) and physicalModel ~= nil then
+			hitboxes = physicalModel:FindFirstChild("Hitboxes", true)
+			participant.Hitboxes = hitboxes
+		end
+
 		if participant.IsActive ~= false
-			and participant.Hitboxes ~= nil
+			and hitboxes ~= nil
 			and (participant ~= projectile.OwnerParticipant or projectile.CanHitOwner)
 		then
-			table.insert(targets, participant.Hitboxes)
+			table.insert(targets, hitboxes)
 		end
 	end
 

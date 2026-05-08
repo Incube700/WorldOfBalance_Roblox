@@ -107,6 +107,14 @@ local function setParticipantAttributes(participant)
 	end
 end
 
+local function setAttributeOnParticipantModels(participant, attributeName, value)
+	participant.Model:SetAttribute(attributeName, value)
+
+	if participant.PhysicalModel ~= nil and participant.PhysicalModel ~= participant.Model then
+		participant.PhysicalModel:SetAttribute(attributeName, value)
+	end
+end
+
 function TankParticipantRegistry.registerTankParticipant(participant)
 	participant.PhysicalModel = participant.PhysicalModel or participant.Model
 	participant.Model = participant.PhysicalModel or participant.Model
@@ -126,7 +134,14 @@ function TankParticipantRegistry.registerTankParticipant(participant)
 	setParticipantAttributes(participant)
 
 	if primaryPart == nil or basePartCount <= 0 then
-		warn("[TANK] warning " .. participant.TankId .. " has no BasePart")
+		warn(
+			"[TANK] CRITICAL "
+				.. participant.TankId
+				.. " has no BasePart model="
+				.. participant.PhysicalModel:GetFullName()
+				.. " primaryPart=nil baseParts="
+				.. tostring(basePartCount)
+		)
 	else
 		print(
 			"[TANK] registered "
@@ -268,7 +283,7 @@ end
 
 function TankParticipantRegistry.setParticipantHealth(participant, health)
 	participant.Health = health
-	participant.Model:SetAttribute("Health", health)
+	setAttributeOnParticipantModels(participant, "Health", health)
 end
 
 function TankParticipantRegistry.getParticipantIsDead(participant)
@@ -280,12 +295,12 @@ end
 
 function TankParticipantRegistry.setParticipantIsDead(participant, isDead)
 	participant.IsDead = isDead == true
-	participant.Model:SetAttribute("IsDead", participant.IsDead)
+	setAttributeOnParticipantModels(participant, "IsDead", participant.IsDead)
 end
 
 function TankParticipantRegistry.resetParticipantHealth(participant)
 	participant.MaxHealth = participant.DefaultMaxHealth
-	participant.Model:SetAttribute("MaxHealth", participant.MaxHealth)
+	setAttributeOnParticipantModels(participant, "MaxHealth", participant.MaxHealth)
 	TankParticipantRegistry.setParticipantHealth(participant, participant.MaxHealth)
 	TankParticipantRegistry.setParticipantIsDead(participant, false)
 end

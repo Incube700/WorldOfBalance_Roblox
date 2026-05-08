@@ -79,7 +79,7 @@ if playerScriptsRoot ~= nil then
 end
 
 local function getOwnedTank()
-	return TankModelResolver.findOwnedTank(root, localPlayer.UserId, false)
+	return TankModelResolver.findOwnedTank(root, localPlayer.UserId, true)
 end
 
 local function refreshOwnedTank()

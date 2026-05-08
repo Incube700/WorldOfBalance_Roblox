@@ -48,7 +48,12 @@ local function getYawFromFlatDirection(direction, fallbackYaw)
 end
 
 local function getSpawnPart(spawnName)
-	local spawnPointsFolder = map:FindFirstChild("SpawnPoints")
+	local root = map ~= nil and map.Parent or nil
+	local spawnPointsFolder = root ~= nil and root:FindFirstChild("SpawnPoints") or nil
+
+	if spawnPointsFolder == nil and map ~= nil then
+		spawnPointsFolder = map:FindFirstChild("SpawnPoints")
+	end
 
 	if spawnPointsFolder == nil then
 		return nil
@@ -348,6 +353,7 @@ end
 function TankSpawnResetService.applySpawnToParticipant(participant, spawnState)
 	participant.SpawnTransform = spawnState
 	participant.Model = TankParticipantRegistry.getParticipantPhysicalModel(participant)
+	participant.PrimaryPart = assignPrimaryPart(participant.Model)
 	participant.Body = findBasePart(participant.Model, "Body")
 	participant.Turret = findBasePart(participant.Model, "Turret")
 	participant.Barrel = findBasePart(participant.Model, "Barrel")

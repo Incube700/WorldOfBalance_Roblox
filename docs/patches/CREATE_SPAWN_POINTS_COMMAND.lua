@@ -5,22 +5,20 @@ local Workspace = game:GetService("Workspace")
 
 local root = Workspace:FindFirstChild("WOB_Generated")
 if root == nil then
-	error("Workspace/WOB_Generated not found")
+	root = Instance.new("Folder")
+	root.Name = "WOB_Generated"
+	root.Parent = Workspace
 end
 
-local map = root:FindFirstChild("Map")
-if map == nil then
-	error("Workspace/WOB_Generated/Map not found")
-end
-
-local spawnPoints = map:FindFirstChild("SpawnPoints")
+local spawnPoints = root:FindFirstChild("SpawnPoints")
 if spawnPoints == nil then
 	spawnPoints = Instance.new("Folder")
 	spawnPoints.Name = "SpawnPoints"
-	spawnPoints.Parent = map
+	spawnPoints.Parent = root
 end
 
 local playerPosition = Vector3.new(-42, 0.3, -42)
+local player2Position = Vector3.new(42, 0.3, -42)
 local dummyPosition = Vector3.new(42, 0.3, 42)
 
 local function getOrCreateSpawnPart(name, position, lookAtPosition, color)
@@ -59,6 +57,7 @@ local function getOrCreateSpawnPart(name, position, lookAtPosition, color)
 end
 
 getOrCreateSpawnPart("PlayerSpawn", playerPosition, dummyPosition, Color3.fromRGB(80, 255, 120))
+getOrCreateSpawnPart("Player2Spawn", player2Position, playerPosition, Color3.fromRGB(255, 100, 100))
 getOrCreateSpawnPart("DummySpawn", dummyPosition, playerPosition, Color3.fromRGB(255, 110, 90))
 
-print("[WOB] Spawn points ready. Move/rotate PlayerSpawn and DummySpawn in Studio, then File -> Save to File.")
+print("[WOB] Spawn points ready at Workspace/WOB_Generated/SpawnPoints. Move/rotate PlayerSpawn, Player2Spawn and DummySpawn in Studio, then File -> Save to File.")

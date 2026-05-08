@@ -24,7 +24,8 @@ local isFollowing = false
 local lastFollowedTankId = nil
 
 local function findOwnedTank()
-	return TankModelResolver.findOwnedTank(root, localPlayer.UserId, false)
+	return TankModelResolver.findOwnedTank(root, localPlayer.UserId, true)
+		or TankModelResolver.findOwnedTank(root, localPlayer.UserId, false)
 end
 
 local function getTankFocusPart(tank)
@@ -39,6 +40,7 @@ local function printTankDiagnostics(tank)
 	print("--- TANK DIAGNOSTICS ---")
 	print("FullName: " .. tank:GetFullName())
 	print("ClassName: " .. tank.ClassName)
+	print("BaseParts: " .. tostring(TankModelResolver.countBaseParts(tank)))
 	
 	local attrs = {"OwnerUserId", "TankId", "ControllerType", "IsPlayerTank"}
 	for _, attr in ipairs(attrs) do

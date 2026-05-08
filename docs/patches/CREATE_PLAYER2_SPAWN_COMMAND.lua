@@ -22,22 +22,27 @@ local function setupPlayer2Spawn()
 	local root = Workspace:FindFirstChild("WOB_Generated")
 
 	if root == nil then
-		warn("[WOB SPAWN] Workspace/WOB_Generated not found")
-		return
+		root = Instance.new("Folder")
+		root.Name = "WOB_Generated"
+		root.Parent = Workspace
 	end
 
 	local map = root:FindFirstChild("Map")
-
-	if not map then
-		warn("[WOB SPAWN] Workspace/WOB_Generated/Map not found")
-		return
-	end
-
-	local spawnPoints = getOrCreate(map, "Folder", "SpawnPoints")
+	local legacySpawnPoints = map ~= nil and map:FindFirstChild("SpawnPoints") or nil
+	local spawnPoints = getOrCreate(root, "Folder", "SpawnPoints")
 	local p1Spawn = spawnPoints:FindFirstChild("PlayerSpawn")
 	local dummySpawn = spawnPoints:FindFirstChild("DummySpawn")
-	local legacySpawns = map:FindFirstChild("Spawns")
-	local legacyEnemySpawn = legacySpawns ~= nil and legacySpawns:FindFirstChild("EnemySpawnPoint") or nil
+
+	if p1Spawn == nil and legacySpawnPoints ~= nil then
+		p1Spawn = legacySpawnPoints:FindFirstChild("PlayerSpawn")
+	end
+
+	if dummySpawn == nil and legacySpawnPoints ~= nil then
+		dummySpawn = legacySpawnPoints:FindFirstChild("DummySpawn")
+	end
+	local defaultPosition = Vector3.new(42, 0.3, -42)
+	local defaultLookAt = Vector3.new(-42, 0.3, 42)
+	local defaultCFrame = CFrame.lookAt(defaultPosition, defaultLookAt, Vector3.yAxis)
 
 	local p2Spawn, created = getOrCreate(spawnPoints, "Part", "Player2Spawn")
 	
@@ -51,21 +56,38 @@ local function setupPlayer2Spawn()
 	p2Spawn.Material = Enum.Material.Neon
 	p2Spawn.TopSurface = Enum.SurfaceType.Smooth
 	p2Spawn.BottomSurface = Enum.SurfaceType.Smooth
-	
+
 	if created then
-		if dummySpawn and dummySpawn:IsA("BasePart") then
-			p2Spawn.CFrame = dummySpawn.CFrame
-		elseif legacyEnemySpawn and legacyEnemySpawn:IsA("BasePart") then
-			p2Spawn.CFrame = legacyEnemySpawn.CFrame
-		elseif p1Spawn and p1Spawn:IsA("BasePart") then
-			p2Spawn.CFrame = p1Spawn.CFrame * CFrame.new(42, 0, 42)
+		if p1Spawn and p1Spawn:IsA("BasePart") then
+			p2Spawn.CFrame = CFrame.lookAt(defaultPosition, p1Spawn.Position, Vector3.yAxis)
 		else
-			p2Spawn.CFrame = CFrame.lookAt(Vector3.new(42, 0.3, 42), Vector3.new(-42, 0.3, -42), Vector3.yAxis)
+			p2Spawn.CFrame = defaultCFrame
 		end
 		print("[WOB SPAWN] Created Player2Spawn at " .. tostring(p2Spawn.Position))
 	else
 		print("[WOB SPAWN] Updated Player2Spawn at " .. p2Spawn:GetFullName())
 	end
+
+	if dummySpawn and dummySpawn:IsA("BasePart") then
+		local flatDelta = Vector3.new(
+			p2Spawn.Position.X - dummySpawn.Position.X,
+			0,
+			p2Spawn.Position.Z - dummySpawn.Position.Z
+		)
+
+		if flatDelta.Magnitude < 8 then
+			local separatedCFrame = defaultCFrame
+
+			if p1Spawn and p1Spawn:IsA("BasePart") then
+				separatedCFrame = CFrame.lookAt(defaultPosition, p1Spawn.Position, Vector3.yAxis)
+			end
+
+			p2Spawn.CFrame = separatedCFrame
+			print("[WOB SPAWN] Moved Player2Spawn away from DummySpawn to " .. tostring(p2Spawn.Position))
+		end
+	end
+
+	print("[WOB SPAWN] Player2Spawn ready at Workspace/WOB_Generated/SpawnPoints. File -> Save to File.")
 end
 
 setupPlayer2Spawn()
