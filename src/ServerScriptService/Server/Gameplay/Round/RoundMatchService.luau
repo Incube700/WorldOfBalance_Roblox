@@ -48,6 +48,8 @@ local matchState = {
 	MatchLoserTankId = "",
 }
 
+local activeMatch = nil
+
 local callbacks = {
 	onGameStateChanged = nil,
 	onRoundReset = nil,
@@ -57,7 +59,70 @@ local callbacks = {
 	onResetCombatAttributes = nil,
 	onApplySpawn = nil,
 	getSpawnTransforms = nil,
+	onMatchEnded = nil,
 }
+
+local function getPlayerSideParticipant()
+	if activeMatch ~= nil and activeMatch.PlayerParticipant ~= nil then
+		return activeMatch.PlayerParticipant
+	end
+
+	return TankParticipantRegistry.getParticipantById("PlayerTankPrototype")
+end
+
+local function getOpponentSideParticipant()
+	if activeMatch ~= nil and activeMatch.OpponentParticipant ~= nil then
+		return activeMatch.OpponentParticipant
+	end
+
+	if matchMode == RoundMatchService.MATCH_MODE_PVP then
+		return TankParticipantRegistry.getParticipantById("Player2TankPrototype")
+	end
+
+	return TankParticipantRegistry.getParticipantById("DummyTank")
+end
+
+local function getActiveMatchParticipants()
+	if activeMatch ~= nil and activeMatch.Participants ~= nil then
+		return activeMatch.Participants
+	end
+
+	local participants = {}
+	local playerSideParticipant = getPlayerSideParticipant()
+	local opponentSideParticipant = getOpponentSideParticipant()
+
+	if playerSideParticipant ~= nil then
+		table.insert(participants, playerSideParticipant)
+	end
+
+	if opponentSideParticipant ~= nil then
+		table.insert(participants, opponentSideParticipant)
+	end
+
+	return participants
+end
+
+local function applyMatchSpawns()
+	if callbacks.getSpawnTransforms == nil or callbacks.onApplySpawn == nil then
+		return
+	end
+
+	local transforms = callbacks.getSpawnTransforms()
+	local playerSideParticipant = getPlayerSideParticipant()
+	local opponentSideParticipant = getOpponentSideParticipant()
+
+	if playerSideParticipant ~= nil then
+		callbacks.onApplySpawn(playerSideParticipant, transforms.Player)
+	end
+
+	if opponentSideParticipant ~= nil then
+		if matchMode == RoundMatchService.MATCH_MODE_PVP then
+			callbacks.onApplySpawn(opponentSideParticipant, transforms.Player2)
+		else
+			callbacks.onApplySpawn(opponentSideParticipant, transforms.Dummy)
+		end
+	end
+end
 
 function RoundMatchService.init(orchestratorRoot, options)
 	root = orchestratorRoot
@@ -92,7 +157,65 @@ function RoundMatchService.getMatchMode()
 	return matchMode
 end
 
+function RoundMatchService.getActiveMatch()
+	return activeMatch
+end
+
+function RoundMatchService.isParticipantInActiveMatch(participant)
+	if participant == nil or activeMatch == nil then
+		return false
+	end
+
+	for _, activeParticipant in ipairs(activeMatch.Participants or {}) do
+		if activeParticipant == participant then
+			return true
+		end
+	end
+
+	return false
+end
+
+function RoundMatchService.getOpponentForParticipant(participant)
+	if participant == nil then
+		return nil
+	end
+
+	if activeMatch ~= nil then
+		if participant == activeMatch.PlayerParticipant then
+			return activeMatch.OpponentParticipant
+		elseif participant == activeMatch.OpponentParticipant then
+			return activeMatch.PlayerParticipant
+		end
+	end
+
+	if participant == TankParticipantRegistry.getParticipantById("PlayerTankPrototype") then
+		return getOpponentSideParticipant()
+	end
+
+	return TankParticipantRegistry.getParticipantById("PlayerTankPrototype")
+end
+
+function RoundMatchService.getRoundResultForDestroyedParticipant(participant)
+	if participant == getPlayerSideParticipant() then
+		return RoundMatchService.ROUND_RESULT_LOSE
+	end
+
+	return RoundMatchService.ROUND_RESULT_WIN
+end
+
 function RoundMatchService.updateMatchMode()
+	if activeMatch ~= nil and activeMatch.MatchMode ~= nil then
+		matchMode = activeMatch.MatchMode
+		root:SetAttribute("MatchMode", matchMode)
+
+		if lastLoggedMatchMode ~= matchMode then
+			lastLoggedMatchMode = matchMode
+			print("[PVP] mode = " .. matchMode)
+		end
+
+		return
+	end
+
 	local playerCount = 0
 	for _, participant in ipairs(TankParticipantRegistry.getPlayerParticipants()) do
 		if participant.OwnerPlayer ~= nil then
@@ -131,6 +254,9 @@ end
 
 function RoundMatchService.setMatchAttributes()
 	root:SetAttribute("MatchMode", matchMode)
+	root:SetAttribute("ActiveMatchId", activeMatch ~= nil and activeMatch.MatchId or nil)
+	root:SetAttribute("PlayerSideTankId", getPlayerSideParticipant() ~= nil and getPlayerSideParticipant().TankId or "")
+	root:SetAttribute("OpponentSideTankId", getOpponentSideParticipant() ~= nil and getOpponentSideParticipant().TankId or "")
 	root:SetAttribute("PlayerWins", matchState.PlayerWins)
 	root:SetAttribute("DummyWins", matchState.DummyWins)
 	root:SetAttribute("RoundNumber", matchState.RoundNumber)
@@ -151,16 +277,18 @@ function RoundMatchService.resetMatchState()
 	matchState.MatchWinnerTankId = ""
 	matchState.MatchLoserTankId = ""
 
-	MatchStatsService.resetRuntimeMatchStats()
+	MatchStatsService.resetRuntimeMatchStats(activeMatch ~= nil and getActiveMatchParticipants() or nil)
 	RoundMatchService.setMatchAttributes()
 end
 
 local function getOpponentTankId()
-	if matchMode == RoundMatchService.MATCH_MODE_PVP then
-		return "Player2TankPrototype"
+	local opponentParticipant = getOpponentSideParticipant()
+
+	if opponentParticipant ~= nil then
+		return opponentParticipant.TankId
 	end
 
-	return "DummyTank"
+	return ""
 end
 
 local function getParticipantMatchResult(participant)
@@ -203,29 +331,33 @@ function RoundMatchService.endRound(result)
 			matchState.DummyWins += 1
 		end
 
+		local playerSideParticipant = getPlayerSideParticipant()
+		local playerSideTankId = playerSideParticipant ~= nil and playerSideParticipant.TankId or ""
+		local opponentTankId = getOpponentTankId()
+
 		if matchState.PlayerWins >= matchState.TargetWins then
 			matchState.MatchEnded = true
 			matchState.MatchResult = RoundMatchService.MATCH_RESULT_PLAYER_WIN
-			matchState.MatchWinnerTankId = "PlayerTankPrototype"
-			matchState.MatchLoserTankId = getOpponentTankId()
+			matchState.MatchWinnerTankId = playerSideTankId
+			matchState.MatchLoserTankId = opponentTankId
 		elseif matchState.DummyWins >= matchState.TargetWins then
 			matchState.MatchEnded = true
 			matchState.MatchResult = RoundMatchService.MATCH_RESULT_DUMMY_WIN
-			matchState.MatchWinnerTankId = getOpponentTankId()
-			matchState.MatchLoserTankId = "PlayerTankPrototype"
+			matchState.MatchWinnerTankId = opponentTankId
+			matchState.MatchLoserTankId = playerSideTankId
 		end
 	end
 
 	MatchStatsService.recordRoundStats(
 		roundState.WinnerTankId,
 		roundState.LoserTankId,
-		TankParticipantRegistry.getPlayerParticipants()
+		getActiveMatchParticipants()
 	)
 
 	if matchState.MatchEnded then
 		MatchStatsService.setMatchStat("StatsMatchResult", matchState.MatchResult)
 
-		for _, participant in ipairs(TankParticipantRegistry.getPlayerParticipants()) do
+		for _, participant in ipairs(getActiveMatchParticipants()) do
 			if participant.OwnerPlayer ~= nil then
 				local participantMatchResult = getParticipantMatchResult(participant)
 
@@ -240,9 +372,17 @@ function RoundMatchService.endRound(result)
 	RoundMatchService.setMatchAttributes()
 
 	if matchState.MatchEnded then
+		if activeMatch ~= nil then
+			activeMatch.IsFinished = true
+		end
+
 		RoundMatchService.setGameState(RoundMatchService.GAME_STATE_RESULT)
 		if callbacks.onDestroyAllProjectiles then
 			task.defer(callbacks.onDestroyAllProjectiles)
+		end
+
+		if callbacks.onMatchEnded then
+			task.defer(callbacks.onMatchEnded, activeMatch, matchState)
 		end
 	end
 
@@ -288,32 +428,67 @@ function RoundMatchService.resetRound()
 		callbacks.onResetCombatAttributes()
 	end
 
-	if callbacks.getSpawnTransforms and callbacks.onApplySpawn then
-		local transforms = callbacks.getSpawnTransforms()
-		
-		local playerParticipant = TankParticipantRegistry.getParticipantById("PlayerTankPrototype")
-		local player2Participant = TankParticipantRegistry.getParticipantById("Player2TankPrototype")
-		local dummyParticipant = TankParticipantRegistry.getParticipantById("DummyTank")
-		
-		if playerParticipant then
-			callbacks.onApplySpawn(playerParticipant, transforms.Player)
-		end
-
-		if matchMode == RoundMatchService.MATCH_MODE_PVP then
-			if player2Participant then
-				callbacks.onApplySpawn(player2Participant, transforms.Player2)
-			end
-		else
-			if dummyParticipant then
-				callbacks.onApplySpawn(dummyParticipant, transforms.Dummy)
-			end
-		end
-	end
+	applyMatchSpawns()
 
 	print("[ROUND] reset")
 end
 
+function RoundMatchService.setActivePvPMatch(matchId, playerSideParticipant, opponentParticipant)
+	activeMatch = {
+		MatchId = matchId,
+		MatchMode = RoundMatchService.MATCH_MODE_PVP,
+		PlayerParticipant = playerSideParticipant,
+		OpponentParticipant = opponentParticipant,
+		Participants = { playerSideParticipant, opponentParticipant },
+		IsDuel = true,
+		IsFinished = false,
+	}
+	matchMode = RoundMatchService.MATCH_MODE_PVP
+	RoundMatchService.setMatchAttributes()
+end
+
+function RoundMatchService.setActiveTrainingMatch(matchId, playerSideParticipant, dummyParticipant)
+	activeMatch = {
+		MatchId = matchId,
+		MatchMode = RoundMatchService.MATCH_MODE_TRAINING,
+		PlayerParticipant = playerSideParticipant,
+		OpponentParticipant = dummyParticipant,
+		Participants = { playerSideParticipant, dummyParticipant },
+		IsDuel = false,
+		IsFinished = false,
+	}
+	matchMode = RoundMatchService.MATCH_MODE_TRAINING
+	RoundMatchService.setMatchAttributes()
+end
+
+function RoundMatchService.clearActiveMatch(matchId)
+	if activeMatch == nil then
+		return
+	end
+
+	if matchId ~= nil and activeMatch.MatchId ~= matchId then
+		return
+	end
+
+	activeMatch = nil
+	RoundMatchService.setMatchAttributes()
+end
+
+function RoundMatchService.startPvPMatch(matchId, playerSideParticipant, opponentParticipant)
+	RoundMatchService.setActivePvPMatch(matchId, playerSideParticipant, opponentParticipant)
+	RoundMatchService.startNewMatch()
+end
+
+function RoundMatchService.startTrainingMatch(matchId, playerSideParticipant, dummyParticipant)
+	RoundMatchService.setActiveTrainingMatch(matchId, playerSideParticipant, dummyParticipant)
+	RoundMatchService.startNewMatch()
+end
+
 function RoundMatchService.startNewMatch()
+	if activeMatch ~= nil then
+		activeMatch.IsFinished = false
+	end
+
 	if callbacks.onDestroyAllProjectiles then
 		callbacks.onDestroyAllProjectiles()
 	end
@@ -332,27 +507,7 @@ function RoundMatchService.startNewMatch()
 		callbacks.onResetCombatAttributes()
 	end
 
-	if callbacks.getSpawnTransforms and callbacks.onApplySpawn then
-		local transforms = callbacks.getSpawnTransforms()
-		
-		local playerParticipant = TankParticipantRegistry.getParticipantById("PlayerTankPrototype")
-		local player2Participant = TankParticipantRegistry.getParticipantById("Player2TankPrototype")
-		local dummyParticipant = TankParticipantRegistry.getParticipantById("DummyTank")
-		
-		if playerParticipant then
-			callbacks.onApplySpawn(playerParticipant, transforms.Player)
-		end
-
-		if matchMode == RoundMatchService.MATCH_MODE_PVP then
-			if player2Participant then
-				callbacks.onApplySpawn(player2Participant, transforms.Player2)
-			end
-		else
-			if dummyParticipant then
-				callbacks.onApplySpawn(dummyParticipant, transforms.Dummy)
-			end
-		end
-	end
+	applyMatchSpawns()
 
 	RoundMatchService.setGameState(RoundMatchService.GAME_STATE_PLAYING)
 	print("[SERVER] Match started -> Playing mode=" .. matchMode)

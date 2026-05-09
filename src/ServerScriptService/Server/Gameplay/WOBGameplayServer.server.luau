@@ -27,6 +27,7 @@ local RoundMatchService = require(script.Parent:WaitForChild("Round"):WaitForChi
 local ProjectileService = require(script.Parent:WaitForChild("Projectiles"):WaitForChild("ProjectileService"))
 local TankSpawnResetService = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankSpawnResetService"))
 local PlayerPossessionService = require(script.Parent:WaitForChild("Players"):WaitForChild("PlayerPossessionService"))
+local LobbyService = require(script.Parent:WaitForChild("Lobby"):WaitForChild("LobbyService"))
 
 local primaryWeaponConfig = WeaponConfig.PrimaryWeapon
 local MOVE_SPEED = TankConfig.Movement.MoveSpeed
@@ -53,6 +54,7 @@ end
 local combatFeedbackEvent = getOrCreateRemoteEvent("CombatFeedbackEvent")
 local startMatchRequestEvent = getOrCreateRemoteEvent("StartMatchRequestEvent")
 local returnToMenuRequestEvent = getOrCreateRemoteEvent("ReturnToMenuRequestEvent")
+local rematchRequestEvent = getOrCreateRemoteEvent("RematchRequestEvent")
 
 -- Folders
 local root = Workspace:WaitForChild("WOB_Generated")
@@ -73,6 +75,7 @@ local playerTank = PlayerTankSpawner.ensurePhysicalTankModel(testObjects:WaitFor
 local dummyTank = PlayerTankSpawner.ensurePhysicalTankModel(testObjects:WaitForChild("DummyTank"))
 local player2TankParts = PlayerTankSpawner.getOrCreateRuntimePlayerTank(playerTank, testObjects, "Player2TankPrototype")
 local player2Tank = player2TankParts.Model
+local tankMovementIgnoredModels = { playerTank, player2Tank, dummyTank }
 
 -- Helpers
 local function findOptionalTankChild(model, childName)
@@ -126,13 +129,12 @@ TankParticipantRegistry.init({
 	ARMOR_HITBOX_TRANSPARENCY = TankConfig.Armor.ArmorHitboxTransparency or 0.4,
 })
 
-local playerParticipant = registerTankParticipant({ TankId = "PlayerTankPrototype", Model = playerTank, TeamId = "Player", IsBot = false, IsPlayerTank = true, SpawnName = "PlayerSpawn" })
-local dummyParticipant = registerTankParticipant({ TankId = "DummyTank", Model = dummyTank, TeamId = "Dummy", IsBot = true, IsPlayerTank = false, SpawnName = "DummySpawn" })
+local playerParticipant = registerTankParticipant({ TankId = "PlayerTankPrototype", Model = playerTank, TeamId = "Player", IsBot = false, IsPlayerTank = true, SpawnName = "PlayerSpawn", IsActive = false })
+local dummyParticipant = registerTankParticipant({ TankId = "DummyTank", Model = dummyTank, TeamId = "Dummy", IsBot = true, IsPlayerTank = false, SpawnName = "DummySpawn", IsActive = false })
 local player2Participant = registerTankParticipant({ TankId = "Player2TankPrototype", Model = player2Tank, TeamId = "Player2", IsBot = false, IsPlayerTank = true, SpawnName = "Player2Spawn", IsActive = false })
 
 -- Setup Raycast Params
 local tankMovementRaycastParams = RaycastParams.new()
-tankMovementRaycastParams.FilterDescendantsInstances = { playerTank, player2Tank, dummyTank, runtime, projectileFolder, vfxFolder }
 tankMovementRaycastParams.FilterType = Enum.RaycastFilterType.Exclude
 tankMovementRaycastParams.IgnoreWater = true
 
@@ -140,22 +142,74 @@ local tankMovementOverlapParams = OverlapParams.new()
 tankMovementOverlapParams.FilterType = Enum.RaycastFilterType.Include
 tankMovementOverlapParams.MaxParts = 20
 
+local function refreshTankMovementRaycastFilter()
+	local ignoredInstances = { runtime, projectileFolder, vfxFolder }
+
+	for _, tankModel in ipairs(tankMovementIgnoredModels) do
+		table.insert(ignoredInstances, tankModel)
+	end
+
+	tankMovementRaycastParams.FilterDescendantsInstances = ignoredInstances
+end
+
+refreshTankMovementRaycastFilter()
+
 -- Initialize Services
 MatchStatsService.init(root)
 TankMovementService.init({
 	map = map,
 	body = playerParticipant.Body,
-	tankModels = { playerTank, player2Tank, dummyTank },
+	tankModels = tankMovementIgnoredModels,
 	runtime = runtime,
 	tankMovementRaycastParams = tankMovementRaycastParams,
 	tankMovementOverlapParams = tankMovementOverlapParams,
 })
 TankSpawnResetService.init(map)
 
+local function getOrCreatePlayerParticipantForPlayer(player)
+	local tankName = PlayerTankSpawner.getDynamicPlayerTankName(player)
+	local existingParticipant = TankParticipantRegistry.getParticipantById(tankName)
+
+	if existingParticipant ~= nil then
+		return existingParticipant
+	end
+
+	local tankParts, created = PlayerTankSpawner.getOrCreatePlayerTankForPlayer(playerTank, testObjects, player)
+	local participant = registerTankParticipant({
+		TankId = tankName,
+		Model = tankParts.Model,
+		TeamId = "Player_" .. tostring(player.UserId),
+		IsBot = false,
+		IsPlayerTank = true,
+		SpawnName = "LobbySpawn",
+		IsActive = true,
+	})
+
+	table.insert(tankMovementIgnoredModels, participant.Model)
+	refreshTankMovementRaycastFilter()
+	TankSpawnResetService.captureTankColors(participant.TankId, participant.Model)
+	TankParticipantRegistry.setParticipantModelVisible(participant, true)
+
+	if created then
+		print("[TANK] created player tank " .. player.Name .. " -> " .. participant.TankId)
+	else
+		print("[TANK] reused player tank " .. player.Name .. " -> " .. participant.TankId)
+	end
+
+	return participant
+end
+
 -- Forward declarations for service inter-dependency
 local function getPlayerParticipant() return playerParticipant end
 local function damageParticipant(participant, amount)
-	if RoundMatchService.getRoundState().Ended or TankParticipantRegistry.getParticipantIsDead(participant) then
+	local activeMatch = RoundMatchService.getActiveMatch()
+
+	if activeMatch == nil
+		or activeMatch.IsFinished == true
+		or participant.MatchId ~= activeMatch.MatchId
+		or RoundMatchService.getRoundState().Ended
+		or TankParticipantRegistry.getParticipantIsDead(participant)
+	then
 		return false
 	end
 
@@ -173,22 +227,14 @@ local function damageParticipant(participant, amount)
 		TankSpawnResetService.darkenTank(participant.Model)
 		print("[DEAD] " .. participant.TankId .. " destroyed")
 
+		local winnerParticipant = RoundMatchService.getOpponentForParticipant(participant)
 		RoundMatchService.getRoundState().LoserTankId = participant.TankId
-		if RoundMatchService.getMatchMode() == RoundMatchService.MATCH_MODE_PVP then
-			if participant == playerParticipant then
-				RoundMatchService.getRoundState().WinnerTankId = player2Participant.TankId
-				RoundMatchService.endRound(RoundMatchService.ROUND_RESULT_LOSE)
-			else
-				RoundMatchService.getRoundState().WinnerTankId = playerParticipant.TankId
-				RoundMatchService.endRound(RoundMatchService.ROUND_RESULT_WIN)
-			end
-		elseif participant == dummyParticipant then
-			RoundMatchService.getRoundState().WinnerTankId = playerParticipant.TankId
-			RoundMatchService.endRound(RoundMatchService.ROUND_RESULT_WIN)
-		else
-			RoundMatchService.getRoundState().WinnerTankId = dummyParticipant.TankId
-			RoundMatchService.endRound(RoundMatchService.ROUND_RESULT_LOSE)
+
+		if winnerParticipant ~= nil then
+			RoundMatchService.getRoundState().WinnerTankId = winnerParticipant.TankId
 		end
+
+		RoundMatchService.endRound(RoundMatchService.getRoundResultForDestroyedParticipant(participant))
 	end
 	return true
 end
@@ -199,6 +245,10 @@ ProjectileService.init(root, projectileFolder, vfxFolder, {
 	getRoundState = function() return RoundMatchService.getRoundState() end,
 	damageParticipant = damageParticipant,
 	getPlayerParticipant = getPlayerParticipant,
+	canParticipantShoot = function(participant) return LobbyService.canParticipantShoot(participant) end,
+	isNoDamageProjectile = function(participant) return LobbyService.isNoDamageProjectile(participant) end,
+	shouldRecordShot = function(participant) return LobbyService.shouldRecordShot(participant) end,
+	areProjectilesEnabled = function() return LobbyService.areProjectilesEnabled() end,
 })
 
 -- Collect map targets for projectiles
@@ -224,6 +274,9 @@ ProjectileCombatService.init({
 		combatFeedbackEvent:FireAllClients({ Type = ftype, Position = pos, Text = text, Color = color })
 	end,
 	damageParticipant = damageParticipant,
+	canDamageParticipant = function(projectile, targetParticipant)
+		return LobbyService.canDamageParticipant(projectile, targetParticipant)
+	end,
 })
 
 -- Init RoundMatch Service
@@ -231,23 +284,55 @@ RoundMatchService.init(root, {
 	onDestroyAllProjectiles = function() ProjectileService.destroyAllProjectiles() end,
 	onConfigureParticipants = function()
 		RoundMatchService.updateMatchMode()
-		TankSpawnResetService.configureActiveParticipants(RoundMatchService.getMatchMode(), player2Participant.OwnerPlayer ~= nil)
+		local activeMatch = RoundMatchService.getActiveMatch()
+		TankSpawnResetService.configureActiveParticipants(
+			RoundMatchService.getMatchMode(),
+			player2Participant.OwnerPlayer ~= nil,
+			activeMatch ~= nil and activeMatch.Participants or nil
+		)
 	end,
 	onRestoreColors = function() TankSpawnResetService.restoreAllTankColors() end,
 	onResetCombatAttributes = function()
-		for _, p in ipairs(TankParticipantRegistry.getParticipants()) do
-			if p.IsActive ~= false then TankParticipantRegistry.resetParticipantHealth(p) end
+		local activeMatch = RoundMatchService.getActiveMatch()
+		local participants = activeMatch ~= nil and activeMatch.Participants or TankParticipantRegistry.getParticipants()
+
+		for _, p in ipairs(participants) do
+			TankParticipantRegistry.resetParticipantHealth(p)
 		end
+
 		RoundMatchService.setRoundResult(RoundMatchService.ROUND_RESULT_PLAYING)
 	end,
 	onApplySpawn = function(p, s) TankSpawnResetService.applySpawnToParticipant(p, s) end,
 	getSpawnTransforms = function() return TankSpawnResetService.getAllSpawnTransforms() end,
+	onMatchEnded = function(activeMatch)
+		LobbyService.onMatchEnded(activeMatch)
+	end,
+})
+
+LobbyService.init({
+	root = root,
+	tankSpawnResetService = TankSpawnResetService,
+	roundMatchService = RoundMatchService,
+	projectileService = ProjectileService,
+	dummyParticipant = dummyParticipant,
 })
 
 -- Init Possession Service
 PlayerPossessionService.init({
+	getOrCreateParticipantForPlayer = function(player)
+		return getOrCreatePlayerParticipantForPlayer(player)
+	end,
 	onParticipantAssigned = function(player, participant)
-		TankSpawnResetService.configureActiveParticipants(RoundMatchService.getMatchMode(), player2Participant.OwnerPlayer ~= nil)
+		if participant ~= nil then
+			LobbyService.playerAssigned(player, participant)
+		end
+
+		local activeMatch = RoundMatchService.getActiveMatch()
+		TankSpawnResetService.configureActiveParticipants(
+			RoundMatchService.getMatchMode(),
+			player2Participant.OwnerPlayer ~= nil,
+			activeMatch ~= nil and activeMatch.Participants or nil
+		)
 	end,
 })
 
@@ -260,11 +345,17 @@ local transforms = TankSpawnResetService.getAllSpawnTransforms()
 TankSpawnResetService.applySpawnToParticipant(playerParticipant, transforms.Player)
 TankSpawnResetService.applySpawnToParticipant(dummyParticipant, transforms.Dummy)
 TankSpawnResetService.applySpawnToParticipant(player2Participant, transforms.Player2)
+TankParticipantRegistry.setParticipantModelVisible(playerParticipant, false)
+TankParticipantRegistry.setParticipantModelVisible(dummyParticipant, false)
+TankParticipantRegistry.setParticipantModelVisible(player2Participant, false)
 
 -- Player Connections
 for _, player in ipairs(Players:GetPlayers()) do PlayerPossessionService.assignPlayer(player) end
 Players.PlayerAdded:Connect(function(player) PlayerPossessionService.assignPlayer(player) end)
-Players.PlayerRemoving:Connect(function(player) PlayerPossessionService.removePlayer(player) end)
+Players.PlayerRemoving:Connect(function(player)
+	LobbyService.playerRemoving(player)
+	PlayerPossessionService.removePlayer(player)
+end)
 
 -- Remote Connections
 startMatchRequestEvent.OnServerEvent:Connect(function(player)
@@ -272,26 +363,31 @@ startMatchRequestEvent.OnServerEvent:Connect(function(player)
 		print("[SERVER] StartMatch requested by " .. player.Name)
 	end
 
-	if PlayerPossessionService.getPlayerParticipantByPlayer(player) then
-		RoundMatchService.startNewMatch()
-	end
+	LobbyService.handleStartMatchRequest(player)
 end)
 
 returnToMenuRequestEvent.OnServerEvent:Connect(function(player)
-	if player == PlayerPossessionService.getControllingPlayer() then
-		ProjectileService.destroyAllProjectiles()
-		RoundMatchService.setGameState(RoundMatchService.GAME_STATE_MENU)
-	end
+	LobbyService.handleReturnToLobbyRequest(player)
 end)
 
-resetDummyRequestEvent.OnServerEvent:Connect(function() RoundMatchService.resetRound() end)
+rematchRequestEvent.OnServerEvent:Connect(function(player)
+	LobbyService.handleRematchRequest(player)
+end)
+
+resetDummyRequestEvent.OnServerEvent:Connect(function(player)
+	local participant = PlayerPossessionService.getPlayerParticipantByPlayer(player)
+
+	if participant ~= nil and participant.ParticipantState == LobbyService.MODE_IN_MATCH then
+		RoundMatchService.resetRound()
+	end
+end)
 
 local lastInputReceivedLogTimes = {}
 local lastInputAppliedLogTime = 0
 
 tankInputEvent.OnServerEvent:Connect(function(player, inputData)
 	local participant = PlayerPossessionService.getPlayerParticipantByPlayer(player)
-	if participant and participant.IsActive and RoundMatchService.getGameState() == "Playing" then
+	if participant and participant.IsActive and LobbyService.canParticipantDrive(participant) then
 		PlayerPossessionService.getInputByPlayer()[player] = {
 			Throttle = math.clamp(tonumber(inputData.Throttle) or 0, -1, 1),
 			Steer = math.clamp(tonumber(inputData.Steer) or 0, -1, 1),
@@ -312,7 +408,7 @@ end)
 
 shootRequestEvent.OnServerEvent:Connect(function(player, aimPosition)
 	local participant = PlayerPossessionService.getPlayerParticipantByPlayer(player)
-	if participant and participant.IsActive and RoundMatchService.getGameState() == "Playing" then
+	if participant and participant.IsActive and LobbyService.canParticipantShoot(participant) then
 		if participant.ShootPoint == nil or participant.ShootPoint.Parent == nil then
 			warn("[SERVER] ShootRequest ignored: " .. participant.TankId .. " has no ShootPoint")
 			return
@@ -326,7 +422,7 @@ end)
 
 -- Main Loop
 RunService.Heartbeat:Connect(function(deltaTime)
-	if RoundMatchService.getGameState() ~= "Playing" then return end
+	LobbyService.update(deltaTime)
 
 	local inputs = PlayerPossessionService.getInputByPlayer()
 	local now = os.clock()
@@ -336,7 +432,7 @@ RunService.Heartbeat:Connect(function(deltaTime)
 	end
 
 	for _, p in ipairs(TankParticipantRegistry.getPlayerParticipants()) do
-		if p.OwnerPlayer and p.IsActive and p.ControlState then
+		if p.OwnerPlayer and p.IsActive and p.ControlState and LobbyService.canParticipantDrive(p) then
 			local input = inputs[p.OwnerPlayer]
 			if input then
 				local state = p.ControlState

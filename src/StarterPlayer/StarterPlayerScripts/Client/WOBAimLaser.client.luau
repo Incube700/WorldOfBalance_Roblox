@@ -221,8 +221,18 @@ local function setLaserVisible(isVisible)
 	beam.Enabled = isVisible
 end
 
+local function isAimLaserEnabledForLocalPlayer()
+	local mode = localPlayer:GetAttribute("PlayerMode")
+
+	if mode == "Lobby" or mode == "QueuedForDuel" or mode == "InMatch" then
+		return true
+	end
+
+	return mode == nil and root:GetAttribute("GameState") == "Playing"
+end
+
 local function updateLaser()
-	if root:GetAttribute("GameState") ~= "Playing" then
+	if not isAimLaserEnabledForLocalPlayer() then
 		setLaserVisible(false)
 		return
 	end

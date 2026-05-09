@@ -79,14 +79,18 @@ local function resolveArmorHit(projectile, targetParticipant, hitNormal, armorZo
 	})
 end
 
-local function applyProjectileRicochet(projectile, hitPosition, hitNormal)
+local function applyProjectileRicochet(projectile, hitPosition, hitNormal, options)
+	options = options or {}
 	projectile.Direction = reflect(projectile.Direction, hitNormal)
 	projectile.Position = hitPosition + projectile.Direction * PROJECTILE_RICOCHET_OFFSET
 	projectile.BounceCount += 1
 	projectile.Damage *= projectile.DamageMultiplierPerBounce
 	projectile.Speed = math.max(projectile.MinSpeed, projectile.Speed * projectile.BounceSpeedMultiplier)
 	projectile.CanHitOwner = true
-	MatchStatsService.recordProjectileRicochet(projectile)
+
+	if projectile.NoStats ~= true and options.NoStats ~= true then
+		MatchStatsService.recordProjectileRicochet(projectile)
+	end
 end
 
 function ProjectileCombatService.handleProjectileTankHit(projectile, targetParticipant, hitPosition, hitNormal, armorZone, options)
@@ -96,6 +100,7 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 	local destroyProjectile = dependencies.destroyProjectile
 	local sendCombatFeedback = dependencies.sendCombatFeedback
 	local damageParticipant = dependencies.damageParticipant
+	local canDamageParticipant = dependencies.canDamageParticipant
 
 	createImpactFlash(hitPosition)
 
@@ -104,7 +109,23 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 		return true
 	end
 
-	MatchStatsService.recordProjectileTankHitStats(projectile)
+	local canDamageTarget = projectile.NoDamage ~= true
+		and (canDamageParticipant == nil or canDamageParticipant(projectile, targetParticipant) == true)
+
+	if not canDamageTarget then
+		if projectile.BounceCount >= projectile.MaxBounces then
+			destroyProjectile(projectile)
+			return true
+		end
+
+		applyProjectileRicochet(projectile, hitPosition, hitNormal, { NoStats = true })
+		printBounce(projectile)
+		return false
+	end
+
+	if projectile.NoStats ~= true then
+		MatchStatsService.recordProjectileTankHitStats(projectile)
+	end
 
 	local armorHit = resolveArmorHit(projectile, targetParticipant, hitNormal, armorZone)
 
@@ -127,7 +148,7 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 			Color3.fromRGB(255, 105, 75)
 		)
 
-		if damageParticipant(targetParticipant, armorHit.Damage) then
+		if damageParticipant(targetParticipant, armorHit.Damage) and projectile.NoStats ~= true then
 			MatchStatsService.recordProjectileDamageStats(projectile, targetParticipant, armorHit.Damage)
 		end
 

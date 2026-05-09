@@ -9,11 +9,12 @@ local inputByPlayer = {}
 local controllingPlayer = nil
 local DEBUG_POSSESSION = false
 local callbacks = {
+	getOrCreateParticipantForPlayer = nil,
 	onParticipantAssigned = nil,
 }
 
 function PlayerPossessionService.init(options)
-	callbacks = options
+	callbacks = options or {}
 end
 
 function PlayerPossessionService.suppressCharacter(player, character)
@@ -85,7 +86,15 @@ function PlayerPossessionService.assignPlayer(player)
 		return
 	end
 
-	local assignedParticipant = TankParticipantRegistry.getAvailablePlayerParticipant()
+	local assignedParticipant = nil
+
+	if callbacks.getOrCreateParticipantForPlayer then
+		assignedParticipant = callbacks.getOrCreateParticipantForPlayer(player)
+	end
+
+	if assignedParticipant == nil then
+		assignedParticipant = TankParticipantRegistry.getAvailablePlayerParticipant()
+	end
 
 	if assignedParticipant == nil then
 		warn("[PVP] No player tank participant available for " .. player.Name)

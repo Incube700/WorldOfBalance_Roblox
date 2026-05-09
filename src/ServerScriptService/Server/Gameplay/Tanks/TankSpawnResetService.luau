@@ -382,7 +382,28 @@ function TankSpawnResetService.applySpawnToParticipant(participant, spawnState)
 	TankSpawnResetService.layoutTank(participant.Model, spawnState.Position, spawnState.BodyYaw, spawnState.TurretYaw)
 end
 
-function TankSpawnResetService.configureActiveParticipants(matchMode, player2HasOwner)
+function TankSpawnResetService.configureActiveParticipants(matchMode, player2HasOwner, activeParticipants)
+	if activeParticipants ~= nil then
+		local activeByParticipant = {}
+
+		for _, participant in ipairs(activeParticipants) do
+			activeByParticipant[participant] = true
+		end
+
+		for _, participant in ipairs(TankParticipantRegistry.getParticipants()) do
+			if participant.IsPlayerTank == true then
+				TankParticipantRegistry.setParticipantModelVisible(participant, participant.OwnerPlayer ~= nil)
+			elseif participant.TankId == "DummyTank" then
+				TankParticipantRegistry.setParticipantModelVisible(
+					participant,
+					matchMode == "Training" and activeByParticipant[participant] == true
+				)
+			end
+		end
+
+		return
+	end
+
 	local playerParticipant = TankParticipantRegistry.getParticipantById("PlayerTankPrototype")
 	local player2Participant = TankParticipantRegistry.getParticipantById("Player2TankPrototype")
 	local dummyParticipant = TankParticipantRegistry.getParticipantById("DummyTank")

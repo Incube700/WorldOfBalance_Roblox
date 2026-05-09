@@ -60,15 +60,23 @@ end
 local lastErrorTime = 0
 local diagnosedTanks = {}
 
+local function isCameraFollowEnabled()
+	local mode = localPlayer:GetAttribute("PlayerMode")
+
+	if mode == "Lobby" or mode == "QueuedForDuel" or mode == "InMatch" then
+		return true
+	end
+
+	return mode == nil and root:GetAttribute("GameState") == "Playing"
+end
+
 local function updateCamera()
 	local camera = Workspace.CurrentCamera
 	if not camera then
 		return
 	end
 
-	local gameState = root:GetAttribute("GameState")
-
-	if gameState ~= "Playing" then
+	if not isCameraFollowEnabled() then
 		if isFollowing then
 			isFollowing = false
 			lastFollowedTankId = nil
@@ -141,7 +149,7 @@ end
 
 -- Следим за добавлением потомков, чтобы быстрее найти танк при спавне/ремонте модели
 root.DescendantAdded:Connect(function()
-	if root:GetAttribute("GameState") == "Playing" and not ownedTank then
+	if isCameraFollowEnabled() and not ownedTank then
 		ownedTank = findOwnedTank()
 	end
 end)

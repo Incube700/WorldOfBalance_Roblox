@@ -39,6 +39,10 @@ local callbacks = {
 	getRoundState = nil,
 	damageParticipant = nil,
 	getPlayerParticipant = nil, -- legacy support
+	canParticipantShoot = nil,
+	isNoDamageProjectile = nil,
+	shouldRecordShot = nil,
+	areProjectilesEnabled = nil,
 }
 
 function ProjectileService.init(orchestratorRoot, projFolder, effectsFolder, options)
@@ -185,6 +189,9 @@ function ProjectileService.createProjectile(ownerParticipant, origin, direction)
 		Part = projectilePart,
 		Destroyed = false,
 		CanHitOwner = false,
+		MatchId = ownerParticipant.MatchId,
+		NoDamage = callbacks.isNoDamageProjectile ~= nil and callbacks.isNoDamageProjectile(ownerParticipant) == true,
+		NoStats = callbacks.isNoDamageProjectile ~= nil and callbacks.isNoDamageProjectile(ownerParticipant) == true,
 	}
 
 	table.insert(projectiles, projectile)
@@ -192,7 +199,11 @@ function ProjectileService.createProjectile(ownerParticipant, origin, direction)
 end
 
 function ProjectileService.tryShoot(participant, direction)
-	if callbacks.getGameState() ~= "Playing" or (callbacks.getRoundState() and callbacks.getRoundState().Ended) then
+	if callbacks.canParticipantShoot ~= nil then
+		if callbacks.canParticipantShoot(participant) ~= true then
+			return false
+		end
+	elseif callbacks.getGameState() ~= "Playing" or (callbacks.getRoundState() and callbacks.getRoundState().Ended) then
 		return false
 	end
 
@@ -221,7 +232,10 @@ function ProjectileService.tryShoot(participant, direction)
 	participant.WeaponState.WeaponReadyAt = participant.WeaponReadyAt
 
 	ProjectileService.createProjectile(participant, participant.ShootPoint.Position, flatDirection.Unit)
-	MatchStatsService.recordShotFired(participant)
+
+	if callbacks.shouldRecordShot == nil or callbacks.shouldRecordShot(participant) == true then
+		MatchStatsService.recordShotFired(participant)
+	end
 
 	return true
 end
@@ -250,7 +264,7 @@ local function getProjectileRaycastTargets(projectile)
 end
 
 function ProjectileService.updateProjectiles(deltaTime)
-	if callbacks.getGameState() ~= "Playing" then
+	if callbacks.areProjectilesEnabled ~= nil and callbacks.areProjectilesEnabled() ~= true then
 		return
 	end
 

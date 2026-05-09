@@ -9,6 +9,7 @@ local root = Workspace:WaitForChild("WOB_Generated")
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local startMatchRequestEvent = remotes:WaitForChild("StartMatchRequestEvent")
 local returnToMenuRequestEvent = remotes:WaitForChild("ReturnToMenuRequestEvent")
+local rematchRequestEvent = remotes:WaitForChild("RematchRequestEvent")
 
 local GUI_NAME = "WOBPlayableShellGui"
 local MAIN_MENU_PANEL_NAME = "MainMenuPanel"
@@ -19,6 +20,11 @@ local GAME_STATE_PLAYING = "Playing"
 local GAME_STATE_RESULT = "Result"
 local SHELL_PANEL_MENU = "Menu"
 local SHELL_PANEL_STATS = "Stats"
+local SHELL_PANEL_HIDDEN = "Hidden"
+local PLAYER_MODE_LOBBY = "Lobby"
+local PLAYER_MODE_QUEUED = "QueuedForDuel"
+local PLAYER_MODE_IN_MATCH = "InMatch"
+local PLAYER_MODE_RESULT = "Result"
 
 local HUD_GUI_NAMES = {
 	"HUD",
@@ -101,7 +107,7 @@ local TOTAL_STAT_KEYS = {
 local statValueLabels = {}
 local totalStatValueLabels = {}
 local connectedButtons = {}
-local activeShellPanel = SHELL_PANEL_MENU
+local activeShellPanel = SHELL_PANEL_HIDDEN
 local DEBUG_SHELL = false
 
 local function findDescendant(parent, name)
@@ -258,7 +264,7 @@ local function createMenu(screenGui)
 		{ Name = "PlayButton", Text = "Play", Enabled = true, Y = 158 },
 		{ Name = "TrainingButton", Text = "Training", Enabled = false, Y = 224 },
 		{ Name = "StatsButton", Text = "Stats", Enabled = true, Y = 290 },
-		{ Name = "SettingsButton", Text = "Settings", Enabled = false, Y = 356 },
+		{ Name = "CloseButton", Text = "Close", Enabled = true, Y = 356 },
 	}
 
 	for _, data in ipairs(buttonNames) do
@@ -365,12 +371,12 @@ local function createResultScreen(screenGui)
 	local playAgainButton = getOrCreate(content, "TextButton", "PlayAgainButton")
 	playAgainButton.Position = UDim2.new(0.1, 0, 1, -128)
 	playAgainButton.Size = UDim2.new(0.38, 0, 0, 52)
-	styleButton(playAgainButton, "Play Again", true)
+	styleButton(playAgainButton, "Rematch", true)
 
 	local menuButton = getOrCreate(content, "TextButton", "BackToMenuButton")
 	menuButton.Position = UDim2.new(0.52, 0, 1, -128)
 	menuButton.Size = UDim2.new(0.38, 0, 0, 52)
-	styleButton(menuButton, "Back to Menu", true)
+	styleButton(menuButton, "Return to Lobby", true)
 
 	return panel
 end
@@ -416,6 +422,28 @@ local function createStatsPanel(screenGui)
 	styleButton(backButton, "Back", true)
 
 	return panel
+end
+
+local function createLobbyControls(screenGui)
+	local menuButton = getOrCreate(screenGui, "TextButton", "LobbyMenuButton")
+	menuButton.AnchorPoint = Vector2.new(1, 1)
+	menuButton.Position = UDim2.new(1, -22, 1, -22)
+	menuButton.Size = UDim2.new(0, 118, 0, 42)
+	styleButton(menuButton, "Menu", true)
+	menuButton.TextSize = 18
+
+	local hintLabel = getOrCreate(screenGui, "TextLabel", "LobbyHintLabel")
+	hintLabel.AnchorPoint = Vector2.new(0.5, 0)
+	hintLabel.Position = UDim2.new(0.5, 0, 0, 18)
+	hintLabel.Size = UDim2.new(0, 420, 0, 36)
+	styleLabel(hintLabel, "Drive onto Duel Pad to start PvP", 18, Color3.fromRGB(244, 255, 248))
+	hintLabel.BackgroundColor3 = Color3.fromRGB(7, 9, 11)
+	hintLabel.BackgroundTransparency = 0.28
+	hintLabel.BorderSizePixel = 0
+	addCorner(hintLabel, UDim.new(0, 8))
+	addStroke(hintLabel, Color3.fromRGB(75, 115, 104), 0.35, 1)
+
+	return menuButton, hintLabel
 end
 
 local function bindResultStatLabels(resultPanel)
@@ -486,6 +514,18 @@ local function updateStaticShellText()
 		if statsTitleLabel ~= nil and statsTitleLabel:IsA("TextLabel") then
 			statsTitleLabel.Text = "Your Stats"
 		end
+
+		local playAgainButton = findDescendant(screenGui, "PlayAgainButton")
+
+		if playAgainButton ~= nil and playAgainButton:IsA("TextButton") then
+			playAgainButton.Text = "Rematch"
+		end
+
+		local backToMenuButton = findDescendant(screenGui, "BackToMenuButton") or findDescendant(screenGui, "MenuButton")
+
+		if backToMenuButton ~= nil and backToMenuButton:IsA("TextButton") then
+			backToMenuButton.Text = "Return to Lobby"
+		end
 	end
 end
 
@@ -522,12 +562,24 @@ local function createShellGui()
 		statsPanel = createStatsPanel(screenGui)
 	end
 
+	local lobbyMenuButton = findDescendant(screenGui, "LobbyMenuButton")
+	local lobbyHintLabel = findDescendant(screenGui, "LobbyHintLabel")
+
+	if lobbyMenuButton == nil
+		or not lobbyMenuButton:IsA("TextButton")
+		or lobbyHintLabel == nil
+		or not lobbyHintLabel:IsA("TextLabel")
+	then
+		lobbyMenuButton, lobbyHintLabel = createLobbyControls(screenGui)
+	end
+
 	bindResultStatLabels(resultPanel)
 	bindTotalStatLabels(statsPanel)
 	updateStaticShellText()
 
 	local playButton = findDescendant(menuPanel, "PlayButton")
 	local statsButton = findDescendant(menuPanel, "StatsButton")
+	local menuCloseButton = findDescendant(menuPanel, "CloseButton")
 	local playAgainButton = findDescendant(resultPanel, "PlayAgainButton")
 	local backToMenuButton = findDescendant(resultPanel, "BackToMenuButton") or findDescendant(resultPanel, "MenuButton")
 	local statsBackButton = findDescendant(statsPanel, "StatsBackButton")
@@ -536,6 +588,7 @@ local function createShellGui()
 		menuPanel = createMenu(screenGui)
 		playButton = findDescendant(menuPanel, "PlayButton")
 		statsButton = findDescendant(menuPanel, "StatsButton")
+		menuCloseButton = findDescendant(menuPanel, "CloseButton")
 	end
 
 	if playAgainButton == nil
@@ -585,6 +638,9 @@ local function createShellGui()
 		StatsPanel = statsPanel,
 		PlayButton = playButton,
 		StatsButton = statsButton,
+		MenuCloseButton = menuCloseButton,
+		LobbyMenuButton = lobbyMenuButton,
+		LobbyHintLabel = lobbyHintLabel,
 		PlayAgainButton = playAgainButton,
 		BackToMenuButton = backToMenuButton,
 		StatsBackButton = statsBackButton,
@@ -592,6 +648,28 @@ local function createShellGui()
 end
 
 local shell = createShellGui()
+
+local function getLocalPlayerMode()
+	local mode = localPlayer:GetAttribute("PlayerMode")
+
+	if mode ~= nil and mode ~= "" then
+		return mode
+	end
+
+	local gameState = root:GetAttribute("GameState")
+
+	if gameState == GAME_STATE_PLAYING then
+		return PLAYER_MODE_IN_MATCH
+	elseif gameState == GAME_STATE_RESULT then
+		return PLAYER_MODE_RESULT
+	end
+
+	return PLAYER_MODE_LOBBY
+end
+
+local function isLobbyMode(mode)
+	return mode == PLAYER_MODE_LOBBY or mode == PLAYER_MODE_QUEUED
+end
 
 local function runtimeAttribute(attributeName)
 	local value = localPlayer:GetAttribute(attributeName)
@@ -673,7 +751,7 @@ end
 local function formatMatchResult(result)
 	if result == "Win" or result == "PlayerMatchWin" then
 		return "Victory"
-	elseif result == "Loss" or result == "DummyMatchWin" then
+	elseif result == "Lose" or result == "Loss" or result == "DummyMatchWin" then
 		return "Defeat"
 	elseif result == "" or result == nil then
 		return "-"
@@ -792,10 +870,13 @@ local function setGameplayHudVisible(isVisible)
 end
 
 local function applyShellState(state)
-	local isMenu = state == GAME_STATE_MENU
-	local isPlaying = state == GAME_STATE_PLAYING
-	local isResult = state == GAME_STATE_RESULT
-	local isStatsOpen = isMenu and activeShellPanel == SHELL_PANEL_STATS
+	local mode = getLocalPlayerMode()
+	local isLobby = isLobbyMode(mode)
+	local isMenuOpen = isLobby and activeShellPanel == SHELL_PANEL_MENU
+	local isPlaying = mode == PLAYER_MODE_IN_MATCH and state == GAME_STATE_PLAYING
+	local isResult = mode == PLAYER_MODE_RESULT
+	local isStatsOpen = isLobby and activeShellPanel == SHELL_PANEL_STATS
+	local showLobbyControls = isLobby and not isMenuOpen and not isStatsOpen
 
 	for _, screenGui in ipairs(getShellScreenGuis()) do
 		screenGui.Enabled = true
@@ -803,9 +884,11 @@ local function applyShellState(state)
 		local menuPanel = findDescendant(screenGui, MAIN_MENU_PANEL_NAME)
 		local resultPanel = findDescendant(screenGui, RESULT_PANEL_NAME)
 		local statsPanel = findDescendant(screenGui, STATS_PANEL_NAME)
+		local lobbyMenuButton = findDescendant(screenGui, "LobbyMenuButton")
+		local lobbyHintLabel = findDescendant(screenGui, "LobbyHintLabel")
 
 		if menuPanel ~= nil and menuPanel:IsA("GuiObject") then
-			menuPanel.Visible = isMenu and not isStatsOpen
+			menuPanel.Visible = isMenuOpen
 		end
 
 		if resultPanel ~= nil and resultPanel:IsA("GuiObject") then
@@ -814,6 +897,14 @@ local function applyShellState(state)
 
 		if statsPanel ~= nil and statsPanel:IsA("GuiObject") then
 			statsPanel.Visible = isStatsOpen
+		end
+
+		if lobbyMenuButton ~= nil and lobbyMenuButton:IsA("GuiObject") then
+			lobbyMenuButton.Visible = showLobbyControls
+		end
+
+		if lobbyHintLabel ~= nil and lobbyHintLabel:IsA("GuiObject") then
+			lobbyHintLabel.Visible = showLobbyControls
 		end
 	end
 
@@ -830,9 +921,10 @@ end
 
 local function updateShell()
 	local state = root:GetAttribute("GameState") or GAME_STATE_MENU
+	local mode = getLocalPlayerMode()
 
-	if state ~= GAME_STATE_MENU then
-		activeShellPanel = SHELL_PANEL_MENU
+	if mode == PLAYER_MODE_IN_MATCH or mode == PLAYER_MODE_RESULT then
+		activeShellPanel = SHELL_PANEL_HIDDEN
 	end
 
 	applyShellState(state)
@@ -862,8 +954,8 @@ end
 
 local function connectRemoteButton(button, logMessage, requestedState, remoteEvent)
 	connectActionButton(button, logMessage, function()
-		activeShellPanel = SHELL_PANEL_MENU
-		applyShellState(requestedState)
+		activeShellPanel = SHELL_PANEL_HIDDEN
+		applyShellState(root:GetAttribute("GameState") or requestedState)
 		remoteEvent:FireServer()
 	end)
 end
@@ -872,7 +964,35 @@ local function openStatsPanel()
 	activeShellPanel = SHELL_PANEL_STATS
 	updateStatsPanel()
 	print("[STATS] panel showing userId=" .. tostring(localPlayer.UserId))
-	applyShellState(GAME_STATE_MENU)
+	applyShellState(root:GetAttribute("GameState") or GAME_STATE_MENU)
+end
+
+local function closeLobbyMenu()
+	activeShellPanel = SHELL_PANEL_HIDDEN
+	applyShellState(root:GetAttribute("GameState") or GAME_STATE_MENU)
+end
+
+local function openLobbyMenu()
+	activeShellPanel = SHELL_PANEL_MENU
+	applyShellState(root:GetAttribute("GameState") or GAME_STATE_MENU)
+end
+
+local function requestRematch()
+	localPlayer:SetAttribute("RematchStatus", "Waiting")
+	rematchRequestEvent:FireServer()
+end
+
+local function updateRematchButton()
+	local waiting = localPlayer:GetAttribute("RematchStatus") == "Waiting"
+
+	for _, screenGui in ipairs(getShellScreenGuis()) do
+		local resultPanel = findDescendant(screenGui, RESULT_PANEL_NAME)
+		local button = resultPanel ~= nil and findDescendant(resultPanel, "PlayAgainButton") or nil
+
+		if button ~= nil and button:IsA("TextButton") then
+			styleButton(button, waiting and "Waiting for opponent..." or "Rematch", not waiting)
+		end
+	end
 end
 
 local function bindShellButtons(screenGui)
@@ -883,14 +1003,14 @@ local function bindShellButtons(screenGui)
 	if menuPanel ~= nil then
 		connectRemoteButton(findDescendant(menuPanel, "PlayButton"), "[SHELL] Play clicked", GAME_STATE_PLAYING, startMatchRequestEvent)
 		connectActionButton(findDescendant(menuPanel, "StatsButton"), "[SHELL] Stats clicked", openStatsPanel)
+		connectActionButton(findDescendant(menuPanel, "CloseButton"), "[SHELL] Close clicked", closeLobbyMenu)
 	end
 
 	if resultPanel ~= nil then
-		connectRemoteButton(
+		connectActionButton(
 			findDescendant(resultPanel, "PlayAgainButton"),
 			"[SHELL] PlayAgain clicked",
-			GAME_STATE_PLAYING,
-			startMatchRequestEvent
+			requestRematch
 		)
 		connectRemoteButton(
 			findDescendant(resultPanel, "BackToMenuButton") or findDescendant(resultPanel, "MenuButton"),
@@ -902,10 +1022,12 @@ local function bindShellButtons(screenGui)
 
 	if statsPanel ~= nil then
 		connectActionButton(findDescendant(statsPanel, "StatsBackButton"), "[SHELL] StatsBack clicked", function()
-			activeShellPanel = SHELL_PANEL_MENU
-			applyShellState(GAME_STATE_MENU)
+			activeShellPanel = SHELL_PANEL_HIDDEN
+			applyShellState(root:GetAttribute("GameState") or GAME_STATE_MENU)
 		end)
 	end
+
+	connectActionButton(findDescendant(screenGui, "LobbyMenuButton"), "[SHELL] LobbyMenu clicked", openLobbyMenu)
 end
 
 local function bindAllShellButtons()
@@ -924,8 +1046,16 @@ if shell.StatsButton ~= nil and shell.StatsButton:IsA("TextButton") then
 	connectActionButton(shell.StatsButton, "[SHELL] Stats clicked", openStatsPanel)
 end
 
+if shell.MenuCloseButton ~= nil and shell.MenuCloseButton:IsA("TextButton") then
+	connectActionButton(shell.MenuCloseButton, "[SHELL] Close clicked", closeLobbyMenu)
+end
+
+if shell.LobbyMenuButton ~= nil and shell.LobbyMenuButton:IsA("TextButton") then
+	connectActionButton(shell.LobbyMenuButton, "[SHELL] LobbyMenu clicked", openLobbyMenu)
+end
+
 if shell.PlayAgainButton ~= nil and shell.PlayAgainButton:IsA("TextButton") then
-	connectRemoteButton(shell.PlayAgainButton, "[SHELL] PlayAgain clicked", GAME_STATE_PLAYING, startMatchRequestEvent)
+	connectActionButton(shell.PlayAgainButton, "[SHELL] PlayAgain clicked", requestRematch)
 end
 
 if shell.BackToMenuButton ~= nil and shell.BackToMenuButton:IsA("TextButton") then
@@ -934,8 +1064,8 @@ end
 
 if shell.StatsBackButton ~= nil and shell.StatsBackButton:IsA("TextButton") then
 	connectActionButton(shell.StatsBackButton, "[SHELL] StatsBack clicked", function()
-		activeShellPanel = SHELL_PANEL_MENU
-		applyShellState(GAME_STATE_MENU)
+		activeShellPanel = SHELL_PANEL_HIDDEN
+		applyShellState(root:GetAttribute("GameState") or GAME_STATE_MENU)
 	end)
 end
 
@@ -944,6 +1074,12 @@ root:GetAttributeChangedSignal("GameState"):Connect(function()
 		print("[SHELL] GameState changed -> " .. tostring(root:GetAttribute("GameState")))
 	end
 
+	updateShell()
+end)
+
+localPlayer:GetAttributeChangedSignal("PlayerMode"):Connect(updateShell)
+localPlayer:GetAttributeChangedSignal("RematchStatus"):Connect(function()
+	updateRematchButton()
 	updateShell()
 end)
 
@@ -976,4 +1112,5 @@ end)
 
 updateResultStats()
 updateStatsPanel()
+updateRematchButton()
 updateShell()

@@ -89,6 +89,9 @@ local function setParticipantAttributesOnModel(model, participant)
 	model:SetAttribute("IsPlayerTank", participant.IsPlayerTank == true)
 	model:SetAttribute("ControllerType", participant.ControllerType)
 	model:SetAttribute("PhysicalModelPath", participant.PhysicalModel:GetFullName())
+	model:SetAttribute("ParticipantState", participant.ParticipantState)
+	model:SetAttribute("MatchId", participant.MatchId)
+	model:SetAttribute("OpponentTankId", participant.OpponentTankId)
 
 	if participant.OwnerUserId == nil then
 		model:SetAttribute("OwnerUserId", nil)
@@ -303,6 +306,19 @@ function TankParticipantRegistry.resetParticipantHealth(participant)
 	setAttributeOnParticipantModels(participant, "MaxHealth", participant.MaxHealth)
 	TankParticipantRegistry.setParticipantHealth(participant, participant.MaxHealth)
 	TankParticipantRegistry.setParticipantIsDead(participant, false)
+end
+
+function TankParticipantRegistry.setParticipantMatchState(participant, participantState, matchId, opponentTankId)
+	if participant == nil then
+		return
+	end
+
+	participant.ParticipantState = participantState
+	participant.MatchId = matchId
+	participant.OpponentTankId = opponentTankId
+	setAttributeOnParticipantModels(participant, "ParticipantState", participant.ParticipantState)
+	setAttributeOnParticipantModels(participant, "MatchId", participant.MatchId)
+	setAttributeOnParticipantModels(participant, "OpponentTankId", participant.OpponentTankId)
 end
 
 function TankParticipantRegistry.getPlayerParticipant(player)

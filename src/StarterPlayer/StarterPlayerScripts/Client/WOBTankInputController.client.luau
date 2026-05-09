@@ -102,8 +102,14 @@ local function refreshOwnedTank()
 	end
 end
 
-local function isPlaying()
-	return root:GetAttribute("GameState") == "Playing"
+local function isInputEnabled()
+	local mode = localPlayer:GetAttribute("PlayerMode")
+
+	if mode == "Lobby" or mode == "QueuedForDuel" or mode == "InMatch" then
+		return true
+	end
+
+	return mode == nil and root:GetAttribute("GameState") == "Playing"
 end
 
 local function getKeyboardAxis()
@@ -160,7 +166,7 @@ local lastInputLogTime = 0
 local lastShootLogTime = 0
 
 local function sendTankInput()
-	if not isPlaying() then
+	if not isInputEnabled() then
 		return
 	end
 
@@ -196,7 +202,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
 		return
 	end
 
-	if input.UserInputType == Enum.UserInputType.MouseButton1 and isPlaying() then
+	if input.UserInputType == Enum.UserInputType.MouseButton1 and isInputEnabled() then
 		refreshOwnedTank()
 
 		if ownedTank == nil then

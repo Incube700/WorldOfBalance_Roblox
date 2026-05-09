@@ -151,9 +151,20 @@ function MatchStatsService.incrementMatchStat(name, amount)
 	MatchStatsService.setMatchStat(name, (tonumber(current) or 0) + (amount or 1))
 end
 
-function MatchStatsService.resetRuntimeMatchStats()
+function MatchStatsService.resetRuntimeMatchStats(participants)
 	table.clear(matchStatsByParticipant)
 	table.clear(lastDebugLogByKey)
+
+	if participants ~= nil then
+		for _, participant in ipairs(participants) do
+			if participantHasPlayerOwner(participant) then
+				matchStatsByParticipant[participant] = copyDefaultStats()
+				mirrorParticipantStats(participant)
+			end
+		end
+
+		return
+	end
 
 	if root ~= nil then
 		setStatsAttributes(root, copyDefaultStats())

@@ -14,6 +14,7 @@ local REMOTE_EVENT_NAMES = {
 	"StartMatchRequestEvent",
 	"ReturnToMenuRequestEvent",
 	"CombatFeedbackEvent",
+	"RematchRequestEvent",
 }
 
 local function ensureFolder(parent, name)

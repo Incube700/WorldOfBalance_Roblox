@@ -418,7 +418,9 @@ if roundUi == nil then
 end
 
 local function isCombatHudVisible()
-	return root:GetAttribute("GameState") == "Playing"
+	local mode = localPlayer:GetAttribute("PlayerMode")
+
+	return mode == "InMatch" and root:GetAttribute("GameState") == "Playing"
 end
 
 local function applyCombatHudVisibility()
@@ -474,9 +476,10 @@ local function getLocalRoundResult(globalResult)
 end
 
 local function getLocalSeriesScore(playerSideWins, opponentSideWins)
-	if root:GetAttribute("MatchMode") == "PvP"
-		and getCurrentPlayerTankId() == "Player2TankPrototype"
-	then
+	local currentTankId = getCurrentPlayerTankId()
+	local opponentSideTankId = root:GetAttribute("OpponentSideTankId")
+
+	if root:GetAttribute("MatchMode") == "PvP" and currentTankId == opponentSideTankId then
 		return opponentSideWins, playerSideWins
 	end
 
@@ -497,9 +500,9 @@ local function getLocalMatchResult(matchResult)
 	end
 
 	if matchResult == "PlayerMatchWin" then
-		return tankId == "Player2TankPrototype" and "Loss" or "Win"
+		return tankId == root:GetAttribute("OpponentSideTankId") and "Loss" or "Win"
 	elseif matchResult == "DummyMatchWin" then
-		return tankId == "Player2TankPrototype" and "Win" or "Loss"
+		return tankId == root:GetAttribute("OpponentSideTankId") and "Win" or "Loss"
 	end
 
 	return ""
@@ -683,6 +686,15 @@ root:GetAttributeChangedSignal("MatchResult"):Connect(updateSeriesStatus)
 root:GetAttributeChangedSignal("MatchWinnerTankId"):Connect(updateSeriesStatus)
 root:GetAttributeChangedSignal("MatchLoserTankId"):Connect(updateSeriesStatus)
 
+localPlayer:GetAttributeChangedSignal("PlayerMode"):Connect(function()
+	refreshTankTargets()
+	updateEnemyHealth()
+	updateHealth()
+	applyCombatHudVisibility()
+	updateRoundResult()
+	updateSeriesStatus()
+end)
+
 root.DescendantAdded:Connect(function()
 	refreshTankTargets()
 	updateEnemyHealth()
@@ -696,7 +708,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
 
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		lastShotTime = os.clock()
-	elseif input.KeyCode == Enum.KeyCode.R then
+	elseif input.KeyCode == Enum.KeyCode.R and localPlayer:GetAttribute("PlayerMode") == "InMatch" then
 		resetDummyRequestEvent:FireServer()
 	end
 end)

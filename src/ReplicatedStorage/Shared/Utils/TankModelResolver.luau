@@ -253,6 +253,17 @@ function TankModelResolver.findTankByTankId(root, tankId, requirePhysical)
 end
 
 function TankModelResolver.findEnemyTank(root, userId)
+	local ownedTank = TankModelResolver.findOwnedTank(root, userId, true)
+	local opponentTankId = ownedTank ~= nil and ownedTank:GetAttribute("OpponentTankId") or nil
+
+	if opponentTankId ~= nil and opponentTankId ~= "" then
+		local opponentTank = TankModelResolver.findTankByTankId(root, opponentTankId, true)
+
+		if opponentTank ~= nil then
+			return opponentTank
+		end
+	end
+
 	local matchMode = root:GetAttribute("MatchMode")
 
 	if matchMode == "PvP" then

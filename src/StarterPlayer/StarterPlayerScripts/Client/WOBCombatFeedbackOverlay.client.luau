@@ -1,11 +1,13 @@
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local combatFeedbackEvent = remotes:WaitForChild("CombatFeedbackEvent")
 
 local root = Workspace:WaitForChild("WOB_Generated")
+local localPlayer = Players.LocalPlayer
 local localVisuals = Workspace:FindFirstChild("WOB_LocalVisuals")
 
 if localVisuals == nil then
@@ -124,7 +126,13 @@ local function trimOldFeedback()
 end
 
 local function showFeedback(payload)
-	if root:GetAttribute("GameState") ~= "Playing" then
+	local mode = localPlayer:GetAttribute("PlayerMode")
+	local isGameplayVisible = mode == "Lobby"
+		or mode == "QueuedForDuel"
+		or mode == "InMatch"
+		or (mode == nil and root:GetAttribute("GameState") == "Playing")
+
+	if not isGameplayVisible then
 		clearFeedback()
 		return
 	end
@@ -153,7 +161,17 @@ end
 combatFeedbackEvent.OnClientEvent:Connect(showFeedback)
 
 root:GetAttributeChangedSignal("GameState"):Connect(function()
-	if root:GetAttribute("GameState") ~= "Playing" then
+	local mode = localPlayer:GetAttribute("PlayerMode")
+
+	if mode ~= "Lobby" and mode ~= "QueuedForDuel" and mode ~= "InMatch" and root:GetAttribute("GameState") ~= "Playing" then
+		clearFeedback()
+	end
+end)
+
+localPlayer:GetAttributeChangedSignal("PlayerMode"):Connect(function()
+	local mode = localPlayer:GetAttribute("PlayerMode")
+
+	if mode ~= "Lobby" and mode ~= "QueuedForDuel" and mode ~= "InMatch" then
 		clearFeedback()
 	end
 end)

@@ -274,4 +274,16 @@ function PlayerTankSpawner.getOrCreateRuntimePlayerTank(sourceModel, parent, tan
 	return waitForTankParts(clone), true
 end
 
+function PlayerTankSpawner.getDynamicPlayerTankName(player)
+	return "PlayerTank_" .. tostring(player.UserId)
+end
+
+function PlayerTankSpawner.getOrCreatePlayerTankForPlayer(sourceModel, parent, player)
+	return PlayerTankSpawner.getOrCreateRuntimePlayerTank(
+		sourceModel,
+		parent,
+		PlayerTankSpawner.getDynamicPlayerTankName(player)
+	)
+end
+
 return PlayerTankSpawner

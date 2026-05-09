@@ -1,11 +1,13 @@
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 
 local configs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
 local ProjectileVisualConfig = require(configs:WaitForChild("ProjectileVisualConfig"))
 
 local root = Workspace:WaitForChild("WOB_Generated")
+local localPlayer = Players.LocalPlayer
 local runtime = root:WaitForChild("Runtime", 20)
 
 if runtime == nil then
@@ -64,6 +66,16 @@ local PULSE_DEDUPE_SECONDS = 0.11
 local DUMMY_HIT_RADIUS = 9.5
 
 local recentPulseByCell = {}
+
+local function isImpactVisibleForLocalPlayer()
+	local mode = localPlayer:GetAttribute("PlayerMode")
+
+	if mode == "Lobby" or mode == "QueuedForDuel" or mode == "InMatch" then
+		return true
+	end
+
+	return mode == nil and root:GetAttribute("GameState") == "Playing"
+end
 
 local function getPulseCell(position)
 	return math.floor(position.X * 2) .. ":" .. math.floor(position.Z * 2)
@@ -137,7 +149,7 @@ local function animatePulsePart(part, position, startSize, endSize, startTranspa
 end
 
 local function createPulse(position)
-	if root:GetAttribute("GameState") ~= "Playing" then
+	if not isImpactVisibleForLocalPlayer() then
 		impactFolder:ClearAllChildren()
 		return
 	end
@@ -213,13 +225,19 @@ local function isImpactSpark(instance)
 end
 
 vfxFolder.ChildAdded:Connect(function(child)
-	if root:GetAttribute("GameState") == "Playing" and isImpactSpark(child) then
+	if isImpactVisibleForLocalPlayer() and isImpactSpark(child) then
 		createPulse(child.Position)
 	end
 end)
 
 root:GetAttributeChangedSignal("GameState"):Connect(function()
-	if root:GetAttribute("GameState") ~= "Playing" then
+	if not isImpactVisibleForLocalPlayer() then
+		impactFolder:ClearAllChildren()
+	end
+end)
+
+localPlayer:GetAttributeChangedSignal("PlayerMode"):Connect(function()
+	if not isImpactVisibleForLocalPlayer() then
 		impactFolder:ClearAllChildren()
 	end
 end)
