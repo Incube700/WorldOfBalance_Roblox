@@ -214,7 +214,7 @@ end
 function TankMovementService.clampTankPosition(position)
 	return Vector3.new(
 		math.clamp(position.X, -240, 240),
-		0,
+		position.Y,
 		math.clamp(position.Z, -240, 240)
 	)
 end
