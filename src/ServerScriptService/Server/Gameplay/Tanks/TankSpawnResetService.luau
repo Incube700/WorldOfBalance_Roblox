@@ -1,5 +1,6 @@
 local TankSpawnResetService = {}
 
+local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
@@ -13,6 +14,7 @@ local primaryWeaponConfig = WeaponConfig.PrimaryWeapon
 local PLAYER_INITIAL_POSITION = TankConfig.PlayerInitialState.Position
 local DUMMY_INITIAL_POSITION = TankConfig.DummyInitialState.Position
 local PLAYER2_INITIAL_POSITION = DUMMY_INITIAL_POSITION
+local DEFAULT_LOBBY_SPAWN_Y = 46.35
 
 local TANK_ARMOR = TankConfig.Armor
 local ARMOR_HITBOX_PADDING = TANK_ARMOR.ArmorHitboxPadding or 0.75
@@ -86,6 +88,45 @@ local function makeSpawnTransform(position, yaw, source)
 		TurretYaw = yaw,
 		Source = source,
 	}
+end
+
+local function isLobbySpawnSource(source)
+	return typeof(source) == "string"
+		and (string.match(source, "^LobbySpawn%d+$") ~= nil or source == "LobbyFallback")
+end
+
+local function getLobbySpawnY(source)
+	local root = Workspace:FindFirstChild("WOB_Generated")
+	local lobby = root ~= nil and root:FindFirstChild("Lobby") or nil
+	local configuredY = lobby ~= nil and lobby:GetAttribute("LobbySpawnY") or nil
+
+	if typeof(configuredY) == "number" then
+		return configuredY
+	end
+
+	local spawnPoints = lobby ~= nil and lobby:FindFirstChild("SpawnPoints") or nil
+	local spawnPart = spawnPoints ~= nil and spawnPoints:FindFirstChild(tostring(source)) or nil
+
+	if spawnPart ~= nil and spawnPart:IsA("BasePart") then
+		return spawnPart.Position.Y
+	end
+
+	return DEFAULT_LOBBY_SPAWN_Y
+end
+
+local function normalizeSpawnStateHeight(spawnState)
+	if spawnState == nil or not isLobbySpawnSource(spawnState.Source) then
+		return spawnState
+	end
+
+	local position = spawnState.Position
+	local lobbyY = getLobbySpawnY(spawnState.Source)
+
+	return makeSpawnTransform(
+		Vector3.new(position.X, lobbyY, position.Z),
+		spawnState.BodyYaw,
+		spawnState.Source
+	)
 end
 
 local function getSpawnLabel(spawnName)
@@ -354,6 +395,7 @@ function TankSpawnResetService.darkenTank(model)
 end
 
 function TankSpawnResetService.applySpawnToParticipant(participant, spawnState)
+	spawnState = normalizeSpawnStateHeight(spawnState)
 	participant.SpawnTransform = spawnState
 	participant.Model = TankParticipantRegistry.getParticipantPhysicalModel(participant)
 	participant.PrimaryPart = assignPrimaryPart(participant.Model)
