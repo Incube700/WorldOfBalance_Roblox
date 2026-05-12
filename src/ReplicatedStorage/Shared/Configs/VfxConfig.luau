@@ -2,7 +2,7 @@ local VfxConfig = table.freeze({
 	Shot = table.freeze({
 		-- Put Roblox asset ids here later, for example: "rbxassetid://123456789".
 		-- Empty ids keep the current procedural fallback visuals.
-		SoundId = "",
+		SoundId = "rbxassetid://139771888058836",
 		SoundVolume = 0.7,
 		SoundPlaybackSpeed = 1,
 		SoundRollOffMinDistance = 8,
@@ -42,7 +42,7 @@ local VfxConfig = table.freeze({
 
 		Smoke = table.freeze({
 			Enabled = true,
-			TextureId = "",
+			TextureId = "http://www.roblox.com/asset/?id=248625108",
 			UseProceduralFallback = true,
 			EmitCount = 7,
 			ParticleLifetimeMin = 0.25,
