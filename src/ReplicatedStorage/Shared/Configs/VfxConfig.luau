@@ -2,7 +2,11 @@ local VfxConfig = table.freeze({
 	Shot = table.freeze({
 		-- Put Roblox asset ids here later, for example: "rbxassetid://123456789".
 		-- Empty ids keep the current procedural fallback visuals.
+<<<<<<< Updated upstream
 		SoundId = "rbxassetid://139771888058836",
+=======
+		SoundId = "rbxassetid://6012216349",
+>>>>>>> Stashed changes
 		SoundVolume = 0.7,
 		SoundPlaybackSpeed = 1,
 		SoundRollOffMinDistance = 8,
