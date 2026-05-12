@@ -80,8 +80,55 @@ local function createFlash(position, color, size, lifetime)
 	return flash
 end
 
-local function createMuzzleFlash(position)
-	createFlash(position, Color3.fromRGB(255, 220, 80), 3.2, 0.08)
+local function createMuzzleFlash(position, direction)
+	local flatDirection = Vector3.new(direction.X, 0, direction.Z)
+
+	if flatDirection.Magnitude < 0.001 then
+		flatDirection = Vector3.new(0, 0, -1)
+	else
+		flatDirection = flatDirection.Unit
+	end
+
+	createFlash(position, Color3.fromRGB(255, 225, 90), 4.1, 0.06)
+
+	local blast = Instance.new("Part")
+	blast.Name = "VFX_MuzzleBlast"
+	blast.Size = Vector3.new(1.7, 1.7, 6)
+	blast.Anchored = true
+	blast.CanCollide = false
+	blast.CanTouch = false
+	blast.CanQuery = false
+	blast.CastShadow = false
+	blast.Material = Enum.Material.Neon
+	blast.Color = Color3.fromRGB(255, 180, 55)
+	blast.Transparency = 0.12
+	blast.CFrame = CFrame.lookAt(position, position + flatDirection, Vector3.yAxis) * CFrame.new(0, 0, -2.6)
+	blast.Parent = vfxFolder
+
+	local light = Instance.new("PointLight")
+	light.Brightness = 4
+	light.Range = 15
+	light.Color = Color3.fromRGB(255, 205, 95)
+	light.Parent = blast
+
+	Debris:AddItem(blast, 0.075)
+
+	local smoke = Instance.new("Part")
+	smoke.Name = "VFX_MuzzleSmoke"
+	smoke.Shape = Enum.PartType.Ball
+	smoke.Size = Vector3.new(3.2, 1.2, 3.2)
+	smoke.Anchored = true
+	smoke.CanCollide = false
+	smoke.CanTouch = false
+	smoke.CanQuery = false
+	smoke.CastShadow = false
+	smoke.Material = Enum.Material.SmoothPlastic
+	smoke.Color = Color3.fromRGB(115, 115, 105)
+	smoke.Transparency = 0.55
+	smoke.CFrame = CFrame.new(position - flatDirection * 0.8 + Vector3.new(0, 0.3, 0))
+	smoke.Parent = vfxFolder
+
+	Debris:AddItem(smoke, 0.16)
 end
 
 local function createImpactFlash(position)
@@ -110,25 +157,56 @@ local function createImpactFlash(position)
 	end
 end
 
-local function createProjectilePart(position)
+local function createProjectilePart(position, direction)
 	local part = Instance.new("Part")
 	part.Name = "Projectile"
 	part.Shape = Enum.PartType.Ball
-	part.Size = Vector3.new(1.2, 1.2, 1.2)
-	part.Position = position
+	part.Size = Vector3.new(1.35, 1.35, 1.35)
+	part.CFrame = CFrame.lookAt(position, position + direction, Vector3.yAxis)
 	part.Anchored = true
 	part.CanCollide = false
 	part.CanTouch = false
 	part.CanQuery = false
 	part.CastShadow = false
 	part.Material = Enum.Material.Neon
-	part.Color = Color3.fromRGB(255, 230, 120)
+	part.Color = Color3.fromRGB(255, 235, 125)
 	part.Parent = projectileFolder
 
 	local light = Instance.new("PointLight")
-	light.Brightness = 1
-	light.Range = 6
+	light.Brightness = 2.4
+	light.Range = 10
+	light.Color = Color3.fromRGB(255, 220, 120)
 	light.Parent = part
+
+	local frontAttachment = Instance.new("Attachment")
+	frontAttachment.Name = "TrailFront"
+	frontAttachment.Position = Vector3.new(0, 0, -0.65)
+	frontAttachment.Parent = part
+
+	local backAttachment = Instance.new("Attachment")
+	backAttachment.Name = "TrailBack"
+	backAttachment.Position = Vector3.new(0, 0, 0.65)
+	backAttachment.Parent = part
+
+	local trail = Instance.new("Trail")
+	trail.Name = "ProjectileTrail"
+	trail.Attachment0 = frontAttachment
+	trail.Attachment1 = backAttachment
+	trail.Color = ColorSequence.new(
+		Color3.fromRGB(255, 245, 150),
+		Color3.fromRGB(255, 100, 35)
+	)
+	trail.Lifetime = 0.18
+	trail.MinLength = 0.05
+	trail.LightEmission = 1
+	trail.LightInfluence = 0
+	trail.FaceCamera = true
+	trail.WidthScale = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1.6),
+		NumberSequenceKeypoint.new(0.6, 0.85),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	trail.Parent = part
 
 	return part
 end
@@ -150,7 +228,8 @@ function ProjectileService.destroyAllProjectiles()
 end
 
 function ProjectileService.createProjectile(ownerParticipant, origin, direction)
-	local projectilePart = createProjectilePart(origin)
+	local flatDirection = Vector3.new(direction.X, 0, direction.Z).Unit
+	local projectilePart = createProjectilePart(origin, flatDirection)
 	local ownerTankModel = TankParticipantRegistry.getParticipantPhysicalModel(ownerParticipant)
 
 	projectilePart:SetAttribute("OwnerTankId", ownerParticipant.TankId)
@@ -175,7 +254,7 @@ function ProjectileService.createProjectile(ownerParticipant, origin, direction)
 		WeaponTypeId = ownerParticipant.WeaponTypeId,
 		WeaponConfig = ownerParticipant.WeaponConfig,
 		Position = origin,
-		Direction = Vector3.new(direction.X, 0, direction.Z).Unit,
+		Direction = flatDirection,
 		Speed = PROJECTILE_SPEED,
 		Damage = PROJECTILE_MAX_DAMAGE,
 		Penetration = PROJECTILE_PENETRATION,
@@ -195,7 +274,7 @@ function ProjectileService.createProjectile(ownerParticipant, origin, direction)
 	}
 
 	table.insert(projectiles, projectile)
-	createMuzzleFlash(origin)
+	createMuzzleFlash(origin, flatDirection)
 end
 
 function ProjectileService.tryShoot(participant, direction)
@@ -329,7 +408,7 @@ function ProjectileService.updateProjectiles(deltaTime)
 		else
 			projectile.Position += projectile.Direction * distance
 			if projectile.Part then
-				projectile.Part.Position = projectile.Position
+				projectile.Part.CFrame = CFrame.lookAt(projectile.Position, projectile.Position + projectile.Direction, Vector3.yAxis)
 			end
 		end
 	end
