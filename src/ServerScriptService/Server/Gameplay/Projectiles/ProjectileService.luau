@@ -40,7 +40,7 @@ local callbacks = {
 	getGameState = nil,
 	getRoundState = nil,
 	damageParticipant = nil,
-	getPlayerParticipant = nil, -- legacy support
+	getPlayerParticipant = nil,
 	canParticipantShoot = nil,
 	isNoDamageProjectile = nil,
 	shouldRecordShot = nil,
@@ -52,7 +52,6 @@ function ProjectileService.init(orchestratorRoot, projFolder, effectsFolder, opt
 	projectileFolder = projFolder
 	vfxFolder = effectsFolder
 	callbacks = options
-
 	projectileRaycastParams = RaycastParams.new()
 	projectileRaycastParams.FilterType = Enum.RaycastFilterType.Include
 	projectileRaycastParams.IgnoreWater = true
@@ -63,10 +62,7 @@ function ProjectileService.setMapRaycastTargets(targets)
 end
 
 local function createFlash(position, config)
-	if config == nil or config.Enabled ~= true then
-		return nil
-	end
-
+	if config == nil or config.Enabled ~= true then return nil end
 	local flash = Instance.new("Part")
 	flash.Name = "VFX_Flash"
 	flash.Shape = Enum.PartType.Ball
@@ -80,40 +76,44 @@ local function createFlash(position, config)
 	flash.Material = Enum.Material.Neon
 	flash.Color = config.Color
 	flash.Parent = vfxFolder
-
 	Debris:AddItem(flash, config.Lifetime)
-
 	return flash
 end
 
-local function createShotSound(parent)
-	if shotVfxConfig.SoundId == nil or shotVfxConfig.SoundId == "" then
-		return
-	end
-
+local function createShotSound(position)
+	if shotVfxConfig.SoundId == nil or shotVfxConfig.SoundId == "" then return end
+	local emitter = Instance.new("Part")
+	emitter.Name = "SFX_CannonShotEmitter"
+	emitter.Size = Vector3.new(0.2, 0.2, 0.2)
+	emitter.Position = position
+	emitter.Anchored = true
+	emitter.CanCollide = false
+	emitter.CanTouch = false
+	emitter.CanQuery = false
+	emitter.CastShadow = false
+	emitter.Transparency = 1
+	emitter.Parent = vfxFolder
 	local sound = Instance.new("Sound")
 	sound.Name = "SFX_CannonShot"
 	sound.SoundId = shotVfxConfig.SoundId
 	sound.Volume = shotVfxConfig.SoundVolume or 0.7
 	sound.PlaybackSpeed = shotVfxConfig.SoundPlaybackSpeed or 1
 	sound.RollOffMaxDistance = shotVfxConfig.SoundRollOffMaxDistance or 180
-	sound.Parent = parent
+	sound.RollOffMinDistance = shotVfxConfig.SoundRollOffMinDistance or 8
+	sound.Parent = emitter
 	sound:Play()
-
-	Debris:AddItem(sound, 4)
+	Debris:AddItem(emitter, shotVfxConfig.SoundLifetime or 4)
 end
 
 local function createMuzzleFlash(position, direction)
 	local flatDirection = Vector3.new(direction.X, 0, direction.Z)
-
 	if flatDirection.Magnitude < 0.001 then
 		flatDirection = Vector3.new(0, 0, -1)
 	else
 		flatDirection = flatDirection.Unit
 	end
-
+	createShotSound(position)
 	createFlash(position, shotVfxConfig.MuzzleFlash)
-
 	local blastConfig = shotVfxConfig.MuzzleBlast
 	if blastConfig ~= nil and blastConfig.Enabled == true then
 		local blast = Instance.new("Part")
@@ -127,20 +127,15 @@ local function createMuzzleFlash(position, direction)
 		blast.Material = Enum.Material.Neon
 		blast.Color = blastConfig.Color
 		blast.Transparency = blastConfig.Transparency
-		blast.CFrame = CFrame.lookAt(position, position + flatDirection, Vector3.yAxis)
-			* CFrame.new(0, 0, -(blastConfig.ForwardOffset or 2.6))
+		blast.CFrame = CFrame.lookAt(position, position + flatDirection, Vector3.yAxis) * CFrame.new(0, 0, -(blastConfig.ForwardOffset or 2.6))
 		blast.Parent = vfxFolder
-
 		local light = Instance.new("PointLight")
 		light.Brightness = blastConfig.LightBrightness or 4
 		light.Range = blastConfig.LightRange or 15
 		light.Color = blastConfig.LightColor or Color3.fromRGB(255, 205, 95)
 		light.Parent = blast
-
-		createShotSound(blast)
 		Debris:AddItem(blast, blastConfig.Lifetime or 0.075)
 	end
-
 	local smokeConfig = shotVfxConfig.Smoke
 	if smokeConfig ~= nil and smokeConfig.Enabled == true then
 		local smoke = Instance.new("Part")
@@ -155,25 +150,16 @@ local function createMuzzleFlash(position, direction)
 		smoke.Material = Enum.Material.SmoothPlastic
 		smoke.Color = smokeConfig.Color
 		smoke.Transparency = smokeConfig.Transparency
-		smoke.CFrame = CFrame.new(
-			position
-				- flatDirection * (smokeConfig.BackwardOffset or 0.8)
-				+ Vector3.new(0, smokeConfig.UpOffset or 0.3, 0)
-		)
+		smoke.CFrame = CFrame.new(position - flatDirection * (smokeConfig.BackwardOffset or 0.8) + Vector3.new(0, smokeConfig.UpOffset or 0.3, 0))
 		smoke.Parent = vfxFolder
-
 		Debris:AddItem(smoke, smokeConfig.Lifetime or 0.16)
 	end
 end
 
 local function createImpactFlash(position)
 	createFlash(position, shotVfxConfig.ImpactFlash)
-
 	local sparkConfig = shotVfxConfig.ImpactSparks
-	if sparkConfig == nil or sparkConfig.Enabled ~= true then
-		return
-	end
-
+	if sparkConfig == nil or sparkConfig.Enabled ~= true then return end
 	for _ = 1, sparkConfig.Count or 3 do
 		local spark = Instance.new("Part")
 		spark.Name = "VFX_Spark"
@@ -186,13 +172,8 @@ local function createImpactFlash(position)
 		spark.CastShadow = false
 		spark.Material = Enum.Material.Neon
 		spark.Color = sparkConfig.Color
-		spark.CFrame = CFrame.new(position) * CFrame.Angles(
-			math.random() * math.pi,
-			math.random() * math.pi,
-			math.random() * math.pi
-		)
+		spark.CFrame = CFrame.new(position) * CFrame.Angles(math.random() * math.pi, math.random() * math.pi, math.random() * math.pi)
 		spark.Parent = vfxFolder
-
 		Debris:AddItem(spark, sparkConfig.Lifetime or 0.12)
 	end
 end
@@ -212,23 +193,19 @@ local function createProjectilePart(position, direction)
 	part.Material = Enum.Material.Neon
 	part.Color = visualConfig.Color
 	part.Parent = projectileFolder
-
 	local light = Instance.new("PointLight")
 	light.Brightness = visualConfig.LightBrightness or 2.4
 	light.Range = visualConfig.LightRange or 10
 	light.Color = visualConfig.LightColor or Color3.fromRGB(255, 220, 120)
 	light.Parent = part
-
 	local frontAttachment = Instance.new("Attachment")
 	frontAttachment.Name = "TrailFront"
 	frontAttachment.Position = Vector3.new(0, 0, visualConfig.TrailFrontOffset or -0.65)
 	frontAttachment.Parent = part
-
 	local backAttachment = Instance.new("Attachment")
 	backAttachment.Name = "TrailBack"
 	backAttachment.Position = Vector3.new(0, 0, visualConfig.TrailBackOffset or 0.65)
 	backAttachment.Parent = part
-
 	local trail = Instance.new("Trail")
 	trail.Name = "ProjectileTrail"
 	trail.Attachment0 = frontAttachment
@@ -245,7 +222,6 @@ local function createProjectilePart(position, direction)
 		NumberSequenceKeypoint.new(1, 0),
 	})
 	trail.Parent = part
-
 	return part
 end
 
@@ -254,7 +230,6 @@ function ProjectileService.destroyProjectile(projectile)
 		projectile.Part:Destroy()
 		projectile.Part = nil
 	end
-
 	projectile.Destroyed = true
 end
 
@@ -269,16 +244,13 @@ function ProjectileService.createProjectile(ownerParticipant, origin, direction)
 	local flatDirection = Vector3.new(direction.X, 0, direction.Z).Unit
 	local projectilePart = createProjectilePart(origin, flatDirection)
 	local ownerTankModel = TankParticipantRegistry.getParticipantPhysicalModel(ownerParticipant)
-
 	projectilePart:SetAttribute("OwnerTankId", ownerParticipant.TankId)
 	projectilePart:SetAttribute("OwnerTeamId", ownerParticipant.TeamId)
 	projectilePart:SetAttribute("OwnerIsBot", ownerParticipant.IsBot)
 	projectilePart:SetAttribute("WeaponTypeId", ownerParticipant.WeaponTypeId)
-
 	if ownerParticipant.OwnerUserId ~= nil then
 		projectilePart:SetAttribute("OwnerUserId", ownerParticipant.OwnerUserId)
 	end
-
 	local projectile = {
 		Owner = ownerParticipant.OwnerPlayer,
 		OwnerPlayer = ownerParticipant.OwnerPlayer,
@@ -310,136 +282,85 @@ function ProjectileService.createProjectile(ownerParticipant, origin, direction)
 		NoDamage = callbacks.isNoDamageProjectile ~= nil and callbacks.isNoDamageProjectile(ownerParticipant) == true,
 		NoStats = callbacks.isNoDamageProjectile ~= nil and callbacks.isNoDamageProjectile(ownerParticipant) == true,
 	}
-
 	table.insert(projectiles, projectile)
 	createMuzzleFlash(origin, flatDirection)
 end
 
 function ProjectileService.tryShoot(participant, direction)
 	if callbacks.canParticipantShoot ~= nil then
-		if callbacks.canParticipantShoot(participant) ~= true then
-			return false
-		end
+		if callbacks.canParticipantShoot(participant) ~= true then return false end
 	elseif callbacks.getGameState() ~= "Playing" or (callbacks.getRoundState() and callbacks.getRoundState().Ended) then
 		return false
 	end
-
 	if participant.ShootPoint == nil or participant.ShootPoint.Parent == nil then
 		warn("[PROJECTILE] Shoot ignored: " .. participant.TankId .. " has no ShootPoint")
 		return false
 	end
-
 	local flatDirection = Vector3.new(direction.X, 0, direction.Z)
-
-	if flatDirection.Magnitude < 0.001 then
-		return false
-	end
-
+	if flatDirection.Magnitude < 0.001 then return false end
 	local currentTime = os.clock()
 	local cooldown = participant.WeaponConfig.ShootCooldown or SHOOT_COOLDOWN
 	local lastShotTime = participant.LastShotTime or 0
-
-	if currentTime - lastShotTime < cooldown then
-		return false
-	end
-
+	if currentTime - lastShotTime < cooldown then return false end
 	participant.LastShotTime = currentTime
 	participant.WeaponReadyAt = currentTime + cooldown
 	participant.WeaponState.LastShotTime = participant.LastShotTime
 	participant.WeaponState.WeaponReadyAt = participant.WeaponReadyAt
-
 	ProjectileService.createProjectile(participant, participant.ShootPoint.Position, flatDirection.Unit)
-
 	if callbacks.shouldRecordShot == nil or callbacks.shouldRecordShot(participant) == true then
 		MatchStatsService.recordShotFired(participant)
 	end
-
 	return true
 end
 
 local function getProjectileRaycastTargets(projectile)
 	local targets = table.clone(projectileMapRaycastTargets)
-
 	for _, participant in ipairs(TankParticipantRegistry.getParticipants()) do
 		local physicalModel = TankParticipantRegistry.getParticipantPhysicalModel(participant)
 		local hitboxes = participant.Hitboxes
-
 		if (hitboxes == nil or hitboxes.Parent == nil) and physicalModel ~= nil then
 			hitboxes = physicalModel:FindFirstChild("Hitboxes", true)
 			participant.Hitboxes = hitboxes
 		end
-
-		if participant.IsActive ~= false
-			and hitboxes ~= nil
-			and (participant ~= projectile.OwnerParticipant or projectile.CanHitOwner)
-		then
+		if participant.IsActive ~= false and hitboxes ~= nil and (participant ~= projectile.OwnerParticipant or projectile.CanHitOwner) then
 			table.insert(targets, hitboxes)
 		end
 	end
-
 	return targets
 end
 
 function ProjectileService.updateProjectiles(deltaTime)
-	if callbacks.areProjectilesEnabled ~= nil and callbacks.areProjectilesEnabled() ~= true then
-		return
-	end
-
+	if callbacks.areProjectilesEnabled ~= nil and callbacks.areProjectilesEnabled() ~= true then return end
 	for i = #projectiles, 1, -1 do
 		local projectile = projectiles[i]
-
 		if projectile.Destroyed then
 			table.remove(projectiles, i)
 			continue
 		end
-
 		projectile.LifeTime += deltaTime
-
 		if projectile.LifeTime >= projectile.MaxLifeTime then
 			ProjectileService.destroyProjectile(projectile)
 			table.remove(projectiles, i)
 			continue
 		end
-
 		local distance = projectile.Speed * deltaTime
 		projectileRaycastParams.FilterDescendantsInstances = getProjectileRaycastTargets(projectile)
-
-		local result = Workspace:Raycast(
-			projectile.Position,
-			projectile.Direction * distance,
-			projectileRaycastParams
-		)
-
+		local result = Workspace:Raycast(projectile.Position, projectile.Direction * distance, projectileRaycastParams)
 		if result ~= nil then
-			local hitInstance = result.Instance
-			local hitPosition = result.Position
-			local hitNormal = result.Normal
-			local targetParticipant = TankParticipantRegistry.getParticipantFromArmorHitbox(hitInstance)
-			local armorZone = TankParticipantRegistry.getArmorZoneFromHitbox(hitInstance)
-
+			local targetParticipant = TankParticipantRegistry.getParticipantFromArmorHitbox(result.Instance)
+			local armorZone = TankParticipantRegistry.getArmorZoneFromHitbox(result.Instance)
 			if targetParticipant ~= nil then
-				local destroyed = ProjectileCombatService.handleProjectileTankHit(
-					projectile,
-					targetParticipant,
-					hitPosition,
-					hitNormal,
-					armorZone,
-					{
-						roundState = callbacks.getRoundState(),
-					}
-				)
-
-				if destroyed then
-					table.remove(projectiles, i)
-				end
+				local destroyed = ProjectileCombatService.handleProjectileTankHit(projectile, targetParticipant, result.Position, result.Normal, armorZone, {
+					roundState = callbacks.getRoundState(),
+				})
+				if destroyed then table.remove(projectiles, i) end
 			else
-				createImpactFlash(hitPosition)
-
+				createImpactFlash(result.Position)
 				if projectile.BounceCount >= projectile.MaxBounces then
 					ProjectileService.destroyProjectile(projectile)
 					table.remove(projectiles, i)
 				else
-					ProjectileCombatService.applyProjectileRicochet(projectile, hitPosition, hitNormal)
+					ProjectileCombatService.applyProjectileRicochet(projectile, result.Position, result.Normal)
 					ProjectileCombatService.printBounce(projectile)
 				end
 			end
