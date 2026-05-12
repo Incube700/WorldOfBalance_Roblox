@@ -7,6 +7,7 @@ local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local ProjectileCatalog = require(configs:WaitForChild("ProjectileCatalog"))
 local WeaponConfig = require(configs:WaitForChild("WeaponConfig"))
+local VfxConfig = require(configs:WaitForChild("VfxConfig"))
 
 local TankParticipantRegistry = require(script.Parent.Parent:WaitForChild("TankParticipantRegistry"))
 local ProjectileCombatService = require(script.Parent.Parent:WaitForChild("Combat"):WaitForChild("ProjectileCombatService"))
@@ -16,6 +17,7 @@ local primaryWeaponConfig = WeaponConfig.PrimaryWeapon
 local projectileTypeId = primaryWeaponConfig.ProjectileTypeId or ProjectileCatalog.DefaultProjectileTypeId
 local projectileConfig = ProjectileCatalog.Projectiles[projectileTypeId]
 	or ProjectileCatalog.Projectiles[ProjectileCatalog.DefaultProjectileTypeId]
+local shotVfxConfig = VfxConfig.Shot
 
 local PROJECTILE_SPEED = projectileConfig.Speed
 local PROJECTILE_MAX_DAMAGE = projectileConfig.MaxDamage
@@ -60,11 +62,15 @@ function ProjectileService.setMapRaycastTargets(targets)
 	projectileMapRaycastTargets = targets
 end
 
-local function createFlash(position, color, size, lifetime)
+local function createFlash(position, config)
+	if config == nil or config.Enabled ~= true then
+		return nil
+	end
+
 	local flash = Instance.new("Part")
 	flash.Name = "VFX_Flash"
 	flash.Shape = Enum.PartType.Ball
-	flash.Size = Vector3.new(size, size, size)
+	flash.Size = Vector3.new(config.Size, config.Size, config.Size)
 	flash.Position = position
 	flash.Anchored = true
 	flash.CanCollide = false
@@ -72,12 +78,29 @@ local function createFlash(position, color, size, lifetime)
 	flash.CanQuery = false
 	flash.CastShadow = false
 	flash.Material = Enum.Material.Neon
-	flash.Color = color
+	flash.Color = config.Color
 	flash.Parent = vfxFolder
 
-	Debris:AddItem(flash, lifetime)
+	Debris:AddItem(flash, config.Lifetime)
 
 	return flash
+end
+
+local function createShotSound(parent)
+	if shotVfxConfig.SoundId == nil or shotVfxConfig.SoundId == "" then
+		return
+	end
+
+	local sound = Instance.new("Sound")
+	sound.Name = "SFX_CannonShot"
+	sound.SoundId = shotVfxConfig.SoundId
+	sound.Volume = shotVfxConfig.SoundVolume or 0.7
+	sound.PlaybackSpeed = shotVfxConfig.SoundPlaybackSpeed or 1
+	sound.RollOffMaxDistance = shotVfxConfig.SoundRollOffMaxDistance or 180
+	sound.Parent = parent
+	sound:Play()
+
+	Debris:AddItem(sound, 4)
 end
 
 local function createMuzzleFlash(position, direction)
@@ -89,55 +112,72 @@ local function createMuzzleFlash(position, direction)
 		flatDirection = flatDirection.Unit
 	end
 
-	createFlash(position, Color3.fromRGB(255, 225, 90), 4.1, 0.06)
+	createFlash(position, shotVfxConfig.MuzzleFlash)
 
-	local blast = Instance.new("Part")
-	blast.Name = "VFX_MuzzleBlast"
-	blast.Size = Vector3.new(1.7, 1.7, 6)
-	blast.Anchored = true
-	blast.CanCollide = false
-	blast.CanTouch = false
-	blast.CanQuery = false
-	blast.CastShadow = false
-	blast.Material = Enum.Material.Neon
-	blast.Color = Color3.fromRGB(255, 180, 55)
-	blast.Transparency = 0.12
-	blast.CFrame = CFrame.lookAt(position, position + flatDirection, Vector3.yAxis) * CFrame.new(0, 0, -2.6)
-	blast.Parent = vfxFolder
+	local blastConfig = shotVfxConfig.MuzzleBlast
+	if blastConfig ~= nil and blastConfig.Enabled == true then
+		local blast = Instance.new("Part")
+		blast.Name = "VFX_MuzzleBlast"
+		blast.Size = blastConfig.Size
+		blast.Anchored = true
+		blast.CanCollide = false
+		blast.CanTouch = false
+		blast.CanQuery = false
+		blast.CastShadow = false
+		blast.Material = Enum.Material.Neon
+		blast.Color = blastConfig.Color
+		blast.Transparency = blastConfig.Transparency
+		blast.CFrame = CFrame.lookAt(position, position + flatDirection, Vector3.yAxis)
+			* CFrame.new(0, 0, -(blastConfig.ForwardOffset or 2.6))
+		blast.Parent = vfxFolder
 
-	local light = Instance.new("PointLight")
-	light.Brightness = 4
-	light.Range = 15
-	light.Color = Color3.fromRGB(255, 205, 95)
-	light.Parent = blast
+		local light = Instance.new("PointLight")
+		light.Brightness = blastConfig.LightBrightness or 4
+		light.Range = blastConfig.LightRange or 15
+		light.Color = blastConfig.LightColor or Color3.fromRGB(255, 205, 95)
+		light.Parent = blast
 
-	Debris:AddItem(blast, 0.075)
+		createShotSound(blast)
+		Debris:AddItem(blast, blastConfig.Lifetime or 0.075)
+	end
 
-	local smoke = Instance.new("Part")
-	smoke.Name = "VFX_MuzzleSmoke"
-	smoke.Shape = Enum.PartType.Ball
-	smoke.Size = Vector3.new(3.2, 1.2, 3.2)
-	smoke.Anchored = true
-	smoke.CanCollide = false
-	smoke.CanTouch = false
-	smoke.CanQuery = false
-	smoke.CastShadow = false
-	smoke.Material = Enum.Material.SmoothPlastic
-	smoke.Color = Color3.fromRGB(115, 115, 105)
-	smoke.Transparency = 0.55
-	smoke.CFrame = CFrame.new(position - flatDirection * 0.8 + Vector3.new(0, 0.3, 0))
-	smoke.Parent = vfxFolder
+	local smokeConfig = shotVfxConfig.Smoke
+	if smokeConfig ~= nil and smokeConfig.Enabled == true then
+		local smoke = Instance.new("Part")
+		smoke.Name = "VFX_MuzzleSmoke"
+		smoke.Shape = Enum.PartType.Ball
+		smoke.Size = smokeConfig.Size
+		smoke.Anchored = true
+		smoke.CanCollide = false
+		smoke.CanTouch = false
+		smoke.CanQuery = false
+		smoke.CastShadow = false
+		smoke.Material = Enum.Material.SmoothPlastic
+		smoke.Color = smokeConfig.Color
+		smoke.Transparency = smokeConfig.Transparency
+		smoke.CFrame = CFrame.new(
+			position
+				- flatDirection * (smokeConfig.BackwardOffset or 0.8)
+				+ Vector3.new(0, smokeConfig.UpOffset or 0.3, 0)
+		)
+		smoke.Parent = vfxFolder
 
-	Debris:AddItem(smoke, 0.16)
+		Debris:AddItem(smoke, smokeConfig.Lifetime or 0.16)
+	end
 end
 
 local function createImpactFlash(position)
-	createFlash(position, Color3.fromRGB(255, 130, 40), 2.5, 0.12)
+	createFlash(position, shotVfxConfig.ImpactFlash)
 
-	for i = 1, 3 do
+	local sparkConfig = shotVfxConfig.ImpactSparks
+	if sparkConfig == nil or sparkConfig.Enabled ~= true then
+		return
+	end
+
+	for _ = 1, sparkConfig.Count or 3 do
 		local spark = Instance.new("Part")
 		spark.Name = "VFX_Spark"
-		spark.Size = Vector3.new(0.25, 0.25, 1.2)
+		spark.Size = sparkConfig.Size
 		spark.Position = position
 		spark.Anchored = true
 		spark.CanCollide = false
@@ -145,7 +185,7 @@ local function createImpactFlash(position)
 		spark.CanQuery = false
 		spark.CastShadow = false
 		spark.Material = Enum.Material.Neon
-		spark.Color = Color3.fromRGB(255, 200, 90)
+		spark.Color = sparkConfig.Color
 		spark.CFrame = CFrame.new(position) * CFrame.Angles(
 			math.random() * math.pi,
 			math.random() * math.pi,
@@ -153,15 +193,16 @@ local function createImpactFlash(position)
 		)
 		spark.Parent = vfxFolder
 
-		Debris:AddItem(spark, 0.12)
+		Debris:AddItem(spark, sparkConfig.Lifetime or 0.12)
 	end
 end
 
 local function createProjectilePart(position, direction)
+	local visualConfig = shotVfxConfig.Projectile
 	local part = Instance.new("Part")
 	part.Name = "Projectile"
 	part.Shape = Enum.PartType.Ball
-	part.Size = Vector3.new(1.35, 1.35, 1.35)
+	part.Size = Vector3.new(visualConfig.Size, visualConfig.Size, visualConfig.Size)
 	part.CFrame = CFrame.lookAt(position, position + direction, Vector3.yAxis)
 	part.Anchored = true
 	part.CanCollide = false
@@ -169,41 +210,38 @@ local function createProjectilePart(position, direction)
 	part.CanQuery = false
 	part.CastShadow = false
 	part.Material = Enum.Material.Neon
-	part.Color = Color3.fromRGB(255, 235, 125)
+	part.Color = visualConfig.Color
 	part.Parent = projectileFolder
 
 	local light = Instance.new("PointLight")
-	light.Brightness = 2.4
-	light.Range = 10
-	light.Color = Color3.fromRGB(255, 220, 120)
+	light.Brightness = visualConfig.LightBrightness or 2.4
+	light.Range = visualConfig.LightRange or 10
+	light.Color = visualConfig.LightColor or Color3.fromRGB(255, 220, 120)
 	light.Parent = part
 
 	local frontAttachment = Instance.new("Attachment")
 	frontAttachment.Name = "TrailFront"
-	frontAttachment.Position = Vector3.new(0, 0, -0.65)
+	frontAttachment.Position = Vector3.new(0, 0, visualConfig.TrailFrontOffset or -0.65)
 	frontAttachment.Parent = part
 
 	local backAttachment = Instance.new("Attachment")
 	backAttachment.Name = "TrailBack"
-	backAttachment.Position = Vector3.new(0, 0, 0.65)
+	backAttachment.Position = Vector3.new(0, 0, visualConfig.TrailBackOffset or 0.65)
 	backAttachment.Parent = part
 
 	local trail = Instance.new("Trail")
 	trail.Name = "ProjectileTrail"
 	trail.Attachment0 = frontAttachment
 	trail.Attachment1 = backAttachment
-	trail.Color = ColorSequence.new(
-		Color3.fromRGB(255, 245, 150),
-		Color3.fromRGB(255, 100, 35)
-	)
-	trail.Lifetime = 0.18
+	trail.Color = ColorSequence.new(visualConfig.TrailColorStart, visualConfig.TrailColorEnd)
+	trail.Lifetime = visualConfig.TrailLifetime or 0.18
 	trail.MinLength = 0.05
 	trail.LightEmission = 1
 	trail.LightInfluence = 0
 	trail.FaceCamera = true
 	trail.WidthScale = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 1.6),
-		NumberSequenceKeypoint.new(0.6, 0.85),
+		NumberSequenceKeypoint.new(0, visualConfig.TrailWidthStart or 1.6),
+		NumberSequenceKeypoint.new(0.6, visualConfig.TrailWidthMid or 0.85),
 		NumberSequenceKeypoint.new(1, 0),
 	})
 	trail.Parent = part
@@ -414,7 +452,6 @@ function ProjectileService.updateProjectiles(deltaTime)
 	end
 end
 
--- Export VFX helpers for combat service if needed
 function ProjectileService.getVFXHelpers()
 	return {
 		createImpactFlash = createImpactFlash,
