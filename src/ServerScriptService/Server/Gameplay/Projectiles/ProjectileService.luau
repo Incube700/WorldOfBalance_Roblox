@@ -61,8 +61,68 @@ function ProjectileService.setMapRaycastTargets(targets)
 	projectileMapRaycastTargets = targets
 end
 
-local function createFlash(position, config)
+local function hasTexture(config)
+	return config ~= nil and typeof(config.TextureId) == "string" and config.TextureId ~= ""
+end
+
+local function getParticleContainerLifetime(config)
+	return math.max(
+		config.ParticleLifetimeMax or config.Lifetime or 0.2,
+		config.Lifetime or 0.2
+	) + 0.25
+end
+
+local function createParticleBurst(position, direction, config, name)
+	if config == nil or config.Enabled ~= true or not hasTexture(config) then
+		return false
+	end
+
+	local holder = Instance.new("Part")
+	holder.Name = name or "VFX_ParticleBurst"
+	holder.Size = Vector3.new(0.2, 0.2, 0.2)
+	holder.CFrame = CFrame.lookAt(position, position + direction, Vector3.yAxis)
+	holder.Anchored = true
+	holder.CanCollide = false
+	holder.CanTouch = false
+	holder.CanQuery = false
+	holder.CastShadow = false
+	holder.Transparency = 1
+	holder.Parent = vfxFolder
+
+	local attachment = Instance.new("Attachment")
+	attachment.Name = "VFXAttachment"
+	attachment.Parent = holder
+
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Name = "Emitter"
+	emitter.Enabled = false
+	emitter.Texture = config.TextureId
+	emitter.Color = ColorSequence.new(config.Color or Color3.new(1, 1, 1))
+	emitter.LightEmission = config.LightEmission or 0.7
+	emitter.LightInfluence = config.LightInfluence or 0
+	emitter.Lifetime = NumberRange.new(config.ParticleLifetimeMin or 0.1, config.ParticleLifetimeMax or 0.2)
+	emitter.Speed = NumberRange.new(config.ParticleSpeedMin or 0, config.ParticleSpeedMax or 0)
+	emitter.SpreadAngle = config.ParticleSpreadAngle or Vector2.new(180, 180)
+	emitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, config.ParticleSizeStart or 1),
+		NumberSequenceKeypoint.new(1, config.ParticleSizeEnd or 0),
+	})
+	emitter.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, config.ParticleTransparencyStart or 0),
+		NumberSequenceKeypoint.new(1, config.ParticleTransparencyEnd or 1),
+	})
+	emitter.Parent = attachment
+	emitter:Emit(config.EmitCount or 1)
+
+	Debris:AddItem(holder, getParticleContainerLifetime(config))
+	return true
+end
+
+local function createFlash(position, config, name)
 	if config == nil or config.Enabled ~= true then return nil end
+	if createParticleBurst(position, Vector3.new(0, 0, -1), config, name) and config.UseProceduralFallback ~= true then
+		return nil
+	end
 	local flash = Instance.new("Part")
 	flash.Name = "VFX_Flash"
 	flash.Shape = Enum.PartType.Ball
@@ -113,7 +173,7 @@ local function createMuzzleFlash(position, direction)
 		flatDirection = flatDirection.Unit
 	end
 	createShotSound(position)
-	createFlash(position, shotVfxConfig.MuzzleFlash)
+	createFlash(position, shotVfxConfig.MuzzleFlash, "VFX_MuzzleParticleFlash")
 	local blastConfig = shotVfxConfig.MuzzleBlast
 	if blastConfig ~= nil and blastConfig.Enabled == true then
 		local blast = Instance.new("Part")
@@ -138,28 +198,34 @@ local function createMuzzleFlash(position, direction)
 	end
 	local smokeConfig = shotVfxConfig.Smoke
 	if smokeConfig ~= nil and smokeConfig.Enabled == true then
-		local smoke = Instance.new("Part")
-		smoke.Name = "VFX_MuzzleSmoke"
-		smoke.Shape = Enum.PartType.Ball
-		smoke.Size = smokeConfig.Size
-		smoke.Anchored = true
-		smoke.CanCollide = false
-		smoke.CanTouch = false
-		smoke.CanQuery = false
-		smoke.CastShadow = false
-		smoke.Material = Enum.Material.SmoothPlastic
-		smoke.Color = smokeConfig.Color
-		smoke.Transparency = smokeConfig.Transparency
-		smoke.CFrame = CFrame.new(position - flatDirection * (smokeConfig.BackwardOffset or 0.8) + Vector3.new(0, smokeConfig.UpOffset or 0.3, 0))
-		smoke.Parent = vfxFolder
-		Debris:AddItem(smoke, smokeConfig.Lifetime or 0.16)
+		local smokePosition = position - flatDirection * (smokeConfig.BackwardOffset or 0.8) + Vector3.new(0, smokeConfig.UpOffset or 0.3, 0)
+		local particleHandled = createParticleBurst(smokePosition, -flatDirection, smokeConfig, "VFX_MuzzleParticleSmoke")
+		if not particleHandled or smokeConfig.UseProceduralFallback == true then
+			local smoke = Instance.new("Part")
+			smoke.Name = "VFX_MuzzleSmoke"
+			smoke.Shape = Enum.PartType.Ball
+			smoke.Size = smokeConfig.Size
+			smoke.Anchored = true
+			smoke.CanCollide = false
+			smoke.CanTouch = false
+			smoke.CanQuery = false
+			smoke.CastShadow = false
+			smoke.Material = Enum.Material.SmoothPlastic
+			smoke.Color = smokeConfig.Color
+			smoke.Transparency = smokeConfig.Transparency
+			smoke.CFrame = CFrame.new(smokePosition)
+			smoke.Parent = vfxFolder
+			Debris:AddItem(smoke, smokeConfig.Lifetime or 0.16)
+		end
 	end
 end
 
 local function createImpactFlash(position)
-	createFlash(position, shotVfxConfig.ImpactFlash)
+	createFlash(position, shotVfxConfig.ImpactFlash, "VFX_ImpactParticleFlash")
 	local sparkConfig = shotVfxConfig.ImpactSparks
 	if sparkConfig == nil or sparkConfig.Enabled ~= true then return end
+	local particleHandled = createParticleBurst(position, Vector3.new(0, 1, 0), sparkConfig, "VFX_ImpactParticleSparks")
+	if particleHandled and sparkConfig.UseProceduralFallback ~= true then return end
 	for _ = 1, sparkConfig.Count or 3 do
 		local spark = Instance.new("Part")
 		spark.Name = "VFX_Spark"
@@ -376,7 +442,7 @@ end
 function ProjectileService.getVFXHelpers()
 	return {
 		createImpactFlash = createImpactFlash,
-		destroyProjectile = ProjectileService.destroyProjectile,
+	destroyProjectile = ProjectileService.destroyProjectile,
 	}
 end
 
