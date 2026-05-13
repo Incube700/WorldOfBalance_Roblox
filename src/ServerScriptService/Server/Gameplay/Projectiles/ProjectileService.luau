@@ -512,6 +512,14 @@ function ProjectileService.createProjectile(ownerParticipant, origin, direction)
 end
 
 function ProjectileService.tryShoot(participant, direction)
+	if participant == nil
+		or participant.IsControllable == false
+		or participant.CanShoot == false
+		or TankParticipantRegistry.getParticipantIsDead(participant)
+	then
+		return false
+	end
+
 	if callbacks.canParticipantShoot ~= nil then
 		if callbacks.canParticipantShoot(participant) ~= true then return false end
 	elseif callbacks.getGameState() ~= "Playing" or (callbacks.getRoundState() and callbacks.getRoundState().Ended) then

@@ -98,17 +98,17 @@ end
 local function getLobbySpawnY(source)
 	local root = Workspace:FindFirstChild("WOB_Generated")
 	local lobby = root ~= nil and root:FindFirstChild("Lobby") or nil
-	local configuredY = lobby ~= nil and lobby:GetAttribute("LobbySpawnY") or nil
-
-	if typeof(configuredY) == "number" then
-		return configuredY
-	end
-
 	local spawnPoints = lobby ~= nil and lobby:FindFirstChild("SpawnPoints") or nil
 	local spawnPart = spawnPoints ~= nil and spawnPoints:FindFirstChild(tostring(source)) or nil
 
 	if spawnPart ~= nil and spawnPart:IsA("BasePart") then
 		return spawnPart.Position.Y
+	end
+
+	local configuredY = lobby ~= nil and lobby:GetAttribute("LobbySpawnY") or nil
+
+	if typeof(configuredY) == "number" then
+		return configuredY
 	end
 
 	return DEFAULT_LOBBY_SPAWN_Y

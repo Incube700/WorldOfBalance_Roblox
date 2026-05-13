@@ -102,6 +102,24 @@ local function refreshOwnedTank()
 	end
 end
 
+local function isOwnedTankControllable(requireShoot)
+	if ownedTank == nil or ownedTank.Parent == nil then
+		return false
+	end
+
+	if ownedTank:GetAttribute("IsDead") == true
+		or ownedTank:GetAttribute("IsControllable") == false
+	then
+		return false
+	end
+
+	if requireShoot then
+		return ownedTank:GetAttribute("CanShoot") ~= false
+	end
+
+	return ownedTank:GetAttribute("CanMove") ~= false
+end
+
 local function isInputEnabled()
 	local mode = localPlayer:GetAttribute("PlayerMode")
 
@@ -176,6 +194,10 @@ local function sendTankInput()
 		return
 	end
 
+	if not isOwnedTankControllable(false) then
+		return
+	end
+
 	local throttle, steer = getKeyboardAxis()
 	local aimPos = getAimPosition()
 
@@ -206,6 +228,10 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
 		refreshOwnedTank()
 
 		if ownedTank == nil then
+			return
+		end
+
+		if not isOwnedTankControllable(true) then
 			return
 		end
 

@@ -9,6 +9,7 @@ local configs = shared:WaitForChild("Configs")
 local utils = shared:WaitForChild("Utils")
 local WeaponConfig = require(configs:WaitForChild("WeaponConfig"))
 local HudConfig = require(configs:WaitForChild("HudConfig"))
+local MatchConfig = require(configs:WaitForChild("MatchConfig"))
 local TankModelResolver = require(utils:WaitForChild("TankModelResolver"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local resetDummyRequestEvent = remotes:WaitForChild("ResetDummyRequestEvent")
@@ -33,6 +34,8 @@ local RELOAD_SUFFIX = HudConfig.Reload.Suffix or "%"
 local OPPONENT_HP_PREFIX = "Opponent HP: "
 local PLAYER_HP_PREFIX = "You HP: "
 local HEALTH_SEPARATOR = HudConfig.DummyHealth.Separator or " / "
+local SHOW_SMALL_ROUND_RESULT_OVERLAY = MatchConfig.ShowSmallRoundResultOverlay ~= false
+local SHOW_SMALL_MATCH_RESULT_BEFORE_FULL_RESULT = MatchConfig.ShowSmallMatchResultBeforeFullResult ~= false
 
 local lastShotTime = -100
 local currentPlayerTank = nil
@@ -442,6 +445,34 @@ local function clamp01(value)
 	return math.clamp(value, 0, 1)
 end
 
+local function getServerTimeNow()
+	local success, serverTime = pcall(function()
+		return Workspace:GetServerTimeNow()
+	end)
+
+	if success and typeof(serverTime) == "number" then
+		return serverTime
+	end
+
+	return os.clock()
+end
+
+local function getCountdownSeconds(deadlineAttributeName, fallbackRemainingAttributeName)
+	local deadline = root:GetAttribute(deadlineAttributeName)
+
+	if typeof(deadline) == "number" and deadline > 0 then
+		return math.max(0, math.ceil(deadline - getServerTimeNow()))
+	end
+
+	local fallbackRemaining = root:GetAttribute(fallbackRemainingAttributeName)
+
+	if typeof(fallbackRemaining) == "number" then
+		return math.max(0, math.ceil(fallbackRemaining))
+	end
+
+	return 0
+end
+
 local function refreshTankTargets()
 	currentPlayerTank = TankModelResolver.findOwnedTank(root, localPlayer.UserId, true)
 	currentEnemyTank = TankModelResolver.findEnemyTank(root, localPlayer.UserId)
@@ -590,32 +621,64 @@ local function updateRoundResult()
 	local result = getLocalRoundResult(root:GetAttribute("RoundResult") or "Playing")
 	local roundEnded = root:GetAttribute("RoundEnded") == true or result == "Win" or result == "Lose"
 	local matchEnded = root:GetAttribute("MatchEnded") == true
-	local hasRoundResult = result == "Win" or result == "Lose"
-	local hasRestartMessage = roundEnded or matchEnded
+	local roundFlowState = root:GetAttribute("RoundState")
+	local showRoundEnd = SHOW_SMALL_ROUND_RESULT_OVERLAY
+		and roundEnded
+		and matchEnded ~= true
+		and roundFlowState == "RoundEnd"
+	local showMatchEnd = SHOW_SMALL_MATCH_RESULT_BEFORE_FULL_RESULT
+		and matchEnded
+		and roundFlowState == "MatchEnd"
+	local shouldShow = showRoundEnd or showMatchEnd
 
-	if result == "Win" then
-		roundUi.RoundResultLabel.Text = "WIN"
-		roundUi.RoundResultLabel.TextColor3 = Color3.fromRGB(105, 235, 145)
-		roundUi.RoundResultLabel.Visible = true
-	elseif result == "Lose" then
-		roundUi.RoundResultLabel.Text = "LOSE"
-		roundUi.RoundResultLabel.TextColor3 = Color3.fromRGB(245, 95, 80)
-		roundUi.RoundResultLabel.Visible = true
-	else
+	if not shouldShow then
 		roundUi.RoundResultLabel.Text = ""
 		roundUi.RoundResultLabel.Visible = false
-	end
-
-	if matchEnded then
-		roundUi.RestartHintLabel.Text = "Press R to reset match"
-	elseif roundEnded then
-		roundUi.RestartHintLabel.Text = "Press R for next round"
-	else
 		roundUi.RestartHintLabel.Text = ""
+		roundUi.RestartHintLabel.Visible = false
+		roundUi.RoundStatusPanel.Visible = false
+		return
 	end
 
-	roundUi.RestartHintLabel.Visible = hasRestartMessage
-	roundUi.RoundStatusPanel.Visible = hasRoundResult or hasRestartMessage
+	local playerWins = root:GetAttribute("PlayerSideScore") or root:GetAttribute("PlayerWins") or 0
+	local opponentWins = root:GetAttribute("OpponentSideScore") or root:GetAttribute("DummyWins") or 0
+	local youWins, opponentSideWins = getLocalSeriesScore(playerWins, opponentWins)
+	local localMatchResult = getLocalMatchResult(root:GetAttribute("MatchResult") or "")
+
+	if showMatchEnd then
+		if localMatchResult == "Win" then
+			roundUi.RoundResultLabel.Text = "MATCH WON"
+			roundUi.RoundResultLabel.TextColor3 = Color3.fromRGB(105, 235, 145)
+		elseif localMatchResult == "Loss" then
+			roundUi.RoundResultLabel.Text = "MATCH LOST"
+			roundUi.RoundResultLabel.TextColor3 = Color3.fromRGB(245, 95, 80)
+		else
+			roundUi.RoundResultLabel.Text = "MATCH ENDED"
+			roundUi.RoundResultLabel.TextColor3 = Color3.fromRGB(245, 255, 250)
+		end
+
+		local seconds = getCountdownSeconds("MatchResultAt", "ResultStartsIn")
+		roundUi.RestartHintLabel.Text = "Final " .. youWins .. " / " .. opponentSideWins .. " - Result in " .. seconds
+	elseif result == "Win" then
+		roundUi.RoundResultLabel.Text = "ROUND WON"
+		roundUi.RoundResultLabel.TextColor3 = Color3.fromRGB(105, 235, 145)
+		local seconds = getCountdownSeconds("RoundResetAt", "NextRoundStartsIn")
+		roundUi.RestartHintLabel.Text = "Score " .. youWins .. " / " .. opponentSideWins .. " - Next round in " .. seconds
+	elseif result == "Lose" then
+		roundUi.RoundResultLabel.Text = "ROUND LOST"
+		roundUi.RoundResultLabel.TextColor3 = Color3.fromRGB(245, 95, 80)
+		local seconds = getCountdownSeconds("RoundResetAt", "NextRoundStartsIn")
+		roundUi.RestartHintLabel.Text = "Score " .. youWins .. " / " .. opponentSideWins .. " - Next round in " .. seconds
+	else
+		roundUi.RoundResultLabel.Text = "ROUND ENDED"
+		roundUi.RoundResultLabel.TextColor3 = Color3.fromRGB(245, 255, 250)
+		local seconds = getCountdownSeconds("RoundResetAt", "NextRoundStartsIn")
+		roundUi.RestartHintLabel.Text = "Score " .. youWins .. " / " .. opponentSideWins .. " - Next round in " .. seconds
+	end
+
+	roundUi.RoundResultLabel.Visible = true
+	roundUi.RestartHintLabel.Visible = true
+	roundUi.RoundStatusPanel.Visible = true
 end
 
 local function updateSeriesStatus()
@@ -658,8 +721,13 @@ end
 
 root:GetAttributeChangedSignal("RoundResult"):Connect(updateRoundResult)
 root:GetAttributeChangedSignal("RoundEnded"):Connect(updateRoundResult)
+root:GetAttributeChangedSignal("RoundState"):Connect(updateRoundResult)
 root:GetAttributeChangedSignal("RoundWinnerTankId"):Connect(updateRoundResult)
 root:GetAttributeChangedSignal("RoundLoserTankId"):Connect(updateRoundResult)
+root:GetAttributeChangedSignal("RoundResetAt"):Connect(updateRoundResult)
+root:GetAttributeChangedSignal("MatchResultAt"):Connect(updateRoundResult)
+root:GetAttributeChangedSignal("NextRoundStartsIn"):Connect(updateRoundResult)
+root:GetAttributeChangedSignal("ResultStartsIn"):Connect(updateRoundResult)
 root:GetAttributeChangedSignal("GameState"):Connect(function()
 	refreshTankTargets()
 	updateEnemyHealth()
@@ -676,15 +744,32 @@ root:GetAttributeChangedSignal("MatchMode"):Connect(function()
 end)
 root:GetAttributeChangedSignal("PlayerWins"):Connect(updateSeriesStatus)
 root:GetAttributeChangedSignal("DummyWins"):Connect(updateSeriesStatus)
+root:GetAttributeChangedSignal("PlayerSideScore"):Connect(function()
+	updateRoundResult()
+	updateSeriesStatus()
+end)
+root:GetAttributeChangedSignal("OpponentSideScore"):Connect(function()
+	updateRoundResult()
+	updateSeriesStatus()
+end)
 root:GetAttributeChangedSignal("RoundNumber"):Connect(updateSeriesStatus)
 root:GetAttributeChangedSignal("TargetWins"):Connect(updateSeriesStatus)
 root:GetAttributeChangedSignal("MatchEnded"):Connect(function()
 	updateRoundResult()
 	updateSeriesStatus()
 end)
-root:GetAttributeChangedSignal("MatchResult"):Connect(updateSeriesStatus)
-root:GetAttributeChangedSignal("MatchWinnerTankId"):Connect(updateSeriesStatus)
-root:GetAttributeChangedSignal("MatchLoserTankId"):Connect(updateSeriesStatus)
+root:GetAttributeChangedSignal("MatchResult"):Connect(function()
+	updateRoundResult()
+	updateSeriesStatus()
+end)
+root:GetAttributeChangedSignal("MatchWinnerTankId"):Connect(function()
+	updateRoundResult()
+	updateSeriesStatus()
+end)
+root:GetAttributeChangedSignal("MatchLoserTankId"):Connect(function()
+	updateRoundResult()
+	updateSeriesStatus()
+end)
 
 localPlayer:GetAttributeChangedSignal("PlayerMode"):Connect(function()
 	refreshTankTargets()
@@ -708,7 +793,11 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
 
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		lastShotTime = os.clock()
-	elseif input.KeyCode == Enum.KeyCode.R and localPlayer:GetAttribute("PlayerMode") == "InMatch" then
+	elseif input.KeyCode == Enum.KeyCode.R
+		and localPlayer:GetAttribute("PlayerMode") == "InMatch"
+		and root:GetAttribute("RoundEnded") ~= true
+		and root:GetAttribute("MatchEnded") ~= true
+	then
 		resetDummyRequestEvent:FireServer()
 	end
 end)
@@ -723,6 +812,7 @@ RunService.RenderStepped:Connect(function(deltaTime)
 		refreshTankTargets()
 		updateEnemyHealth()
 		updateHealth()
+		updateRoundResult()
 	end
 end)
 

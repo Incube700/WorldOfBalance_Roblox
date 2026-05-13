@@ -1,5 +1,6 @@
 -- One-time Roblox Studio Command Bar helper.
--- Run outside Play Mode. It creates/repairs lobby railings and arena containment collision.
+-- Run outside Play Mode. It creates/repairs arena containment collision only.
+-- Use REPAIR_LOBBY_VERTICAL_CONTAINMENT_COMMAND.lua for elevated lobby railings/walls.
 
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
@@ -13,10 +14,7 @@ local GENERATED_ROOT_NAME = "WOB_Generated"
 local ARENA_HALF_SIZE = 70
 local ARENA_WALL_HEIGHT = 12
 local ARENA_WALL_THICKNESS = 6
-local LOBBY_CENTER = Vector3.new(0, 45, 155)
-local LOBBY_SIZE = Vector3.new(230, 2, 190)
-local LOBBY_RAILING_HEIGHT = 8
-local LOBBY_RAILING_THICKNESS = 6
+local ARENA_FLOOR_FALLBACK_TOP_Y = 0
 
 local changedCount = 0
 
@@ -52,17 +50,6 @@ local function configureObstaclePart(part, canTouch)
 	changedCount += 1
 end
 
-local function configureTriggerPart(part)
-	part.Anchored = true
-	part.CanCollide = false
-	part.CanTouch = true
-	part.CanQuery = false
-	part.CastShadow = false
-	part.TopSurface = Enum.SurfaceType.Smooth
-	part.BottomSurface = Enum.SurfaceType.Smooth
-	changedCount += 1
-end
-
 local function findBasePart(root, name)
 	if root == nil then
 		return nil
@@ -83,6 +70,78 @@ local function findBasePart(root, name)
 	return nil
 end
 
+local function isDescendantOf(instance, ancestor)
+	local current = instance
+
+	while current ~= nil do
+		if current == ancestor then
+			return true
+		end
+
+		current = current.Parent
+	end
+
+	return false
+end
+
+local function findArenaFloor(root, map)
+	local floorNames = {
+		"ArenaFloor",
+		"MapFloor",
+		"Floor",
+		"Ground",
+		"ArenaGround",
+	}
+	local lobby = root ~= nil and root:FindFirstChild("Lobby") or nil
+
+	if map ~= nil then
+		for _, floorName in ipairs(floorNames) do
+			local floor = findBasePart(map, floorName)
+
+			if floor ~= nil then
+				return floor
+			end
+		end
+	end
+
+	if root ~= nil then
+		for _, descendant in ipairs(root:GetDescendants()) do
+			if descendant:IsA("BasePart") and not isDescendantOf(descendant, lobby) then
+				for _, floorName in ipairs(floorNames) do
+					if descendant.Name == floorName then
+						return descendant
+					end
+				end
+			end
+		end
+	end
+
+	return nil
+end
+
+local function getArenaFloorTopY(root, map)
+	local floor = findArenaFloor(root, map)
+
+	if floor ~= nil then
+		return floor.Position.Y + floor.Size.Y * 0.5, floor
+	end
+
+	warn("[WOB CONTAINMENT] Arena floor not found. Using world Y=0 as arena floor top fallback.")
+	return ARENA_FLOOR_FALLBACK_TOP_Y, nil
+end
+
+local function movePartBottomToY(part, floorTopY)
+	local oldY = part.Position.Y
+	local newY = floorTopY + part.Size.Y * 0.5
+	local deltaY = newY - oldY
+
+	if math.abs(deltaY) > 0.001 then
+		part.CFrame = part.CFrame + Vector3.new(0, deltaY, 0)
+		changedCount += 1
+		print(("[WOB CONTAINMENT] Repaired %s Y %.2f -> %.2f"):format(part:GetFullName(), oldY, part.Position.Y))
+	end
+end
+
 local root = Workspace:FindFirstChild(GENERATED_ROOT_NAME)
 
 if root == nil then
@@ -95,83 +154,21 @@ else
 	print("[WOB CONTAINMENT] Kept " .. root:GetFullName())
 end
 
-local lobby = getOrCreate(root, "Folder", "Lobby")
 local map = getOrCreate(root, "Folder", "Map")
 
-if lobby ~= nil then
-	local floor = lobby:FindFirstChild("Floor")
-	local lobbyCenter = LOBBY_CENTER
-	local lobbySize = LOBBY_SIZE
-	local lobbySurfaceY = LOBBY_CENTER.Y + LOBBY_SIZE.Y * 0.5
-
-	if floor ~= nil and floor:IsA("BasePart") then
-		lobbyCenter = floor.Position
-		lobbySize = floor.Size
-		lobbySurfaceY = floor.Position.Y + floor.Size.Y * 0.5
-		floor.Anchored = true
-		floor.CanCollide = true
-		floor.CanTouch = false
-		floor.CanQuery = true
-		print("[WOB CONTAINMENT] Checked lobby floor " .. floor:GetFullName())
-	else
-		warn("[WOB CONTAINMENT] Lobby/Floor missing. Run CREATE_LOBBY_COMMAND.lua if the elevated lobby needs rebuilding.")
-	end
-
-	local railings = getOrCreate(lobby, "Folder", "Railings")
-
-	if railings ~= nil then
-		local halfX = lobbySize.X * 0.5
-		local halfZ = lobbySize.Z * 0.5
-		local railingY = lobbySurfaceY + LOBBY_RAILING_HEIGHT * 0.5
-		local railingSpecs = {
-			{
-				Name = "LobbyRailing_North",
-				Size = Vector3.new(lobbySize.X + LOBBY_RAILING_THICKNESS * 2, LOBBY_RAILING_HEIGHT, LOBBY_RAILING_THICKNESS),
-				CFrame = CFrame.new(lobbyCenter.X, railingY, lobbyCenter.Z - halfZ - LOBBY_RAILING_THICKNESS * 0.5),
-			},
-			{
-				Name = "LobbyRailing_South",
-				Size = Vector3.new(lobbySize.X + LOBBY_RAILING_THICKNESS * 2, LOBBY_RAILING_HEIGHT, LOBBY_RAILING_THICKNESS),
-				CFrame = CFrame.new(lobbyCenter.X, railingY, lobbyCenter.Z + halfZ + LOBBY_RAILING_THICKNESS * 0.5),
-			},
-			{
-				Name = "LobbyRailing_East",
-				Size = Vector3.new(LOBBY_RAILING_THICKNESS, LOBBY_RAILING_HEIGHT, lobbySize.Z + LOBBY_RAILING_THICKNESS * 2),
-				CFrame = CFrame.new(lobbyCenter.X + halfX + LOBBY_RAILING_THICKNESS * 0.5, railingY, lobbyCenter.Z),
-			},
-			{
-				Name = "LobbyRailing_West",
-				Size = Vector3.new(LOBBY_RAILING_THICKNESS, LOBBY_RAILING_HEIGHT, lobbySize.Z + LOBBY_RAILING_THICKNESS * 2),
-				CFrame = CFrame.new(lobbyCenter.X - halfX - LOBBY_RAILING_THICKNESS * 0.5, railingY, lobbyCenter.Z),
-			},
-		}
-
-		for _, spec in ipairs(railingSpecs) do
-			local railing = getOrCreate(railings, "Part", spec.Name)
-
-			if railing ~= nil then
-				railing.Size = spec.Size
-				railing.CFrame = spec.CFrame
-				railing.Color = Color3.fromRGB(120, 210, 255)
-				railing.Transparency = 0.45
-				railing.Material = Enum.Material.ForceField
-				configureObstaclePart(railing, false)
-				print("[WOB CONTAINMENT] Repaired " .. railing:GetFullName())
-			end
-		end
-	end
-
-	local duelPad = lobby:FindFirstChild("DuelPad")
-
-	if duelPad ~= nil and duelPad:IsA("BasePart") then
-		configureTriggerPart(duelPad)
-		print("[WOB CONTAINMENT] Checked DuelPad trigger " .. duelPad:GetFullName())
-	else
-		warn("[WOB CONTAINMENT] Lobby/DuelPad missing. Run CREATE_OR_REPAIR_DUELPAD_VISUAL_COMMAND.lua after recreating the lobby.")
-	end
-end
-
 if map ~= nil then
+	local arenaFloorTopY, arenaFloor = getArenaFloorTopY(root, map)
+
+	if arenaFloor ~= nil then
+		arenaFloor.Anchored = true
+		arenaFloor.CanCollide = true
+		arenaFloor.CanTouch = false
+		arenaFloor.CanQuery = true
+		print(("[WOB CONTAINMENT] Using arena floor %s topY=%.2f"):format(arenaFloor:GetFullName(), arenaFloorTopY))
+	else
+		print(("[WOB CONTAINMENT] Using arena floor fallback topY=%.2f"):format(arenaFloorTopY))
+	end
+
 	local boundaryWalls = map:FindFirstChild("BoundaryWalls")
 		or map:FindFirstChild("Boundaries")
 		or map:FindFirstChild("Boundary")
@@ -191,22 +188,22 @@ if map ~= nil then
 		{
 			Name = "Wall_North",
 			Size = Vector3.new(ARENA_HALF_SIZE * 2 + ARENA_WALL_THICKNESS * 2, ARENA_WALL_HEIGHT, ARENA_WALL_THICKNESS),
-			CFrame = CFrame.new(0, ARENA_WALL_HEIGHT * 0.5, -ARENA_HALF_SIZE - ARENA_WALL_THICKNESS * 0.5),
+			CFrame = CFrame.new(0, arenaFloorTopY + ARENA_WALL_HEIGHT * 0.5, -ARENA_HALF_SIZE - ARENA_WALL_THICKNESS * 0.5),
 		},
 		{
 			Name = "Wall_South",
 			Size = Vector3.new(ARENA_HALF_SIZE * 2 + ARENA_WALL_THICKNESS * 2, ARENA_WALL_HEIGHT, ARENA_WALL_THICKNESS),
-			CFrame = CFrame.new(0, ARENA_WALL_HEIGHT * 0.5, ARENA_HALF_SIZE + ARENA_WALL_THICKNESS * 0.5),
+			CFrame = CFrame.new(0, arenaFloorTopY + ARENA_WALL_HEIGHT * 0.5, ARENA_HALF_SIZE + ARENA_WALL_THICKNESS * 0.5),
 		},
 		{
 			Name = "Wall_East",
 			Size = Vector3.new(ARENA_WALL_THICKNESS, ARENA_WALL_HEIGHT, ARENA_HALF_SIZE * 2 + ARENA_WALL_THICKNESS * 2),
-			CFrame = CFrame.new(ARENA_HALF_SIZE + ARENA_WALL_THICKNESS * 0.5, ARENA_WALL_HEIGHT * 0.5, 0),
+			CFrame = CFrame.new(ARENA_HALF_SIZE + ARENA_WALL_THICKNESS * 0.5, arenaFloorTopY + ARENA_WALL_HEIGHT * 0.5, 0),
 		},
 		{
 			Name = "Wall_West",
 			Size = Vector3.new(ARENA_WALL_THICKNESS, ARENA_WALL_HEIGHT, ARENA_HALF_SIZE * 2 + ARENA_WALL_THICKNESS * 2),
-			CFrame = CFrame.new(-ARENA_HALF_SIZE - ARENA_WALL_THICKNESS * 0.5, ARENA_WALL_HEIGHT * 0.5, 0),
+			CFrame = CFrame.new(-ARENA_HALF_SIZE - ARENA_WALL_THICKNESS * 0.5, arenaFloorTopY + ARENA_WALL_HEIGHT * 0.5, 0),
 		},
 	}
 
@@ -233,15 +230,11 @@ if map ~= nil then
 				wall.Size = Vector3.new(math.max(wall.Size.X, ARENA_WALL_THICKNESS), math.max(wall.Size.Y, ARENA_WALL_HEIGHT), math.max(wall.Size.Z, spec.Size.Z))
 			end
 
-			if wall.Position.Y < ARENA_WALL_HEIGHT * 0.5 then
-				wall.Position = Vector3.new(wall.Position.X, ARENA_WALL_HEIGHT * 0.5, wall.Position.Z)
-			end
-
 			wall.Material = Enum.Material.Concrete
 			wall.Color = Color3.fromRGB(82, 92, 100)
 			wall.Transparency = math.min(wall.Transparency, 0.2)
 			configureObstaclePart(wall, false)
-			print("[WOB CONTAINMENT] Repaired " .. wall:GetFullName())
+			movePartBottomToY(wall, arenaFloorTopY)
 		end
 	end
 
@@ -252,6 +245,7 @@ if map ~= nil then
 			for _, descendant in ipairs(folder:GetDescendants()) do
 				if descendant:IsA("BasePart") then
 					configureObstaclePart(descendant, false)
+					movePartBottomToY(descendant, arenaFloorTopY)
 				end
 			end
 

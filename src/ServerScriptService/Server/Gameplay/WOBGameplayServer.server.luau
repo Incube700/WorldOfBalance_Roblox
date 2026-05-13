@@ -32,6 +32,8 @@ local LobbyService = require(script.Parent:WaitForChild("Lobby"):WaitForChild("L
 local primaryWeaponConfig = WeaponConfig.PrimaryWeapon
 local MOVE_SPEED = TankConfig.Movement.MoveSpeed
 local REVERSE_MOVE_SPEED_MULTIPLIER = TankConfig.Movement.ReverseMoveSpeedMultiplier or 1
+local INVERT_STEERING_WHEN_REVERSING = TankConfig.Movement.InvertSteeringWhenReversing == true
+local REVERSE_STEERING_DEAD_ZONE = math.max(0, tonumber(TankConfig.Movement.ReverseSteeringDeadZone) or 0.05)
 local TURN_SPEED = TankConfig.Movement.BodyTurnSpeedRadians
 local TURRET_TURN_SPEED = TankConfig.Movement.TurretTurnSpeedRadians or math.rad(TankConfig.Movement.TurretTurnSpeedDegrees or 240)
 local SHOOT_USES_TURRET_FACING = TankConfig.Movement.ShootUsesTurretFacing ~= false
@@ -118,7 +120,11 @@ local function registerTankParticipant(config)
 		Health = 100,
 		MaxHealth = 100,
 		DefaultMaxHealth = 100,
+		IsAlive = true,
 		IsDead = false,
+		IsControllable = true,
+		CanMove = true,
+		CanShoot = true,
 		IsActive = config.IsActive ~= false,
 	}
 	return TankParticipantRegistry.registerTankParticipant(participant)
@@ -290,6 +296,22 @@ local function playDeathExplosion(participant)
 	vfxHelpers.createBurningTank(deathPosition)
 end
 
+local function clearActiveMatchInputs()
+	local activeMatch = RoundMatchService.getActiveMatch()
+
+	if activeMatch == nil then
+		return
+	end
+
+	local inputs = PlayerPossessionService.getInputByPlayer()
+
+	for _, activeParticipant in ipairs(activeMatch.Participants or {}) do
+		if activeParticipant.OwnerPlayer ~= nil then
+			inputs[activeParticipant.OwnerPlayer] = nil
+		end
+	end
+end
+
 local function damageParticipant(participant, amount)
 	local activeMatch = RoundMatchService.getActiveMatch()
 
@@ -325,7 +347,9 @@ local function damageParticipant(participant, amount)
 		end
 
 		RoundMatchService.endRound(RoundMatchService.getRoundResultForDestroyedParticipant(participant))
+		clearActiveMatchInputs()
 	end
+
 	return true
 end
 
@@ -473,8 +497,12 @@ end)
 
 resetDummyRequestEvent.OnServerEvent:Connect(function(player)
 	local participant = PlayerPossessionService.getPlayerParticipantByPlayer(player)
+	local roundState = RoundMatchService.getRoundState()
 
-	if participant ~= nil and participant.ParticipantState == LobbyService.MODE_IN_MATCH then
+	if participant ~= nil
+		and participant.ParticipantState == LobbyService.MODE_IN_MATCH
+		and (roundState == nil or roundState.Ended ~= true)
+	then
 		RoundMatchService.resetRound()
 	end
 end)
@@ -484,8 +512,10 @@ local lastInputAppliedLogTime = 0
 
 tankInputEvent.OnServerEvent:Connect(function(player, inputData)
 	local participant = PlayerPossessionService.getPlayerParticipantByPlayer(player)
+	local inputs = PlayerPossessionService.getInputByPlayer()
+
 	if participant and participant.IsActive and LobbyService.canParticipantDrive(participant) then
-		PlayerPossessionService.getInputByPlayer()[player] = {
+		inputs[player] = {
 			Throttle = math.clamp(tonumber(inputData.Throttle) or 0, -1, 1),
 			Steer = math.clamp(tonumber(inputData.Steer) or 0, -1, 1),
 			AimPosition = typeof(inputData.AimPosition) == "Vector3" and inputData.AimPosition or (participant.ControlState.Position + Vector3.new(0, 0, -20)),
@@ -500,6 +530,8 @@ tankInputEvent.OnServerEvent:Connect(function(player, inputData)
 		if os.clock() % 5 < 0.1 then
 			print("[SERVER] TankInput ignored: participant not found for " .. player.Name)
 		end
+	elseif participant ~= nil then
+		inputs[player] = nil
 	end
 end)
 
@@ -537,7 +569,14 @@ RunService.Heartbeat:Connect(function(deltaTime)
 			if input then
 				local state = p.ControlState
 				local currentBodyYaw = state.BodyYaw
-				local desiredBodyYaw = currentBodyYaw - input.Steer * TURN_SPEED * deltaTime
+				local steeringInputForYaw = input.Steer
+
+				-- Reverse uses arcade car-style path control: A/D steer the backing path, not the tank nose.
+				if INVERT_STEERING_WHEN_REVERSING and input.Throttle < -REVERSE_STEERING_DEAD_ZONE then
+					steeringInputForYaw = -steeringInputForYaw
+				end
+
+				local desiredBodyYaw = currentBodyYaw - steeringInputForYaw * TURN_SPEED * deltaTime
 				local moveSpeed = MOVE_SPEED * (input.Throttle < 0 and REVERSE_MOVE_SPEED_MULTIPLIER or 1)
 				local desiredMove = (CFrame.Angles(0, desiredBodyYaw, 0).LookVector) * input.Throttle * moveSpeed * deltaTime
 				local resolvedPos, resolvedBodyYaw = TankMovementService.resolveTankPose(state.Position, currentBodyYaw, desiredMove, desiredBodyYaw)

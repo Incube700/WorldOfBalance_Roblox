@@ -116,7 +116,7 @@ end
 
 local function makeSpawnTransform(position, yaw, source)
 	return {
-		Position = Vector3.new(position.X, 0, position.Z),
+		Position = position,
 		BodyYaw = yaw,
 		TurretYaw = yaw,
 		Source = source,
@@ -553,6 +553,10 @@ function LobbyService.handleReturnToLobbyRequest(player)
 	local matchId = player:GetAttribute("MatchId")
 
 	if matchId ~= nil and matchId ~= "" then
+		if getMode(player) ~= LobbyService.MODE_RESULT then
+			return
+		end
+
 		returnParticipantsToLobby(matchId, "ReturnToLobby")
 	else
 		clearQueuedPlayer(player, "ReturnToLobby")
@@ -569,6 +573,10 @@ function LobbyService.handleRematchRequest(player)
 	end
 
 	local matchId = player:GetAttribute("MatchId")
+
+	if getMode(player) ~= LobbyService.MODE_RESULT then
+		return
+	end
 
 	if matchId == nil or matchId == "" then
 		startTraining(player, participant)
@@ -659,7 +667,23 @@ function LobbyService.onMatchEnded(activeMatch)
 end
 
 function LobbyService.canParticipantDrive(participant)
+	if participant == nil
+		or participant.IsControllable == false
+		or participant.CanMove == false
+		or TankParticipantRegistry.getParticipantIsDead(participant)
+	then
+		return false
+	end
+
 	local mode = getParticipantMode(participant)
+
+	if mode == LobbyService.MODE_IN_MATCH then
+		local roundState = roundMatchService.getRoundState()
+
+		if roundState ~= nil and roundState.Ended == true then
+			return false
+		end
+	end
 
 	return mode == LobbyService.MODE_LOBBY
 		or mode == LobbyService.MODE_QUEUED_FOR_DUEL
@@ -667,6 +691,14 @@ function LobbyService.canParticipantDrive(participant)
 end
 
 function LobbyService.canParticipantShoot(participant)
+	if participant == nil
+		or participant.IsControllable == false
+		or participant.CanShoot == false
+		or TankParticipantRegistry.getParticipantIsDead(participant)
+	then
+		return false
+	end
+
 	local mode = getParticipantMode(participant)
 
 	if mode == LobbyService.MODE_LOBBY or mode == LobbyService.MODE_QUEUED_FOR_DUEL then

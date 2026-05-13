@@ -231,6 +231,14 @@ local function isAimLaserEnabledForLocalPlayer()
 	return mode == nil and root:GetAttribute("GameState") == "Playing"
 end
 
+local function isPlayerTankAbleToAim()
+	return playerTank ~= nil
+		and playerTank.Parent ~= nil
+		and playerTank:GetAttribute("IsDead") ~= true
+		and playerTank:GetAttribute("IsControllable") ~= false
+		and playerTank:GetAttribute("CanShoot") ~= false
+end
+
 local function updateLaser()
 	if not isAimLaserEnabledForLocalPlayer() then
 		setLaserVisible(false)
@@ -240,6 +248,11 @@ local function updateLaser()
 	local muzzlePart = getMuzzlePart()
 
 	if muzzlePart == nil then
+		setLaserVisible(false)
+		return
+	end
+
+	if not isPlayerTankAbleToAim() then
 		setLaserVisible(false)
 		return
 	end

@@ -84,6 +84,11 @@ end
 local function setParticipantAttributesOnModel(model, participant)
 	model:SetAttribute("TankId", participant.TankId)
 	model:SetAttribute("IsActive", participant.IsActive ~= false)
+	model:SetAttribute("IsAlive", participant.IsAlive ~= false)
+	model:SetAttribute("IsDead", participant.IsDead == true)
+	model:SetAttribute("IsControllable", participant.IsControllable ~= false)
+	model:SetAttribute("CanMove", participant.CanMove ~= false)
+	model:SetAttribute("CanShoot", participant.CanShoot ~= false)
 	model:SetAttribute("TeamId", participant.TeamId)
 	model:SetAttribute("IsBot", participant.IsBot)
 	model:SetAttribute("IsPlayerTank", participant.IsPlayerTank == true)
@@ -292,13 +297,34 @@ end
 function TankParticipantRegistry.getParticipantIsDead(participant)
 	local isDead = participant.Model:GetAttribute("IsDead") == true
 	participant.IsDead = isDead
+	participant.IsAlive = not isDead
 
 	return isDead
 end
 
+function TankParticipantRegistry.setParticipantControllable(participant, isControllable)
+	if participant == nil then
+		return
+	end
+
+	local canControl = isControllable == true
+	participant.IsControllable = canControl
+	participant.CanMove = canControl
+	participant.CanShoot = canControl
+	setAttributeOnParticipantModels(participant, "IsControllable", participant.IsControllable)
+	setAttributeOnParticipantModels(participant, "CanMove", participant.CanMove)
+	setAttributeOnParticipantModels(participant, "CanShoot", participant.CanShoot)
+end
+
 function TankParticipantRegistry.setParticipantIsDead(participant, isDead)
 	participant.IsDead = isDead == true
+	participant.IsAlive = not participant.IsDead
 	setAttributeOnParticipantModels(participant, "IsDead", participant.IsDead)
+	setAttributeOnParticipantModels(participant, "IsAlive", participant.IsAlive)
+
+	if participant.IsDead then
+		TankParticipantRegistry.setParticipantControllable(participant, false)
+	end
 end
 
 function TankParticipantRegistry.resetParticipantHealth(participant)
@@ -306,6 +332,7 @@ function TankParticipantRegistry.resetParticipantHealth(participant)
 	setAttributeOnParticipantModels(participant, "MaxHealth", participant.MaxHealth)
 	TankParticipantRegistry.setParticipantHealth(participant, participant.MaxHealth)
 	TankParticipantRegistry.setParticipantIsDead(participant, false)
+	TankParticipantRegistry.setParticipantControllable(participant, true)
 end
 
 function TankParticipantRegistry.setParticipantMatchState(participant, participantState, matchId, opponentTankId)
