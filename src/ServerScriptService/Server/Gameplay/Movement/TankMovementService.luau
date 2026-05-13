@@ -3,11 +3,13 @@ local Workspace = game:GetService("Workspace")
 local TankMovementService = {}
 
 -- Constants
-local TANK_MOVEMENT_CAST_PADDING = -0.25
-local TANK_MOVEMENT_CAST_HEIGHT = 1.4
-local TANK_MOVEMENT_CAST_Y_OFFSET = 2
+local TANK_MOVEMENT_CAST_PADDING = 0.35
+local TANK_MOVEMENT_CAST_HEIGHT = 3.8
+local TANK_MOVEMENT_CAST_Y_OFFSET = 1.9
 local TANK_MOVEMENT_EPSILON = 0.03
 local TANK_UNSTICK_DISTANCE_EPSILON = 0.02
+local OBSTACLE_CACHE_SECONDS = 1
+local DEBUG_MOVEMENT_COLLISIONS = false
 
 local boundaryWallNames = {
 	Wall_North = true,
@@ -16,7 +18,26 @@ local boundaryWallNames = {
 	Wall_West = true,
 }
 
+local movementObstacleFolderNames = {
+	ArenaBoundary = true,
+	Boundaries = true,
+	Boundary = true,
+	BoundaryWalls = true,
+	Cover = true,
+	MovementObstacles = true,
+	Obstacles = true,
+	Railings = true,
+	RicochetWalls = true,
+}
+
+local movementObstacleAttributeNames = {
+	IsMovementObstacle = true,
+	MovementObstacle = true,
+	WOBMovementObstacle = true,
+}
+
 -- State variables (initialized via init)
+local root = nil
 local map = nil
 local body = nil
 local tankModels = {} -- table of models to ignore (playerTank, player2Tank, dummyTank)
@@ -24,23 +45,137 @@ local runtime = nil
 local tankMovementRaycastParams = nil
 local tankMovementOverlapParams = nil
 
--- Cache for isTankMovementObstacle
-local ricochetWalls = nil
-local cover = nil
+local obstaclePartsCache = nil
+local obstaclePartsCacheTime = 0
+local warnedKeys = {}
+local lastDebugBlockLogTime = 0
 
 function TankMovementService.init(params)
+	root = params.root or (params.map ~= nil and params.map.Parent or nil)
 	map = params.map
 	body = params.body
 	tankModels = params.tankModels or {}
 	runtime = params.runtime
 	tankMovementRaycastParams = params.tankMovementRaycastParams
 	tankMovementOverlapParams = params.tankMovementOverlapParams
+
+	obstaclePartsCache = nil
+	obstaclePartsCacheTime = 0
+
+	if root ~= nil then
+		root.DescendantAdded:Connect(function()
+			obstaclePartsCache = nil
+		end)
+
+		root.DescendantRemoving:Connect(function()
+			obstaclePartsCache = nil
+		end)
+	end
 end
 
 local function isObstacleName(name)
 	return boundaryWallNames[name] == true
 		or string.match(name, "^RicochetWall_") ~= nil
 		or string.match(name, "^Cover_Block_") ~= nil
+		or string.match(name, "^LobbyRailing_") ~= nil
+		or string.match(name, "^LobbyWall_") ~= nil
+		or string.match(name, "^BoundaryWall_") ~= nil
+		or string.match(name, "^ArenaBoundary_") ~= nil
+end
+
+local function warnOnce(key, message)
+	if warnedKeys[key] == true then
+		return
+	end
+
+	warnedKeys[key] = true
+	warn(message)
+end
+
+local function getRoot()
+	return root or (map ~= nil and map.Parent or nil)
+end
+
+local function hasMovementObstacleAttribute(instance)
+	for attributeName, _ in pairs(movementObstacleAttributeNames) do
+		if instance:GetAttribute(attributeName) == true then
+			return true
+		end
+	end
+
+	return false
+end
+
+local function isDescendantOfObstacleFolder(instance)
+	local current = instance.Parent
+	local generatedRoot = getRoot()
+	local stopParent = generatedRoot ~= nil and generatedRoot.Parent or nil
+
+	while current ~= nil and current ~= stopParent do
+		if movementObstacleFolderNames[current.Name] == true then
+			return true
+		end
+
+		current = current.Parent
+	end
+
+	return false
+end
+
+local function collectMovementObstacleRoots()
+	local searchRoots = {}
+	local seen = {}
+	local generatedRoot = getRoot()
+
+	local function addSearchRoot(instance)
+		if instance == nil or seen[instance] == true then
+			return
+		end
+
+		seen[instance] = true
+		table.insert(searchRoots, instance)
+	end
+
+	if generatedRoot ~= nil then
+		addSearchRoot(generatedRoot)
+
+		local lobby = generatedRoot:FindFirstChild("Lobby")
+
+		if lobby == nil then
+			warnOnce("missingLobby", "[MOVEMENT] Workspace/WOB_Generated/Lobby not found; lobby railings cannot block tanks.")
+		elseif lobby:FindFirstChild("Railings") == nil then
+			warnOnce("missingLobbyRailings", "[MOVEMENT] Workspace/WOB_Generated/Lobby/Railings not found; lobby containment may be incomplete.")
+		end
+	end
+
+	if map ~= nil then
+		addSearchRoot(map)
+
+		if map:FindFirstChild("RicochetWalls") == nil then
+			warnOnce("missingRicochetWalls", "[MOVEMENT] Map/RicochetWalls not found; relying on named wall parts only.")
+		end
+
+		if map:FindFirstChild("Cover") == nil then
+			warnOnce("missingCover", "[MOVEMENT] Map/Cover not found; cover blocks may be missing from movement collision.")
+		end
+	end
+
+	return searchRoots
+end
+
+local function debugMovementBlocked(obstaclePart)
+	if not DEBUG_MOVEMENT_COLLISIONS or obstaclePart == nil then
+		return
+	end
+
+	local now = os.clock()
+
+	if now - lastDebugBlockLogTime < 0.75 then
+		return
+	end
+
+	lastDebugBlockLogTime = now
+	print("[MOVEMENT] blocked by " .. obstaclePart:GetFullName())
 end
 
 function TankMovementService.isTankMovementObstacle(instance)
@@ -66,19 +201,11 @@ function TankMovementService.isTankMovementObstacle(instance)
 		return false
 	end
 
-	if ricochetWalls == nil and map ~= nil then
-		ricochetWalls = map:FindFirstChild("RicochetWalls")
-	end
-
-	if cover == nil and map ~= nil then
-		cover = map:FindFirstChild("Cover")
-	end
-
-	if ricochetWalls ~= nil and instance:IsDescendantOf(ricochetWalls) then
+	if hasMovementObstacleAttribute(instance) then
 		return true
 	end
 
-	if cover ~= nil and instance:IsDescendantOf(cover) then
+	if isDescendantOfObstacleFolder(instance) then
 		return true
 	end
 
@@ -86,24 +213,78 @@ function TankMovementService.isTankMovementObstacle(instance)
 end
 
 function TankMovementService.getTankMovementObstacleParts()
+	local now = os.clock()
+
+	if obstaclePartsCache ~= nil and now - obstaclePartsCacheTime < OBSTACLE_CACHE_SECONDS then
+		return obstaclePartsCache
+	end
+
 	local obstacleParts = {}
+	local seen = {}
+	local searchRoots = collectMovementObstacleRoots()
 
-	if map == nil then return obstacleParts end
+	for _, searchRoot in ipairs(searchRoots) do
+		if searchRoot:IsA("BasePart") and TankMovementService.isTankMovementObstacle(searchRoot) and seen[searchRoot] ~= true then
+			seen[searchRoot] = true
+			table.insert(obstacleParts, searchRoot)
+		end
 
-	for _, descendant in ipairs(map:GetDescendants()) do
-		if TankMovementService.isTankMovementObstacle(descendant) then
-			table.insert(obstacleParts, descendant)
+		for _, descendant in ipairs(searchRoot:GetDescendants()) do
+			if seen[descendant] ~= true and TankMovementService.isTankMovementObstacle(descendant) then
+				seen[descendant] = true
+				table.insert(obstacleParts, descendant)
+			end
 		end
 	end
+
+	if #obstacleParts == 0 then
+		warnOnce("noMovementObstacles", "[MOVEMENT] No movement obstacle parts found. Check CanQuery on arena walls, cover, boundaries, and lobby railings.")
+	end
+
+	obstaclePartsCache = obstacleParts
+	obstaclePartsCacheTime = now
 
 	return obstacleParts
 end
 
+function TankMovementService.collectMovementObstacleRoots()
+	return collectMovementObstacleRoots()
+end
+
+local function getBodySize()
+	if body ~= nil and body:IsA("BasePart") then
+		return body.Size
+	end
+
+	return Vector3.new(8, 3, 11)
+end
+
+local function configureRaycastParamsForObstacles(obstacleParts)
+	if tankMovementRaycastParams == nil then
+		return
+	end
+
+	tankMovementRaycastParams.FilterType = Enum.RaycastFilterType.Include
+	tankMovementRaycastParams.FilterDescendantsInstances = obstacleParts
+	tankMovementRaycastParams.IgnoreWater = true
+end
+
+local function configureOverlapParamsForObstacles(obstacleParts)
+	if tankMovementOverlapParams == nil then
+		return
+	end
+
+	tankMovementOverlapParams.FilterType = Enum.RaycastFilterType.Include
+	tankMovementOverlapParams.FilterDescendantsInstances = obstacleParts
+end
+
 function TankMovementService.getTankMovementCastSize()
+	local bodySize = getBodySize()
+
 	return Vector3.new(
-		math.max(1, body.Size.X + TANK_MOVEMENT_CAST_PADDING),
-		TANK_MOVEMENT_CAST_HEIGHT,
-		math.max(1, body.Size.Z + TANK_MOVEMENT_CAST_PADDING)
+		math.max(1, bodySize.X + TANK_MOVEMENT_CAST_PADDING),
+		math.max(TANK_MOVEMENT_CAST_HEIGHT, bodySize.Y + 0.8),
+		math.max(1, bodySize.Z + TANK_MOVEMENT_CAST_PADDING)
 	)
 end
 
@@ -134,6 +315,14 @@ local function isMovementAwayFromObstacle(fromPosition, movement, obstaclePart)
 end
 
 function TankMovementService.findTankBlockcastObstacle(fromPosition, bodyYaw, movement)
+	local obstacleParts = TankMovementService.getTankMovementObstacleParts()
+
+	if #obstacleParts == 0 then
+		return nil
+	end
+
+	configureRaycastParamsForObstacles(obstacleParts)
+
 	local castCFrame = TankMovementService.getTankMovementCastCFrame(fromPosition, bodyYaw)
 	local success, result = pcall(function()
 		return Workspace:Blockcast(
@@ -144,7 +333,12 @@ function TankMovementService.findTankBlockcastObstacle(fromPosition, bodyYaw, mo
 		)
 	end)
 
-	if not success or result == nil then
+	if not success then
+		warnOnce("blockcastFailed", "[MOVEMENT] Workspace:Blockcast failed for tank movement.")
+		return nil
+	end
+
+	if result == nil then
 		return nil
 	end
 
@@ -162,7 +356,7 @@ function TankMovementService.findTankOverlapObstacle(position, bodyYaw)
 		return nil
 	end
 
-	tankMovementOverlapParams.FilterDescendantsInstances = obstacleParts
+	configureOverlapParamsForObstacles(obstacleParts)
 
 	local overlappingParts = Workspace:GetPartBoundsInBox(
 		TankMovementService.getTankMovementCastCFrame(position, bodyYaw),
@@ -191,6 +385,7 @@ function TankMovementService.isTankMovementBlocked(fromPosition, bodyYaw, moveme
 			return false, nil
 		end
 
+		debugMovementBlocked(blockcastObstacle)
 		return true, blockcastObstacle
 	end
 
@@ -205,6 +400,7 @@ function TankMovementService.isTankMovementBlocked(fromPosition, bodyYaw, moveme
 			return false, nil
 		end
 
+		debugMovementBlocked(overlapObstacle)
 		return true, overlapObstacle
 	end
 

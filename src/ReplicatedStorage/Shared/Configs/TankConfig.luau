@@ -6,7 +6,9 @@ local TankConfig = table.freeze({
 		ReverseMoveSpeedMultiplier = 0.85,
 		BodyTurnSpeedRadians = 2.007128639793479,
 		BodyTurnSpeedDegrees = 115,
-		-- TODO: No turret turn speed exists in the snapshot; current turret yaw follows client aim direction directly.
+		TurretTurnSpeedRadians = 4.1887902047863905,
+		TurretTurnSpeedDegrees = 240,
+		ShootUsesTurretFacing = true,
 	}),
 
 	Armor = table.freeze({

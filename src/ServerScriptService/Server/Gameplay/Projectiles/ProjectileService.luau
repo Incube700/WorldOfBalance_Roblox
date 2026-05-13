@@ -12,6 +12,7 @@ local VfxConfig = require(configs:WaitForChild("VfxConfig"))
 local TankParticipantRegistry = require(script.Parent.Parent:WaitForChild("TankParticipantRegistry"))
 local ProjectileCombatService = require(script.Parent.Parent:WaitForChild("Combat"):WaitForChild("ProjectileCombatService"))
 local MatchStatsService = require(script.Parent.Parent:WaitForChild("Stats"):WaitForChild("MatchStatsService"))
+local CombatVfxService = require(script.Parent.Parent:WaitForChild("VFX"):WaitForChild("CombatVfxService"))
 
 local primaryWeaponConfig = WeaponConfig.PrimaryWeapon
 local projectileTypeId = primaryWeaponConfig.ProjectileTypeId or ProjectileCatalog.DefaultProjectileTypeId
@@ -52,6 +53,7 @@ function ProjectileService.init(orchestratorRoot, projFolder, effectsFolder, opt
 	projectileFolder = projFolder
 	vfxFolder = effectsFolder
 	callbacks = options
+	CombatVfxService.init(vfxFolder)
 	projectileRaycastParams = RaycastParams.new()
 	projectileRaycastParams.FilterType = Enum.RaycastFilterType.Include
 	projectileRaycastParams.IgnoreWater = true
@@ -173,34 +175,65 @@ local function createMuzzleFlash(position, direction)
 		flatDirection = flatDirection.Unit
 	end
 	createShotSound(position)
-	createFlash(position, shotVfxConfig.MuzzleFlash, "VFX_MuzzleParticleFlash")
+	local muzzleTemplateHandled = CombatVfxService.playVfxTemplate(
+		position,
+		flatDirection,
+		shotVfxConfig.MuzzleFlash,
+		"MuzzleFlash"
+	)
+
+	if not muzzleTemplateHandled then
+		createFlash(position, shotVfxConfig.MuzzleFlash, "VFX_MuzzleParticleFlash")
+	end
+
 	local blastConfig = shotVfxConfig.MuzzleBlast
 	if blastConfig ~= nil and blastConfig.Enabled == true then
-		local blast = Instance.new("Part")
-		blast.Name = "VFX_MuzzleBlast"
-		blast.Size = blastConfig.Size
-		blast.Anchored = true
-		blast.CanCollide = false
-		blast.CanTouch = false
-		blast.CanQuery = false
-		blast.CastShadow = false
-		blast.Material = Enum.Material.Neon
-		blast.Color = blastConfig.Color
-		blast.Transparency = blastConfig.Transparency
-		blast.CFrame = CFrame.lookAt(position, position + flatDirection, Vector3.yAxis) * CFrame.new(0, 0, -(blastConfig.ForwardOffset or 2.6))
-		blast.Parent = vfxFolder
-		local light = Instance.new("PointLight")
-		light.Brightness = blastConfig.LightBrightness or 4
-		light.Range = blastConfig.LightRange or 15
-		light.Color = blastConfig.LightColor or Color3.fromRGB(255, 205, 95)
-		light.Parent = blast
-		Debris:AddItem(blast, blastConfig.Lifetime or 0.075)
+		local blastPosition = position + flatDirection * (blastConfig.ForwardOffset or 2.6)
+		local blastTemplateHandled = CombatVfxService.playVfxTemplate(
+			blastPosition,
+			flatDirection,
+			blastConfig,
+			"MuzzleBlast"
+		)
+
+		if not blastTemplateHandled then
+			local blast = Instance.new("Part")
+			blast.Name = "VFX_MuzzleBlast"
+			blast.Size = blastConfig.Size
+			blast.Anchored = true
+			blast.CanCollide = false
+			blast.CanTouch = false
+			blast.CanQuery = false
+			blast.CastShadow = false
+			blast.Material = Enum.Material.Neon
+			blast.Color = blastConfig.Color
+			blast.Transparency = blastConfig.Transparency
+			blast.CFrame = CFrame.lookAt(position, position + flatDirection, Vector3.yAxis) * CFrame.new(0, 0, -(blastConfig.ForwardOffset or 2.6))
+			blast.Parent = vfxFolder
+			local light = Instance.new("PointLight")
+			light.Brightness = blastConfig.LightBrightness or 4
+			light.Range = blastConfig.LightRange or 15
+			light.Color = blastConfig.LightColor or Color3.fromRGB(255, 205, 95)
+			light.Parent = blast
+			Debris:AddItem(blast, blastConfig.Lifetime or 0.075)
+		end
 	end
 	local smokeConfig = shotVfxConfig.Smoke
 	if smokeConfig ~= nil and smokeConfig.Enabled == true then
 		local smokePosition = position - flatDirection * (smokeConfig.BackwardOffset or 0.8) + Vector3.new(0, smokeConfig.UpOffset or 0.3, 0)
-		local particleHandled = createParticleBurst(smokePosition, -flatDirection, smokeConfig, "VFX_MuzzleParticleSmoke")
-		if not particleHandled or smokeConfig.UseProceduralFallback == true then
+		local smokeTemplateHandled = CombatVfxService.playVfxTemplate(
+			smokePosition,
+			-flatDirection,
+			smokeConfig,
+			"Smoke"
+		)
+		local particleHandled = false
+
+		if not smokeTemplateHandled then
+			particleHandled = createParticleBurst(smokePosition, -flatDirection, smokeConfig, "VFX_MuzzleParticleSmoke")
+		end
+
+		if not smokeTemplateHandled and (not particleHandled or smokeConfig.UseProceduralFallback == true) then
 			local smoke = Instance.new("Part")
 			smoke.Name = "VFX_MuzzleSmoke"
 			smoke.Shape = Enum.PartType.Ball
@@ -221,9 +254,28 @@ local function createMuzzleFlash(position, direction)
 end
 
 local function createImpactFlash(position)
-	createFlash(position, shotVfxConfig.ImpactFlash, "VFX_ImpactParticleFlash")
+	local impactTemplateHandled = CombatVfxService.playVfxTemplate(
+		position,
+		Vector3.yAxis,
+		shotVfxConfig.ImpactFlash,
+		"ImpactFlash"
+	)
+
+	if not impactTemplateHandled then
+		createFlash(position, shotVfxConfig.ImpactFlash, "VFX_ImpactParticleFlash")
+	end
+
 	local sparkConfig = shotVfxConfig.ImpactSparks
 	if sparkConfig == nil or sparkConfig.Enabled ~= true then return end
+	local sparksTemplateHandled = CombatVfxService.playVfxTemplate(
+		position,
+		Vector3.yAxis,
+		sparkConfig,
+		"ImpactSparks"
+	)
+
+	if sparksTemplateHandled then return end
+
 	local particleHandled = createParticleBurst(position, Vector3.new(0, 1, 0), sparkConfig, "VFX_ImpactParticleSparks")
 	if particleHandled and sparkConfig.UseProceduralFallback ~= true then return end
 	for _ = 1, sparkConfig.Count or 3 do

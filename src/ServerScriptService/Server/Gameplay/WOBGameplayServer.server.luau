@@ -33,6 +33,8 @@ local primaryWeaponConfig = WeaponConfig.PrimaryWeapon
 local MOVE_SPEED = TankConfig.Movement.MoveSpeed
 local REVERSE_MOVE_SPEED_MULTIPLIER = TankConfig.Movement.ReverseMoveSpeedMultiplier or 1
 local TURN_SPEED = TankConfig.Movement.BodyTurnSpeedRadians
+local TURRET_TURN_SPEED = TankConfig.Movement.TurretTurnSpeedRadians or math.rad(TankConfig.Movement.TurretTurnSpeedDegrees or 240)
+local SHOOT_USES_TURRET_FACING = TankConfig.Movement.ShootUsesTurretFacing ~= false
 local DEBUG_INPUT = false
 
 -- Remote Events
@@ -157,6 +159,7 @@ refreshTankMovementRaycastFilter()
 -- Initialize Services
 MatchStatsService.init(root)
 TankMovementService.init({
+	root = root,
 	map = map,
 	body = playerParticipant.Body,
 	tankModels = tankMovementIgnoredModels,
@@ -201,6 +204,32 @@ end
 
 -- Forward declarations for service inter-dependency
 local function getPlayerParticipant() return playerParticipant end
+local function normalizeAngleRadians(angle)
+	local fullTurn = math.pi * 2
+	return ((angle + math.pi) % fullTurn) - math.pi
+end
+
+local function moveAngleTowards(currentAngle, targetAngle, maxDelta)
+	local delta = normalizeAngleRadians(targetAngle - currentAngle)
+
+	if math.abs(delta) <= maxDelta then
+		return targetAngle
+	end
+
+	local direction = delta >= 0 and 1 or -1
+	return currentAngle + direction * maxDelta
+end
+
+local function getYawFromAimPosition(position, aimPosition, fallbackYaw)
+	local delta = Vector3.new(aimPosition.X - position.X, 0, aimPosition.Z - position.Z)
+
+	if delta.Magnitude < 0.001 then
+		return fallbackYaw
+	end
+
+	return math.atan2(-delta.X, -delta.Z)
+end
+
 local function damageParticipant(participant, amount)
 	local activeMatch = RoundMatchService.getActiveMatch()
 
@@ -254,13 +283,19 @@ ProjectileService.init(root, projectileFolder, vfxFolder, {
 -- Collect map targets for projectiles
 local function collectMapTargets()
 	local targets = {}
-	local rwalls = map:FindFirstChild("RicochetWalls")
-	local cover = map:FindFirstChild("Cover")
-	if rwalls then table.insert(targets, rwalls) end
-	if cover then table.insert(targets, cover) end
-	for _, d in ipairs(map:GetDescendants()) do
-		if d:IsA("BasePart") and TankMovementService.isTankMovementObstacle(d) then table.insert(targets, d) end
+	local seen = {}
+
+	local function addTarget(instance)
+		if instance ~= nil and seen[instance] ~= true then
+			seen[instance] = true
+			table.insert(targets, instance)
+		end
 	end
+
+	for _, obstaclePart in ipairs(TankMovementService.getTankMovementObstacleParts()) do
+		addTarget(obstaclePart)
+	end
+
 	return targets
 end
 ProjectileService.setMapRaycastTargets(collectMapTargets())
@@ -416,7 +451,10 @@ shootRequestEvent.OnServerEvent:Connect(function(player, aimPosition)
 
 		local origin = participant.ShootPoint.Position
 		local dir = typeof(aimPosition) == "Vector3" and (Vector3.new(aimPosition.X - origin.X, 0, aimPosition.Z - origin.Z)) or Vector3.new(0,0,-1)
-		ProjectileService.tryShoot(participant, dir.Magnitude > 0.1 and dir.Unit or (CFrame.Angles(0, participant.ControlState.TurretYaw, 0)).LookVector)
+		local turretYaw = participant.ControlState ~= nil and participant.ControlState.TurretYaw or 0
+		local turretDirection = (CFrame.Angles(0, turretYaw, 0)).LookVector
+		local requestedDirection = dir.Magnitude > 0.1 and dir.Unit or turretDirection
+		ProjectileService.tryShoot(participant, SHOOT_USES_TURRET_FACING and turretDirection or requestedDirection)
 	end
 end)
 
@@ -441,7 +479,8 @@ RunService.Heartbeat:Connect(function(deltaTime)
 				local desiredMove = (CFrame.Angles(0, state.BodyYaw, 0).LookVector) * input.Throttle * moveSpeed * deltaTime
 				local resolvedPos, blocking = TankMovementService.resolveTankMovement(state.Position, state.BodyYaw, desiredMove)
 				state.Position = resolvedPos
-				state.TurretYaw = math.atan2(-(input.AimPosition - state.Position).X, -(input.AimPosition - state.Position).Z)
+				local targetTurretYaw = getYawFromAimPosition(state.Position, input.AimPosition, state.TurretYaw)
+				state.TurretYaw = moveAngleTowards(state.TurretYaw, targetTurretYaw, TURRET_TURN_SPEED * deltaTime)
 				TankSpawnResetService.layoutTank(p.Model, state.Position, state.BodyYaw, state.TurretYaw)
 
 				if shouldLogApply then

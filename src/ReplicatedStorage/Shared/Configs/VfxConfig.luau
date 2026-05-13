@@ -2,11 +2,7 @@ local VfxConfig = table.freeze({
 	Shot = table.freeze({
 		-- Put Roblox asset ids here later, for example: "rbxassetid://123456789".
 		-- Empty ids keep the current procedural fallback visuals.
-<<<<<<< Updated upstream
 		SoundId = "rbxassetid://139771888058836",
-=======
-		SoundId = "rbxassetid://6012216349",
->>>>>>> Stashed changes
 		SoundVolume = 0.7,
 		SoundPlaybackSpeed = 1,
 		SoundRollOffMinDistance = 8,
@@ -15,6 +11,9 @@ local VfxConfig = table.freeze({
 
 		MuzzleFlash = table.freeze({
 			Enabled = true,
+			TemplateName = "",
+			TemplateLifetime = 0.35,
+			TemplateEmitCount = 10,
 			TextureId = "",
 			UseProceduralFallback = true,
 			EmitCount = 10,
@@ -34,6 +33,9 @@ local VfxConfig = table.freeze({
 
 		MuzzleBlast = table.freeze({
 			Enabled = true,
+			TemplateName = "",
+			TemplateLifetime = 0.35,
+			TemplateEmitCount = 1,
 			Color = Color3.fromRGB(255, 180, 55),
 			Size = Vector3.new(1.7, 1.7, 6),
 			Transparency = 0.12,
@@ -46,7 +48,10 @@ local VfxConfig = table.freeze({
 
 		Smoke = table.freeze({
 			Enabled = true,
-			TextureId = "http://www.roblox.com/asset/?id=248625108",
+			TemplateName = "",
+			TemplateLifetime = 1.2,
+			TemplateEmitCount = 7,
+			TextureId = "http://www.roblox.com/asset/?id=624634365",
 			UseProceduralFallback = true,
 			EmitCount = 7,
 			ParticleLifetimeMin = 0.25,
@@ -83,7 +88,10 @@ local VfxConfig = table.freeze({
 
 		ImpactFlash = table.freeze({
 			Enabled = true,
-			TextureId = "",
+			TemplateName = "",
+			TemplateLifetime = 0.45,
+			TemplateEmitCount = 8,
+			TextureId = "rbxassetid://1038411245",
 			UseProceduralFallback = true,
 			EmitCount = 8,
 			ParticleLifetimeMin = 0.06,
@@ -102,6 +110,9 @@ local VfxConfig = table.freeze({
 
 		ImpactSparks = table.freeze({
 			Enabled = true,
+			TemplateName = "",
+			TemplateLifetime = 0.65,
+			TemplateEmitCount = 12,
 			TextureId = "",
 			UseProceduralFallback = true,
 			EmitCount = 12,

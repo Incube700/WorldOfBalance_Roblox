@@ -32,6 +32,19 @@
 - Документация должна жить в `docs/`.
 - MVP пока не реализован как механика. Текущий фокус — документация, структура и затем маленькие проверяемые шаги.
 
+## Current Sprint — Stable Fun Duel v0.1
+
+- Статус: code-first stabilization sprint after audit in `docs/STABLE_FUN_DUEL_V01_AUDIT.md`.
+- Главный фикс: `TankMovementService` теперь собирает movement obstacles из `Workspace/WOB_Generated`, включая `Lobby/Railings`, `Map/RicochetWalls`, `Map/Cover`, boundary folders, named `Wall_*` parts and `WOBMovementObstacle` parts. Movement casts use include-filtered obstacle parts, not broad world hits with post-filtering only.
+- Scene repair: run `docs/patches/CREATE_OR_REPAIR_ARENA_CONTAINMENT_COMMAND.lua` outside Play Mode to make railings, arena walls, cover, ricochet walls and boundary parts `Anchored`, `CanCollide`, `CanQuery`, tall/thick enough, and tagged as movement obstacles. Then `File -> Save to File`.
+- VFX templates: `CombatVfxService` can clone templates from `ReplicatedStorage/Shared/Assets/VFX`; `VfxConfig.Shot.MuzzleFlash`, `MuzzleBlast`, `Smoke`, `ImpactFlash`, and `ImpactSparks` now have `TemplateName`, `TemplateLifetime`, and `TemplateEmitCount`. Empty names keep old fallback behavior. Setup notes: `docs/VFX_TEMPLATE_SETUP.md`.
+- DuelPad: `LobbyService` now exposes `DuelQueueCount`, `DuelQueueRequired`, `DuelCountdown`, and `DuelState` on root/lobby/duelpad. Duel starts after a cancellable 3 second countdown. Visual repair helper: `docs/patches/CREATE_OR_REPAIR_DUELPAD_VISUAL_COMMAND.lua`.
+- Turret feel: turret turn speed is configurable in `TankConfig.Movement`, and server shooting uses current turret facing so aim no longer teleports at fire time.
+- Graphify: local `graphify` binary exists, but no graph pipeline was run or installed for this sprint. Manual architecture map lives in `docs/ARCHITECTURE_GRAPH.md`.
+- Verification required before commit: `git diff --check`; `rojo build default.project.json --output /private/tmp/wob-stable-fun-duel-v01-check.rbxm`; local Luau checker only if available.
+- Manual Studio checks: 1-player elevated lobby wall blocking, Training arena wall/cover blocking, no-damage lobby shooting, dummy damage/result/return; 2-player DuelPad `0/2 -> 1/2 -> 2/2`, countdown cancel on leaving, both queued players enter duel, result only for participants.
+- Recommended commit message: `Stabilize duel movement VFX and DuelPad flow`.
+
 ## Milestone 0 — Документация и структура
 
 ### Task 00.01 — Создать документацию проекта

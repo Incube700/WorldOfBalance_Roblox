@@ -23,8 +23,15 @@ local rematchVotesByMatchId = {}
 local spawnIndexByUserId = {}
 local nextSpawnIndex = 1
 local elapsedSincePadPoll = 0
+local duelCountdownRemaining = nil
+local duelCountdownPlayers = nil
 
 local PAD_POLL_INTERVAL = 0.12
+local DUEL_QUEUE_REQUIRED = 2
+local DUEL_COUNTDOWN_SECONDS = 3
+local DUEL_STATE_IDLE = "Idle"
+local DUEL_STATE_WAITING = "Waiting"
+local DUEL_STATE_COUNTDOWN = "Countdown"
 
 local function getPlayerFromParticipant(participant)
 	return participant ~= nil and participant.OwnerPlayer or nil
@@ -55,6 +62,25 @@ local function getDuelPad()
 	end
 
 	return nil
+end
+
+local function setDuelPadAttributes(queueCount, duelState, countdown)
+	local lobby = getLobby()
+	local duelPad = getDuelPad()
+	local attributes = {
+		DuelQueueCount = math.max(0, queueCount or 0),
+		DuelQueueRequired = DUEL_QUEUE_REQUIRED,
+		DuelCountdown = math.max(0, countdown or 0),
+		DuelState = duelState or DUEL_STATE_IDLE,
+	}
+
+	for _, instance in ipairs({ root, lobby, duelPad }) do
+		if instance ~= nil then
+			for attributeName, value in pairs(attributes) do
+				instance:SetAttribute(attributeName, value)
+			end
+		end
+	end
 end
 
 local function getLobbySpawnParts()
@@ -183,6 +209,17 @@ local function clearQueuedPlayer(player, reason)
 		return
 	end
 
+	if duelCountdownPlayers ~= nil then
+		for _, countdownPlayer in ipairs(duelCountdownPlayers) do
+			if countdownPlayer == player then
+				duelCountdownRemaining = nil
+				duelCountdownPlayers = nil
+				print("[LOBBY] duel countdown cancelled reason=" .. tostring(reason or "QueueChanged"))
+				break
+			end
+		end
+	end
+
 	queuedByPlayer[player] = nil
 
 	for index = #queuedPlayers, 1, -1 do
@@ -199,6 +236,22 @@ local function clearQueuedPlayer(player, reason)
 
 	if reason ~= nil then
 		print("[LOBBY] player left duel queue " .. player.Name)
+	end
+end
+
+local function clearQueuedPlayersExcept(keptPlayers, reason)
+	local kept = {}
+
+	for _, player in ipairs(keptPlayers or {}) do
+		kept[player] = true
+	end
+
+	for index = #queuedPlayers, 1, -1 do
+		local player = queuedPlayers[index]
+
+		if kept[player] ~= true then
+			clearQueuedPlayer(player, reason)
+		end
 	end
 end
 
@@ -319,40 +372,107 @@ local function queuePlayer(player, participant)
 	print("[LOBBY] player entered duel queue " .. player.Name)
 end
 
-local function tryStartQueuedDuel()
+local function getQueuedDuelCandidates(duelPad)
+	local candidates = {}
+
+	for _, player in ipairs(queuedPlayers) do
+		local participant = TankParticipantRegistry.getPlayerParticipant(player)
+
+		if player.Parent == Players
+			and participant ~= nil
+			and getMode(player) == LobbyService.MODE_QUEUED_FOR_DUEL
+			and participantIsOnDuelPad(participant, duelPad)
+		then
+			table.insert(candidates, {
+				Player = player,
+				Participant = participant,
+			})
+		end
+
+		if #candidates >= DUEL_QUEUE_REQUIRED then
+			break
+		end
+	end
+
+	return candidates
+end
+
+local function sameCountdownPlayers(candidates)
+	if duelCountdownPlayers == nil or #duelCountdownPlayers < DUEL_QUEUE_REQUIRED then
+		return false
+	end
+
+	for index = 1, DUEL_QUEUE_REQUIRED do
+		if duelCountdownPlayers[index] ~= candidates[index].Player then
+			return false
+		end
+	end
+
+	return true
+end
+
+local function cancelDuelCountdown(reason)
+	if duelCountdownRemaining ~= nil then
+		print("[LOBBY] duel countdown cancelled reason=" .. tostring(reason or "QueueChanged"))
+	end
+
+	duelCountdownRemaining = nil
+	duelCountdownPlayers = nil
+end
+
+local function tryStartQueuedDuel(deltaTime, duelPad)
 	if roundMatchService.getActiveMatch() ~= nil then
+		cancelDuelCountdown("ActiveMatch")
+		setDuelPadAttributes(#queuedPlayers, #queuedPlayers > 0 and DUEL_STATE_WAITING or DUEL_STATE_IDLE, 0)
 		return
 	end
 
-	while #queuedPlayers >= 2 do
-		local playerA = table.remove(queuedPlayers, 1)
-		local playerB = table.remove(queuedPlayers, 1)
-		queuedByPlayer[playerA] = nil
-		queuedByPlayer[playerB] = nil
+	local candidates = getQueuedDuelCandidates(duelPad)
 
-		local participantA = TankParticipantRegistry.getPlayerParticipant(playerA)
-		local participantB = TankParticipantRegistry.getPlayerParticipant(playerB)
-
-		if playerA.Parent == Players
-			and playerB.Parent == Players
-			and participantA ~= nil
-			and participantB ~= nil
-			and participantA ~= participantB
-			and getMode(playerA) == LobbyService.MODE_QUEUED_FOR_DUEL
-			and getMode(playerB) == LobbyService.MODE_QUEUED_FOR_DUEL
-		then
-			startDuel(playerA, participantA, playerB, participantB)
-			return
-		end
-
-		print("[LOBBY] duel queue cancelled reason=InvalidQueuedPlayers")
+	if #candidates < DUEL_QUEUE_REQUIRED then
+		cancelDuelCountdown("NotEnoughPlayers")
+		setDuelPadAttributes(#queuedPlayers, #queuedPlayers > 0 and DUEL_STATE_WAITING or DUEL_STATE_IDLE, 0)
+		return
 	end
+
+	if candidates[1].Participant == candidates[2].Participant then
+		cancelDuelCountdown("InvalidQueuedPlayers")
+		setDuelPadAttributes(#queuedPlayers, DUEL_STATE_WAITING, 0)
+		return
+	end
+
+	if not sameCountdownPlayers(candidates) then
+		duelCountdownRemaining = DUEL_COUNTDOWN_SECONDS
+		duelCountdownPlayers = { candidates[1].Player, candidates[2].Player }
+		print("[LOBBY] duel countdown started")
+	else
+		duelCountdownRemaining = math.max(0, (duelCountdownRemaining or DUEL_COUNTDOWN_SECONDS) - deltaTime)
+	end
+
+	setDuelPadAttributes(#queuedPlayers, DUEL_STATE_COUNTDOWN, math.ceil(duelCountdownRemaining or DUEL_COUNTDOWN_SECONDS))
+
+	if duelCountdownRemaining == nil or duelCountdownRemaining > 0 then
+		return
+	end
+
+	local playerA = candidates[1].Player
+	local participantA = candidates[1].Participant
+	local playerB = candidates[2].Player
+	local participantB = candidates[2].Participant
+
+	duelCountdownRemaining = nil
+	duelCountdownPlayers = nil
+	clearQueuedPlayersExcept({ playerA, playerB }, "DuelStarted")
+	startDuel(playerA, participantA, playerB, participantB)
+	setDuelPadAttributes(0, DUEL_STATE_IDLE, 0)
 end
 
-local function updateDuelPadQueue()
+local function updateDuelPadQueue(deltaTime)
 	local duelPad = getDuelPad()
 
 	if duelPad == nil then
+		cancelDuelCountdown("MissingDuelPad")
+		setDuelPadAttributes(0, DUEL_STATE_IDLE, 0)
 		return
 	end
 
@@ -372,7 +492,7 @@ local function updateDuelPadQueue()
 		end
 	end
 
-	tryStartQueuedDuel()
+	tryStartQueuedDuel(deltaTime, duelPad)
 end
 
 function LobbyService.init(options)
@@ -382,6 +502,7 @@ function LobbyService.init(options)
 	projectileService = options.projectileService
 	dummyParticipant = options.dummyParticipant
 
+	setDuelPadAttributes(0, DUEL_STATE_IDLE, 0)
 	print("[LOBBY] lobby free drive enabled")
 	print("[LOBBY] lobby projectile no-damage mode")
 end
@@ -605,8 +726,9 @@ function LobbyService.update(deltaTime)
 		return
 	end
 
+	local pollDeltaTime = elapsedSincePadPoll
 	elapsedSincePadPoll = 0
-	updateDuelPadQueue()
+	updateDuelPadQueue(pollDeltaTime)
 end
 
 return LobbyService
