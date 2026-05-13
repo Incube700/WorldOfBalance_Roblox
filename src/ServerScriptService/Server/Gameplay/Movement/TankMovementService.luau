@@ -9,7 +9,6 @@ local TANK_MOVEMENT_CAST_Y_OFFSET = 1.9
 local TANK_MOVEMENT_EPSILON = 0.03
 local TANK_UNSTICK_DISTANCE_EPSILON = 0.02
 local OBSTACLE_CACHE_SECONDS = 1
-local DEBUG_MOVEMENT_COLLISIONS = false
 
 local boundaryWallNames = {
 	Wall_North = true,
@@ -44,6 +43,10 @@ local tankModels = {} -- table of models to ignore (playerTank, player2Tank, dum
 local runtime = nil
 local tankMovementRaycastParams = nil
 local tankMovementOverlapParams = nil
+local collisionBoxSize = nil
+local collisionBoxYOffset = TANK_MOVEMENT_CAST_Y_OFFSET
+local collisionSkinWidth = TANK_MOVEMENT_CAST_PADDING
+local debugMovementCollisions = false
 
 local obstaclePartsCache = nil
 local obstaclePartsCacheTime = 0
@@ -58,6 +61,10 @@ function TankMovementService.init(params)
 	runtime = params.runtime
 	tankMovementRaycastParams = params.tankMovementRaycastParams
 	tankMovementOverlapParams = params.tankMovementOverlapParams
+	collisionBoxSize = typeof(params.collisionBoxSize) == "Vector3" and params.collisionBoxSize or nil
+	collisionBoxYOffset = tonumber(params.collisionBoxYOffset) or TANK_MOVEMENT_CAST_Y_OFFSET
+	collisionSkinWidth = tonumber(params.collisionSkinWidth) or TANK_MOVEMENT_CAST_PADDING
+	debugMovementCollisions = params.debugCollision == true
 
 	obstaclePartsCache = nil
 	obstaclePartsCacheTime = 0
@@ -164,7 +171,7 @@ local function collectMovementObstacleRoots()
 end
 
 local function debugMovementBlocked(obstaclePart)
-	if not DEBUG_MOVEMENT_COLLISIONS or obstaclePart == nil then
+	if not debugMovementCollisions or obstaclePart == nil then
 		return
 	end
 
@@ -280,16 +287,22 @@ end
 
 function TankMovementService.getTankMovementCastSize()
 	local bodySize = getBodySize()
+	local baseSize = collisionBoxSize or Vector3.new(
+		bodySize.X,
+		math.max(TANK_MOVEMENT_CAST_HEIGHT, bodySize.Y + 0.8),
+		bodySize.Z
+	)
+	local flatSkin = math.max(0, collisionSkinWidth)
 
 	return Vector3.new(
-		math.max(1, bodySize.X + TANK_MOVEMENT_CAST_PADDING),
-		math.max(TANK_MOVEMENT_CAST_HEIGHT, bodySize.Y + 0.8),
-		math.max(1, bodySize.Z + TANK_MOVEMENT_CAST_PADDING)
+		math.max(1, baseSize.X + flatSkin * 2),
+		math.max(TANK_MOVEMENT_CAST_HEIGHT, baseSize.Y),
+		math.max(1, baseSize.Z + flatSkin * 2)
 	)
 end
 
 function TankMovementService.getTankMovementCastCFrame(position, bodyYaw)
-	return CFrame.new(position + Vector3.new(0, TANK_MOVEMENT_CAST_Y_OFFSET, 0)) * CFrame.Angles(0, bodyYaw, 0)
+	return CFrame.new(position + Vector3.new(0, collisionBoxYOffset, 0)) * CFrame.Angles(0, bodyYaw, 0)
 end
 
 local function getFlatSeparationSquaredFromPart(position, obstaclePart)
@@ -373,6 +386,10 @@ function TankMovementService.findTankOverlapObstacle(position, bodyYaw)
 	return nil
 end
 
+function TankMovementService.isTankPoseValid(position, bodyYaw)
+	return TankMovementService.findTankOverlapObstacle(position, bodyYaw) == nil
+end
+
 function TankMovementService.isTankMovementBlocked(fromPosition, bodyYaw, movement)
 	if movement.Magnitude <= TANK_MOVEMENT_EPSILON then
 		return false, nil
@@ -450,6 +467,83 @@ function TankMovementService.resolveTankMovement(fromPosition, bodyYaw, desiredM
 	end
 
 	return fromPosition, zBlockingPart or xBlockingPart or fullBlockingPart
+end
+
+local function tryPose(fromPosition, bodyYaw, movement)
+	if movement.Magnitude > TANK_MOVEMENT_EPSILON then
+		local blocked, blockingPart = TankMovementService.isTankMovementBlocked(fromPosition, bodyYaw, movement)
+
+		if blocked then
+			return nil, blockingPart
+		end
+	end
+
+	local candidatePosition = fromPosition + movement
+	local overlapObstacle = TankMovementService.findTankOverlapObstacle(candidatePosition, bodyYaw)
+
+	if overlapObstacle ~= nil then
+		debugMovementBlocked(overlapObstacle)
+		return nil, overlapObstacle
+	end
+
+	return candidatePosition, nil
+end
+
+function TankMovementService.resolveTankPose(fromPosition, currentBodyYaw, desiredMove, desiredBodyYaw)
+	local fullMove = TankMovementService.clampTankPosition(fromPosition + desiredMove) - fromPosition
+	local targetBodyYaw = desiredBodyYaw or currentBodyYaw
+	local blockingPart = nil
+
+	local fullPosition, fullBlockingPart = tryPose(fromPosition, targetBodyYaw, fullMove)
+
+	if fullPosition ~= nil then
+		return fullPosition, targetBodyYaw, nil
+	end
+
+	blockingPart = fullBlockingPart
+
+	local movementOnlyPosition, movementOnlyBlockingPart = tryPose(fromPosition, currentBodyYaw, fullMove)
+
+	if movementOnlyPosition ~= nil then
+		return movementOnlyPosition, currentBodyYaw, nil
+	end
+
+	blockingPart = blockingPart or movementOnlyBlockingPart
+
+	local rotationOnlyPosition, rotationOnlyBlockingPart = tryPose(fromPosition, targetBodyYaw, Vector3.zero)
+
+	if rotationOnlyPosition ~= nil then
+		return rotationOnlyPosition, targetBodyYaw, nil
+	end
+
+	blockingPart = blockingPart or rotationOnlyBlockingPart
+
+	local xMove = Vector3.new(fullMove.X, 0, 0)
+	local zMove = Vector3.new(0, 0, fullMove.Z)
+
+	for _, yaw in ipairs({ targetBodyYaw, currentBodyYaw }) do
+		if xMove.Magnitude > TANK_MOVEMENT_EPSILON then
+			local xPosition, xBlockingPart = tryPose(fromPosition, yaw, xMove)
+
+			if xPosition ~= nil then
+				return xPosition, yaw, nil
+			end
+
+			blockingPart = blockingPart or xBlockingPart
+		end
+
+		if zMove.Magnitude > TANK_MOVEMENT_EPSILON then
+			local zPosition, zBlockingPart = tryPose(fromPosition, yaw, zMove)
+
+			if zPosition ~= nil then
+				return zPosition, yaw, nil
+			end
+
+			blockingPart = blockingPart or zBlockingPart
+		end
+	end
+
+	return fromPosition, currentBodyYaw, blockingPart
 end
 
 return TankMovementService

@@ -9,6 +9,10 @@ local TankConfig = table.freeze({
 		TurretTurnSpeedRadians = 4.1887902047863905,
 		TurretTurnSpeedDegrees = 240,
 		ShootUsesTurretFacing = true,
+		CollisionBoxSize = Vector3.new(8.7, 4.2, 11.7),
+		CollisionBoxYOffset = 1.9,
+		CollisionSkinWidth = 0.15,
+		DebugCollision = false,
 	}),
 
 	Armor = table.freeze({

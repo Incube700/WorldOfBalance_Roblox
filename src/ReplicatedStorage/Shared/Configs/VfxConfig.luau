@@ -131,6 +131,35 @@ local VfxConfig = table.freeze({
 			Lifetime = 0.12,
 		}),
 	}),
+
+	DeathExplosion = table.freeze({
+		Enabled = true,
+		TemplateName = "TankExplosionTemplate",
+		TemplateLifetime = 4,
+		TemplateEmitCount = 25,
+		SoundVolume = 0.9,
+		UseProceduralFallback = true,
+	}),
+
+	BurningTank = table.freeze({
+		Enabled = true,
+		TemplateName = "TankBurningTemplate",
+		TemplateLifetime = 6,
+		TemplateEmitCount = 8,
+		WarnIfMissingTemplate = false,
+	}),
+
+	Ricochet = table.freeze({
+		Enabled = true,
+		TemplateName = "RicochetTemplate",
+		TemplateLifetime = 0.75,
+		TemplateEmitCount = 14,
+		SoundId = "",
+		SoundVolume = 0.65,
+		SoundLifetime = 2,
+		UseImpactFallback = true,
+		WarnIfMissingTemplate = false,
+	}),
 })
 
 return VfxConfig

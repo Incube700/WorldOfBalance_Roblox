@@ -19,6 +19,9 @@ local projectileTypeId = primaryWeaponConfig.ProjectileTypeId or ProjectileCatal
 local projectileConfig = ProjectileCatalog.Projectiles[projectileTypeId]
 	or ProjectileCatalog.Projectiles[ProjectileCatalog.DefaultProjectileTypeId]
 local shotVfxConfig = VfxConfig.Shot
+local deathExplosionConfig = VfxConfig.DeathExplosion
+local burningTankConfig = VfxConfig.BurningTank
+local ricochetConfig = VfxConfig.Ricochet
 
 local PROJECTILE_SPEED = projectileConfig.Speed
 local PROJECTILE_MAX_DAMAGE = projectileConfig.MaxDamage
@@ -296,6 +299,110 @@ local function createImpactFlash(position)
 	end
 end
 
+local function createRicochetVfx(position, normal)
+	local direction = typeof(normal) == "Vector3" and normal or Vector3.yAxis
+	local templateHandled = CombatVfxService.playVfxTemplate(
+		position,
+		direction,
+		ricochetConfig,
+		"Ricochet"
+	)
+
+	if templateHandled then
+		return true
+	end
+
+	CombatVfxService.playConfiguredSound(position, ricochetConfig, "Ricochet")
+
+	if ricochetConfig == nil or ricochetConfig.UseImpactFallback ~= false then
+		createImpactFlash(position)
+	end
+
+	return false
+end
+
+local function createProceduralDeathExplosion(position, config)
+	if config == nil or config.Enabled ~= true or config.UseProceduralFallback ~= true then
+		return false
+	end
+
+	local lifetime = math.max(0.25, config.TemplateLifetime or 1.2)
+
+	local flash = Instance.new("Part")
+	flash.Name = "VFX_DeathExplosionFlash"
+	flash.Shape = Enum.PartType.Ball
+	flash.Size = Vector3.new(9, 9, 9)
+	flash.Position = position
+	flash.Anchored = true
+	flash.CanCollide = false
+	flash.CanTouch = false
+	flash.CanQuery = false
+	flash.CastShadow = false
+	flash.Material = Enum.Material.Neon
+	flash.Color = Color3.fromRGB(255, 120, 45)
+	flash.Transparency = 0.18
+	flash.Parent = vfxFolder
+
+	local light = Instance.new("PointLight")
+	light.Brightness = 7
+	light.Range = 28
+	light.Color = Color3.fromRGB(255, 170, 80)
+	light.Parent = flash
+	Debris:AddItem(flash, math.min(lifetime, 0.45))
+
+	for index = 1, 10 do
+		local spark = Instance.new("Part")
+		spark.Name = "VFX_DeathExplosionShard"
+		spark.Size = Vector3.new(0.35, 0.35, 2.2)
+		spark.CFrame = CFrame.new(position)
+			* CFrame.Angles(math.random() * math.pi, math.random() * math.pi, math.random() * math.pi)
+			* CFrame.new(0, 0, -math.random(2, 7))
+		spark.Anchored = true
+		spark.CanCollide = false
+		spark.CanTouch = false
+		spark.CanQuery = false
+		spark.CastShadow = false
+		spark.Material = Enum.Material.Neon
+		spark.Color = index % 2 == 0 and Color3.fromRGB(255, 220, 110) or Color3.fromRGB(255, 85, 35)
+		spark.Parent = vfxFolder
+		Debris:AddItem(spark, math.min(lifetime, 0.7))
+	end
+
+	return true
+end
+
+local function createDeathExplosion(position)
+	if deathExplosionConfig == nil or deathExplosionConfig.Enabled ~= true then
+		return false
+	end
+
+	local templateHandled = CombatVfxService.playVfxTemplate(
+		position,
+		Vector3.yAxis,
+		deathExplosionConfig,
+		"DeathExplosion"
+	)
+
+	if templateHandled then
+		return true
+	end
+
+	return createProceduralDeathExplosion(position, deathExplosionConfig)
+end
+
+local function createBurningTank(position)
+	if burningTankConfig == nil or burningTankConfig.Enabled ~= true then
+		return false
+	end
+
+	return CombatVfxService.playVfxTemplate(
+		position,
+		Vector3.yAxis,
+		burningTankConfig,
+		"BurningTank"
+	)
+end
+
 local function createProjectilePart(position, direction)
 	local visualConfig = shotVfxConfig.Projectile
 	local part = Instance.new("Part")
@@ -473,11 +580,12 @@ function ProjectileService.updateProjectiles(deltaTime)
 				})
 				if destroyed then table.remove(projectiles, i) end
 			else
-				createImpactFlash(result.Position)
 				if projectile.BounceCount >= projectile.MaxBounces then
+					createImpactFlash(result.Position)
 					ProjectileService.destroyProjectile(projectile)
 					table.remove(projectiles, i)
 				else
+					createRicochetVfx(result.Position, result.Normal)
 					ProjectileCombatService.applyProjectileRicochet(projectile, result.Position, result.Normal)
 					ProjectileCombatService.printBounce(projectile)
 				end
@@ -494,7 +602,10 @@ end
 function ProjectileService.getVFXHelpers()
 	return {
 		createImpactFlash = createImpactFlash,
-	destroyProjectile = ProjectileService.destroyProjectile,
+		createRicochetVfx = createRicochetVfx,
+		createDeathExplosion = createDeathExplosion,
+		createBurningTank = createBurningTank,
+		destroyProjectile = ProjectileService.destroyProjectile,
 	}
 end
 

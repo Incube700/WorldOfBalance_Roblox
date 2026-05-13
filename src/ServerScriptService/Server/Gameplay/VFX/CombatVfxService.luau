@@ -150,7 +150,7 @@ function CombatVfxService.getVfxTemplatesFolder()
 	return templatesFolder
 end
 
-function CombatVfxService.findVfxTemplate(templateName, effectName)
+function CombatVfxService.findVfxTemplate(templateName, effectName, warnIfMissing)
 	if not isNonEmptyString(templateName) then
 		return nil
 	end
@@ -163,7 +163,7 @@ function CombatVfxService.findVfxTemplate(templateName, effectName)
 
 	local template = templatesFolder:FindFirstChild(templateName)
 
-	if template == nil then
+	if template == nil and warnIfMissing ~= false then
 		warnOnce(
 			"missingTemplate:" .. templateName,
 			"[VFX] Template '" .. templateName .. "' for " .. tostring(effectName or "effect") .. " was not found under ReplicatedStorage/Shared/Assets/VFX; using fallback."
@@ -246,16 +246,45 @@ function CombatVfxService.emitAllParticles(rootInstance, emitCount)
 	end)
 end
 
-function CombatVfxService.playAllSounds(rootInstance)
+function CombatVfxService.playAllSounds(rootInstance, soundVolumeOverride)
 	if rootInstance == nil then
 		return
 	end
 
 	forEachInstance(rootInstance, function(instance)
 		if instance:IsA("Sound") then
+			if typeof(soundVolumeOverride) == "number" then
+				instance.Volume = soundVolumeOverride
+			end
+
 			instance:Play()
 		end
 	end)
+end
+
+function CombatVfxService.playConfiguredSound(position, config, effectName)
+	if config == nil or not isNonEmptyString(config.SoundId) then
+		return false
+	end
+
+	if vfxFolder == nil then
+		warnOnce("missingRuntimeVfxFolderForSound", "[VFX] Runtime VFX folder is missing; configured sound VFX disabled.")
+		return false
+	end
+
+	local holder = createTemplateHolder(CFrame.new(position), "SFX_" .. tostring(effectName or "ConfiguredVfx"))
+	local sound = Instance.new("Sound")
+	sound.Name = "Sound"
+	sound.SoundId = config.SoundId
+	sound.Volume = config.SoundVolume or 0.7
+	sound.PlaybackSpeed = config.SoundPlaybackSpeed or 1
+	sound.RollOffMaxDistance = config.SoundRollOffMaxDistance or 180
+	sound.RollOffMinDistance = config.SoundRollOffMinDistance or 8
+	sound.Parent = holder
+	sound:Play()
+	Debris:AddItem(holder, config.SoundLifetime or 3)
+
+	return true
 end
 
 function CombatVfxService.playVfxTemplate(position, direction, config, effectName)
@@ -269,7 +298,7 @@ function CombatVfxService.playVfxTemplate(position, direction, config, effectNam
 		return false
 	end
 
-	local template = CombatVfxService.findVfxTemplate(templateName, effectName)
+	local template = CombatVfxService.findVfxTemplate(templateName, effectName, config.WarnIfMissingTemplate ~= false)
 
 	if template == nil then
 		return false
@@ -290,7 +319,7 @@ function CombatVfxService.playVfxTemplate(position, direction, config, effectNam
 	end
 
 	CombatVfxService.emitAllParticles(cloneOrError, config.TemplateEmitCount or config.EmitCount or 1)
-	CombatVfxService.playAllSounds(cloneOrError)
+	CombatVfxService.playAllSounds(cloneOrError, config.SoundVolume)
 	Debris:AddItem(cloneOrError, getTemplateLifetime(config))
 
 	return true

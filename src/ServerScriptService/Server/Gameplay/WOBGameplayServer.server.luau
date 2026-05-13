@@ -166,6 +166,10 @@ TankMovementService.init({
 	runtime = runtime,
 	tankMovementRaycastParams = tankMovementRaycastParams,
 	tankMovementOverlapParams = tankMovementOverlapParams,
+	collisionBoxSize = TankConfig.Movement.CollisionBoxSize,
+	collisionBoxYOffset = TankConfig.Movement.CollisionBoxYOffset,
+	collisionSkinWidth = TankConfig.Movement.CollisionSkinWidth,
+	debugCollision = TankConfig.Movement.DebugCollision == true,
 })
 TankSpawnResetService.init(map)
 
@@ -230,6 +234,62 @@ local function getYawFromAimPosition(position, aimPosition, fallbackYaw)
 	return math.atan2(-delta.X, -delta.Z)
 end
 
+local missingDeathVfxPositionWarnings = {}
+
+local function warnMissingDeathVfxPositionOnce(participant)
+	local tankId = participant ~= nil and participant.TankId or "unknown"
+
+	if missingDeathVfxPositionWarnings[tankId] == true then
+		return
+	end
+
+	missingDeathVfxPositionWarnings[tankId] = true
+	warn("[VFX] Death explosion skipped: no position for " .. tostring(tankId))
+end
+
+local function getParticipantVfxPosition(participant)
+	if participant == nil then
+		return nil
+	end
+
+	if participant.PrimaryPart ~= nil and participant.PrimaryPart.Parent ~= nil then
+		return participant.PrimaryPart.Position
+	end
+
+	if participant.Body ~= nil and participant.Body.Parent ~= nil then
+		return participant.Body.Position
+	end
+
+	local model = TankParticipantRegistry.getParticipantPhysicalModel(participant)
+
+	if model ~= nil then
+		if model.PrimaryPart ~= nil and model.PrimaryPart.Parent ~= nil then
+			return model.PrimaryPart.Position
+		end
+
+		for _, descendant in ipairs(model:GetDescendants()) do
+			if descendant:IsA("BasePart") then
+				return descendant.Position
+			end
+		end
+	end
+
+	return nil
+end
+
+local function playDeathExplosion(participant)
+	local deathPosition = getParticipantVfxPosition(participant)
+
+	if deathPosition == nil then
+		warnMissingDeathVfxPositionOnce(participant)
+		return
+	end
+
+	local vfxHelpers = ProjectileService.getVFXHelpers()
+	vfxHelpers.createDeathExplosion(deathPosition)
+	vfxHelpers.createBurningTank(deathPosition)
+end
+
 local function damageParticipant(participant, amount)
 	local activeMatch = RoundMatchService.getActiveMatch()
 
@@ -253,6 +313,7 @@ local function damageParticipant(participant, amount)
 
 	if newHealth <= 0 then
 		TankParticipantRegistry.setParticipantIsDead(participant, true)
+		playDeathExplosion(participant)
 		TankSpawnResetService.darkenTank(participant.Model)
 		print("[DEAD] " .. participant.TankId .. " destroyed")
 
@@ -304,6 +365,7 @@ ProjectileService.setMapRaycastTargets(collectMapTargets())
 ProjectileCombatService.init({
 	getParticipantIsDead = function(p) return TankParticipantRegistry.getParticipantIsDead(p) end,
 	createImpactFlash = function(pos) ProjectileService.getVFXHelpers().createImpactFlash(pos) end,
+	createRicochetVfx = function(pos, normal) ProjectileService.getVFXHelpers().createRicochetVfx(pos, normal) end,
 	destroyProjectile = function(proj) ProjectileService.destroyProjectile(proj) end,
 	sendCombatFeedback = function(ftype, pos, text, color)
 		combatFeedbackEvent:FireAllClients({ Type = ftype, Position = pos, Text = text, Color = color })
@@ -474,11 +536,13 @@ RunService.Heartbeat:Connect(function(deltaTime)
 			local input = inputs[p.OwnerPlayer]
 			if input then
 				local state = p.ControlState
-				state.BodyYaw -= input.Steer * TURN_SPEED * deltaTime
+				local currentBodyYaw = state.BodyYaw
+				local desiredBodyYaw = currentBodyYaw - input.Steer * TURN_SPEED * deltaTime
 				local moveSpeed = MOVE_SPEED * (input.Throttle < 0 and REVERSE_MOVE_SPEED_MULTIPLIER or 1)
-				local desiredMove = (CFrame.Angles(0, state.BodyYaw, 0).LookVector) * input.Throttle * moveSpeed * deltaTime
-				local resolvedPos, blocking = TankMovementService.resolveTankMovement(state.Position, state.BodyYaw, desiredMove)
+				local desiredMove = (CFrame.Angles(0, desiredBodyYaw, 0).LookVector) * input.Throttle * moveSpeed * deltaTime
+				local resolvedPos, resolvedBodyYaw = TankMovementService.resolveTankPose(state.Position, currentBodyYaw, desiredMove, desiredBodyYaw)
 				state.Position = resolvedPos
+				state.BodyYaw = resolvedBodyYaw
 				local targetTurretYaw = getYawFromAimPosition(state.Position, input.AimPosition, state.TurretYaw)
 				state.TurretYaw = moveAngleTowards(state.TurretYaw, targetTurretYaw, TURRET_TURN_SPEED * deltaTime)
 				TankSpawnResetService.layoutTank(p.Model, state.Position, state.BodyYaw, state.TurretYaw)

@@ -24,6 +24,7 @@ RoundMatchService.MATCH_MODE_PVP = "PvP"
 
 local MATCH_SERIES_ENABLED = MatchConfig.EnableMatchSeries == true
 local MATCH_TARGET_WINS = math.max(1, math.floor(tonumber(MatchConfig.TargetWins) or 3))
+local ROUND_RESET_DELAY = math.max(0, tonumber(MatchConfig.RoundResetDelay) or 0)
 
 local root = nil
 local gameState = RoundMatchService.GAME_STATE_MENU
@@ -49,6 +50,8 @@ local matchState = {
 }
 
 local activeMatch = nil
+local roundResetReadyAt = 0
+local lastResetDelayLogTime = 0
 
 local callbacks = {
 	onGameStateChanged = nil,
@@ -323,6 +326,7 @@ function RoundMatchService.endRound(result)
 	end
 
 	RoundMatchService.setRoundResult(result)
+	roundResetReadyAt = os.clock() + ROUND_RESET_DELAY
 
 	if MATCH_SERIES_ENABLED then
 		if result == RoundMatchService.ROUND_RESULT_WIN then
@@ -399,6 +403,15 @@ end
 
 function RoundMatchService.resetRound()
 	if gameState ~= RoundMatchService.GAME_STATE_PLAYING then
+		return
+	end
+
+	if roundState.Ended and os.clock() < roundResetReadyAt then
+		if os.clock() - lastResetDelayLogTime > 0.5 then
+			lastResetDelayLogTime = os.clock()
+			print("[ROUND] reset delayed for VFX")
+		end
+
 		return
 	end
 
@@ -488,6 +501,8 @@ function RoundMatchService.startNewMatch()
 	if activeMatch ~= nil then
 		activeMatch.IsFinished = false
 	end
+
+	roundResetReadyAt = 0
 
 	if callbacks.onDestroyAllProjectiles then
 		callbacks.onDestroyAllProjectiles()

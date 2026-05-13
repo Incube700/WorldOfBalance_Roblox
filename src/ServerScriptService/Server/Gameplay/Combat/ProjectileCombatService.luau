@@ -97,6 +97,7 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 	local roundState = options.roundState
 	local getParticipantIsDead = dependencies.getParticipantIsDead
 	local createImpactFlash = dependencies.createImpactFlash
+	local createRicochetVfx = dependencies.createRicochetVfx
 	local destroyProjectile = dependencies.destroyProjectile
 	local sendCombatFeedback = dependencies.sendCombatFeedback
 	local damageParticipant = dependencies.damageParticipant
@@ -158,6 +159,10 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 
 	if armorHit.Result == "Ricochet" then
 		printArmorResult("[ARMOR-RICOCHET]", targetParticipant.TankId, armorHit, projectile)
+
+		if createRicochetVfx ~= nil then
+			createRicochetVfx(hitPosition, hitNormal)
+		end
 
 		sendCombatFeedback(
 			"ArmorRicochet",

@@ -59,17 +59,18 @@ flowchart TD
 flowchart TD
     A["Client TankInputEvent"] --> B["Server validates player participant"]
     B --> C["Heartbeat movement"]
-    C --> D["BodyYaw + desiredMove"]
-    D --> E["TankMovementService.resolveTankMovement"]
+    C --> D["desired yaw + desired move"]
+    D --> E["TankMovementService.resolveTankPose"]
     E --> F["collect movement obstacle parts"]
     F --> G["Map walls/cover/boundaries"]
     F --> H["Lobby railings"]
     F --> I["WOBMovementObstacle parts"]
-    E --> J["Blockcast include obstacles"]
-    E --> K["Overlap fallback"]
-    J --> L["Full move, then X, then Z"]
+    E --> J["Blockcast translation"]
+    E --> K["Final oriented overlap check"]
+    J --> L["Full pose, movement-only, rotation-only, X/Z slide"]
     K --> L
-    L --> M["layoutTank preserves current Y"]
+    L --> M["Apply only valid position/yaw"]
+    M --> N["layoutTank preserves current Y"]
 ```
 
 ## Projectile And VFX Flow
@@ -86,9 +87,11 @@ flowchart TD
     D --> I["Projectile raycast"]
     I --> J["Map/lobby obstacle hit"]
     I --> K["Tank hitbox hit"]
-    J --> L["Impact VFX and ricochet"]
+    J --> L["RicochetTemplate or impact fallback"]
     K --> M["ProjectileCombatService armor result"]
-    M --> N["CombatFeedbackEvent"]
+    M --> N["Impact/Ricochet VFX"]
+    N --> O["CombatFeedbackEvent"]
+    M --> P["DeathExplosion + optional BurningTank"]
 ```
 
 ## Client Camera Input HUD Flow
@@ -111,8 +114,8 @@ flowchart TD
 - `TankConfig`: movement speed, body turn speed, turret turn speed, shoot facing rule, armor/hitbox layout.
 - `WeaponConfig`: primary weapon id, cooldown, projectile type id.
 - `ProjectileCatalog`: projectile speed, damage, penetration, ricochet count and lifetime.
-- `VfxConfig`: shot sound, projectile visuals, procedural VFX, template names/lifetimes/emit counts.
-- `MatchConfig`: series target wins.
+- `VfxConfig`: shot sound, projectile visuals, procedural VFX, VFX template names/lifetimes/emit counts, death explosion, optional burning, ricochet.
+- `MatchConfig`: series target wins and round reset delay.
 - `CameraConfig`, `AimAssistConfig`, `HudConfig`, `ProjectileVisualConfig`: client presentation.
 
 ## Scene Contract
@@ -122,4 +125,5 @@ flowchart TD
 - `Workspace/WOB_Generated/Map`: arena walls, cover, ricochet walls, spawn points.
 - `Workspace/WOB_Generated/Lobby`: elevated lobby floor, railings, spawn points, DuelPad.
 - `ReplicatedStorage/Shared/Assets/VFX`: source templates for cloned VFX.
+- `ReplicatedStorage/Shared/Assets/VFX/VfxTemplateCatalog`: runtime catalog of template objects that actually exist in the VFX folder.
 - `docs/patches/*_COMMAND.lua`: manual Studio scene repair, always outside Play Mode.
