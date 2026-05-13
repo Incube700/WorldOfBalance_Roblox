@@ -330,9 +330,6 @@ local function damageParticipant(participant, amount)
 
 	print("[DAMAGE] " .. participant.TankId .. " -" .. math.floor(amount) .. " HP (" .. math.floor(newHealth) .. ")")
 
-	local impactPos = participant.Body and participant.Body.Position or participant.Model:GetPivot().Position
-	ProjectileService.getVFXHelpers().createImpactFlash(impactPos + Vector3.new(0, 3, 0))
-
 	if newHealth <= 0 then
 		TankParticipantRegistry.setParticipantIsDead(participant, true)
 		playDeathExplosion(participant)
@@ -388,7 +385,9 @@ ProjectileService.setMapRaycastTargets(collectMapTargets())
 -- Init Combat Service
 ProjectileCombatService.init({
 	getParticipantIsDead = function(p) return TankParticipantRegistry.getParticipantIsDead(p) end,
-	createImpactFlash = function(pos) ProjectileService.getVFXHelpers().createImpactFlash(pos) end,
+	createDamageHitVfx = function(pos, normal) ProjectileService.getVFXHelpers().createDamageHitVfx(pos, normal) end,
+	createNoPenVfx = function(pos, normal) ProjectileService.getVFXHelpers().createNoPenVfx(pos, normal) end,
+	createSelfHitVfx = function(pos, normal) ProjectileService.getVFXHelpers().createSelfHitVfx(pos, normal) end,
 	createRicochetVfx = function(pos, normal) ProjectileService.getVFXHelpers().createRicochetVfx(pos, normal) end,
 	destroyProjectile = function(proj) ProjectileService.destroyProjectile(proj) end,
 	sendCombatFeedback = function(ftype, pos, text, color)

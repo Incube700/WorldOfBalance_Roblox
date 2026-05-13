@@ -19,6 +19,7 @@ local projectileTypeId = primaryWeaponConfig.ProjectileTypeId or ProjectileCatal
 local projectileConfig = ProjectileCatalog.Projectiles[projectileTypeId]
 	or ProjectileCatalog.Projectiles[ProjectileCatalog.DefaultProjectileTypeId]
 local shotVfxConfig = VfxConfig.Shot
+local impactVfxConfig = VfxConfig.Impact or {}
 local deathExplosionConfig = VfxConfig.DeathExplosion
 local burningTankConfig = VfxConfig.BurningTank
 local ricochetConfig = VfxConfig.Ricochet
@@ -107,7 +108,11 @@ local function createParticleBurst(position, direction, config, name)
 	emitter.LightInfluence = config.LightInfluence or 0
 	emitter.Lifetime = NumberRange.new(config.ParticleLifetimeMin or 0.1, config.ParticleLifetimeMax or 0.2)
 	emitter.Speed = NumberRange.new(config.ParticleSpeedMin or 0, config.ParticleSpeedMax or 0)
-	emitter.SpreadAngle = config.ParticleSpreadAngle or Vector2.new(180, 180)
+	local spreadAngle = config.ParticleSpreadAngle
+	if spreadAngle == nil and typeof(config.ParticleSpread) == "number" then
+		spreadAngle = Vector2.new(config.ParticleSpread, config.ParticleSpread)
+	end
+	emitter.SpreadAngle = spreadAngle or Vector2.new(180, 180)
 	emitter.Size = NumberSequence.new({
 		NumberSequenceKeypoint.new(0, config.ParticleSizeStart or 1),
 		NumberSequenceKeypoint.new(1, config.ParticleSizeEnd or 0),
@@ -123,51 +128,48 @@ local function createParticleBurst(position, direction, config, name)
 	return true
 end
 
-local function createFlash(position, config, name)
+local function createFlash(position, config, name, direction, skipParticleBurst)
 	if config == nil or config.Enabled ~= true then return nil end
-	if createParticleBurst(position, Vector3.new(0, 0, -1), config, name) and config.UseProceduralFallback ~= true then
+	local particleHandled = false
+
+	if skipParticleBurst ~= true then
+		particleHandled = createParticleBurst(position, direction or Vector3.new(0, 0, -1), config, name)
+	end
+
+	if particleHandled and config.UseProceduralFallback ~= true then
 		return nil
 	end
+	local flashSize = tonumber(config.Size)
+	if flashSize == nil or flashSize <= 0 then return nil end
 	local flash = Instance.new("Part")
-	flash.Name = "VFX_Flash"
+	flash.Name = name or "VFX_Flash"
 	flash.Shape = Enum.PartType.Ball
-	flash.Size = Vector3.new(config.Size, config.Size, config.Size)
+	flash.Size = Vector3.new(flashSize, flashSize, flashSize)
 	flash.Position = position
 	flash.Anchored = true
 	flash.CanCollide = false
 	flash.CanTouch = false
 	flash.CanQuery = false
 	flash.CastShadow = false
-	flash.Material = Enum.Material.Neon
-	flash.Color = config.Color
+	flash.Material = config.Material or Enum.Material.Neon
+	flash.Color = config.Color or Color3.new(1, 1, 1)
+	flash.Transparency = config.Transparency or 0
 	flash.Parent = vfxFolder
-	Debris:AddItem(flash, config.Lifetime)
+
+	if (config.LightBrightness or 0) > 0 then
+		local light = Instance.new("PointLight")
+		light.Brightness = config.LightBrightness
+		light.Range = config.LightRange or 10
+		light.Color = config.LightColor or config.Color or Color3.new(1, 1, 1)
+		light.Parent = flash
+	end
+
+	Debris:AddItem(flash, config.Lifetime or 0.1)
 	return flash
 end
 
 local function createShotSound(position)
-	if shotVfxConfig.SoundId == nil or shotVfxConfig.SoundId == "" then return end
-	local emitter = Instance.new("Part")
-	emitter.Name = "SFX_CannonShotEmitter"
-	emitter.Size = Vector3.new(0.2, 0.2, 0.2)
-	emitter.Position = position
-	emitter.Anchored = true
-	emitter.CanCollide = false
-	emitter.CanTouch = false
-	emitter.CanQuery = false
-	emitter.CastShadow = false
-	emitter.Transparency = 1
-	emitter.Parent = vfxFolder
-	local sound = Instance.new("Sound")
-	sound.Name = "SFX_CannonShot"
-	sound.SoundId = shotVfxConfig.SoundId
-	sound.Volume = shotVfxConfig.SoundVolume or 0.7
-	sound.PlaybackSpeed = shotVfxConfig.SoundPlaybackSpeed or 1
-	sound.RollOffMaxDistance = shotVfxConfig.SoundRollOffMaxDistance or 180
-	sound.RollOffMinDistance = shotVfxConfig.SoundRollOffMinDistance or 8
-	sound.Parent = emitter
-	sound:Play()
-	Debris:AddItem(emitter, shotVfxConfig.SoundLifetime or 4)
+	CombatVfxService.playConfiguredSound(position, shotVfxConfig, "CannonShot")
 end
 
 local function createMuzzleFlash(position, direction)
@@ -256,51 +258,93 @@ local function createMuzzleFlash(position, direction)
 	end
 end
 
-local function createImpactFlash(position)
-	local impactTemplateHandled = CombatVfxService.playVfxTemplate(
-		position,
-		Vector3.yAxis,
-		shotVfxConfig.ImpactFlash,
-		"ImpactFlash"
-	)
-
-	if not impactTemplateHandled then
-		createFlash(position, shotVfxConfig.ImpactFlash, "VFX_ImpactParticleFlash")
+local function getVfxDirection(direction)
+	if typeof(direction) ~= "Vector3" then
+		return Vector3.new(0, 0, -1)
 	end
 
-	local sparkConfig = shotVfxConfig.ImpactSparks
-	if sparkConfig == nil or sparkConfig.Enabled ~= true then return end
-	local sparksTemplateHandled = CombatVfxService.playVfxTemplate(
+	local flatDirection = Vector3.new(direction.X, 0, direction.Z)
+
+	if flatDirection.Magnitude < 0.001 then
+		return Vector3.new(0, 0, -1)
+	end
+
+	return flatDirection.Unit
+end
+
+local function createImpactBurst(position, direction, config, effectName)
+	if config == nil or config.Enabled ~= true then return false end
+	local effectDirection = getVfxDirection(direction)
+	local templateHandled = CombatVfxService.playVfxTemplate(
 		position,
-		Vector3.yAxis,
-		sparkConfig,
-		"ImpactSparks"
+		effectDirection,
+		config,
+		effectName
 	)
 
-	if sparksTemplateHandled then return end
+	if templateHandled then return true end
 
-	local particleHandled = createParticleBurst(position, Vector3.new(0, 1, 0), sparkConfig, "VFX_ImpactParticleSparks")
-	if particleHandled and sparkConfig.UseProceduralFallback ~= true then return end
-	for _ = 1, sparkConfig.Count or 3 do
+	local handled = false
+
+	if config.UseFlashFallback ~= false then
+		handled = createFlash(position, config, "VFX_" .. tostring(effectName) .. "_Flash", effectDirection, true) ~= nil or handled
+	end
+
+	local particleHandled = createParticleBurst(position, effectDirection, config, "VFX_" .. tostring(effectName) .. "_Particles")
+	handled = particleHandled or handled
+
+	if particleHandled and config.UseProceduralFallback ~= true then return true end
+	if config.UseProceduralFallback == false then return handled end
+
+	local sparkSize = config.SparkSize
+	if typeof(sparkSize) ~= "Vector3" then
+		sparkSize = Vector3.new(0.16, 0.16, 0.75)
+	end
+
+	for _ = 1, config.Count or 3 do
 		local spark = Instance.new("Part")
-		spark.Name = "VFX_Spark"
-		spark.Size = sparkConfig.Size
+		spark.Name = "VFX_" .. tostring(effectName) .. "_Spark"
+		spark.Size = sparkSize
 		spark.Position = position
 		spark.Anchored = true
 		spark.CanCollide = false
 		spark.CanTouch = false
 		spark.CanQuery = false
 		spark.CastShadow = false
-		spark.Material = Enum.Material.Neon
-		spark.Color = sparkConfig.Color
+		spark.Material = config.Material or Enum.Material.Neon
+		spark.Color = config.Color or Color3.fromRGB(255, 206, 84)
 		spark.CFrame = CFrame.new(position) * CFrame.Angles(math.random() * math.pi, math.random() * math.pi, math.random() * math.pi)
 		spark.Parent = vfxFolder
-		Debris:AddItem(spark, sparkConfig.Lifetime or 0.12)
+		Debris:AddItem(spark, config.Lifetime or 0.12)
 	end
+
+	return true
+end
+
+local function createWallImpactVfx(position, normal)
+	return createImpactBurst(position, normal, impactVfxConfig.WallImpact, "WallImpact")
+end
+
+local function createDamageHitVfx(position, normal)
+	return createImpactBurst(position, normal, impactVfxConfig.DamageHit, "DamageHit")
+end
+
+local function createNoPenVfx(position, normal)
+	return createImpactBurst(position, normal, impactVfxConfig.NoPen, "NoPen")
+end
+
+local function createSelfHitVfx(position, normal)
+	return createImpactBurst(position, normal, impactVfxConfig.SelfHit, "SelfHit")
+end
+
+local function createImpactFlash(position)
+	return createWallImpactVfx(position, Vector3.yAxis)
 end
 
 local function createRicochetVfx(position, normal)
 	local direction = typeof(normal) == "Vector3" and normal or Vector3.yAxis
+	CombatVfxService.playConfiguredSound(position, ricochetConfig, "Ricochet")
+
 	local templateHandled = CombatVfxService.playVfxTemplate(
 		position,
 		direction,
@@ -312,10 +356,8 @@ local function createRicochetVfx(position, normal)
 		return true
 	end
 
-	CombatVfxService.playConfiguredSound(position, ricochetConfig, "Ricochet")
-
 	if ricochetConfig == nil or ricochetConfig.UseImpactFallback ~= false then
-		createImpactFlash(position)
+		createWallImpactVfx(position, direction)
 	end
 
 	return false
@@ -563,53 +605,69 @@ local function getProjectileRaycastTargets(projectile)
 end
 
 function ProjectileService.updateProjectiles(deltaTime)
-	if callbacks.areProjectilesEnabled ~= nil and callbacks.areProjectilesEnabled() ~= true then return end
-	for i = #projectiles, 1, -1 do
-		local projectile = projectiles[i]
-		if projectile.Destroyed then
-			table.remove(projectiles, i)
-			continue
-		end
-		projectile.LifeTime += deltaTime
-		if projectile.LifeTime >= projectile.MaxLifeTime then
-			ProjectileService.destroyProjectile(projectile)
-			table.remove(projectiles, i)
-			continue
-		end
-		local distance = projectile.Speed * deltaTime
-		projectileRaycastParams.FilterDescendantsInstances = getProjectileRaycastTargets(projectile)
-		local result = Workspace:Raycast(projectile.Position, projectile.Direction * distance, projectileRaycastParams)
-		if result ~= nil then
-			local targetParticipant = TankParticipantRegistry.getParticipantFromArmorHitbox(result.Instance)
-			local armorZone = TankParticipantRegistry.getArmorZoneFromHitbox(result.Instance)
-			if targetParticipant ~= nil then
-				local destroyed = ProjectileCombatService.handleProjectileTankHit(projectile, targetParticipant, result.Position, result.Normal, armorZone, {
-					roundState = callbacks.getRoundState(),
-				})
-				if destroyed then table.remove(projectiles, i) end
-			else
-				if projectile.BounceCount >= projectile.MaxBounces then
-					createImpactFlash(result.Position)
-					ProjectileService.destroyProjectile(projectile)
-					table.remove(projectiles, i)
-				else
-					createRicochetVfx(result.Position, result.Normal)
-					ProjectileCombatService.applyProjectileRicochet(projectile, result.Position, result.Normal)
-					ProjectileCombatService.printBounce(projectile)
-				end
-			end
-		else
-			projectile.Position += projectile.Direction * distance
-			if projectile.Part then
-				projectile.Part.CFrame = CFrame.lookAt(projectile.Position, projectile.Position + projectile.Direction, Vector3.yAxis)
-			end
-		end
-	end
+    if callbacks.areProjectilesEnabled ~= nil and callbacks.areProjectilesEnabled() ~= true then return end
+
+    for i = #projectiles, 1, -1 do
+        local projectile = projectiles[i]
+
+        if projectile.Destroyed then
+            table.remove(projectiles, i)
+            continue
+        end
+
+        projectile.LifeTime += deltaTime
+
+        if projectile.LifeTime >= projectile.MaxLifeTime then
+            ProjectileService.destroyProjectile(projectile)
+            table.remove(projectiles, i)
+            continue
+        end
+
+        local distance = projectile.Speed * deltaTime
+        projectileRaycastParams.FilterDescendantsInstances = getProjectileRaycastTargets(projectile)
+        local result = Workspace:Raycast(projectile.Position, projectile.Direction * distance, projectileRaycastParams)
+
+        if result ~= nil then
+            local targetParticipant = TankParticipantRegistry.getParticipantFromArmorHitbox(result.Instance)
+            local armorZone = TankParticipantRegistry.getArmorZoneFromHitbox(result.Instance)
+
+            if targetParticipant ~= nil then
+                local destroyed = ProjectileCombatService.handleProjectileTankHit(
+                    projectile,
+                    targetParticipant,
+                    result.Position,
+                    result.Normal,
+                    armorZone,
+                    { roundState = callbacks.getRoundState() }
+                )
+
+                if destroyed then table.remove(projectiles, i) end
+            elseif projectile.BounceCount >= projectile.MaxBounces then
+                createWallImpactVfx(result.Position, result.Normal)
+                ProjectileService.destroyProjectile(projectile)
+                table.remove(projectiles, i)
+            else
+                createRicochetVfx(result.Position, result.Normal)
+                ProjectileCombatService.applyProjectileRicochet(projectile, result.Position, result.Normal)
+                ProjectileCombatService.printBounce(projectile)
+            end
+        else
+            projectile.Position += projectile.Direction * distance
+
+            if projectile.Part then
+                projectile.Part.CFrame = CFrame.lookAt(projectile.Position, projectile.Position + projectile.Direction, Vector3.yAxis)
+            end
+        end
+    end
 end
 
 function ProjectileService.getVFXHelpers()
 	return {
 		createImpactFlash = createImpactFlash,
+		createWallImpactVfx = createWallImpactVfx,
+		createDamageHitVfx = createDamageHitVfx,
+		createNoPenVfx = createNoPenVfx,
+		createSelfHitVfx = createSelfHitVfx,
 		createRicochetVfx = createRicochetVfx,
 		createDeathExplosion = createDeathExplosion,
 		createBurningTank = createBurningTank,

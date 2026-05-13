@@ -257,7 +257,17 @@ function CombatVfxService.playAllSounds(rootInstance, soundVolumeOverride)
 				instance.Volume = soundVolumeOverride
 			end
 
-			instance:Play()
+			local soundKey = isNonEmptyString(instance.SoundId) and instance.SoundId or instance:GetFullName()
+			local success, errorMessage = pcall(function()
+				instance:Play()
+			end)
+
+			if not success then
+				warnOnce(
+					"templateSoundPlayFailed:" .. soundKey,
+					"[VFX] Template sound for " .. soundKey .. " could not be played: " .. tostring(errorMessage)
+				)
+			end
 		end
 	end)
 end
@@ -277,12 +287,30 @@ function CombatVfxService.playConfiguredSound(position, config, effectName)
 	sound.Name = "Sound"
 	sound.SoundId = config.SoundId
 	sound.Volume = config.SoundVolume or 0.7
-	sound.PlaybackSpeed = config.SoundPlaybackSpeed or 1
+	local playbackSpeed = config.SoundPlaybackSpeed or 1
+	local playbackSpeedJitter = math.max(0, tonumber(config.SoundPlaybackSpeedJitter) or 0)
+
+	if playbackSpeedJitter > 0 then
+		playbackSpeed += (math.random() * 2 - 1) * playbackSpeedJitter
+	end
+
+	sound.PlaybackSpeed = math.max(0.05, playbackSpeed)
 	sound.RollOffMaxDistance = config.SoundRollOffMaxDistance or 180
 	sound.RollOffMinDistance = config.SoundRollOffMinDistance or 8
 	sound.Parent = holder
-	sound:Play()
+	local success, errorMessage = pcall(function()
+		sound:Play()
+	end)
 	Debris:AddItem(holder, config.SoundLifetime or 3)
+
+	if not success then
+		warnOnce(
+			"configuredSoundPlayFailed:" .. config.SoundId,
+			"[VFX] Configured sound for " .. tostring(effectName or "effect") .. " could not be played: "
+				.. tostring(errorMessage)
+		)
+		return false
+	end
 
 	return true
 end

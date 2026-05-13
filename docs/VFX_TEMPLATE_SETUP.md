@@ -14,11 +14,14 @@ ReplicatedStorage
 └── Shared
     └── Assets
         └── VFX
-            ├── MuzzleFlashTemplate
-            ├── MuzzleBlastTemplate
-            ├── SmokeTemplate
-            ├── ImpactFlashTemplate
-            └── ImpactSparksTemplate
+	            ├── MuzzleFlashTemplate
+	            ├── MuzzleBlastTemplate
+	            ├── SmokeTemplate
+	            ├── ImpactFlashTemplate
+	            ├── ImpactSparksTemplate
+	            ├── RicochetTemplate
+	            ├── TankExplosionTemplate
+	            └── TankBurningTemplate
 ```
 
 Если папки нет в Studio, сначала синхронизируй Rojo. Если она все равно отсутствует, выполни вне Play Mode:
@@ -41,13 +44,30 @@ docs/patches/COLLECT_AND_INSTALL_VFX_TEMPLATES_COMMAND.lua
 
 - `Resources explosion`, `Resources Explosion`, `Explosion`, `TankExplosion`, `Tank Explosion` -> `TankExplosionTemplate`;
 - `Fire Effect`, `Burning`, `TankBurning` -> `TankBurningTemplate`;
-- `Sparks`, `Shrapnels`, `Impact` -> `ImpactSparksTemplate`;
+- `ImpactFlash`, `HitFlash`, `DamageHit` -> `ImpactFlashTemplate`;
+- `Sparks`, `Shrapnels`, `Impact`, `NoPen`, `No Penetration` -> `ImpactSparksTemplate`;
 - `Ricochet` -> `RicochetTemplate`;
 - `Smoke` -> `SmokeTemplate`;
 - `MuzzleFlash` -> `MuzzleFlashTemplate`;
 - `MuzzleBlast`, `Fireball` -> `MuzzleBlastTemplate`.
 
 Оригиналы-доноры не удаляются. Если донор лежал прямо в `Workspace`, скрипт переносит его в `Workspace/WOB_EditorOnly_AssetDonors`, чтобы он не мешал сцене. После успешного запуска сделай `File -> Save to File`.
+
+## Preview templates
+
+Чтобы сравнить эффекты глазами без Play Mode, выполни в Command Bar:
+
+```text
+docs/patches/PREVIEW_VFX_TEMPLATES_COMMAND.lua
+```
+
+Скрипт создает/обновляет `Workspace/WOB_Generated/VFXPreview`, ставит preview points для muzzle/smoke/impact/ricochet/explosion/burning, клонирует все реальные templates из `ReplicatedStorage/Shared/Assets/VFX`, вызывает `Emit()` у `ParticleEmitter`, опционально играет `Sound` и логирует:
+
+```text
+[WOB VFX PREVIEW] Previewed TankExplosionTemplate emitters=X sounds=Y
+```
+
+Preview clone также санитарится: `BasePart.CanCollide=false`, `CanTouch=false`, `CanQuery=false`.
 
 ## Tank death explosion из Toolbox
 
@@ -75,14 +95,14 @@ Script клонирует source asset, заменяет старый `TankExplo
 Подключение происходит через:
 
 ```lua
-DeathExplosion = table.freeze({
-	Enabled = true,
-	TemplateName = "TankExplosionTemplate",
-	TemplateLifetime = 4,
-	TemplateEmitCount = 25,
-	SoundVolume = 0.9,
-	UseProceduralFallback = true,
-})
+	DeathExplosion = table.freeze({
+		Enabled = true,
+		TemplateName = "TankExplosionTemplate",
+		TemplateLifetime = 4,
+		TemplateEmitCount = 28,
+		SoundVolume = 0.9,
+		UseProceduralFallback = true,
+	})
 ```
 
 Когда танк умирает, сервер клонирует `TankExplosionTemplate`, ставит его в позицию `Body` или `PrimaryPart`, вызывает `Emit()` у всех `ParticleEmitter`, играет все `Sound`, оставляет lights на время жизни clone и удаляет clone через `Debris`.
@@ -136,7 +156,7 @@ TemplateName = "37194537"
 - оставляет `Light` жить на время `TemplateLifetime`;
 - удаляет clone через `Debris`.
 
-Если template не найден, игра не падает. Будет один warn по имени template, затем старый fallback.
+Если template не найден, игра не падает. Для обязательных/важных templates будет один warn по имени template, затем fallback. Для optional templates с `WarnIfMissingTemplate=false` warning не будет.
 
 Для optional templates вроде `TankBurningTemplate` и `RicochetTemplate` warn отключен, потому что эти ассеты могут появиться позже. Если template отсутствует, игра просто использует fallback или пропускает optional эффект.
 
@@ -146,7 +166,7 @@ TemplateName = "37194537"
 
 `TextureId` можно оставить заполненным как fallback. Тогда при пустом или плохом `TemplateName` будет работать старый particle/procedural эффект.
 
-`Shot.SoundId` остается отдельным звуком выстрела через `SFX_CannonShotEmitter`. Если твой template уже содержит звук выстрела и получается дубль, очисти `Shot.SoundId = ""`.
+`Shot.SoundId` остается отдельным звуком выстрела через `CombatVfxService.playConfiguredSound`. Если твой template уже содержит звук выстрела и получается дубль, очисти `Shot.SoundId = ""`.
 
 ## Почему Workspace не склад ассетов
 
@@ -189,7 +209,28 @@ Ricochet = table.freeze({
 
 Если `RicochetTemplate` есть, он играет при bounce от стены и armor ricochet. Если его нет, используется impact/sparks fallback.
 
-Для muzzle/impact можно включать templates в `VfxConfig.Shot.MuzzleFlash`, `MuzzleBlast`, `Smoke`, `ImpactFlash`, `ImpactSparks`. Пока `TemplateName = ""`, старые procedural/TextureId эффекты работают как раньше.
+Для muzzle можно включать templates в `VfxConfig.Shot.MuzzleFlash`, `MuzzleBlast`, `Smoke`.
+
+Для impact slots используется отдельная группа:
+
+```lua
+Impact = table.freeze({
+	WallImpact = table.freeze({
+		TemplateName = "ImpactSparksTemplate",
+	}),
+	DamageHit = table.freeze({
+		TemplateName = "ImpactFlashTemplate",
+	}),
+	NoPen = table.freeze({
+		TemplateName = "ImpactSparksTemplate",
+	}),
+	SelfHit = table.freeze({
+		TemplateName = "ImpactFlashTemplate",
+	}),
+})
+```
+
+`WallImpact` играет при попадании в карту, `DamageHit` после пробития брони, `NoPen` после непробития, `SelfHit` при собственном рикошете. Пока template отсутствует, работают procedural/TextureId fallback effects.
 
 ## Как проверить template
 
@@ -200,3 +241,20 @@ ReplicatedStorage/Shared/Assets/VFX
 ```
 
 Проверь, что нужный объект существует, например `TankExplosionTemplate` или `TankBurningTemplate`. Внутри допустимы `ParticleEmitter`, `Sound`, `PointLight`, `SpotLight`, `SurfaceLight`, `Beam`, `Trail`, `Attachment`, `Part`, `Model`, `Folder`. У `ParticleEmitter` должно быть `Enabled = false`; у `BasePart` должны быть `CanCollide = false`, `CanTouch = false`, `CanQuery = false`.
+
+## Как тюнить значения
+
+`TemplateEmitCount` задает базовый `Emit()` count для всех `ParticleEmitter` в template, если у emitter нет своего attribute `EmitCount`.
+
+`TemplateLifetime` задает, сколько clone живет в `Workspace/WOB_Generated/Runtime/VFX` перед cleanup через `Debris`. Ориентиры:
+
+- muzzle: `0.05`-`0.2`;
+- smoke: `0.4`-`1.2`;
+- impact/no-pen: `0.3`-`0.8`;
+- ricochet: `0.4`-`0.9`;
+- death explosion: `3`-`4`;
+- burning tank: `4`-`6`.
+
+`SoundVolume` задает громкость template sounds и configured `SoundId`. Пустой `SoundId` валиден. Ошибки проигрывания звука throttled и не ломают gameplay.
+
+Для проверки collision/query открой preview clone или template в Studio и проверь каждый `BasePart`: `CanCollide=false`, `CanTouch=false`, `CanQuery=false`. Collector и preview script выставляют эти flags автоматически, но ручная проверка полезна после импорта из Toolbox.

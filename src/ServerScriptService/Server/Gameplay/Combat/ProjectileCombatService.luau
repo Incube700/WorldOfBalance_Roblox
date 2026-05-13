@@ -28,7 +28,7 @@ local DEBUG_PROJECTILES = false
 
 local function printArmorResult(prefix, targetName, armorHit, projectile)
 	if not DEBUG_PROJECTILES then return end
-	
+
 	print(
 		prefix
 			.. " "
@@ -48,7 +48,7 @@ end
 
 local function printBounce(projectile)
 	if not DEBUG_PROJECTILES then return end
-	
+
 	print(
 		"[BOUNCE] count="
 			.. projectile.BounceCount
@@ -94,16 +94,17 @@ local function applyProjectileRicochet(projectile, hitPosition, hitNormal, optio
 end
 
 function ProjectileCombatService.handleProjectileTankHit(projectile, targetParticipant, hitPosition, hitNormal, armorZone, options)
-	local roundState = options.roundState
+	options = options or {}
+	local roundState = options.roundState or {}
 	local getParticipantIsDead = dependencies.getParticipantIsDead
-	local createImpactFlash = dependencies.createImpactFlash
+	local createDamageHitVfx = dependencies.createDamageHitVfx
+	local createNoPenVfx = dependencies.createNoPenVfx
+	local createSelfHitVfx = dependencies.createSelfHitVfx
 	local createRicochetVfx = dependencies.createRicochetVfx
 	local destroyProjectile = dependencies.destroyProjectile
 	local sendCombatFeedback = dependencies.sendCombatFeedback
 	local damageParticipant = dependencies.damageParticipant
 	local canDamageParticipant = dependencies.canDamageParticipant
-
-	createImpactFlash(hitPosition)
 
 	if roundState.Ended or getParticipantIsDead(targetParticipant) then
 		destroyProjectile(projectile)
@@ -115,10 +116,16 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 
 	if not canDamageTarget then
 		if projectile.BounceCount >= projectile.MaxBounces then
+			if createNoPenVfx ~= nil then
+				createNoPenVfx(hitPosition, hitNormal)
+			end
 			destroyProjectile(projectile)
 			return true
 		end
 
+		if createRicochetVfx ~= nil then
+			createRicochetVfx(hitPosition, hitNormal)
+		end
 		applyProjectileRicochet(projectile, hitPosition, hitNormal, { NoStats = true })
 		printBounce(projectile)
 		return false
@@ -134,12 +141,19 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 		printArmorResult("[PEN]", targetParticipant.TankId, armorHit, projectile)
 
 		local damageText = "-" .. math.floor(armorHit.Damage)
+		local isSelfHit = targetParticipant == projectile.OwnerParticipant
 
-		if targetParticipant == projectile.OwnerParticipant and projectile.OwnerPlayer ~= nil then
+		if isSelfHit and projectile.OwnerPlayer ~= nil then
 			if DEBUG_PROJECTILES then
 				print("[SELF-HIT] " .. targetParticipant.TankId .. " hit by own ricochet")
 			end
 			damageText = "SELF HIT " .. damageText
+		end
+
+		if isSelfHit and createSelfHitVfx ~= nil then
+			createSelfHitVfx(hitPosition, hitNormal)
+		elseif createDamageHitVfx ~= nil then
+			createDamageHitVfx(hitPosition, hitNormal)
 		end
 
 		sendCombatFeedback(
@@ -172,6 +186,10 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 		)
 	else
 		printArmorResult("[NO-PEN]", targetParticipant.TankId, armorHit, projectile)
+
+		if createNoPenVfx ~= nil then
+			createNoPenVfx(hitPosition, hitNormal)
+		end
 
 		sendCombatFeedback(
 			"NoPenetration",
