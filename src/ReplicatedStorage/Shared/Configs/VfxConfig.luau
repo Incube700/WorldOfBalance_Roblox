@@ -1,14 +1,14 @@
 local VfxConfig = table.freeze({
 	Shot = table.freeze({
-		SoundId = "rbxassetid://9120386436",
-		SoundVolume = 0.65,
-		SoundRollOffMaxDistance = 160,
-		SoundPlaybackSpeed = 0.96,
-		SoundPlaybackSpeedJitter = 0.08,
+		SoundId = "rbxassetid://139771888058836",
+		SoundVolume = 0.75,
+		SoundRollOffMaxDistance = 180,
+		SoundPlaybackSpeed = 1,
+		SoundPlaybackSpeedJitter = 0.04,
 
 		MuzzleFlash = table.freeze({
 			Enabled = true,
-			TemplateName = "MuzzleFlashTemplate",
+			TemplateName = "",
 			TemplateLifetime = 0.18,
 			TemplateEmitCount = 8,
 			WarnIfMissingTemplate = false,
@@ -34,7 +34,7 @@ local VfxConfig = table.freeze({
 
 		MuzzleBlast = table.freeze({
 			Enabled = true,
-			TemplateName = "MuzzleBlastTemplate",
+			TemplateName = "",
 			TemplateLifetime = 0.2,
 			TemplateEmitCount = 1,
 			WarnIfMissingTemplate = false,
@@ -49,7 +49,7 @@ local VfxConfig = table.freeze({
 
 		Smoke = table.freeze({
 			Enabled = true,
-			TemplateName = "SmokeTemplate",
+			TemplateName = "",
 			TemplateLifetime = 1.0,
 			TemplateEmitCount = 6,
 			WarnIfMissingTemplate = false,
@@ -74,25 +74,26 @@ local VfxConfig = table.freeze({
 
 		Projectile = table.freeze({
 			Enabled = true,
-			Size = 0.42,
+			Size = 1.2,
 			Color = Color3.fromRGB(255, 235, 140),
 			Material = Enum.Material.Neon,
-			LightBrightness = 1.6,
-			LightRange = 9,
-			TrailLifetime = 0.14,
-			TrailMinLength = 0.04,
+			LightBrightness = 2.4,
+			LightRange = 10,
+			TrailLifetime = 0.18,
+			TrailMinLength = 0.05,
 			TrailColorStart = Color3.fromRGB(255, 235, 140),
 			TrailColorEnd = Color3.fromRGB(255, 95, 40),
-			TrailWidthStart = 0.18,
-			TrailWidthMid = 0.08,
+			TrailWidthStart = 1.35,
+			TrailWidthMid = 0.7,
 			TrailColor = ColorSequence.new(Color3.fromRGB(255, 235, 140), Color3.fromRGB(255, 95, 40)),
 			TrailTransparency = NumberSequence.new({
 				NumberSequenceKeypoint.new(0, 0.15),
 				NumberSequenceKeypoint.new(1, 1),
 			}),
 			TrailWidth = NumberSequence.new({
-				NumberSequenceKeypoint.new(0, 0.18),
-				NumberSequenceKeypoint.new(1, 0.02),
+				NumberSequenceKeypoint.new(0, 1.35),
+				NumberSequenceKeypoint.new(0.6, 0.7),
+				NumberSequenceKeypoint.new(1, 0),
 			}),
 		}),
 	}),
@@ -100,7 +101,7 @@ local VfxConfig = table.freeze({
 	Impact = table.freeze({
 		WallImpact = table.freeze({
 			Enabled = true,
-			TemplateName = "ImpactSparksTemplate",
+			TemplateName = "",
 			TemplateLifetime = 0.55,
 			TemplateEmitCount = 8,
 			WarnIfMissingTemplate = false,
@@ -129,7 +130,7 @@ local VfxConfig = table.freeze({
 
 		DamageHit = table.freeze({
 			Enabled = true,
-			TemplateName = "ImpactFlashTemplate",
+			TemplateName = "",
 			TemplateLifetime = 0.65,
 			TemplateEmitCount = 12,
 			WarnIfMissingTemplate = false,
@@ -158,7 +159,7 @@ local VfxConfig = table.freeze({
 
 		NoPen = table.freeze({
 			Enabled = true,
-			TemplateName = "ImpactSparksTemplate",
+			TemplateName = "",
 			TemplateLifetime = 0.4,
 			TemplateEmitCount = 5,
 			WarnIfMissingTemplate = false,
@@ -187,7 +188,7 @@ local VfxConfig = table.freeze({
 
 		SelfHit = table.freeze({
 			Enabled = true,
-			TemplateName = "ImpactFlashTemplate",
+			TemplateName = "",
 			TemplateLifetime = 0.75,
 			TemplateEmitCount = 14,
 			WarnIfMissingTemplate = false,
@@ -217,7 +218,7 @@ local VfxConfig = table.freeze({
 
 	Ricochet = table.freeze({
 		Enabled = true,
-		TemplateName = "RicochetTemplate",
+		TemplateName = "",
 		TemplateLifetime = 0.75,
 		TemplateEmitCount = 14,
 		WarnIfMissingTemplate = false,
@@ -244,7 +245,7 @@ local VfxConfig = table.freeze({
 
 	BurningTank = table.freeze({
 		Enabled = true,
-		TemplateName = "TankBurningTemplate",
+		TemplateName = "",
 		TemplateLifetime = 6.0,
 		TemplateEmitCount = 8,
 		WarnIfMissingTemplate = false,

@@ -1,5 +1,6 @@
 -- One-time Roblox Studio Command Bar helper.
--- Run outside Play Mode. It collects known Workspace VFX donors into ReplicatedStorage/Shared/Assets/VFX.
+-- Run outside Play Mode. It collects obvious Workspace VFX donors into
+-- ReplicatedStorage/Shared/Assets/VFX as real template instances.
 
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -11,30 +12,50 @@ if RunService:IsRunning() then
 end
 
 local DONOR_FOLDER_NAME = "WOB_EditorOnly_AssetDonors"
+local GENERATED_ROOT_NAME = "WOB_Generated"
+local REPLACE_EXISTING_TEMPLATES = true
 
 local DONOR_RULES = {
-	{ DonorName = "Resources explosion", TemplateName = "TankExplosionTemplate", Type = "TankDeathExplosion", ReplaceExisting = true },
-	{ DonorName = "Resources Explosion", TemplateName = "TankExplosionTemplate", Type = "TankDeathExplosion", ReplaceExisting = true },
-	{ DonorName = "Explosion", TemplateName = "TankExplosionTemplate", Type = "TankDeathExplosion", ReplaceExisting = true },
-	{ DonorName = "TankExplosion", TemplateName = "TankExplosionTemplate", Type = "TankDeathExplosion", ReplaceExisting = true },
-	{ DonorName = "Tank Explosion", TemplateName = "TankExplosionTemplate", Type = "TankDeathExplosion", ReplaceExisting = true },
-	{ DonorName = "Fire Effect", TemplateName = "TankBurningTemplate", Type = "BurningTank", ReplaceExisting = true },
-	{ DonorName = "Burning", TemplateName = "TankBurningTemplate", Type = "BurningTank", ReplaceExisting = true },
-	{ DonorName = "TankBurning", TemplateName = "TankBurningTemplate", Type = "BurningTank", ReplaceExisting = true },
-	{ DonorName = "Fireball", TemplateName = "MuzzleBlastTemplate", Type = "MuzzleBlast", ReplaceExisting = false },
-	{ DonorName = "Smoke", TemplateName = "SmokeTemplate", Type = "Smoke", ReplaceExisting = false },
-	{ DonorName = "ImpactFlash", TemplateName = "ImpactFlashTemplate", Type = "DamageHit", ReplaceExisting = false },
-	{ DonorName = "HitFlash", TemplateName = "ImpactFlashTemplate", Type = "DamageHit", ReplaceExisting = false },
-	{ DonorName = "DamageHit", TemplateName = "ImpactFlashTemplate", Type = "DamageHit", ReplaceExisting = false },
-	{ DonorName = "Sparks", TemplateName = "ImpactSparksTemplate", Type = "Impact", ReplaceExisting = false },
-	{ DonorName = "Shrapnels", TemplateName = "ImpactSparksTemplate", Type = "Impact", ReplaceExisting = false },
-	{ DonorName = "NoPen", TemplateName = "ImpactSparksTemplate", Type = "NoPen", ReplaceExisting = false },
-	{ DonorName = "No Penetration", TemplateName = "ImpactSparksTemplate", Type = "NoPen", ReplaceExisting = false },
-	{ DonorName = "Ricochet", TemplateName = "RicochetTemplate", Type = "Ricochet", ReplaceExisting = false },
-	{ DonorName = "Impact", TemplateName = "ImpactSparksTemplate", Type = "Impact", ReplaceExisting = false },
-	{ DonorName = "MuzzleFlash", TemplateName = "MuzzleFlashTemplate", Type = "MuzzleFlash", ReplaceExisting = false },
-	{ DonorName = "MuzzleBlast", TemplateName = "MuzzleBlastTemplate", Type = "MuzzleBlast", ReplaceExisting = false },
+	{
+		TemplateName = "TankExplosionTemplate",
+		Type = "TankDeathExplosion",
+		DonorNames = { "Resources explosion", "Resources Explosion", "Explosion" },
+	},
+	{
+		TemplateName = "TankBurningTemplate",
+		Type = "BurningTank",
+		DonorNames = { "Burning", "Fire", "TankBurning", "Tank Burning", "Fire Effect" },
+	},
+	{
+		TemplateName = "RicochetTemplate",
+		Type = "Ricochet",
+		DonorNames = { "Ricochet" },
+	},
+	{
+		TemplateName = "ImpactSparksTemplate",
+		Type = "Impact",
+		DonorNames = { "Impact", "Sparks" },
+	},
+	{
+		TemplateName = "MuzzleFlashTemplate",
+		Type = "MuzzleFlash",
+		DonorNames = { "MuzzleFlash", "Muzzle Flash" },
+	},
+	{
+		TemplateName = "MuzzleBlastTemplate",
+		Type = "MuzzleBlast",
+		DonorNames = { "MuzzleBlast", "Muzzle Blast" },
+	},
+	{
+		TemplateName = "SmokeTemplate",
+		Type = "Smoke",
+		DonorNames = { "Smoke" },
+	},
 }
+
+local function normalizeName(name)
+	return string.lower((tostring(name):gsub("[%s_%-%./]+", "")))
+end
 
 local function getOrCreate(parent, className, name)
 	local existing = parent:FindFirstChild(name)
@@ -55,6 +76,19 @@ local function getOrCreate(parent, className, name)
 	return instance
 end
 
+local function isScriptInstance(instance)
+	return instance:IsA("Script") or instance:IsA("LocalScript") or instance:IsA("ModuleScript")
+end
+
+local function isTemplateInstance(instance)
+	return instance:IsA("Folder")
+		or instance:IsA("Model")
+		or instance:IsA("BasePart")
+		or instance:IsA("Attachment")
+		or instance:IsA("ParticleEmitter")
+		or instance:IsA("Sound")
+end
+
 local function countAndSanitize(rootInstance)
 	local counts = {
 		ParticleEmitters = 0,
@@ -64,7 +98,7 @@ local function countAndSanitize(rootInstance)
 	}
 
 	local function sanitize(instance)
-		if instance:IsA("Script") or instance:IsA("LocalScript") or instance:IsA("ModuleScript") then
+		if isScriptInstance(instance) then
 			counts.ScriptsRemoved += 1
 			instance:Destroy()
 			return
@@ -95,11 +129,18 @@ local function countAndSanitize(rootInstance)
 end
 
 local function isUsableDonor(instance)
-	return instance ~= nil
-		and instance.Archivable
-		and not instance:IsA("Script")
-		and not instance:IsA("LocalScript")
-		and not instance:IsA("ModuleScript")
+	return instance ~= nil and not isScriptInstance(instance)
+end
+
+local function formatCounts(counts)
+	return "ParticleEmitters="
+		.. tostring(counts.ParticleEmitters)
+		.. " Sounds="
+		.. tostring(counts.Sounds)
+		.. " BaseParts="
+		.. tostring(counts.BaseParts)
+		.. " ScriptsRemoved="
+		.. tostring(counts.ScriptsRemoved)
 end
 
 local shared = getOrCreate(ReplicatedStorage, "Folder", "Shared")
@@ -126,48 +167,131 @@ if donorFolder == nil then
 	return
 end
 
-local searchRoots = { Workspace, donorFolder }
-local installedByTemplateName = {}
+local generatedRoot = Workspace:FindFirstChild(GENERATED_ROOT_NAME)
 
-local function findDonorByName(donorName)
-	for _, searchRoot in ipairs(searchRoots) do
-		local direct = searchRoot:FindFirstChild(donorName)
+local function isExcludedWorkspaceInstance(instance)
+	if instance == donorFolder or instance:IsDescendantOf(donorFolder) then
+		return true
+	end
 
-		if direct ~= nil and direct ~= donorFolder then
-			return direct
+	if generatedRoot ~= nil and (instance == generatedRoot or instance:IsDescendantOf(generatedRoot)) then
+		return true
+	end
+
+	return false
+end
+
+local function collectTemplateNames()
+	local names = {}
+
+	for _, child in ipairs(vfxFolder:GetChildren()) do
+		if child.Name ~= "VfxTemplateCatalog" and isTemplateInstance(child) then
+			table.insert(names, child.Name)
 		end
 	end
 
-	return nil
+	table.sort(names)
+	return names
 end
 
+local function printTemplateList(prefix)
+	local names = collectTemplateNames()
+
+	if #names == 0 then
+		print(prefix .. " none")
+	else
+		print(prefix .. " " .. table.concat(names, ", "))
+	end
+end
+
+printTemplateList("[WOB VFX] Existing templates:")
+
+for _, existingTemplate in ipairs(vfxFolder:GetChildren()) do
+	if existingTemplate.Name ~= "VfxTemplateCatalog" and isTemplateInstance(existingTemplate) then
+		local counts = countAndSanitize(existingTemplate)
+		print("[WOB VFX] Sanitized existing " .. existingTemplate.Name .. " " .. formatCounts(counts))
+	end
+end
+
+local function buildDonorNameLookup(rule)
+	local lookup = {}
+
+	for _, donorName in ipairs(rule.DonorNames) do
+		lookup[normalizeName(donorName)] = donorName
+	end
+
+	return lookup
+end
+
+local function findDirectDonor(root, lookup)
+	for _, child in ipairs(root:GetChildren()) do
+		if isUsableDonor(child) and lookup[normalizeName(child.Name)] ~= nil then
+			return child, lookup[normalizeName(child.Name)]
+		end
+	end
+
+	return nil, nil
+end
+
+local function findRecursiveDonor(root, lookup, excludeFunc)
+	for _, descendant in ipairs(root:GetDescendants()) do
+		if (excludeFunc == nil or excludeFunc(descendant) ~= true)
+			and isUsableDonor(descendant)
+			and lookup[normalizeName(descendant.Name)] ~= nil
+		then
+			return descendant, lookup[normalizeName(descendant.Name)]
+		end
+	end
+
+	return nil, nil
+end
+
+local function findDonorForRule(rule)
+	local lookup = buildDonorNameLookup(rule)
+	local donor, matchedName = findDirectDonor(donorFolder, lookup)
+
+	if donor ~= nil then
+		return donor, matchedName
+	end
+
+	donor, matchedName = findDirectDonor(Workspace, lookup)
+
+	if donor ~= nil and not isExcludedWorkspaceInstance(donor) then
+		return donor, matchedName
+	end
+
+	donor, matchedName = findRecursiveDonor(donorFolder, lookup)
+
+	if donor ~= nil then
+		return donor, matchedName
+	end
+
+	return findRecursiveDonor(Workspace, lookup, isExcludedWorkspaceInstance)
+end
+
+local installedCount = 0
+local foundCount = 0
+
 for _, rule in ipairs(DONOR_RULES) do
-	local donorName = rule.DonorName
-	local donor = findDonorByName(donorName)
+	local donor, matchedName = findDonorForRule(rule)
 
 	if donor == nil then
-		print("[WOB VFX] Skipped " .. donorName .. " -> source not found")
+		print("[WOB VFX] Skipped missing donor for " .. rule.TemplateName .. ": " .. table.concat(rule.DonorNames, ", "))
 		continue
 	end
 
-	if installedByTemplateName[rule.TemplateName] == true then
-		print("[WOB VFX] Skipped " .. donor:GetFullName() .. " -> " .. rule.TemplateName .. " already installed this pass")
-		continue
-	end
-
-	if not isUsableDonor(donor) then
-		print("[WOB VFX] Skipped " .. donor:GetFullName() .. " -> source is not archivable or is script-only")
-		continue
-	end
+	foundCount += 1
+	print("[WOB VFX] Found donor " .. donor:GetFullName() .. " matched '" .. tostring(matchedName) .. "' -> " .. rule.TemplateName)
 
 	local existingTemplate = vfxFolder:FindFirstChild(rule.TemplateName)
 
 	if existingTemplate ~= nil then
-		if rule.ReplaceExisting == true then
+		if REPLACE_EXISTING_TEMPLATES then
 			existingTemplate:Destroy()
 			print("[WOB VFX] Replaced existing " .. rule.TemplateName)
 		else
-			print("[WOB VFX] Skipped " .. donor:GetFullName() .. " -> " .. rule.TemplateName .. " already exists")
+			local counts = countAndSanitize(existingTemplate)
+			print("[WOB VFX] Kept existing " .. rule.TemplateName .. " " .. formatCounts(counts))
 			continue
 		end
 	end
@@ -194,21 +318,11 @@ for _, rule in ipairs(DONOR_RULES) do
 	template:SetAttribute("VfxType", rule.Type)
 
 	local counts = countAndSanitize(template)
-	installedByTemplateName[rule.TemplateName] = true
+	installedCount += 1
 
-	print("[WOB VFX] Installed " .. rule.TemplateName .. " from " .. donor:GetFullName())
-	print(
-		"[WOB VFX] ParticleEmitters="
-			.. tostring(counts.ParticleEmitters)
-			.. " Sounds="
-			.. tostring(counts.Sounds)
-			.. " BaseParts="
-			.. tostring(counts.BaseParts)
-			.. " ScriptsRemoved="
-			.. tostring(counts.ScriptsRemoved)
-	)
+	print("[WOB VFX] Installed " .. rule.TemplateName .. " from " .. donor:GetFullName() .. " " .. formatCounts(counts))
 
-	if donor.Parent == Workspace then
+	if donor:IsDescendantOf(Workspace) and not donor:IsDescendantOf(donorFolder) then
 		donor.Parent = donorFolder
 		print("[WOB VFX] Moved original donor to " .. donor:GetFullName())
 	else
@@ -216,4 +330,7 @@ for _, rule in ipairs(DONOR_RULES) do
 	end
 end
 
-print("[WOB VFX] VFX collection pass complete. File -> Save to File.")
+print("[WOB VFX] Found donors: " .. tostring(foundCount))
+print("[WOB VFX] Installed templates: " .. tostring(installedCount))
+printTemplateList("[WOB VFX] Final templates:")
+print("[WOB VFX] VFX collection pass complete. File -> Save to File if this Studio scene owns the installed assets.")

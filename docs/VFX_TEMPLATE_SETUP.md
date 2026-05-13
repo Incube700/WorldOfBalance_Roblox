@@ -5,6 +5,8 @@
 - старый путь: `TextureId`, procedural parts, `SoundId`;
 - новый путь: готовые Toolbox templates из `ReplicatedStorage/Shared/Assets/VFX`.
 
+Codex и `rojo build` видят только файлы в source tree. Если VFX donor вставлен в Roblox Studio и command script создал объект только в текущем DataModel, этого объекта не видно как файла в `src/ReplicatedStorage/Shared/Assets/VFX`. Поэтому optional slots в `VfxConfig` должны оставлять `TemplateName = ""`, пока template не существует как реальный объект в Studio/DataModel, который ты собираешься использовать.
+
 ## Куда класть Toolbox VFX
 
 Для обычных muzzle/impact effects можно сразу положить готовый asset сюда:
@@ -14,14 +16,13 @@ ReplicatedStorage
 └── Shared
     └── Assets
         └── VFX
-	            ├── MuzzleFlashTemplate
-	            ├── MuzzleBlastTemplate
-	            ├── SmokeTemplate
-	            ├── ImpactFlashTemplate
-	            ├── ImpactSparksTemplate
-	            ├── RicochetTemplate
-	            ├── TankExplosionTemplate
-	            └── TankBurningTemplate
+            ├── MuzzleFlashTemplate
+            ├── MuzzleBlastTemplate
+            ├── SmokeTemplate
+            ├── ImpactSparksTemplate
+            ├── RicochetTemplate
+            ├── TankExplosionTemplate
+            └── TankBurningTemplate
 ```
 
 Если папки нет в Studio, сначала синхронизируй Rojo. Если она все равно отсутствует, выполни вне Play Mode:
@@ -30,7 +31,7 @@ ReplicatedStorage
 docs/patches/CREATE_OR_REPAIR_VFX_ASSETS_FOLDER_COMMAND.lua
 ```
 
-Потом вставь Toolbox asset в `ReplicatedStorage/Shared/Assets/VFX` и сделай `File -> Save to File`.
+Можно вставить Toolbox asset напрямую в `ReplicatedStorage/Shared/Assets/VFX`, но для donor workflow обычно проще вставить asset в `Workspace`, затем запустить collector ниже. После Studio-side установки проверь, что объект реально появился под `ReplicatedStorage/Shared/Assets/VFX`.
 
 ## Автосбор доноров из Workspace
 
@@ -40,18 +41,17 @@ docs/patches/CREATE_OR_REPAIR_VFX_ASSETS_FOLDER_COMMAND.lua
 docs/patches/COLLECT_AND_INSTALL_VFX_TEMPLATES_COMMAND.lua
 ```
 
-Скрипт ищет доноры в `Workspace` и `Workspace/WOB_EditorOnly_AssetDonors`, создает `ReplicatedStorage/Shared/Assets/VFX`, клонирует найденные эффекты, санитарит их и присваивает понятные имена:
+Скрипт ищет реальные доноры в `Workspace` и `Workspace/WOB_EditorOnly_AssetDonors`, создает `ReplicatedStorage/Shared/Assets/VFX`, клонирует только найденные эффекты, санитарит их и присваивает понятные имена:
 
-- `Resources explosion`, `Resources Explosion`, `Explosion`, `TankExplosion`, `Tank Explosion` -> `TankExplosionTemplate`;
-- `Fire Effect`, `Burning`, `TankBurning` -> `TankBurningTemplate`;
-- `ImpactFlash`, `HitFlash`, `DamageHit` -> `ImpactFlashTemplate`;
-- `Sparks`, `Shrapnels`, `Impact`, `NoPen`, `No Penetration` -> `ImpactSparksTemplate`;
+- `Resources explosion`, `Resources Explosion`, `Explosion` -> `TankExplosionTemplate`;
+- `Burning`, `Fire`, `TankBurning`, `Tank Burning`, `Fire Effect` -> `TankBurningTemplate`;
+- `Impact`, `Sparks` -> `ImpactSparksTemplate`;
 - `Ricochet` -> `RicochetTemplate`;
 - `Smoke` -> `SmokeTemplate`;
-- `MuzzleFlash` -> `MuzzleFlashTemplate`;
-- `MuzzleBlast`, `Fireball` -> `MuzzleBlastTemplate`.
+- `MuzzleFlash`, `Muzzle Flash` -> `MuzzleFlashTemplate`;
+- `MuzzleBlast`, `Muzzle Blast` -> `MuzzleBlastTemplate`.
 
-Оригиналы-доноры не удаляются. Если донор лежал прямо в `Workspace`, скрипт переносит его в `Workspace/WOB_EditorOnly_AssetDonors`, чтобы он не мешал сцене. После успешного запуска сделай `File -> Save to File`.
+Collector не создает пустые fake templates и не редактирует `VfxConfig`. Он логирует existing templates, found donors, skipped missing donors, installed templates и final templates list. Оригиналы-доноры не удаляются; если donor находится в gameplay `Workspace`, скрипт переносит его в `Workspace/WOB_EditorOnly_AssetDonors`, чтобы он не мешал сцене.
 
 ## Preview templates
 
@@ -109,19 +109,25 @@ Script клонирует source asset, заменяет старый `TankExplo
 
 ## Как назвать template
 
-Имя объекта в Studio должно точно совпадать со строкой в `VfxConfig`.
+Имя объекта в Studio должно точно совпадать со строкой в `VfxConfig`. Если такого объекта нет, оставь `TemplateName = ""` и используй `TextureId`/procedural fallback.
 
 Пример:
 
 ```lua
 MuzzleFlash = table.freeze({
 	Enabled = true,
-	TemplateName = "MuzzleFlashTemplate",
+	TemplateName = "",
 	TemplateLifetime = 0.35,
 	TemplateEmitCount = 10,
-	TextureId = "",
+	TextureId = "rbxassetid://243660364",
 	UseProceduralFallback = true,
 })
+```
+
+После того как collector реально установил `ReplicatedStorage/Shared/Assets/VFX/MuzzleFlashTemplate`, можно включить template:
+
+```lua
+TemplateName = "MuzzleFlashTemplate"
 ```
 
 Можно использовать `Model`, `Part`, `Folder`, `Attachment`, `ParticleEmitter`, `Sound`, `PointLight`, `SpotLight`, `SurfaceLight`, `Beam`, `Trail` или template, внутри которого есть эти объекты.
@@ -166,7 +172,13 @@ TemplateName = "37194537"
 
 `TextureId` можно оставить заполненным как fallback. Тогда при пустом или плохом `TemplateName` будет работать старый particle/procedural эффект.
 
-`Shot.SoundId` остается отдельным звуком выстрела через `CombatVfxService.playConfiguredSound`. Если твой template уже содержит звук выстрела и получается дубль, очисти `Shot.SoundId = ""`.
+`Shot.SoundId` остается отдельным звуком выстрела через `CombatVfxService.playConfiguredSound`. Рабочий default:
+
+```lua
+SoundId = "rbxassetid://139771888058836"
+```
+
+Если звук выстрела пропал, сначала проверь, что это значение не заменено на другой asset id и что `Shot.SoundId` не пустой. Если твой template уже содержит звук выстрела и получается дубль, очисти `Shot.SoundId = ""`.
 
 ## Почему Workspace не склад ассетов
 
@@ -215,22 +227,16 @@ Ricochet = table.freeze({
 
 ```lua
 Impact = table.freeze({
-	WallImpact = table.freeze({
-		TemplateName = "ImpactSparksTemplate",
-	}),
-	DamageHit = table.freeze({
-		TemplateName = "ImpactFlashTemplate",
-	}),
-	NoPen = table.freeze({
-		TemplateName = "ImpactSparksTemplate",
-	}),
-	SelfHit = table.freeze({
-		TemplateName = "ImpactFlashTemplate",
-	}),
+	WallImpact = table.freeze({ TemplateName = "" }),
+	DamageHit = table.freeze({ TemplateName = "" }),
+	NoPen = table.freeze({ TemplateName = "" }),
+	SelfHit = table.freeze({ TemplateName = "" }),
 })
 ```
 
-`WallImpact` играет при попадании в карту, `DamageHit` после пробития брони, `NoPen` после непробития, `SelfHit` при собственном рикошете. Пока template отсутствует, работают procedural/TextureId fallback effects.
+`WallImpact` играет при попадании в карту, `DamageHit` после пробития брони, `NoPen` после непробития, `SelfHit` при собственном рикошете. Пока template отсутствует, должны работать procedural/TextureId fallback effects.
+
+Если projectile стал слишком маленьким сверху, проверь `VfxConfig.Shot.Projectile`: `Size` должен быть примерно `1.1`-`1.35`, `LightBrightness` около `2.4`, `TrailLifetime` около `0.18`, `TrailWidthStart` около `1.1`-`1.6`.
 
 ## Как проверить template
 

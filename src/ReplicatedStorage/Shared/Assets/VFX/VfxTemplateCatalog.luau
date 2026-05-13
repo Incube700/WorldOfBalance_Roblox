@@ -1,10 +1,13 @@
 -- Runtime catalog of VFX templates that actually exist next to this ModuleScript.
+-- This module never declares a template available unless a real child object is
+-- present under ReplicatedStorage/Shared/Assets/VFX in the current DataModel.
 -- TemplateName values in VfxConfig should refer to object names in this folder,
 -- not raw asset ids. TextureId/SoundId are the fields for asset ids.
 
 local VFX_FOLDER = script.Parent
 
-local CANDIDATE_TYPES = {
+-- Type hints only for real discovered child instances. This is not inventory.
+local TYPE_BY_EXACT_TEMPLATE_NAME = {
 	TankExplosionTemplate = "TankDeathExplosion",
 	TankBurningTemplate = "BurningTank",
 	MuzzleFlashTemplate = "MuzzleFlash",
@@ -16,7 +19,7 @@ local CANDIDATE_TYPES = {
 }
 
 local function inferTemplateType(templateName)
-	local knownType = CANDIDATE_TYPES[templateName]
+	local knownType = TYPE_BY_EXACT_TEMPLATE_NAME[templateName]
 
 	if knownType ~= nil then
 		return knownType
