@@ -21,6 +21,36 @@ local function isNonEmptyString(value)
 	return typeof(value) == "string" and value ~= ""
 end
 
+local function appendTemplateName(names, seen, templateName)
+	if not isNonEmptyString(templateName) or seen[templateName] == true then
+		return
+	end
+
+	seen[templateName] = true
+	table.insert(names, templateName)
+end
+
+local function getConfiguredTemplateNames(config)
+	local names = {}
+	local seen = {}
+
+	if config == nil then
+		return names
+	end
+
+	appendTemplateName(names, seen, config.TemplateName)
+	appendTemplateName(names, seen, config.TemplateFallbackName)
+
+	local fallbackNames = config.TemplateFallbackNames
+	if typeof(fallbackNames) == "table" then
+		for _, templateName in ipairs(fallbackNames) do
+			appendTemplateName(names, seen, templateName)
+		end
+	end
+
+	return names
+end
+
 local function getFlatDirection(direction)
 	if typeof(direction) ~= "Vector3" then
 		return Vector3.new(0, 0, -1)
@@ -320,13 +350,23 @@ function CombatVfxService.playVfxTemplate(position, direction, config, effectNam
 		return false
 	end
 
-	local templateName = config.TemplateName
-
-	if not isNonEmptyString(templateName) then
+	local templateNames = getConfiguredTemplateNames(config)
+	if #templateNames == 0 then
 		return false
 	end
 
-	local template = CombatVfxService.findVfxTemplate(templateName, effectName, config.WarnIfMissingTemplate ~= false)
+	local template = nil
+	local templateName = nil
+
+	for index, candidateTemplateName in ipairs(templateNames) do
+		local warnIfMissing = index == 1 and config.WarnIfMissingTemplate ~= false
+		template = CombatVfxService.findVfxTemplate(candidateTemplateName, effectName, warnIfMissing)
+
+		if template ~= nil then
+			templateName = candidateTemplateName
+			break
+		end
+	end
 
 	if template == nil then
 		return false

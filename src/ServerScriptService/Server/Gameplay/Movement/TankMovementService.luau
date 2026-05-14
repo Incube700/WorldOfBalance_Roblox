@@ -46,6 +46,10 @@ local tankMovementOverlapParams = nil
 local collisionBoxSize = nil
 local collisionBoxYOffset = TANK_MOVEMENT_CAST_Y_OFFSET
 local collisionSkinWidth = TANK_MOVEMENT_CAST_PADDING
+local worldBoundsMinX = -240
+local worldBoundsMaxX = 240
+local worldBoundsMinZ = -240
+local worldBoundsMaxZ = 240
 local debugMovementCollisions = false
 
 local obstaclePartsCache = nil
@@ -64,6 +68,10 @@ function TankMovementService.init(params)
 	collisionBoxSize = typeof(params.collisionBoxSize) == "Vector3" and params.collisionBoxSize or nil
 	collisionBoxYOffset = tonumber(params.collisionBoxYOffset) or TANK_MOVEMENT_CAST_Y_OFFSET
 	collisionSkinWidth = tonumber(params.collisionSkinWidth) or TANK_MOVEMENT_CAST_PADDING
+	worldBoundsMinX = tonumber(params.worldBoundsMinX) or -240
+	worldBoundsMaxX = tonumber(params.worldBoundsMaxX) or 240
+	worldBoundsMinZ = tonumber(params.worldBoundsMinZ) or -240
+	worldBoundsMaxZ = tonumber(params.worldBoundsMaxZ) or 240
 	debugMovementCollisions = params.debugCollision == true
 
 	obstaclePartsCache = nil
@@ -170,7 +178,15 @@ local function collectMovementObstacleRoots()
 	return searchRoots
 end
 
-local function debugMovementBlocked(obstaclePart)
+local function formatVector3(vector)
+	if typeof(vector) ~= "Vector3" then
+		return "nil"
+	end
+
+	return ("(%.1f, %.1f, %.1f)"):format(vector.X, vector.Y, vector.Z)
+end
+
+local function debugMovementBlocked(obstaclePart, reason, debugContext)
 	if not debugMovementCollisions or obstaclePart == nil then
 		return
 	end
@@ -182,7 +198,25 @@ local function debugMovementBlocked(obstaclePart)
 	end
 
 	lastDebugBlockLogTime = now
-	print("[MOVEMENT] blocked by " .. obstaclePart:GetFullName())
+	local tankId = "unknown"
+
+	if typeof(debugContext) == "table" and debugContext.TankId ~= nil then
+		tankId = tostring(debugContext.TankId)
+	end
+
+	print(
+		("[MOVE BLOCKED] tank=%s obstacle=%s reason=%s obstaclePos=%s obstacleSize=%s WOBMovementObstacle=%s CanCollide=%s CanQuery=%s Transparency=%.2f"):format(
+			tankId,
+			obstaclePart:GetFullName(),
+			tostring(reason or "unknown"),
+			formatVector3(obstaclePart.Position),
+			formatVector3(obstaclePart.Size),
+			tostring(obstaclePart:GetAttribute("WOBMovementObstacle") == true),
+			tostring(obstaclePart.CanCollide),
+			tostring(obstaclePart.CanQuery),
+			obstaclePart.Transparency
+		)
+	)
 end
 
 function TankMovementService.isTankMovementObstacle(instance)
@@ -390,7 +424,7 @@ function TankMovementService.isTankPoseValid(position, bodyYaw)
 	return TankMovementService.findTankOverlapObstacle(position, bodyYaw) == nil
 end
 
-function TankMovementService.isTankMovementBlocked(fromPosition, bodyYaw, movement)
+function TankMovementService.isTankMovementBlocked(fromPosition, bodyYaw, movement, debugContext)
 	if movement.Magnitude <= TANK_MOVEMENT_EPSILON then
 		return false, nil
 	end
@@ -402,7 +436,7 @@ function TankMovementService.isTankMovementBlocked(fromPosition, bodyYaw, moveme
 			return false, nil
 		end
 
-		debugMovementBlocked(blockcastObstacle)
+		debugMovementBlocked(blockcastObstacle, "blockcast", debugContext)
 		return true, blockcastObstacle
 	end
 
@@ -417,7 +451,7 @@ function TankMovementService.isTankMovementBlocked(fromPosition, bodyYaw, moveme
 			return false, nil
 		end
 
-		debugMovementBlocked(overlapObstacle)
+		debugMovementBlocked(overlapObstacle, "overlap", debugContext)
 		return true, overlapObstacle
 	end
 
@@ -426,9 +460,9 @@ end
 
 function TankMovementService.clampTankPosition(position)
 	return Vector3.new(
-		math.clamp(position.X, -240, 240),
+		math.clamp(position.X, worldBoundsMinX, worldBoundsMaxX),
 		position.Y,
-		math.clamp(position.Z, -240, 240)
+		math.clamp(position.Z, worldBoundsMinZ, worldBoundsMaxZ)
 	)
 end
 
@@ -469,9 +503,9 @@ function TankMovementService.resolveTankMovement(fromPosition, bodyYaw, desiredM
 	return fromPosition, zBlockingPart or xBlockingPart or fullBlockingPart
 end
 
-local function tryPose(fromPosition, bodyYaw, movement)
+local function tryPose(fromPosition, bodyYaw, movement, debugContext)
 	if movement.Magnitude > TANK_MOVEMENT_EPSILON then
-		local blocked, blockingPart = TankMovementService.isTankMovementBlocked(fromPosition, bodyYaw, movement)
+		local blocked, blockingPart = TankMovementService.isTankMovementBlocked(fromPosition, bodyYaw, movement, debugContext)
 
 		if blocked then
 			return nil, blockingPart
@@ -482,19 +516,19 @@ local function tryPose(fromPosition, bodyYaw, movement)
 	local overlapObstacle = TankMovementService.findTankOverlapObstacle(candidatePosition, bodyYaw)
 
 	if overlapObstacle ~= nil then
-		debugMovementBlocked(overlapObstacle)
+		debugMovementBlocked(overlapObstacle, "poseOverlap", debugContext)
 		return nil, overlapObstacle
 	end
 
 	return candidatePosition, nil
 end
 
-function TankMovementService.resolveTankPose(fromPosition, currentBodyYaw, desiredMove, desiredBodyYaw)
+function TankMovementService.resolveTankPose(fromPosition, currentBodyYaw, desiredMove, desiredBodyYaw, debugContext)
 	local fullMove = TankMovementService.clampTankPosition(fromPosition + desiredMove) - fromPosition
 	local targetBodyYaw = desiredBodyYaw or currentBodyYaw
 	local blockingPart = nil
 
-	local fullPosition, fullBlockingPart = tryPose(fromPosition, targetBodyYaw, fullMove)
+	local fullPosition, fullBlockingPart = tryPose(fromPosition, targetBodyYaw, fullMove, debugContext)
 
 	if fullPosition ~= nil then
 		return fullPosition, targetBodyYaw, nil
@@ -502,7 +536,7 @@ function TankMovementService.resolveTankPose(fromPosition, currentBodyYaw, desir
 
 	blockingPart = fullBlockingPart
 
-	local movementOnlyPosition, movementOnlyBlockingPart = tryPose(fromPosition, currentBodyYaw, fullMove)
+	local movementOnlyPosition, movementOnlyBlockingPart = tryPose(fromPosition, currentBodyYaw, fullMove, debugContext)
 
 	if movementOnlyPosition ~= nil then
 		return movementOnlyPosition, currentBodyYaw, nil
@@ -510,7 +544,7 @@ function TankMovementService.resolveTankPose(fromPosition, currentBodyYaw, desir
 
 	blockingPart = blockingPart or movementOnlyBlockingPart
 
-	local rotationOnlyPosition, rotationOnlyBlockingPart = tryPose(fromPosition, targetBodyYaw, Vector3.zero)
+	local rotationOnlyPosition, rotationOnlyBlockingPart = tryPose(fromPosition, targetBodyYaw, Vector3.zero, debugContext)
 
 	if rotationOnlyPosition ~= nil then
 		return rotationOnlyPosition, targetBodyYaw, nil
@@ -523,7 +557,7 @@ function TankMovementService.resolveTankPose(fromPosition, currentBodyYaw, desir
 
 	for _, yaw in ipairs({ targetBodyYaw, currentBodyYaw }) do
 		if xMove.Magnitude > TANK_MOVEMENT_EPSILON then
-			local xPosition, xBlockingPart = tryPose(fromPosition, yaw, xMove)
+			local xPosition, xBlockingPart = tryPose(fromPosition, yaw, xMove, debugContext)
 
 			if xPosition ~= nil then
 				return xPosition, yaw, nil
@@ -533,7 +567,7 @@ function TankMovementService.resolveTankPose(fromPosition, currentBodyYaw, desir
 		end
 
 		if zMove.Magnitude > TANK_MOVEMENT_EPSILON then
-			local zPosition, zBlockingPart = tryPose(fromPosition, yaw, zMove)
+			local zPosition, zBlockingPart = tryPose(fromPosition, yaw, zMove, debugContext)
 
 			if zPosition ~= nil then
 				return zPosition, yaw, nil

@@ -436,7 +436,7 @@ local function createLobbyControls(screenGui)
 	hintLabel.AnchorPoint = Vector2.new(0.5, 0)
 	hintLabel.Position = UDim2.new(0.5, 0, 0, 18)
 	hintLabel.Size = UDim2.new(0, 420, 0, 36)
-	styleLabel(hintLabel, "Drive onto Duel Pad to start PvP", 18, Color3.fromRGB(244, 255, 248))
+	styleLabel(hintLabel, "Drive onto Duel Pad for PvP or Arena Pad for free battle", 18, Color3.fromRGB(244, 255, 248))
 	hintLabel.BackgroundColor3 = Color3.fromRGB(7, 9, 11)
 	hintLabel.BackgroundTransparency = 0.28
 	hintLabel.BorderSizePixel = 0

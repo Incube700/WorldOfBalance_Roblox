@@ -8,14 +8,18 @@ local VFX_FOLDER = script.Parent
 
 -- Type hints only for real discovered child instances. This is not inventory.
 local TYPE_BY_EXACT_TEMPLATE_NAME = {
-	TankExplosionTemplate = "TankDeathExplosion",
-	TankBurningTemplate = "BurningTank",
+	MuzzleEffectTemplate = "MuzzleEffect",
 	MuzzleFlashTemplate = "MuzzleFlash",
 	MuzzleBlastTemplate = "MuzzleBlast",
 	SmokeTemplate = "Smoke",
-	ImpactFlashTemplate = "ImpactFlash",
 	ImpactSparksTemplate = "ImpactSparks",
+	DamageHitTemplate = "DamageHit",
+	NoPenTemplate = "NoPen",
+	SelfHitTemplate = "SelfHit",
 	RicochetTemplate = "Ricochet",
+	TankExplosionTemplate = "TankDeathExplosion",
+	TankBurningTemplate = "BurningTank",
+	ImpactFlashTemplate = "ImpactFlash",
 }
 
 local function inferTemplateType(templateName)

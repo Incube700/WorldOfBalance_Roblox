@@ -10,12 +10,28 @@ end
 
 local duelPad = lobby:WaitForChild("DuelPad", 20)
 
-if duelPad == nil or not duelPad:IsA("BasePart") then
+if duelPad == nil then
 	warn("[DUELPAD] Lobby/DuelPad not found; DuelPad visual updater disabled.")
 	return
 end
 
 local statusLabels = {}
+
+local function getDuelPadTrigger()
+	local directTrigger = duelPad:FindFirstChild("Trigger")
+
+	if directTrigger ~= nil and directTrigger:IsA("BasePart") then
+		return directTrigger
+	end
+
+	for _, descendant in ipairs(duelPad:GetDescendants()) do
+		if descendant:IsA("BasePart") and descendant:GetAttribute("WOBPadTrigger") == true then
+			return descendant
+		end
+	end
+
+	return nil
+end
 
 local function addStatusLabel(instance)
 	if instance:IsA("TextLabel")
@@ -38,8 +54,8 @@ local function refreshStatusLabels()
 end
 
 local function getReplicatedDuelAttribute(attributeName)
-	for _, source in ipairs({ duelPad, lobby, root }) do
-		local value = source:GetAttribute(attributeName)
+	for _, source in ipairs({ duelPad, getDuelPadTrigger(), lobby, root }) do
+		local value = source ~= nil and source:GetAttribute(attributeName) or nil
 
 		if value ~= nil then
 			return value
@@ -94,6 +110,12 @@ for _, attributeName in ipairs({
 	root:GetAttributeChangedSignal(attributeName):Connect(updateStatusText)
 	lobby:GetAttributeChangedSignal(attributeName):Connect(updateStatusText)
 	duelPad:GetAttributeChangedSignal(attributeName):Connect(updateStatusText)
+
+	local trigger = getDuelPadTrigger()
+
+	if trigger ~= nil then
+		trigger:GetAttributeChangedSignal(attributeName):Connect(updateStatusText)
+	end
 end
 
 lobby.DescendantAdded:Connect(function(descendant)

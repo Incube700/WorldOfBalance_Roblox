@@ -70,7 +70,12 @@ local recentPulseByCell = {}
 local function isImpactVisibleForLocalPlayer()
 	local mode = localPlayer:GetAttribute("PlayerMode")
 
-	if mode == "Lobby" or mode == "QueuedForDuel" or mode == "InMatch" then
+	if mode == "Lobby"
+		or mode == "QueuedForDuel"
+		or mode == "InMatch"
+		or mode == "InBattleArena"
+		or mode == "ArenaRespawning"
+	then
 		return true
 	end
 

@@ -5,7 +5,65 @@
 - старый путь: `TextureId`, procedural parts, `SoundId`;
 - новый путь: готовые Toolbox templates из `ReplicatedStorage/Shared/Assets/VFX`.
 
-Codex и `rojo build` видят только файлы в source tree. Если VFX donor вставлен в Roblox Studio и command script создал объект только в текущем DataModel, этого объекта не видно как файла в `src/ReplicatedStorage/Shared/Assets/VFX`. Поэтому optional slots в `VfxConfig` должны оставлять `TemplateName = ""`, пока template не существует как реальный объект в Studio/DataModel, который ты собираешься использовать.
+## Stable Fun Duel v0.1 full organizer
+
+Для полноценного VFX organization pass используй не ручной donor flow, а Studio command script:
+
+```text
+docs/patches/ORGANIZE_ALL_VFX_ASSETS_COMMAND.lua
+```
+
+Его нужно запускать в Roblox Studio Command Bar вне Play Mode. Он проходит по `Workspace`, `Workspace.WOB_EditorOnly_AssetDonors`, `ReplicatedStorage`, `ReplicatedStorage.Shared.Assets.VFX`, `ServerStorage`, `ServerStorage.WOB_EditorOnly_AssetDonors` и `Lighting`. `MaterialService` проверяется только для отчета по `MaterialVariant`, не как самостоятельный VFX template.
+
+Organizer ищет все `Model`/`Part`/`Folder`/`Attachment` VFX-кандидаты, внутри которых есть `ParticleEmitter`, `Sound`, `Beam`, `Trail`, lights, `Decal`, `Texture`, `MeshPart` или `SpecialMesh`. Он печатает audit по counts, texture ids, sound ids, mesh ids, `ThumbnailCamera` и подозрительным scripts (`Kick`, `HttpService`, `require(number)`, `loadstring`, `getfenv`, `setfenv`).
+
+Установленные templates кладутся только сюда:
+
+```text
+ReplicatedStorage.Shared.Assets.VFX
+```
+
+Рабочие quarantine/backup folders создаются тут:
+
+```text
+Workspace.WOB_EditorOnly_AssetDonors.VFX_Backups
+Workspace.WOB_EditorOnly_AssetDonors.VFX_Quarantine
+Workspace.WOB_EditorOnly_AssetDonors.VFX_Unclassified
+```
+
+Workspace не должен оставаться финальным складом ассетов. Если organizer распознает прямой Workspace object как VFX donor, после установки он переносит исходник в `Workspace.WOB_EditorOnly_AssetDonors`. Неоднозначные gameplay-scene объекты он оставляет на месте и только логирует.
+
+Special rule для выстрела: если старый `MuzzleEffectTemplate` выглядит как spark/impact effect и найден более чистый muzzle candidate, старый shot effect клонируется в `RicochetTemplate`, а новый muzzle ставится в `MuzzleEffectTemplate`. Старый template не удаляется: заменяемые объекты уходят в `VFX_Backups`.
+
+Codex и `rojo build` видят только файлы в source tree. Если VFX donor вставлен в Roblox Studio и command script создал объект только в текущем DataModel, этого объекта не видно как файла в `src/ReplicatedStorage/Shared/Assets/VFX`. Поэтому после organizer обязательно сохрани установленные templates как `.rbxmx`. Optional slots могут быть подключены по имени только когда у них есть procedural/template fallback и `WarnIfMissingTemplate=false`, как в текущем v0.1 config.
+
+Текущее Studio-подключение использует уже существующие объекты в `ReplicatedStorage.Shared.Assets.VFX`. Эти строки должны совпадать с именами объектов один в один:
+
+- `Shot.MuzzleFlash.TemplateName = "MuzzleEffectTemplate"`;
+- `Shot.MuzzleBlast.TemplateName = "MuzzleFlashTemplate"`;
+- `Shot.Smoke.TemplateName = "SmokeTemplate"`;
+- `Impact.WallImpact.TemplateName = "ImpactSparksTemplate"`;
+- `Impact.DamageHit.TemplateName = "DamageHitTemplate"` with fallback to `ImpactSparksTemplate`;
+- `Impact.NoPen.TemplateName = "NoPenTemplate"` with fallback to `ImpactSparksTemplate`;
+- `Impact.SelfHit.TemplateName = "SelfHitTemplate"` with fallback to `ImpactSparksTemplate`;
+- `Ricochet.TemplateName = "RicochetTemplate"`;
+- `DeathExplosion.TemplateName = "TankExplosionTemplate"`;
+- `BurningTank.TemplateName = "TankBurningTemplate"`.
+
+Если один из этих объектов отсутствует в `ReplicatedStorage.Shared.Assets.VFX`, runtime не должен падать: `WarnIfMissingTemplate=false` отключает Output spam для optional slots, а `UseProceduralFallback=true` оставляет базовый эффект там, где fallback предусмотрен.
+
+## Stable Fun Duel v0.1 VFX Rule
+
+Для v0.1 gameplay readability не зависит от Creator Store templates. Базовая игра должна выглядеть нормально, даже если `ReplicatedStorage/Shared/Assets/VFX` пустой и там есть только `.gitkeep`/`VfxTemplateCatalog`.
+
+Обязательные fallback paths:
+
+- shot sound and bright projectile trail;
+- muzzle flash/blast/smoke from config values;
+- wall impact, ricochet, damage, no-pen, and self-hit procedural flashes/sparks;
+- procedural death explosion if `TankExplosionTemplate` is absent.
+
+Store templates можно подключать позже как усиление, но не как обязательный gameplay dependency.
 
 ## Куда класть Toolbox VFX
 
@@ -17,7 +75,7 @@ ReplicatedStorage
     └── Assets
         └── VFX
             ├── MuzzleFlashTemplate
-            ├── MuzzleBlastTemplate
+            ├── MuzzleEffectTemplate
             ├── SmokeTemplate
             ├── ImpactSparksTemplate
             ├── RicochetTemplate
@@ -33,9 +91,9 @@ docs/patches/CREATE_OR_REPAIR_VFX_ASSETS_FOLDER_COMMAND.lua
 
 Можно вставить Toolbox asset напрямую в `ReplicatedStorage/Shared/Assets/VFX`, но для donor workflow обычно проще вставить asset в `Workspace`, затем запустить collector ниже. После Studio-side установки проверь, что объект реально появился под `ReplicatedStorage/Shared/Assets/VFX`.
 
-## Автосбор доноров из Workspace
+## Автосбор доноров из Workspace (legacy narrow collector)
 
-Если ассеты уже вставлены из Toolbox в `Workspace`, не нужно вручную разбирать каждый объект. Выполни вне Play Mode:
+Для Stable Fun Duel v0.1 full pass используй `ORGANIZE_ALL_VFX_ASSETS_COMMAND.lua`. Старый collector ниже оставлен как узкая helper-команда для известных donor names. Если ассеты уже вставлены из Toolbox в `Workspace`, можно выполнить вне Play Mode:
 
 ```text
 docs/patches/COLLECT_AND_INSTALL_VFX_TEMPLATES_COMMAND.lua
@@ -227,16 +285,32 @@ Ricochet = table.freeze({
 
 ```lua
 Impact = table.freeze({
-	WallImpact = table.freeze({ TemplateName = "" }),
-	DamageHit = table.freeze({ TemplateName = "" }),
-	NoPen = table.freeze({ TemplateName = "" }),
-	SelfHit = table.freeze({ TemplateName = "" }),
+	WallImpact = table.freeze({ TemplateName = "ImpactSparksTemplate" }),
+	DamageHit = table.freeze({ TemplateName = "ImpactSparksTemplate" }),
+	NoPen = table.freeze({ TemplateName = "ImpactSparksTemplate" }),
+	SelfHit = table.freeze({ TemplateName = "ImpactSparksTemplate" }),
 })
 ```
 
-`WallImpact` играет при попадании в карту, `DamageHit` после пробития брони, `NoPen` после непробития, `SelfHit` при собственном рикошете. Пока template отсутствует, должны работать procedural/TextureId fallback effects.
+`WallImpact` играет при попадании в карту, `DamageHit` после пробития брони, `NoPen` после непробития, `SelfHit` при собственном рикошете. Эти slots могут использовать один общий `ImpactSparksTemplate`, если он реально существует в `ReplicatedStorage.Shared.Assets.VFX`. Если template отсутствует, должны работать procedural/TextureId fallback effects.
 
 Если projectile стал слишком маленьким сверху, проверь `VfxConfig.Shot.Projectile`: `Size` должен быть примерно `1.1`-`1.35`, `LightBrightness` около `2.4`, `TrailLifetime` около `0.18`, `TrailWidthStart` около `1.1`-`1.6`.
+
+Для v0.1 current baseline:
+
+```lua
+Shot = {
+	SoundId = "rbxassetid://139771888058836",
+	Projectile = {
+		Size = 1.2,
+		LightBrightness = 2.4,
+		LightRange = 10,
+		TrailLifetime = 0.18,
+		TrailWidthStart = 1.35,
+		TrailWidthMid = 0.7,
+	},
+}
+```
 
 ## Как проверить template
 

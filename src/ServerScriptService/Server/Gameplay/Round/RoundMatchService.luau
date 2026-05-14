@@ -65,6 +65,9 @@ local matchResultReadyAt = 0
 local roundResetToken = 0
 local matchResultToken = 0
 local lastResetDelayLogTime = 0
+local isRoundResetting = false
+local lastRoundResetCompletedAt = 0
+local ROUND_RESET_REENTRY_GUARD_SECONDS = 0.25
 
 local callbacks = {
 	onGameStateChanged = nil,
@@ -554,14 +557,26 @@ function RoundMatchService.resetRound()
 		return
 	end
 
-	if roundState.Ended and os.clock() < roundResetReadyAt then
-		if os.clock() - lastResetDelayLogTime > 0.5 then
-			lastResetDelayLogTime = os.clock()
+	local now = os.clock()
+
+	if isRoundResetting then
+		return
+	end
+
+	if not roundState.Ended and now - lastRoundResetCompletedAt < ROUND_RESET_REENTRY_GUARD_SECONDS then
+		return
+	end
+
+	if roundState.Ended and now < roundResetReadyAt then
+		if now - lastResetDelayLogTime > 0.5 then
+			lastResetDelayLogTime = now
 			print("[ROUND] reset delayed for VFX")
 		end
 
 		return
 	end
+
+	isRoundResetting = true
 
 	roundResetToken += 1
 	matchResultToken += 1
@@ -594,6 +609,8 @@ function RoundMatchService.resetRound()
 	applyMatchSpawns()
 
 	print("[ROUND] reset")
+	lastRoundResetCompletedAt = os.clock()
+	isRoundResetting = false
 end
 
 function RoundMatchService.setActivePvPMatch(matchId, playerSideParticipant, opponentParticipant)
@@ -638,6 +655,8 @@ function RoundMatchService.clearActiveMatch(matchId)
 	matchResultToken += 1
 	roundResetReadyAt = 0
 	matchResultReadyAt = 0
+	isRoundResetting = false
+	lastRoundResetCompletedAt = 0
 	RoundMatchService.setRoundResult(RoundMatchService.ROUND_RESULT_PLAYING)
 	RoundMatchService.setMatchAttributes()
 end
@@ -661,6 +680,8 @@ function RoundMatchService.startNewMatch()
 	matchResultToken += 1
 	roundResetReadyAt = 0
 	matchResultReadyAt = 0
+	isRoundResetting = false
+	lastRoundResetCompletedAt = 0
 
 	if callbacks.onDestroyAllProjectiles then
 		callbacks.onDestroyAllProjectiles()

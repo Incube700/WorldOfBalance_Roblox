@@ -21,6 +21,13 @@
 - Do not apply old TankParticipant refactor wholesale.
 - Use old refactor only as reference.
 
+## Что сейчас является Stable Fun Duel v0.1
+
+- Lobby free drive, no-damage shooting, Training, DuelPad 2-player queue/countdown, RoundEnd/MatchEnd series, Result/Stats/Rematch/Return to Lobby.
+- Server-authoritative movement, shooting, damage, death, round state, dead tank control, and collision validation.
+- Procedural VFX fallback is the baseline. Creator Store templates are optional upgrades, not required for gameplay readability.
+- Do not add shop, monetization, inventory, deathmatch, or new modes before this loop is stable in manual Studio checks.
+
 ## Текущий статус
 
 - Проект: `World of Balance: Ricochet Tanks`.
@@ -34,23 +41,45 @@
 
 ## Current Sprint — Stable Fun Duel v0.1
 
-- Статус: code-first stabilization sprint after audit in `docs/STABLE_FUN_DUEL_V01_AUDIT.md`.
+- Статус: code-first stabilization sprint after audit in `docs/STABLE_FUN_DUEL_V01_AUDIT.md`; current gameplay advancement notes: `docs/STABLE_FUN_DUEL_GAMEPLAY_ADVANCEMENT.md`.
 - Главный фикс: `TankMovementService` теперь собирает movement obstacles из `Workspace/WOB_Generated`, включая `Lobby/Railings`, `Map/RicochetWalls`, `Map/Cover`, boundary folders, named `Wall_*` parts and `WOBMovementObstacle` parts. Movement casts use include-filtered obstacle parts, not broad world hits with post-filtering only.
 - Scene repair: run `docs/patches/REPAIR_LOBBY_VERTICAL_CONTAINMENT_COMMAND.lua` outside Play Mode for elevated lobby railings/walls, and `docs/patches/CREATE_OR_REPAIR_ARENA_CONTAINMENT_COMMAND.lua` for lower arena walls/cover/boundaries. Both tag movement obstacles and keep lobby Y separate from arena Y. Then `File -> Save to File`.
-- VFX templates: `CombatVfxService` clones templates from `ReplicatedStorage/Shared/Assets/VFX`; `VfxConfig` is grouped as `Shot`, `Impact`, `Ricochet`, `DeathExplosion`, and `BurningTank`. Optional slots keep `TemplateName = ""` until a real template object exists; fallback must stay readable. Setup notes: `docs/VFX_TEMPLATE_SETUP.md`; tuning audit: `docs/VFX_TUNING_PASS.md`.
+- VFX templates: `CombatVfxService` clones templates from `ReplicatedStorage/Shared/Assets/VFX`; `VfxConfig` is grouped as `Shot`, `Impact`, `Ricochet`, `DeathExplosion`, and `BurningTank`. Optional slots keep `TemplateName = ""` until a real template object exists; fallback must stay readable. Ricochet now has a dedicated bright procedural fallback. Setup notes: `docs/VFX_TEMPLATE_SETUP.md`; tuning audit: `docs/VFX_TUNING_PASS.md`.
 - Tank death VFX: `docs/patches/INSTALL_TANK_EXPLOSION_VFX_TEMPLATE_COMMAND.lua` installs the Workspace Toolbox explosion donor as `ReplicatedStorage/Shared/Assets/VFX/TankExplosionTemplate`; `VfxConfig.DeathExplosion` plays it on any tank death, with procedural fallback and `MatchConfig.RoundResetDelay` keeping the explosion readable.
 - Round/match flow: `RoundEnd` now stays in gameplay with a small score/countdown overlay and auto-starts the next round after `MatchConfig.RoundResetDelay`; final `MatchEnd` waits `MatchConfig.MatchResultDelay` before full Result/Rematch/Return to Lobby. Details: `docs/ROUND_MATCH_FLOW.md`.
 - Movement corner clipping: current code path uses `TankMovementService.resolveTankPose`, which validates translation and body yaw together with a final oriented overlap check. Sliding remains possible only when the accepted final pose does not overlap movement obstacles.
 - Reverse steering uses arcade car-style path control: when reversing, A/D steer the reverse path, not the tank nose.
+- Turret config is exposed as `TankConfig.Turret.TurnSpeedDegreesPerSecond`; server shooting uses current turret facing when enabled.
 - VFX template collection: run `docs/patches/COLLECT_AND_INSTALL_VFX_TEMPLATES_COMMAND.lua` outside Play Mode to collect real Workspace donors into `ReplicatedStorage/Shared/Assets/VFX`, sanitize scripts/collision/query, move donors into `Workspace/WOB_EditorOnly_AssetDonors`, and log existing/found/skipped/final templates. Run `docs/patches/PREVIEW_VFX_TEMPLATES_COMMAND.lua` outside Play Mode to preview installed templates at `Workspace/WOB_Generated/VFXPreview`.
 - VFX catalog cleanup: `VfxTemplateCatalog` discovers only real templates under `ReplicatedStorage/Shared/Assets/VFX`; `TemplateName` values must be object names, not raw asset ids. Asset ids belong in `TextureId` or `SoundId`.
 - Optional VFX: muzzle/impact/ricochet/burning templates are disabled by empty `TemplateName` until installed and intentionally enabled. Death keeps `TankExplosionTemplate` with procedural fallback. Shot readability baseline is `Shot.SoundId = "rbxassetid://139771888058836"` and `Shot.Projectile.Size` around `1.2`.
+- Mobile controls v0.1: `WOBMobileControls.client.luau` creates touch-only joystick/aim/fire UI and writes intent into `Input/WOBClientInputState`; `WOBTankInputController` remains the single client sender for `TankInputEvent` and `ShootRequestEvent`. Config: `MobileControlsConfig`; plan/checklist: `docs/MOBILE_CONTROLS_V01_PLAN.md`.
 - DuelPad: `LobbyService` now exposes `DuelQueueCount`, `DuelQueueRequired`, `DuelCountdown`, and `DuelState` on root/lobby/duelpad. Duel starts after a cancellable 3 second countdown. Visual repair helper: `docs/patches/CREATE_OR_REPAIR_DUELPAD_VISUAL_COMMAND.lua`.
-- Turret feel: turret turn speed is configurable in `TankConfig.Movement`, and server shooting uses current turret facing so aim no longer teleports at fire time.
+- Round reset guard: `RoundMatchService` uses tokens plus a short reentry guard so delayed/manual reset races do not run reset twice.
 - Graphify: local `graphify` binary exists, but no graph pipeline was run or installed for this sprint. Manual architecture map lives in `docs/ARCHITECTURE_GRAPH.md`.
 - Verification required before commit: `git diff --check`; `rojo build default.project.json --output /private/tmp/wob-stable-fun-duel-v01-check.rbxm`; local Luau checker only if available.
 - Manual Studio checks: 1-player elevated lobby wall blocking, Training arena wall/cover blocking, no-damage lobby shooting, dummy damage/result/return; 2-player DuelPad `0/2 -> 1/2 -> 2/2`, countdown cancel on leaving, both queued players enter duel, result only for participants.
 - Recommended commit message: `Stabilize duel movement VFX and DuelPad flow`.
+
+## Current Add-on Sprint — Free Drive Battle Arena v0.1
+
+- Статус: отдельный режим поверх Stable Fun Duel, не замена Duel/Training.
+- План и контракт: `docs/BATTLE_ARENA_V01_PLAN.md`.
+- Scene repair: run `docs/patches/CREATE_OR_REPAIR_BATTLE_ARENA_COMMAND.lua` outside Play Mode only when the BattleArena scene is missing or needs full creation. After manual arena moves, prefer `AUDIT_BATTLE_ARENA_COLLISION_COMMAND.lua` and `REPAIR_BATTLE_ARENA_COLLISION_COMMAND.lua`, then `File -> Save to File`. Do not edit `.rbxl` directly.
+- Lobby pad contact contract: `docs/PAD_CONTACT_ZONE_CONTRACT.md`. After moving any pad visual in Studio, run `docs/patches/REPAIR_ALL_LOBBY_PADS_COMMAND.lua`, then `docs/patches/AUDIT_LOBBY_PADS_COMMAND.lua`, then `File -> Save to File`.
+- BattleArena collision/HUD debug: `docs/BATTLE_ARENA_COLLISION_AND_HUD_DEBUG.md`. After manually moving the arena, run `docs/patches/AUDIT_BATTLE_ARENA_COLLISION_COMMAND.lua`; if warnings appear, run `docs/patches/REPAIR_BATTLE_ARENA_COLLISION_COMMAND.lua`, audit again, then `File -> Save to File`.
+- Scene-space separation: run `docs/patches/AUDIT_SCENE_SPACE_OVERLAPS_COMMAND.lua`; if Lobby and BattleArena overlap in XZ, run `docs/patches/MOVE_BATTLE_ARENA_TO_SAFE_ZONE_COMMAND.lua`, then audit/repair collision again.
+- VFX template sanitizer: run `docs/patches/CLEAN_VFX_TEMPLATES_COMMAND.lua` if any donor script such as `FIRE.Play` runs from cloned runtime VFX.
+- New scene objects: `Workspace.WOB_Generated.BattleArena` with `Floor`, `Boundaries`, `Cover`, `RicochetWalls`, `SpawnPoints/ArenaSpawn1..8`, plus `Workspace.WOB_Generated.Lobby.ArenaPad`.
+- New server owner: `ArenaCombatService.luau`. It tracks arena sessions, score, death, respawn, temporary upgrades, and leave/reset. Do not move this logic into `RoundMatchService`.
+- New PlayerModes: `InBattleArena` and `ArenaRespawning`. `Result` remains duel/training only.
+- Score attributes are session-only: `ArenaScore`, `ArenaKills`, `ArenaDeaths`, `ArenaStreak`, `ArenaUpgradeIds`.
+- Temporary upgrades are arena-only and reset on leave: `DamageUp`, `FireRateUp`, `DoubleShot`, `MoveSpeedUp`, `TripleSpread`.
+- Projectile/movement modifiers are read only while participant state is `InBattleArena`; Duel still uses default weapon and movement stats.
+- Arena overlay: `WOBBattleArenaOverlay.client.luau` shows HP, score, kills, deaths, streak, upgrades, death, respawn, and return. Duel HUD remains owned by `WOBRoundStatusOverlay.client.luau`.
+- Verification required before commit: `git diff --check`; conflict marker scan; `rojo build default.project.json --output /private/tmp/wob-battle-arena-v01-check.rbxm`; Luau/StyLua/Selene only if installed.
+- Manual checks: use `docs/FIRST_PLAYTEST_CHECKLIST.md`.
+- Recommended commit message: `Add battle arena mode v0.1`.
 
 ## Milestone 0 — Документация и структура
 

@@ -14,6 +14,10 @@ local TankConfig = table.freeze({
 		CollisionBoxSize = Vector3.new(8.7, 4.2, 11.7),
 		CollisionBoxYOffset = 1.9,
 		CollisionSkinWidth = 0.15,
+		WorldBoundsMinX = -520,
+		WorldBoundsMaxX = 520,
+		WorldBoundsMinZ = -560,
+		WorldBoundsMaxZ = 280,
 		DebugCollision = false,
 	}),
 
@@ -33,6 +37,12 @@ local TankConfig = table.freeze({
 		FrontArmorColor = Color3.fromRGB(80, 255, 120),
 		RearArmorColor = Color3.fromRGB(255, 90, 90),
 		SideArmorColor = Color3.fromRGB(255, 220, 80),
+	}),
+
+	Turret = table.freeze({
+		TurnSpeedDegreesPerSecond = 240,
+		TurnSpeedRadiansPerSecond = 4.1887902047863905,
+		ShootUsesTurretFacing = true,
 	}),
 
 	PlayerInitialState = table.freeze({

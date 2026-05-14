@@ -14,6 +14,7 @@ local TankConfig = require(configs:WaitForChild("TankConfig"))
 local WeaponConfig = require(configs:WaitForChild("WeaponConfig"))
 local ProjectileCatalog = require(configs:WaitForChild("ProjectileCatalog"))
 local MatchConfig = require(configs:WaitForChild("MatchConfig"))
+local BattleArenaConfig = require(configs:WaitForChild("BattleArenaConfig"))
 
 -- Services
 local PlayerTankSpawner = require(script.Parent:WaitForChild("PlayerTankSpawner"))
@@ -28,6 +29,7 @@ local ProjectileService = require(script.Parent:WaitForChild("Projectiles"):Wait
 local TankSpawnResetService = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankSpawnResetService"))
 local PlayerPossessionService = require(script.Parent:WaitForChild("Players"):WaitForChild("PlayerPossessionService"))
 local LobbyService = require(script.Parent:WaitForChild("Lobby"):WaitForChild("LobbyService"))
+local ArenaCombatService = require(script.Parent:WaitForChild("Arena"):WaitForChild("ArenaCombatService"))
 
 local primaryWeaponConfig = WeaponConfig.PrimaryWeapon
 local MOVE_SPEED = TankConfig.Movement.MoveSpeed
@@ -35,8 +37,11 @@ local REVERSE_MOVE_SPEED_MULTIPLIER = TankConfig.Movement.ReverseMoveSpeedMultip
 local INVERT_STEERING_WHEN_REVERSING = TankConfig.Movement.InvertSteeringWhenReversing == true
 local REVERSE_STEERING_DEAD_ZONE = math.max(0, tonumber(TankConfig.Movement.ReverseSteeringDeadZone) or 0.05)
 local TURN_SPEED = TankConfig.Movement.BodyTurnSpeedRadians
-local TURRET_TURN_SPEED = TankConfig.Movement.TurretTurnSpeedRadians or math.rad(TankConfig.Movement.TurretTurnSpeedDegrees or 240)
-local SHOOT_USES_TURRET_FACING = TankConfig.Movement.ShootUsesTurretFacing ~= false
+local turretConfig = TankConfig.Turret or {}
+local TURRET_TURN_SPEED = turretConfig.TurnSpeedRadiansPerSecond
+	or math.rad(turretConfig.TurnSpeedDegreesPerSecond or TankConfig.Movement.TurretTurnSpeedDegrees or 240)
+local SHOOT_USES_TURRET_FACING = turretConfig.ShootUsesTurretFacing ~= false
+	and TankConfig.Movement.ShootUsesTurretFacing ~= false
 local DEBUG_INPUT = false
 
 -- Remote Events
@@ -175,7 +180,11 @@ TankMovementService.init({
 	collisionBoxSize = TankConfig.Movement.CollisionBoxSize,
 	collisionBoxYOffset = TankConfig.Movement.CollisionBoxYOffset,
 	collisionSkinWidth = TankConfig.Movement.CollisionSkinWidth,
-	debugCollision = TankConfig.Movement.DebugCollision == true,
+	worldBoundsMinX = TankConfig.Movement.WorldBoundsMinX,
+	worldBoundsMaxX = TankConfig.Movement.WorldBoundsMaxX,
+	worldBoundsMinZ = TankConfig.Movement.WorldBoundsMinZ,
+	worldBoundsMaxZ = TankConfig.Movement.WorldBoundsMaxZ,
+	debugCollision = TankConfig.Movement.DebugCollision == true or BattleArenaConfig.DebugCollision == true,
 })
 TankSpawnResetService.init(map)
 
@@ -312,7 +321,38 @@ local function clearActiveMatchInputs()
 	end
 end
 
-local function damageParticipant(participant, amount)
+local function clearParticipantInput(participant)
+	if participant ~= nil and participant.OwnerPlayer ~= nil then
+		PlayerPossessionService.getInputByPlayer()[participant.OwnerPlayer] = nil
+	end
+end
+
+local function damageParticipant(participant, amount, sourceProjectile)
+	if ArenaCombatService.IsParticipantInArena(participant) then
+		if TankParticipantRegistry.getParticipantIsDead(participant) then
+			return false
+		end
+
+		local currentHealth = TankParticipantRegistry.getParticipantHealth(participant)
+		local newHealth = math.max(0, currentHealth - amount)
+		TankParticipantRegistry.setParticipantHealth(participant, newHealth)
+
+		print("[ARENA_DAMAGE] " .. participant.TankId .. " -" .. math.floor(amount) .. " HP (" .. math.floor(newHealth) .. ")")
+
+		if newHealth <= 0 then
+			TankParticipantRegistry.setParticipantIsDead(participant, true)
+			playDeathExplosion(participant)
+			TankSpawnResetService.darkenTank(participant.Model)
+			print("[ARENA_DEAD] " .. participant.TankId .. " destroyed")
+
+			local killerParticipant = sourceProjectile ~= nil and sourceProjectile.OwnerParticipant or nil
+			ArenaCombatService.OnParticipantKilled(killerParticipant, participant)
+			clearParticipantInput(participant)
+		end
+
+		return true
+	end
+
 	local activeMatch = RoundMatchService.getActiveMatch()
 
 	if activeMatch == nil
@@ -354,6 +394,13 @@ end
 ProjectileService.init(root, projectileFolder, vfxFolder, {
 	getGameState = function() return RoundMatchService.getGameState() end,
 	getRoundState = function() return RoundMatchService.getRoundState() end,
+	getRoundStateForProjectile = function(projectile)
+		if ArenaCombatService.IsArenaProjectile(projectile) then
+			return { Ended = false }
+		end
+
+		return RoundMatchService.getRoundState()
+	end,
 	damageParticipant = damageParticipant,
 	getPlayerParticipant = getPlayerParticipant,
 	canParticipantShoot = function(participant) return LobbyService.canParticipantShoot(participant) end,
@@ -429,11 +476,28 @@ RoundMatchService.init(root, {
 	end,
 })
 
+ArenaCombatService.init({
+	root = root,
+	tankSpawnResetService = TankSpawnResetService,
+	setPlayerMode = function(player, participant, mode, matchId, opponentTankId)
+		LobbyService.setPlayerMode(player, participant, mode, matchId, opponentTankId)
+	end,
+	clearPlayerInput = function(player)
+		PlayerPossessionService.getInputByPlayer()[player] = nil
+	end,
+	restoreTankColors = function(participant)
+		if participant ~= nil then
+			TankSpawnResetService.restoreTankColors(participant.TankId)
+		end
+	end,
+})
+
 LobbyService.init({
 	root = root,
 	tankSpawnResetService = TankSpawnResetService,
 	roundMatchService = RoundMatchService,
 	projectileService = ProjectileService,
+	arenaCombatService = ArenaCombatService,
 	dummyParticipant = dummyParticipant,
 })
 
@@ -576,9 +640,23 @@ RunService.Heartbeat:Connect(function(deltaTime)
 				end
 
 				local desiredBodyYaw = currentBodyYaw - steeringInputForYaw * TURN_SPEED * deltaTime
-				local moveSpeed = MOVE_SPEED * (input.Throttle < 0 and REVERSE_MOVE_SPEED_MULTIPLIER or 1)
+				local arenaMoveSpeedMultiplier = 1
+
+				if p.ParticipantState == LobbyService.MODE_IN_BATTLE_ARENA then
+					arenaMoveSpeedMultiplier = math.max(0.1, tonumber(p.ArenaMoveSpeedMultiplier) or 1)
+				end
+
+				local moveSpeed = MOVE_SPEED
+					* arenaMoveSpeedMultiplier
+					* (input.Throttle < 0 and REVERSE_MOVE_SPEED_MULTIPLIER or 1)
 				local desiredMove = (CFrame.Angles(0, desiredBodyYaw, 0).LookVector) * input.Throttle * moveSpeed * deltaTime
-				local resolvedPos, resolvedBodyYaw = TankMovementService.resolveTankPose(state.Position, currentBodyYaw, desiredMove, desiredBodyYaw)
+				local resolvedPos, resolvedBodyYaw = TankMovementService.resolveTankPose(
+					state.Position,
+					currentBodyYaw,
+					desiredMove,
+					desiredBodyYaw,
+					{ TankId = p.TankId }
+				)
 				state.Position = resolvedPos
 				state.BodyYaw = resolvedBodyYaw
 				local targetTurretYaw = getYawFromAimPosition(state.Position, input.AimPosition, state.TurretYaw)

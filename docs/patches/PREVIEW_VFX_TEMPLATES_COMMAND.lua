@@ -27,11 +27,15 @@ local POINT_ORDER = {
 }
 
 local TEMPLATE_POINT_OVERRIDES = {
+	MuzzleEffectTemplate = "MuzzleFlashPreview",
 	MuzzleFlashTemplate = "MuzzleFlashPreview",
 	MuzzleBlastTemplate = "MuzzleFlashPreview",
 	SmokeTemplate = "SmokePreview",
 	ImpactFlashTemplate = "ImpactPreview",
 	ImpactSparksTemplate = "ImpactPreview",
+	DamageHitTemplate = "ImpactPreview",
+	NoPenTemplate = "ImpactPreview",
+	SelfHitTemplate = "ImpactPreview",
 	RicochetTemplate = "RicochetPreview",
 	TankExplosionTemplate = "ExplosionPreview",
 	TankBurningTemplate = "BurningPreview",
@@ -93,10 +97,62 @@ local function sanitizeInstance(instance)
 			descendant.CanTouch = false
 			descendant.CanQuery = false
 			descendant.CastShadow = false
-		elseif descendant:IsA("Script") or descendant:IsA("LocalScript") then
+		elseif descendant:IsA("Script") or descendant:IsA("LocalScript") or descendant:IsA("ModuleScript") then
 			descendant:Destroy()
 		end
 	end
+end
+
+local function addUnique(list, set, value)
+	if typeof(value) ~= "string" or value == "" then
+		return
+	end
+
+	if set[value] == true then
+		return
+	end
+
+	set[value] = true
+	table.insert(list, value)
+end
+
+local function formatList(list)
+	if #list == 0 then
+		return "(none)"
+	end
+
+	return table.concat(list, ", ")
+end
+
+local function collectAssetIds(instance)
+	local textureIds = {}
+	local textureSet = {}
+	local soundIds = {}
+	local soundSet = {}
+
+	local function collect(current)
+		if current:IsA("ParticleEmitter") then
+			addUnique(textureIds, textureSet, current.Texture)
+		elseif current:IsA("Beam") then
+			addUnique(textureIds, textureSet, current.Texture)
+		elseif current:IsA("Trail") then
+			addUnique(textureIds, textureSet, current.Texture)
+		elseif current:IsA("Decal") then
+			addUnique(textureIds, textureSet, current.Texture)
+		elseif current:IsA("Texture") then
+			addUnique(textureIds, textureSet, current.Texture)
+		elseif current:IsA("Sound") then
+			addUnique(soundIds, soundSet, current.SoundId)
+		end
+	end
+
+	collect(instance)
+
+	for _, descendant in ipairs(instance:GetDescendants()) do
+		collect(descendant)
+	end
+
+	return textureIds, soundIds
 end
 
 local function createPreviewPoint(pointName, index)
@@ -290,7 +346,7 @@ end
 local templates = {}
 
 for _, child in ipairs(vfxFolder:GetChildren()) do
-	if not child:IsA("ModuleScript") then
+	if not child:IsA("ModuleScript") and child.Name ~= "VfxTemplateCatalog" then
 		table.insert(templates, child)
 	end
 end
@@ -312,18 +368,23 @@ for index, template in ipairs(templates) do
 		local clone = attachCloneToPoint(template, point)
 		local emitterCount = emitParticles(clone)
 		local soundCount = playSounds(clone)
+		local textureIds, soundIds = collectAssetIds(clone)
 
 		if PREVIEW_AUTO_CLEANUP_SECONDS > 0 then
 			Debris:AddItem(clone, PREVIEW_AUTO_CLEANUP_SECONDS)
 		end
 
 		print(
-			"[WOB VFX PREVIEW] Previewed "
+			"[WOB VFX PREVIEW] Template "
 				.. template.Name
 				.. " emitters="
 				.. tostring(emitterCount)
 				.. " sounds="
 				.. tostring(soundCount)
+				.. " textures="
+				.. formatList(textureIds)
+				.. " soundIds="
+				.. formatList(soundIds)
 		)
 	end
 end

@@ -163,7 +163,7 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 			Color3.fromRGB(255, 105, 75)
 		)
 
-		if damageParticipant(targetParticipant, armorHit.Damage) and projectile.NoStats ~= true then
+		if damageParticipant(targetParticipant, armorHit.Damage, projectile) and projectile.NoStats ~= true then
 			MatchStatsService.recordProjectileDamageStats(projectile, targetParticipant, armorHit.Damage)
 		end
 

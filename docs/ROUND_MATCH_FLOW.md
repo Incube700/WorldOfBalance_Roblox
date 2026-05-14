@@ -10,6 +10,10 @@ Date: 2026-05-13.
 
 `MatchEnd` means the score reached `MatchConfig.TargetWins`. The server still keeps `GameState = "Playing"` during the short aftermath window, marks participants non-controllable, shows final small summary attributes, and only after `MatchConfig.MatchResultDelay` changes `GameState` to `"Result"` and lets `LobbyService.onMatchEnded` move players to `PlayerMode = "Result"`.
 
+## Stable Fun Duel v0.1
+
+For v0.1, round flow is intentionally simple: one death ends the current round, a small overlay appears, controls are disabled, then the next round starts automatically once. The full Result screen, Rematch, and Return to Lobby belong only to `MatchEnd`.
+
 ## Config
 
 Round timing lives in `src/ReplicatedStorage/Shared/Configs/MatchConfig.luau`:
@@ -31,6 +35,10 @@ Round timing lives in `src/ReplicatedStorage/Shared/Configs/MatchConfig.luau`:
 - `MatchResultAt` and `ResultStartsIn` for final result transitions.
 
 `PlayerWins` and `DummyWins` remain for existing HUD/stats compatibility.
+
+## Reset Guard
+
+`RoundMatchService` uses reset/result tokens plus a short `isRoundResetting` reentry guard. A delayed `RoundEnd` reset must only run while `RoundState == "RoundEnd"`, `GameState == "Playing"`, and the match is not ended. Manual reset during the VFX delay is ignored until `RoundResetDelay` expires, and a reset body cannot run twice in the same transition.
 
 ## UI
 

@@ -33,6 +33,7 @@ local PROJECTILE_DAMAGE_MULTIPLIER = projectileConfig.DamageMultiplierPerBounce
 local PROJECTILE_MIN_SPEED = projectileConfig.MinProjectileSpeed
 local PROJECTILE_LIFETIME = projectileConfig.Lifetime
 local SHOOT_COOLDOWN = primaryWeaponConfig.ShootCooldown
+local ARENA_PARTICIPANT_STATE = "InBattleArena"
 
 local projectiles = {}
 local projectileFolder = nil
@@ -44,6 +45,7 @@ local projectileMapRaycastTargets = {}
 local callbacks = {
 	getGameState = nil,
 	getRoundState = nil,
+	getRoundStateForProjectile = nil,
 	damageParticipant = nil,
 	getPlayerParticipant = nil,
 	canParticipantShoot = nil,
@@ -357,7 +359,9 @@ local function createRicochetVfx(position, normal)
 	end
 
 	if ricochetConfig == nil or ricochetConfig.UseImpactFallback ~= false then
-		createWallImpactVfx(position, direction)
+		if not createImpactBurst(position, direction, ricochetConfig, "Ricochet") then
+			createWallImpactVfx(position, direction)
+		end
 	end
 
 	return false
@@ -507,10 +511,92 @@ function ProjectileService.destroyAllProjectiles()
 	end
 end
 
-function ProjectileService.createProjectile(ownerParticipant, origin, direction)
+local function getArenaNumberModifier(participant, attributeName, fallback)
+	if participant == nil or participant.ParticipantState ~= ARENA_PARTICIPANT_STATE then
+		return fallback
+	end
+
+	local value = participant[attributeName]
+
+	if typeof(value) ~= "number" then
+		local physicalModel = TankParticipantRegistry.getParticipantPhysicalModel(participant)
+		value = physicalModel ~= nil and physicalModel:GetAttribute(attributeName) or nil
+	end
+
+	if typeof(value) ~= "number" then
+		return fallback
+	end
+
+	return value
+end
+
+local function rotateFlatDirection(direction, degrees)
+	local rotated = CFrame.Angles(0, math.rad(degrees), 0):VectorToWorldSpace(direction)
+	local flat = Vector3.new(rotated.X, 0, rotated.Z)
+
+	if flat.Magnitude < 0.001 then
+		return direction
+	end
+
+	return flat.Unit
+end
+
+local function getLateralDirection(direction)
+	local lateral = Vector3.new(-direction.Z, 0, direction.X)
+
+	if lateral.Magnitude < 0.001 then
+		return Vector3.new(1, 0, 0)
+	end
+
+	return lateral.Unit
+end
+
+local function getShotPattern(participant, origin, direction)
+	local flatDirection = Vector3.new(direction.X, 0, direction.Z)
+
+	if flatDirection.Magnitude < 0.001 then
+		return {}
+	end
+
+	local unitDirection = flatDirection.Unit
+	local projectileCount = math.max(1, math.floor(getArenaNumberModifier(participant, "ArenaProjectileCount", 1)))
+	local spreadDegrees = getArenaNumberModifier(participant, "ArenaSpreadDegrees", 0)
+	local doubleShotLateralOffset = getArenaNumberModifier(participant, "ArenaDoubleShotLateralOffset", 0)
+
+	if projectileCount == 2 then
+		local lateral = getLateralDirection(unitDirection) * math.max(0, doubleShotLateralOffset)
+
+		return {
+			{ Origin = origin - lateral, Direction = unitDirection },
+			{ Origin = origin + lateral, Direction = unitDirection },
+		}
+	elseif projectileCount >= 3 then
+		local spread = math.max(0, spreadDegrees)
+
+		return {
+			{ Origin = origin, Direction = rotateFlatDirection(unitDirection, -spread) },
+			{ Origin = origin, Direction = unitDirection },
+			{ Origin = origin, Direction = rotateFlatDirection(unitDirection, spread) },
+		}
+	end
+
+	return {
+		{ Origin = origin, Direction = unitDirection },
+	}
+end
+
+function ProjectileService.createProjectile(ownerParticipant, origin, direction, options)
+	options = options or {}
 	local flatDirection = Vector3.new(direction.X, 0, direction.Z).Unit
 	local projectilePart = createProjectilePart(origin, flatDirection)
 	local ownerTankModel = TankParticipantRegistry.getParticipantPhysicalModel(ownerParticipant)
+	local noDamage = callbacks.isNoDamageProjectile ~= nil and callbacks.isNoDamageProjectile(ownerParticipant) == true
+	local noStats = noDamage
+
+	if callbacks.shouldRecordShot ~= nil then
+		noStats = callbacks.shouldRecordShot(ownerParticipant) ~= true
+	end
+
 	projectilePart:SetAttribute("OwnerTankId", ownerParticipant.TankId)
 	projectilePart:SetAttribute("OwnerTeamId", ownerParticipant.TeamId)
 	projectilePart:SetAttribute("OwnerIsBot", ownerParticipant.IsBot)
@@ -533,7 +619,7 @@ function ProjectileService.createProjectile(ownerParticipant, origin, direction)
 		Position = origin,
 		Direction = flatDirection,
 		Speed = PROJECTILE_SPEED,
-		Damage = PROJECTILE_MAX_DAMAGE,
+		Damage = PROJECTILE_MAX_DAMAGE * (tonumber(options.DamageMultiplier) or 1),
 		Penetration = PROJECTILE_PENETRATION,
 		BounceCount = 0,
 		MaxBounces = PROJECTILE_MAX_BOUNCES,
@@ -546,8 +632,8 @@ function ProjectileService.createProjectile(ownerParticipant, origin, direction)
 		Destroyed = false,
 		CanHitOwner = false,
 		MatchId = ownerParticipant.MatchId,
-		NoDamage = callbacks.isNoDamageProjectile ~= nil and callbacks.isNoDamageProjectile(ownerParticipant) == true,
-		NoStats = callbacks.isNoDamageProjectile ~= nil and callbacks.isNoDamageProjectile(ownerParticipant) == true,
+		NoDamage = noDamage,
+		NoStats = noStats,
 	}
 	table.insert(projectiles, projectile)
 	createMuzzleFlash(origin, flatDirection)
@@ -574,14 +660,20 @@ function ProjectileService.tryShoot(participant, direction)
 	local flatDirection = Vector3.new(direction.X, 0, direction.Z)
 	if flatDirection.Magnitude < 0.001 then return false end
 	local currentTime = os.clock()
-	local cooldown = participant.WeaponConfig.ShootCooldown or SHOOT_COOLDOWN
+	local cooldownMultiplier = math.max(0.05, getArenaNumberModifier(participant, "ArenaFireRateMultiplier", 1))
+	local cooldown = (participant.WeaponConfig.ShootCooldown or SHOOT_COOLDOWN) * cooldownMultiplier
 	local lastShotTime = participant.LastShotTime or 0
 	if currentTime - lastShotTime < cooldown then return false end
 	participant.LastShotTime = currentTime
 	participant.WeaponReadyAt = currentTime + cooldown
 	participant.WeaponState.LastShotTime = participant.LastShotTime
 	participant.WeaponState.WeaponReadyAt = participant.WeaponReadyAt
-	ProjectileService.createProjectile(participant, participant.ShootPoint.Position, flatDirection.Unit)
+	local damageMultiplier = math.max(0, getArenaNumberModifier(participant, "ArenaDamageMultiplier", 1))
+	for _, shot in ipairs(getShotPattern(participant, participant.ShootPoint.Position, flatDirection.Unit)) do
+		ProjectileService.createProjectile(participant, shot.Origin, shot.Direction, {
+			DamageMultiplier = damageMultiplier,
+		})
+	end
 	if callbacks.shouldRecordShot == nil or callbacks.shouldRecordShot(participant) == true then
 		MatchStatsService.recordShotFired(participant)
 	end
@@ -632,13 +724,16 @@ function ProjectileService.updateProjectiles(deltaTime)
             local armorZone = TankParticipantRegistry.getArmorZoneFromHitbox(result.Instance)
 
             if targetParticipant ~= nil then
+                local roundState = callbacks.getRoundStateForProjectile ~= nil
+                    and callbacks.getRoundStateForProjectile(projectile)
+                    or callbacks.getRoundState()
                 local destroyed = ProjectileCombatService.handleProjectileTankHit(
                     projectile,
                     targetParticipant,
                     result.Position,
                     result.Normal,
                     armorZone,
-                    { roundState = callbacks.getRoundState() }
+                    { roundState = roundState }
                 )
 
                 if destroyed then table.remove(projectiles, i) end

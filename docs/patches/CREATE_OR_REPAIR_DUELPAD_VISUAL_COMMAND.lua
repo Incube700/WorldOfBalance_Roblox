@@ -79,6 +79,9 @@ duelPad:SetAttribute("DuelQueueCount", duelPad:GetAttribute("DuelQueueCount") or
 duelPad:SetAttribute("DuelQueueRequired", duelPad:GetAttribute("DuelQueueRequired") or 2)
 duelPad:SetAttribute("DuelCountdown", duelPad:GetAttribute("DuelCountdown") or 0)
 duelPad:SetAttribute("DuelState", duelPad:GetAttribute("DuelState") or "Idle")
+duelPad:SetAttribute("WOBPadType", "Duel")
+duelPad:SetAttribute("RequiredPlayers", 2)
+duelPad:SetAttribute("WOBPadEnabled", true)
 
 local visuals = getOrCreate(lobby, "Folder", "DuelPadVisuals")
 

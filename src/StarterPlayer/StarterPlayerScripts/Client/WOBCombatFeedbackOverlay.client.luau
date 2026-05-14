@@ -130,6 +130,8 @@ local function showFeedback(payload)
 	local isGameplayVisible = mode == "Lobby"
 		or mode == "QueuedForDuel"
 		or mode == "InMatch"
+		or mode == "InBattleArena"
+		or mode == "ArenaRespawning"
 		or (mode == nil and root:GetAttribute("GameState") == "Playing")
 
 	if not isGameplayVisible then
@@ -163,7 +165,13 @@ combatFeedbackEvent.OnClientEvent:Connect(showFeedback)
 root:GetAttributeChangedSignal("GameState"):Connect(function()
 	local mode = localPlayer:GetAttribute("PlayerMode")
 
-	if mode ~= "Lobby" and mode ~= "QueuedForDuel" and mode ~= "InMatch" and root:GetAttribute("GameState") ~= "Playing" then
+	if mode ~= "Lobby"
+		and mode ~= "QueuedForDuel"
+		and mode ~= "InMatch"
+		and mode ~= "InBattleArena"
+		and mode ~= "ArenaRespawning"
+		and root:GetAttribute("GameState") ~= "Playing"
+	then
 		clearFeedback()
 	end
 end)
@@ -171,7 +179,12 @@ end)
 localPlayer:GetAttributeChangedSignal("PlayerMode"):Connect(function()
 	local mode = localPlayer:GetAttribute("PlayerMode")
 
-	if mode ~= "Lobby" and mode ~= "QueuedForDuel" and mode ~= "InMatch" then
+	if mode ~= "Lobby"
+		and mode ~= "QueuedForDuel"
+		and mode ~= "InMatch"
+		and mode ~= "InBattleArena"
+		and mode ~= "ArenaRespawning"
+	then
 		clearFeedback()
 	end
 end)

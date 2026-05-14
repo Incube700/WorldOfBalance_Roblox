@@ -51,28 +51,40 @@ local function isObstacleName(name)
 	return boundaryWallNames[name] == true
 	or string.match(name, "^RicochetWall_") ~= nil
 	or string.match(name, "^Cover_Block_") ~= nil
+	or string.match(name, "^BoundaryWall_") ~= nil
 end
 
 local function collectLaserMapTargets()
 	local targets = {}
 	local seen = {}
 
-	local ricochetWalls = map:FindFirstChild("RicochetWalls")
-	local cover = map:FindFirstChild("Cover")
-
-	if ricochetWalls ~= nil then
-		table.insert(targets, ricochetWalls)
-	end
-
-	if cover ~= nil then
-		table.insert(targets, cover)
-	end
-
-	for _, descendant in ipairs(map:GetDescendants()) do
-		if descendant:IsA("BasePart") and isObstacleName(descendant.Name) then
-			table.insert(targets, descendant)
+	local function addTarget(instance)
+		if instance ~= nil and seen[instance] ~= true then
+			seen[instance] = true
+			table.insert(targets, instance)
 		end
 	end
+
+	local function collectObstacleRoot(searchRoot)
+		if searchRoot == nil then
+			return
+		end
+
+		for _, folderName in ipairs({ "RicochetWalls", "Cover", "Boundaries", "BoundaryWalls" }) do
+			addTarget(searchRoot:FindFirstChild(folderName))
+		end
+
+		for _, descendant in ipairs(searchRoot:GetDescendants()) do
+			if descendant:IsA("BasePart")
+				and (isObstacleName(descendant.Name) or descendant:GetAttribute("WOBMovementObstacle") == true)
+			then
+				addTarget(descendant)
+			end
+		end
+	end
+
+	collectObstacleRoot(map)
+	collectObstacleRoot(root:FindFirstChild("BattleArena"))
 
 	for _, descendant in ipairs(testObjects:GetDescendants()) do
 		if descendant:IsA("Model")
@@ -81,11 +93,10 @@ local function collectLaserMapTargets()
 			local tankModel = TankModelResolver.resolvePhysicalModel(root, descendant) or descendant
 
 			if tankModel ~= playerTank and seen[tankModel] ~= true then
-				seen[tankModel] = true
 				local hitboxes = tankModel:FindFirstChild("Hitboxes", true)
 
 				if hitboxes ~= nil then
-					table.insert(targets, hitboxes)
+					addTarget(hitboxes)
 				end
 			end
 		end
@@ -224,7 +235,7 @@ end
 local function isAimLaserEnabledForLocalPlayer()
 	local mode = localPlayer:GetAttribute("PlayerMode")
 
-	if mode == "Lobby" or mode == "QueuedForDuel" or mode == "InMatch" then
+	if mode == "Lobby" or mode == "QueuedForDuel" or mode == "InMatch" or mode == "InBattleArena" then
 		return true
 	end
 

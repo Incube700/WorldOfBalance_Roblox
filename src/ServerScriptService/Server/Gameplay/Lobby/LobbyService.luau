@@ -2,18 +2,25 @@ local LobbyService = {}
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local shared = ReplicatedStorage:WaitForChild("Shared")
+local configs = shared:WaitForChild("Configs")
+local BattleArenaConfig = require(configs:WaitForChild("BattleArenaConfig"))
 local TankParticipantRegistry = require(script.Parent.Parent:WaitForChild("TankParticipantRegistry"))
 
 LobbyService.MODE_LOBBY = "Lobby"
 LobbyService.MODE_QUEUED_FOR_DUEL = "QueuedForDuel"
 LobbyService.MODE_IN_MATCH = "InMatch"
 LobbyService.MODE_RESULT = "Result"
+LobbyService.MODE_IN_BATTLE_ARENA = "InBattleArena"
+LobbyService.MODE_ARENA_RESPAWNING = "ArenaRespawning"
 
 local root = nil
 local tankSpawnResetService = nil
 local roundMatchService = nil
 local projectileService = nil
+local arenaCombatService = nil
 local dummyParticipant = nil
 
 local queuedPlayers = {}
@@ -25,8 +32,10 @@ local nextSpawnIndex = 1
 local elapsedSincePadPoll = 0
 local duelCountdownRemaining = nil
 local duelCountdownPlayers = nil
+local lastPadDebugLogByKey = {}
 
 local PAD_POLL_INTERVAL = 0.12
+local PAD_DEBUG_LOG_INTERVAL = 1.0
 local DUEL_QUEUE_REQUIRED = 2
 local DUEL_COUNTDOWN_SECONDS = 3
 local DUEL_STATE_IDLE = "Idle"
@@ -53,19 +62,101 @@ local function getLobby()
 	return root ~= nil and root:FindFirstChild("Lobby") or nil
 end
 
-local function getDuelPad()
-	local lobby = getLobby()
-	local duelPad = lobby ~= nil and lobby:FindFirstChild("DuelPad") or nil
+local function getTopLobbyChild(lobby, instance)
+	local current = instance
+	local last = instance
 
-	if duelPad ~= nil and duelPad:IsA("BasePart") then
-		return duelPad
+	while current ~= nil and current ~= lobby do
+		last = current
+		current = current.Parent
+	end
+
+	if current == lobby then
+		return last
 	end
 
 	return nil
 end
 
+local function findPadRootByTypeOrName(padType, padNames)
+	local lobby = getLobby()
+
+	if lobby == nil then
+		return nil
+	end
+
+	for _, padName in ipairs(padNames or {}) do
+		local namedPad = lobby:FindFirstChild(padName)
+
+		if namedPad ~= nil then
+			return namedPad
+		end
+	end
+
+	for _, descendant in ipairs(lobby:GetDescendants()) do
+		if descendant:GetAttribute("WOBPadType") == padType then
+			local padRoot = getTopLobbyChild(lobby, descendant)
+
+			if padRoot ~= nil then
+				return padRoot
+			end
+		end
+	end
+
+	return nil
+end
+
+local function getPadTrigger(padRoot)
+	if padRoot == nil or padRoot:GetAttribute("WOBPadEnabled") == false then
+		return nil
+	end
+
+	local directTrigger = padRoot:FindFirstChild("Trigger")
+
+	if directTrigger ~= nil and directTrigger:IsA("BasePart") then
+		return directTrigger
+	end
+
+	for _, descendant in ipairs(padRoot:GetDescendants()) do
+		if descendant:IsA("BasePart") and descendant:GetAttribute("WOBPadTrigger") == true then
+			return descendant
+		end
+	end
+
+	if padRoot:IsA("BasePart") then
+		return padRoot
+	end
+
+	return nil
+end
+
+local function getDuelPadRoot()
+	return findPadRootByTypeOrName("Duel", { "DuelPad" })
+end
+
+local function getDuelPad()
+	return getPadTrigger(getDuelPadRoot())
+end
+
+local function getArenaPadRoot()
+	return findPadRootByTypeOrName("BattleArena", { "ArenaPad" })
+end
+
+local function getArenaPad()
+	return getPadTrigger(getArenaPadRoot())
+end
+
+local function getTrainingPadRoot()
+	return findPadRootByTypeOrName("Training", { "TrainingPad", "StartPad" })
+end
+
+local function getTrainingPad()
+	return getPadTrigger(getTrainingPadRoot())
+end
+
 local function setDuelPadAttributes(queueCount, duelState, countdown)
 	local lobby = getLobby()
+	local duelPadRoot = getDuelPadRoot()
 	local duelPad = getDuelPad()
 	local attributes = {
 		DuelQueueCount = math.max(0, queueCount or 0),
@@ -74,7 +165,7 @@ local function setDuelPadAttributes(queueCount, duelState, countdown)
 		DuelState = duelState or DUEL_STATE_IDLE,
 	}
 
-	for _, instance in ipairs({ root, lobby, duelPad }) do
+	for _, instance in ipairs({ root, lobby, duelPadRoot, duelPad }) do
 		if instance ~= nil then
 			for attributeName, value in pairs(attributes) do
 				instance:SetAttribute(attributeName, value)
@@ -174,6 +265,10 @@ local function setPlayerMode(player, participant, mode, matchId, opponentTankId)
 	end
 
 	TankParticipantRegistry.setParticipantMatchState(participant, mode, matchId, opponentTankId)
+end
+
+function LobbyService.setPlayerMode(player, participant, mode, matchId, opponentTankId)
+	setPlayerMode(player, participant, mode, matchId, opponentTankId)
 end
 
 local function resetRematchStatus(player)
@@ -349,16 +444,94 @@ local function startTraining(player, participant)
 	roundMatchService.startTrainingMatch(matchId, participant, dummyParticipant)
 end
 
-local function participantIsOnDuelPad(participant, duelPad)
-	if participant == nil or duelPad == nil or participant.Body == nil then
+local function debugPadOverlap(padName, player, participant, pad, localPosition, isInside)
+	if BattleArenaConfig.DebugPad ~= true then
+		return
+	end
+
+	local key = tostring(padName) .. ":" .. tostring(player ~= nil and player.UserId or "nil")
+	local now = os.clock()
+
+	if now - (lastPadDebugLogByKey[key] or 0) < PAD_DEBUG_LOG_INTERVAL then
+		return
+	end
+
+	lastPadDebugLogByKey[key] = now
+	print(
+		("[PAD DEBUG] %s player=%s tank=%s local=(%.1f, %.1f, %.1f) size=(%.1f, %.1f, %.1f) inside=%s"):format(
+			tostring(padName),
+			player ~= nil and player.Name or "nil",
+			participant ~= nil and participant.TankId or "nil",
+			localPosition.X,
+			localPosition.Y,
+			localPosition.Z,
+			pad.Size.X,
+			pad.Size.Y,
+			pad.Size.Z,
+			tostring(isInside)
+		)
+	)
+end
+
+local function getParticipantPadProbePosition(participant)
+	if participant == nil then
+		return nil
+	end
+
+	if participant.Body ~= nil and participant.Body.Parent ~= nil then
+		return participant.Body.Position
+	end
+
+	local physicalModel = TankParticipantRegistry.getParticipantPhysicalModel(participant)
+
+	if physicalModel ~= nil then
+		if physicalModel.PrimaryPart ~= nil then
+			return physicalModel.PrimaryPart.Position
+		end
+
+		for _, descendant in ipairs(physicalModel:GetDescendants()) do
+			if descendant:IsA("BasePart") then
+				return descendant.Position
+			end
+		end
+	end
+
+	return nil
+end
+
+local function participantIsOnPad(participant, pad, padName)
+	if participant == nil or pad == nil then
 		return false
 	end
 
-	local localPosition = duelPad.CFrame:PointToObjectSpace(participant.Body.Position)
-	local halfSize = duelPad.Size * 0.5
+	local player = getPlayerFromParticipant(participant)
+	local probePosition = getParticipantPadProbePosition(participant)
 
-	return math.abs(localPosition.X) <= halfSize.X
+	if probePosition == nil then
+		return false
+	end
+
+	local localPosition = pad.CFrame:PointToObjectSpace(probePosition)
+	local halfSize = pad.Size * 0.5
+	local isInside = math.abs(localPosition.X) <= halfSize.X
 		and math.abs(localPosition.Z) <= halfSize.Z
+		and math.abs(localPosition.Y) <= math.max(halfSize.Y, 6)
+
+	debugPadOverlap(padName or pad.Name, player, participant, pad, localPosition, isInside)
+
+	return isInside
+end
+
+local function participantIsOnDuelPad(participant, duelPad)
+	return participantIsOnPad(participant, duelPad, "DuelPad")
+end
+
+local function participantIsOnArenaPad(participant, arenaPad)
+	return participantIsOnPad(participant, arenaPad, "ArenaPad")
+end
+
+local function participantIsOnTrainingPad(participant, trainingPad)
+	return participantIsOnPad(participant, trainingPad, "TrainingPad")
 end
 
 local function queuePlayer(player, participant)
@@ -495,11 +668,80 @@ local function updateDuelPadQueue(deltaTime)
 	tryStartQueuedDuel(deltaTime, duelPad)
 end
 
+local function updateArenaPadEntries()
+	if arenaCombatService == nil then
+		return
+	end
+
+	local arenaPadRoot = getArenaPadRoot()
+	local arenaPad = getArenaPad()
+
+	if arenaPad == nil then
+		return
+	end
+
+	for _, instance in ipairs({ arenaPadRoot, arenaPad }) do
+		if instance ~= nil then
+			instance:SetAttribute("WOBPadType", "BattleArena")
+			instance:SetAttribute("RequiredPlayers", 1)
+			instance:SetAttribute("WOBPadEnabled", true)
+		end
+	end
+
+	for _, participant in ipairs(TankParticipantRegistry.getPlayerParticipants()) do
+		local player = getPlayerFromParticipant(participant)
+
+		if player ~= nil then
+			local mode = getMode(player)
+			local eligible = mode == LobbyService.MODE_LOBBY or mode == LobbyService.MODE_QUEUED_FOR_DUEL
+
+			if eligible and participantIsOnArenaPad(participant, arenaPad) then
+				clearQueuedPlayer(player, "EnteredBattleArena")
+				print("[ARENA PAD] player entered BattleArena pad " .. player.Name)
+				arenaCombatService.EnterArena(player)
+			end
+		end
+	end
+end
+
+local function updateTrainingPadEntries()
+	local trainingPadRoot = getTrainingPadRoot()
+	local trainingPad = getTrainingPad()
+
+	if trainingPad == nil then
+		return
+	end
+
+	for _, instance in ipairs({ trainingPadRoot, trainingPad }) do
+		if instance ~= nil then
+			instance:SetAttribute("WOBPadType", "Training")
+			instance:SetAttribute("RequiredPlayers", 1)
+			instance:SetAttribute("WOBPadEnabled", true)
+		end
+	end
+
+	for _, participant in ipairs(TankParticipantRegistry.getPlayerParticipants()) do
+		local player = getPlayerFromParticipant(participant)
+
+		if player ~= nil then
+			local mode = getMode(player)
+			local eligible = mode == LobbyService.MODE_LOBBY or mode == LobbyService.MODE_QUEUED_FOR_DUEL
+
+			if eligible and participantIsOnTrainingPad(participant, trainingPad) then
+				clearQueuedPlayer(player, "EnteredTrainingPad")
+				print("[TRAINING PAD] player entered Training pad " .. player.Name)
+				startTraining(player, participant)
+			end
+		end
+	end
+end
+
 function LobbyService.init(options)
 	root = options.root
 	tankSpawnResetService = options.tankSpawnResetService
 	roundMatchService = options.roundMatchService
 	projectileService = options.projectileService
+	arenaCombatService = options.arenaCombatService
 	dummyParticipant = options.dummyParticipant
 
 	setDuelPadAttributes(0, DUEL_STATE_IDLE, 0)
@@ -519,6 +761,10 @@ end
 
 function LobbyService.playerRemoving(player)
 	clearQueuedPlayer(player, "PlayerLeft")
+
+	if arenaCombatService ~= nil then
+		arenaCombatService.PlayerRemoving(player)
+	end
 
 	local matchId = player:GetAttribute("MatchId")
 
@@ -547,6 +793,22 @@ function LobbyService.handleReturnToLobbyRequest(player)
 	local participant = TankParticipantRegistry.getPlayerParticipant(player)
 
 	if participant == nil then
+		return
+	end
+
+	local mode = getMode(player)
+
+	if arenaCombatService ~= nil
+		and (
+			mode == LobbyService.MODE_IN_BATTLE_ARENA
+			or mode == LobbyService.MODE_ARENA_RESPAWNING
+			or arenaCombatService.IsPlayerInArena(player)
+		)
+	then
+		clearQueuedPlayer(player, "ReturnToLobby")
+		arenaCombatService.LeaveArena(player)
+		setPlayerMode(player, participant, LobbyService.MODE_LOBBY, nil, nil)
+		LobbyService.spawnPlayerInLobby(player, participant)
 		return
 	end
 
@@ -688,6 +950,7 @@ function LobbyService.canParticipantDrive(participant)
 	return mode == LobbyService.MODE_LOBBY
 		or mode == LobbyService.MODE_QUEUED_FOR_DUEL
 		or mode == LobbyService.MODE_IN_MATCH
+		or mode == LobbyService.MODE_IN_BATTLE_ARENA
 end
 
 function LobbyService.canParticipantShoot(participant)
@@ -705,6 +968,10 @@ function LobbyService.canParticipantShoot(participant)
 		return true
 	end
 
+	if mode == LobbyService.MODE_IN_BATTLE_ARENA then
+		return true
+	end
+
 	if mode ~= LobbyService.MODE_IN_MATCH then
 		return false
 	end
@@ -714,6 +981,10 @@ function LobbyService.canParticipantShoot(participant)
 end
 
 function LobbyService.isNoDamageProjectile(participant)
+	if getParticipantMode(participant) == LobbyService.MODE_IN_BATTLE_ARENA then
+		return false
+	end
+
 	if getParticipantMode(participant) ~= LobbyService.MODE_IN_MATCH then
 		return true
 	end
@@ -727,12 +998,17 @@ function LobbyService.isNoDamageProjectile(participant)
 end
 
 function LobbyService.shouldRecordShot(participant)
-	return LobbyService.isNoDamageProjectile(participant) ~= true
+	return getParticipantMode(participant) == LobbyService.MODE_IN_MATCH
+		and LobbyService.isNoDamageProjectile(participant) ~= true
 end
 
 function LobbyService.canDamageParticipant(projectile, targetParticipant)
 	if projectile == nil or targetParticipant == nil or projectile.NoDamage == true then
 		return false
+	end
+
+	if arenaCombatService ~= nil and arenaCombatService.CanDamageParticipant(projectile, targetParticipant) then
+		return true
 	end
 
 	local activeMatch = roundMatchService.getActiveMatch()
@@ -760,6 +1036,8 @@ function LobbyService.update(deltaTime)
 
 	local pollDeltaTime = elapsedSincePadPoll
 	elapsedSincePadPoll = 0
+	updateArenaPadEntries()
+	updateTrainingPadEntries()
 	updateDuelPadQueue(pollDeltaTime)
 end
 

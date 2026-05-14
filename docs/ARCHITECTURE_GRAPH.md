@@ -21,6 +21,7 @@ flowchart TD
     H --> N["RoundMatchService"]
     H --> O["LobbyService"]
     H --> P["PlayerPossessionService"]
+    H --> Q["ArenaCombatService"]
 ```
 
 ## Lobby Flow
@@ -35,10 +36,34 @@ flowchart TD
     F --> G["Free drive and no-damage shooting"]
     G --> H["StartMatchRequest"]
     H --> I["Training match"]
-    G --> J["DuelPad queue"]
+    G --> J["DuelPad trigger polling"]
     J --> K["DuelQueueCount attributes"]
     K --> L["3 second countdown"]
     L --> M["PvP Duel"]
+    G --> N["ArenaPad trigger polling"]
+    N --> O["BattleArena"]
+    O --> P["InBattleArena free battle"]
+```
+
+## Battle Arena Flow
+
+```mermaid
+flowchart TD
+    A["LobbyService detects ArenaPad"] --> B["ArenaCombatService.EnterArena"]
+    B --> C["PlayerMode = InBattleArena"]
+    C --> D["Spawn on ArenaSpawn1..8"]
+    D --> E["Free drive and server-authoritative shooting"]
+    E --> F["ProjectileCombatService damage"]
+    F --> G["WOBGameplayServer death hook"]
+    G --> H["ArenaCombatService.OnParticipantKilled"]
+    H --> I["ArenaScore / Kills / Deaths / Streak"]
+    H --> J["PlayerMode = ArenaRespawning"]
+    J --> K["Respawn timer"]
+    K --> L["ArenaCombatService.RespawnPlayer"]
+    L --> C
+    C --> M["ReturnToMenuRequestEvent"]
+    M --> N["ArenaCombatService.LeaveArena"]
+    N --> O["LobbyService.spawnPlayerInLobby"]
 ```
 
 ## Tank Participant Flow
@@ -92,6 +117,8 @@ flowchart TD
     M --> N["Impact/Ricochet VFX"]
     N --> O["CombatFeedbackEvent"]
     M --> P["DeathExplosion + optional BurningTank"]
+    P --> Q["Duel death: RoundMatchService.endRound"]
+    P --> R["Arena death: ArenaCombatService.OnParticipantKilled"]
 ```
 
 ## Client Camera Input HUD Flow
@@ -116,6 +143,7 @@ flowchart TD
 - `ProjectileCatalog`: projectile speed, damage, penetration, ricochet count and lifetime.
 - `VfxConfig`: shot sound, projectile visuals, procedural VFX, VFX template names/lifetimes/emit counts, death explosion, optional burning, ricochet.
 - `MatchConfig`: series target wins and round reset delay.
+- `BattleArenaConfig`: arena enable flag, respawn delay, kill score, spawn count, upgrade thresholds, damage/fire-rate/movement/multishot modifiers.
 - `CameraConfig`, `AimAssistConfig`, `HudConfig`, `ProjectileVisualConfig`: client presentation.
 
 ## Scene Contract
@@ -124,6 +152,9 @@ flowchart TD
 - `Workspace/WOB_Generated/TestObjects`: physical tank models.
 - `Workspace/WOB_Generated/Map`: arena walls, cover, ricochet walls, spawn points.
 - `Workspace/WOB_Generated/Lobby`: elevated lobby floor, railings, spawn points, DuelPad.
+- `Workspace/WOB_Generated/Lobby/<PadName>`: pad root with `Trigger`, `Visual`, and `Label` per `docs/PAD_CONTACT_ZONE_CONTRACT.md`.
+- `Workspace/WOB_Generated/Lobby/ArenaPad`: entry pad for Battle Arena mode; trigger is the server-polled contact zone.
+- `Workspace/WOB_Generated/BattleArena`: endless free battle arena with floor, boundaries, cover, ricochet walls, and 8 arena spawn points.
 - `ReplicatedStorage/Shared/Assets/VFX`: source templates for cloned VFX.
 - `ReplicatedStorage/Shared/Assets/VFX/VfxTemplateCatalog`: runtime catalog of template objects that actually exist in the VFX folder.
 - `docs/patches/*_COMMAND.lua`: manual Studio scene repair, always outside Play Mode.

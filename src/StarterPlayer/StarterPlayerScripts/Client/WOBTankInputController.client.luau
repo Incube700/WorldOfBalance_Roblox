@@ -9,6 +9,7 @@ local configs = shared:WaitForChild("Configs")
 local utils = shared:WaitForChild("Utils")
 local CameraConfig = require(configs:WaitForChild("CameraConfig"))
 local TankModelResolver = require(utils:WaitForChild("TankModelResolver"))
+local WOBClientInputState = require(script.Parent:WaitForChild("Input"):WaitForChild("WOBClientInputState"))
 
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local tankInputEvent = remotes:WaitForChild("TankInputEvent")
@@ -27,6 +28,7 @@ local pressedKeys = {}
 local elapsedSinceSend = 0
 local ownedTank = nil
 local loggedOwnedTankId = nil
+local stopInputSent = false
 
 local function disableLegacyInputController(instance)
 	if instance == nil then
@@ -123,7 +125,7 @@ end
 local function isInputEnabled()
 	local mode = localPlayer:GetAttribute("PlayerMode")
 
-	if mode == "Lobby" or mode == "QueuedForDuel" or mode == "InMatch" then
+	if mode == "Lobby" or mode == "QueuedForDuel" or mode == "InMatch" or mode == "InBattleArena" then
 		return true
 	end
 
@@ -153,7 +155,46 @@ local function getKeyboardAxis()
 	return math.clamp(throttle, -1, 1), math.clamp(steer, -1, 1)
 end
 
-local function getAimPosition()
+local function chooseStrongerAxis(primary, secondary)
+	if math.abs(secondary) > math.abs(primary) then
+		return secondary
+	end
+
+	return primary
+end
+
+local function getCombinedAxis()
+	local keyboardThrottle, keyboardSteer = getKeyboardAxis()
+	local mobileThrottle, mobileSteer = WOBClientInputState.getMobileMovement()
+
+	return chooseStrongerAxis(keyboardThrottle, mobileThrottle),
+		chooseStrongerAxis(keyboardSteer, mobileSteer)
+end
+
+local function getForwardAimPosition()
+	if ownedTank == nil or ownedTank.Parent == nil then
+		return Vector3.new(0, aimPlaneY, -40)
+	end
+
+	local muzzlePart = ownedTank:FindFirstChild("ShootPoint", true)
+		or ownedTank:FindFirstChild("Barrel", true)
+		or ownedTank:FindFirstChild("Body", true)
+
+	if muzzlePart ~= nil and muzzlePart:IsA("BasePart") then
+		local flatLook = Vector3.new(muzzlePart.CFrame.LookVector.X, 0, muzzlePart.CFrame.LookVector.Z)
+
+		if flatLook.Magnitude > 0.001 then
+			local point = muzzlePart.Position + flatLook.Unit * 60
+			return Vector3.new(point.X, aimPlaneY, point.Z)
+		end
+
+		return Vector3.new(muzzlePart.Position.X, aimPlaneY, muzzlePart.Position.Z - 60)
+	end
+
+	return Vector3.new(0, aimPlaneY, -40)
+end
+
+local function getPointerAimPosition()
 	if camera == nil or camera.Parent == nil then
 		camera = Workspace.CurrentCamera
 
@@ -180,11 +221,38 @@ local function getAimPosition()
 	return Vector3.new(point.X, aimPlaneY, point.Z)
 end
 
+local function getAimPosition()
+	if WOBClientInputState.isMobileEnabled() then
+		local mobileAimWorldPoint = WOBClientInputState.getMobileAimWorldPoint()
+
+		if typeof(mobileAimWorldPoint) == "Vector3" then
+			return mobileAimWorldPoint
+		end
+
+		return getForwardAimPosition()
+	end
+
+	return getPointerAimPosition()
+end
+
 local lastInputLogTime = 0
 local lastShootLogTime = 0
 
 local function sendTankInput()
 	if not isInputEnabled() then
+		if not stopInputSent then
+			refreshOwnedTank()
+
+			if ownedTank ~= nil then
+				tankInputEvent:FireServer({
+					Throttle = 0,
+					Steer = 0,
+					AimPosition = getAimPosition(),
+				})
+				stopInputSent = true
+			end
+		end
+
 		return
 	end
 
@@ -195,10 +263,19 @@ local function sendTankInput()
 	end
 
 	if not isOwnedTankControllable(false) then
+		if not stopInputSent then
+			tankInputEvent:FireServer({
+				Throttle = 0,
+				Steer = 0,
+				AimPosition = getAimPosition(),
+			})
+			stopInputSent = true
+		end
+
 		return
 	end
 
-	local throttle, steer = getKeyboardAxis()
+	local throttle, steer = getCombinedAxis()
 	local aimPos = getAimPosition()
 
 	tankInputEvent:FireServer({
@@ -213,6 +290,44 @@ local function sendTankInput()
 		local tankId = ownedTank:GetAttribute("TankId") or ownedTank.Name
 		print(string.format("[INPUT] client sending move for %s: T=%.1f, S=%.1f", tostring(tankId), throttle, steer))
 	end
+
+	stopInputSent = throttle == 0 and steer == 0
+end
+
+local function sendShootRequest(aimPosition)
+	if not isInputEnabled() then
+		return
+	end
+
+	refreshOwnedTank()
+
+	if ownedTank == nil then
+		return
+	end
+
+	if not isOwnedTankControllable(true) then
+		return
+	end
+
+	shootRequestEvent:FireServer(aimPosition)
+
+	local now = os.clock()
+	if DEBUG_INPUT and now - lastShootLogTime > 1 then
+		lastShootLogTime = now
+		local tankId = ownedTank:GetAttribute("TankId") or ownedTank.Name
+		print(string.format("[INPUT] client sending shoot for %s at %s", tostring(tankId), tostring(aimPosition)))
+	end
+end
+
+local function processMobileShootRequest()
+	local hasShootRequest, requestedAimPosition = WOBClientInputState.consumeMobileShootRequest()
+
+	if not hasShootRequest then
+		return
+	end
+
+	local aimPosition = typeof(requestedAimPosition) == "Vector3" and requestedAimPosition or getAimPosition()
+	sendShootRequest(aimPosition)
 end
 
 UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
@@ -225,25 +340,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
 	end
 
 	if input.UserInputType == Enum.UserInputType.MouseButton1 and isInputEnabled() then
-		refreshOwnedTank()
-
-		if ownedTank == nil then
-			return
-		end
-
-		if not isOwnedTankControllable(true) then
-			return
-		end
-
-		local aimPos = getAimPosition()
-		shootRequestEvent:FireServer(aimPos)
-
-		local now = os.clock()
-		if DEBUG_INPUT and now - lastShootLogTime > 1 then
-			lastShootLogTime = now
-			local tankId = ownedTank:GetAttribute("TankId") or ownedTank.Name
-			print(string.format("[INPUT] client sending shoot for %s at %s", tostring(tankId), tostring(aimPos)))
-		end
+		sendShootRequest(getAimPosition())
 	end
 end)
 
@@ -254,6 +351,8 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 RunService.RenderStepped:Connect(function(deltaTime)
+	processMobileShootRequest()
+
 	elapsedSinceSend += deltaTime
 
 	if elapsedSinceSend < sendInterval then
