@@ -8,6 +8,12 @@ local BattleArenaConfig = table.freeze({
 	DebugPad = false,
 	DebugCollision = false,
 
+	MobileHud = table.freeze({
+		Compact = true,
+		ShowUpgradeList = false,
+		UseMenuForReturn = true,
+	}),
+
 	UpgradeThresholds = table.freeze({
 		DamageUp = 2,
 		FireRateUp = 4,

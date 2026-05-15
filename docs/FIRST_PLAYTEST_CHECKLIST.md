@@ -26,7 +26,9 @@
 - Player mode becomes `InBattleArena`.
 - Tank spawns at one of 8 arena spawns.
 - Tank can drive and shoot in BattleArena.
-- Arena HUD shows `HP`, `Arena Score`, `Kills`, `Deaths`, `Streak`, and `Upgrades`.
+- Desktop Arena HUD shows `HP`, `Arena Score`, `Kills`, `Deaths`, `Streak`, and `Upgrades`.
+- Mobile Arena HUD shows compact `HP`, `Score`, `K/D`, `Streak`, `Upg`, and a small `Menu`.
+- Mobile `Menu` opens `Resume` and `Return to Lobby`; `Resume` closes the popup.
 - Tank can cross the center area unless it is visibly blocked by cover/ricochet walls.
 - Self-hit or forced death switches to `ArenaRespawning`.
 - Controls are disabled while destroyed.
@@ -61,6 +63,8 @@
 - Mobile `MOVE`, `AIM`, and `FIRE` controls appear in Lobby, QueuedForDuel, InMatch, and InBattleArena.
 - Mobile right `AIM` stick rotates the turret/aim laser, and `FIRE` shoots in that direction.
 - Mobile left `MOVE` and right `AIM` can be used simultaneously.
+- Mobile BattleArena HUD is compact: HP top-left, score top-right, Return to Lobby behind Menu, center mostly free.
+- Mobile BattleArena Menu popup Return works and Resume closes the popup.
 - Mobile controls hide/disable during ArenaRespawning.
 - Output has no red errors.
 - If the tank gets stuck, set `BattleArenaConfig.DebugCollision = true` and check `[MOVE BLOCKED]` obstacle path.

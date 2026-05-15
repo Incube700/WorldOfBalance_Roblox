@@ -5,7 +5,14 @@
 
     "ReplicatedStorage": {
       "Shared": {
-        "$path": "src/ReplicatedStorage/Shared"
+        "$path": "src/ReplicatedStorage/Shared",
+        "Assets": {
+          "$className": "Folder",
+          "VFX": {
+            "$className": "Folder",
+            "$ignoreUnknownInstances": true
+          }
+        }
       }
     },
 

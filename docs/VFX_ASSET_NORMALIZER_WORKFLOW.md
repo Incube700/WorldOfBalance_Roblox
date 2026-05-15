@@ -16,6 +16,38 @@ For Rojo persistence, each installed template must be saved as a `.rbxmx` file u
 /Users/sergoburnheart/RobloxProjects/WorldOfBalanceRoblox/src/ReplicatedStorage/Shared/Assets/VFX
 ```
 
+`VfxTemplateCatalog.luau` is not the visual asset payload. It only reports real child objects that are present in `ReplicatedStorage.Shared.Assets.VFX` at runtime. Persisted templates must be `.rbxmx` files in the source tree.
+
+## 1a. Recovery when templates disappeared
+
+If Rojo already removed Studio-only templates from `ReplicatedStorage.Shared.Assets.VFX`, use the recovery scripts before running a new organizer pass:
+
+```text
+docs/patches/RECOVER_VFX_TEMPLATES_FROM_SCENE_COMMAND.lua
+docs/patches/AUDIT_VFX_TEMPLATES_COMMAND.lua
+```
+
+The recovery command scans:
+
+- `ReplicatedStorage.Shared.Assets.VFX`
+- `Workspace.WOB_EditorOnly_AssetDonors`
+- `Workspace.WOB_EditorOnly_AssetDonors.VFX_Backups`
+- `Workspace.WOB_EditorOnly_AssetDonors.VFX_Quarantine`
+- `Workspace.WOB_EditorOnly_AssetDonors.VFX_Unclassified`
+- `ServerStorage.WOB_EditorOnly_AssetDonors`
+- `Workspace`
+- `Lighting`
+
+It installs recognized candidates back into `ReplicatedStorage.Shared.Assets.VFX`, removes scripts/click detectors from clones, disables particle emitters, makes parts non-colliding, and records source path plus texture/sound ids as attributes.
+
+After recovery, right click each installed template and use `Save to File...` into:
+
+```text
+/Users/sergoburnheart/RobloxProjects/WorldOfBalanceRoblox/src/ReplicatedStorage/Shared/Assets/VFX/<TemplateName>.rbxmx
+```
+
+Then commit the `.rbxmx` files. Do not rely on Studio-only objects in Rojo-managed folders.
+
 ## 2. Run the organizer
 
 In Roblox Studio, stop Play Mode. Run this command script from the Command Bar:
@@ -107,6 +139,7 @@ After saving from Studio:
 
 ```bash
 git add src/ReplicatedStorage/Shared/Assets/VFX/*.rbxmx
+git add docs/patches/RECOVER_VFX_TEMPLATES_FROM_SCENE_COMMAND.lua docs/patches/AUDIT_VFX_TEMPLATES_COMMAND.lua docs/VFX_RECOVERY_REPORT.md
 rojo build default.project.json --output /private/tmp/wob-vfx-organizer-check.rbxm
 ```
 

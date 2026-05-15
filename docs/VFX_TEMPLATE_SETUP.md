@@ -37,6 +37,76 @@ Special rule для выстрела: если старый `MuzzleEffectTemplat
 
 Codex и `rojo build` видят только файлы в source tree. Если VFX donor вставлен в Roblox Studio и command script создал объект только в текущем DataModel, этого объекта не видно как файла в `src/ReplicatedStorage/Shared/Assets/VFX`. Поэтому после organizer обязательно сохрани установленные templates как `.rbxmx`. Optional slots могут быть подключены по имени только когда у них есть procedural/template fallback и `WarnIfMissingTemplate=false`, как в текущем v0.1 config.
 
+## Recovery after Rojo removed Studio-only templates
+
+Если после Rojo sync в Output появляется предупреждение вроде:
+
+```text
+[VFX] Template 'TankExplosionTemplate' for DeathExplosion was not found under ReplicatedStorage/Shared/Assets/VFX; using fallback.
+```
+
+значит template был только Studio-only объектом и не был сохранён в source tree как `.rbxmx`. `VfxTemplateCatalog.luau` не является самим эффектом; он только перечисляет реальные child objects, которые уже существуют в `ReplicatedStorage.Shared.Assets.VFX`.
+
+Recovery workflow:
+
+1. Stop Play Mode.
+2. Run:
+
+```text
+docs/patches/RECOVER_VFX_TEMPLATES_FROM_SCENE_COMMAND.lua
+```
+
+3. Run:
+
+```text
+docs/patches/AUDIT_VFX_TEMPLATES_COMMAND.lua
+```
+
+4. Для каждого восстановленного объекта в `ReplicatedStorage.Shared.Assets.VFX` выполни `Right click -> Save to File...`.
+5. Сохрани в:
+
+```text
+src/ReplicatedStorage/Shared/Assets/VFX/<TemplateName>.rbxmx
+```
+
+6. Добавь файлы в Git:
+
+```bash
+git add src/ReplicatedStorage/Shared/Assets/VFX/*.rbxmx
+```
+
+Command scripts не могут надёжно записать `.rbxmx` в repo сами. Ручной `Save to File...` обязателен, иначе следующий Rojo sync снова удалит Studio-only templates из managed folder.
+
+Перед `Save to File...`, Publish или Rojo reconnect запускай audit:
+
+```text
+docs/patches/AUDIT_VFX_TEMPLATES_COMMAND.lua
+```
+
+## Rojo Connect protection
+
+`default.project.json` configures the Studio node:
+
+```text
+ReplicatedStorage.Shared.Assets.VFX
+```
+
+with:
+
+```json
+"$ignoreUnknownInstances": true
+```
+
+This is an emergency guard for playtest/publish: Rojo will continue syncing file-backed children like `VfxTemplateCatalog.luau` and future `.rbxmx` templates from `src/ReplicatedStorage/Shared/Assets/VFX`, but it should not delete unknown Studio-installed VFX templates that already exist under `ReplicatedStorage.Shared.Assets.VFX` during Connect.
+
+Long-term persistence is still required. Every real Studio template should be saved with `Right click -> Save to File...` into:
+
+```text
+src/ReplicatedStorage/Shared/Assets/VFX/<TemplateName>.rbxmx
+```
+
+Then commit those `.rbxmx` files. The ignore guard prevents accidental deletion during the current workflow; it is not a replacement for saving templates into the repo.
+
 Текущее Studio-подключение использует уже существующие объекты в `ReplicatedStorage.Shared.Assets.VFX`. Эти строки должны совпадать с именами объектов один в один:
 
 - `Shot.MuzzleFlash.TemplateName = "MuzzleEffectTemplate"`;

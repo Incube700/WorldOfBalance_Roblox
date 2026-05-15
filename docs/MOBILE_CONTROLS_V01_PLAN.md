@@ -87,6 +87,14 @@ The fire button is positioned above/right of the aim stick:
 - `RightAimStick.Position = UDim2.fromScale(0.78, 0.72)`
 - `FireButton.Position = UDim2.fromScale(0.9, 0.56)`
 
+BattleArena mobile HUD is owned by `WOBBattleArenaOverlay.client.luau`, not by the mobile controls script. The arena HUD uses a separate mobile layout so touch controls keep their safe zones:
+
+- compact HP at top-left;
+- compact Score/K/D/Streak/Upg count at top-right;
+- small `Menu` button near the top center;
+- full `Return to Lobby` hidden behind `Menu -> Return to Lobby`;
+- normal center gameplay view stays clear for driving and aiming.
+
 Visibility:
 
 - visible in `Lobby`, `QueuedForDuel`, `InMatch`, `InBattleArena`, or legacy `GameState=Playing`;
@@ -116,7 +124,10 @@ Visibility:
 8. Drag the right `AIM` stick and confirm turret/laser aim follows.
 9. Hold left `MOVE` while dragging right `AIM` and confirm drive + aim work together.
 10. Tap `FIRE` and confirm the normal projectile/sound path works.
-11. Switch back to desktop Play and confirm the mobile UI does not appear when `TouchEnabled=false`.
+11. Enter BattleArena and confirm compact HP/Score do not cover `MOVE`, `AIM`, or `FIRE`.
+12. Confirm mobile BattleArena uses `Menu`, and `Resume` closes the popup.
+13. Confirm `Menu -> Return to Lobby` uses the normal return flow.
+14. Switch back to desktop Play and confirm the mobile UI does not appear when `TouchEnabled=false`.
 
 If Studio does not report `TouchEnabled=true` in the emulator, temporarily set:
 
@@ -139,6 +150,8 @@ Mobile:
 - `FIRE` shoots in the current mobile aim direction
 - lobby no-damage shooting
 - BattleArena controls show while alive and hide during `ArenaRespawning`
+- BattleArena mobile HUD is compact and keeps the screen center mostly free
+- BattleArena mobile `Menu` opens `Resume` and `Return to Lobby`
 - DuelPad enter/exit
 - round end disables movement/fire
 - next round restores controls

@@ -1,10 +1,14 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local shared = ReplicatedStorage:WaitForChild("Shared")
+local configs = shared:WaitForChild("Configs")
 local utils = shared:WaitForChild("Utils")
+local BattleArenaConfig = require(configs:WaitForChild("BattleArenaConfig"))
+local MobileControlsConfig = require(configs:WaitForChild("MobileControlsConfig"))
 local TankModelResolver = require(utils:WaitForChild("TankModelResolver"))
 
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -17,6 +21,14 @@ local root = Workspace:WaitForChild("WOB_Generated")
 local GUI_NAME = "WOBBattleArenaOverlay"
 local MODE_IN_BATTLE_ARENA = "InBattleArena"
 local MODE_ARENA_RESPAWNING = "ArenaRespawning"
+local PANEL_Z_INDEX = 10
+local ACTION_Z_INDEX = 20
+local POPUP_Z_INDEX = 30
+
+local mobileHudConfig = BattleArenaConfig.MobileHud or {}
+local mobileHudCompact = mobileHudConfig.Compact ~= false
+local mobileShowUpgradeList = mobileHudConfig.ShowUpgradeList == true
+local mobileUseMenuForReturn = mobileHudConfig.UseMenuForReturn ~= false
 
 local existingGui = playerGui:FindFirstChild(GUI_NAME)
 
@@ -54,6 +66,7 @@ local function makePanel(name, position, size)
 	panel.BackgroundColor3 = Color3.fromRGB(10, 13, 16)
 	panel.BackgroundTransparency = 0.1
 	panel.BorderSizePixel = 0
+	panel.ZIndex = PANEL_Z_INDEX
 	panel.Parent = screenGui
 	addCorner(panel, UDim.new(0, 8))
 	addStroke(panel, Color3.fromRGB(90, 165, 140), 0.35, 1)
@@ -75,6 +88,7 @@ local function makeLabel(parent, name, position, size, textSize, font)
 	label.TextWrapped = true
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.TextYAlignment = Enum.TextYAlignment.Center
+	label.ZIndex = parent:IsA("GuiObject") and parent.ZIndex + 1 or PANEL_Z_INDEX + 1
 	label.Parent = parent
 
 	return label
@@ -87,6 +101,7 @@ local function makeBar(parent, name, position, size, fillColor)
 	back.Size = size
 	back.BackgroundColor3 = Color3.fromRGB(35, 42, 45)
 	back.BorderSizePixel = 0
+	back.ZIndex = parent:IsA("GuiObject") and parent.ZIndex + 1 or PANEL_Z_INDEX + 1
 	back.Parent = parent
 	addCorner(back, UDim.new(0, 4))
 
@@ -95,18 +110,19 @@ local function makeBar(parent, name, position, size, fillColor)
 	fill.Size = UDim2.new(1, 0, 1, 0)
 	fill.BackgroundColor3 = fillColor
 	fill.BorderSizePixel = 0
+	fill.ZIndex = back.ZIndex + 1
 	fill.Parent = back
 	addCorner(fill, UDim.new(0, 4))
 
 	return fill
 end
 
-local function styleButton(button)
+local function styleButton(button, text)
 	button.BackgroundColor3 = Color3.fromRGB(54, 148, 114)
 	button.BackgroundTransparency = 0
 	button.BorderSizePixel = 0
 	button.Font = Enum.Font.GothamBold
-	button.Text = "Return to Lobby"
+	button.Text = text or "Return to Lobby"
 	button.TextColor3 = Color3.fromRGB(248, 255, 248)
 	button.TextSize = 16
 	button.TextWrapped = true
@@ -138,6 +154,7 @@ local healthFill = makeBar(
 	UDim2.new(1, -28, 0, 14),
 	Color3.fromRGB(80, 220, 135)
 )
+local healthBack = healthFill.Parent
 
 local scorePanel = makePanel(
 	"ScorePanel",
@@ -190,18 +207,103 @@ actionsRoot.Size = UDim2.fromScale(1, 1)
 actionsRoot.BackgroundTransparency = 1
 actionsRoot.BorderSizePixel = 0
 actionsRoot.Active = false
-actionsRoot.ZIndex = 20
+actionsRoot.ZIndex = ACTION_Z_INDEX
 actionsRoot.Parent = screenGui
 
 local returnButton = Instance.new("TextButton")
 returnButton.Name = "ReturnToLobbyButton"
-returnButton.AnchorPoint = Vector2.new(0.5, 0)
-returnButton.Position = UDim2.new(0.5, 0, 0, 10)
-returnButton.Size = UDim2.fromOffset(168, 36)
-returnButton.ZIndex = 21
+returnButton.AnchorPoint = Vector2.new(1, 1)
+returnButton.Position = UDim2.new(1, -22, 1, -22)
+returnButton.Size = UDim2.fromOffset(154, 42)
+returnButton.ZIndex = ACTION_Z_INDEX + 1
 returnButton.Parent = actionsRoot
 styleButton(returnButton)
-returnButton.TextSize = 14
+
+local menuButton = Instance.new("TextButton")
+menuButton.Name = "BattleArenaMenuButton"
+menuButton.AnchorPoint = Vector2.new(0.5, 0)
+menuButton.Position = UDim2.new(0.5, 0, 0, 48)
+menuButton.Size = UDim2.fromOffset(72, 36)
+menuButton.Visible = false
+menuButton.ZIndex = ACTION_Z_INDEX + 1
+menuButton.Parent = actionsRoot
+styleButton(menuButton, "Menu")
+menuButton.TextSize = 14
+
+local menuPopupRoot = Instance.new("Frame")
+menuPopupRoot.Name = "BattleArenaMenuPopup"
+menuPopupRoot.Position = UDim2.fromScale(0, 0)
+menuPopupRoot.Size = UDim2.fromScale(1, 1)
+menuPopupRoot.BackgroundTransparency = 1
+menuPopupRoot.BorderSizePixel = 0
+menuPopupRoot.Active = false
+menuPopupRoot.Visible = false
+menuPopupRoot.ZIndex = POPUP_Z_INDEX
+menuPopupRoot.Parent = actionsRoot
+
+local menuDim = Instance.new("Frame")
+menuDim.Name = "MenuDim"
+menuDim.Position = UDim2.fromScale(0, 0)
+menuDim.Size = UDim2.fromScale(1, 1)
+menuDim.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+menuDim.BackgroundTransparency = 0.52
+menuDim.BorderSizePixel = 0
+menuDim.Active = true
+menuDim.ZIndex = POPUP_Z_INDEX
+menuDim.Parent = menuPopupRoot
+
+local menuPanel = Instance.new("Frame")
+menuPanel.Name = "MenuPanel"
+menuPanel.AnchorPoint = Vector2.new(0.5, 0.5)
+menuPanel.Position = UDim2.fromScale(0.5, 0.5)
+menuPanel.Size = UDim2.fromOffset(260, 172)
+menuPanel.BackgroundColor3 = Color3.fromRGB(10, 13, 16)
+menuPanel.BackgroundTransparency = 0.05
+menuPanel.BorderSizePixel = 0
+menuPanel.Active = true
+menuPanel.ZIndex = POPUP_Z_INDEX + 1
+menuPanel.Parent = menuPopupRoot
+addCorner(menuPanel, UDim.new(0, 8))
+addStroke(menuPanel, Color3.fromRGB(90, 165, 140), 0.25, 1)
+
+local menuTitleLabel = Instance.new("TextLabel")
+menuTitleLabel.Name = "MenuTitleLabel"
+menuTitleLabel.Position = UDim2.new(0, 18, 0, 12)
+menuTitleLabel.Size = UDim2.new(1, -36, 0, 28)
+menuTitleLabel.BackgroundTransparency = 1
+menuTitleLabel.BorderSizePixel = 0
+menuTitleLabel.Font = Enum.Font.GothamBlack
+menuTitleLabel.Text = "Arena Menu"
+menuTitleLabel.TextColor3 = Color3.fromRGB(241, 255, 248)
+menuTitleLabel.TextSize = 18
+menuTitleLabel.TextWrapped = true
+menuTitleLabel.ZIndex = POPUP_Z_INDEX + 2
+menuTitleLabel.Parent = menuPanel
+
+local resumeButton = Instance.new("TextButton")
+resumeButton.Name = "ResumeButton"
+resumeButton.Position = UDim2.new(0, 18, 0, 54)
+resumeButton.Size = UDim2.new(1, -36, 0, 42)
+resumeButton.ZIndex = POPUP_Z_INDEX + 2
+resumeButton.Parent = menuPanel
+styleButton(resumeButton, "Resume")
+
+local popupReturnButton = Instance.new("TextButton")
+popupReturnButton.Name = "PopupReturnToLobbyButton"
+popupReturnButton.Position = UDim2.new(0, 18, 0, 108)
+popupReturnButton.Size = UDim2.new(1, -36, 0, 42)
+popupReturnButton.ZIndex = POPUP_Z_INDEX + 2
+popupReturnButton.Parent = menuPanel
+styleButton(popupReturnButton)
+popupReturnButton.BackgroundColor3 = Color3.fromRGB(166, 74, 64)
+
+local menuPopupOpen = false
+
+local function setMenuPopupOpen(isOpen)
+	menuPopupOpen = isOpen == true
+	menuPopupRoot.Active = menuPopupOpen
+	menuPopupRoot.Visible = menuPopupOpen
+end
 
 local deathPanel = makePanel(
 	"DeathPanel",
@@ -260,27 +362,104 @@ local function getOwnedTank()
 	return TankModelResolver.findOwnedTank(root, localPlayer.UserId, true)
 end
 
+local function isMobileLayout()
+	return UserInputService.TouchEnabled == true or MobileControlsConfig.ForceEnabledInStudio == true
+end
+
+local function setTextLayout(label, position, size, textSize)
+	label.Position = position
+	label.Size = size
+	label.TextSize = textSize
+end
+
+local function applyDesktopLayout()
+	healthPanel.AnchorPoint = Vector2.new(0, 0)
+	healthPanel.Position = UDim2.new(0, 18, 0, 18)
+	healthPanel.Size = UDim2.new(0, 260, 0, 78)
+	healthPanel.BackgroundTransparency = 0.1
+	setTextLayout(healthLabel, UDim2.new(0, 14, 0, 8), UDim2.new(1, -28, 0, 28), 18)
+	healthBack.Position = UDim2.new(0, 14, 0, 46)
+	healthBack.Size = UDim2.new(1, -28, 0, 14)
+
+	scorePanel.AnchorPoint = Vector2.new(0, 0)
+	scorePanel.Position = UDim2.new(1, -272, 0, 18)
+	scorePanel.Size = UDim2.new(0, 250, 0, 128)
+	scorePanel.BackgroundTransparency = 0.1
+	setTextLayout(scoreLabel, UDim2.new(0, 14, 0, 8), UDim2.new(1, -28, 0, 28), 18)
+	setTextLayout(killsDeathsLabel, UDim2.new(0, 14, 0, 36), UDim2.new(1, -28, 0, 24), 16)
+	setTextLayout(streakLabel, UDim2.new(0, 14, 0, 62), UDim2.new(1, -28, 0, 22), 14)
+	setTextLayout(upgradesLabel, UDim2.new(0, 14, 0, 86), UDim2.new(1, -28, 0, 34), 14)
+	upgradesLabel.Visible = true
+
+	returnButton.AnchorPoint = Vector2.new(1, 1)
+	returnButton.Position = UDim2.new(1, -22, 1, -22)
+	returnButton.Size = UDim2.fromOffset(154, 42)
+	returnButton.Text = "Return to Lobby"
+	returnButton.TextSize = 16
+	returnButton.Visible = true
+	menuButton.Visible = false
+	setMenuPopupOpen(false)
+
+	deathPanel.Position = UDim2.new(0.5, -150, 0.5, -82)
+	deathPanel.Size = UDim2.new(0, 300, 0, 164)
+	setTextLayout(destroyedLabel, UDim2.new(0, 18, 0, 18), UDim2.new(1, -36, 0, 44), 30)
+	setTextLayout(respawnLabel, UDim2.new(0, 18, 0, 68), UDim2.new(1, -36, 0, 30), 20)
+	deathReturnButton.Position = UDim2.new(0.18, 0, 1, -52)
+	deathReturnButton.Size = UDim2.new(0.64, 0, 0, 38)
+end
+
+local function applyMobileLayout(viewportSize)
+	local panelWidth = viewportSize.X < 390 and 148 or 170
+	local hasTopCenterSpace = viewportSize.X >= panelWidth * 2 + 152
+	local topY = 48
+	local panelY = hasTopCenterSpace and topY or 88
+
+	if not mobileHudCompact then
+		panelWidth = 170
+	end
+
+	healthPanel.AnchorPoint = Vector2.new(0, 0)
+	healthPanel.Position = UDim2.fromOffset(16, panelY)
+	healthPanel.Size = UDim2.fromOffset(panelWidth, 54)
+	healthPanel.BackgroundTransparency = 0.32
+	setTextLayout(healthLabel, UDim2.new(0, 10, 0, 4), UDim2.new(1, -20, 0, 24), 14)
+	healthBack.Position = UDim2.new(0, 10, 0, 36)
+	healthBack.Size = UDim2.new(1, -20, 0, 6)
+
+	scorePanel.AnchorPoint = Vector2.new(1, 0)
+	scorePanel.Position = UDim2.new(1, -16, 0, panelY)
+	scorePanel.Size = UDim2.fromOffset(panelWidth, 72)
+	scorePanel.BackgroundTransparency = 0.32
+	setTextLayout(scoreLabel, UDim2.new(0, 10, 0, 4), UDim2.new(1, -20, 0, 16), 13)
+	setTextLayout(killsDeathsLabel, UDim2.new(0, 10, 0, 21), UDim2.new(1, -20, 0, 16), 13)
+	setTextLayout(streakLabel, UDim2.new(0, 10, 0, 38), UDim2.new(1, -20, 0, 16), 12)
+	setTextLayout(upgradesLabel, UDim2.new(0, 10, 0, 54), UDim2.new(1, -20, 0, 14), 12)
+	upgradesLabel.Visible = true
+
+	returnButton.Visible = not mobileUseMenuForReturn
+	menuButton.Visible = mobileUseMenuForReturn
+	menuButton.AnchorPoint = Vector2.new(0.5, 0)
+	menuButton.Position = UDim2.new(0.5, 0, 0, topY)
+	menuButton.Size = UDim2.fromOffset(72, 36)
+	menuButton.Text = "Menu"
+	menuButton.TextSize = 14
+
+	deathPanel.Position = UDim2.new(0.5, -130, 0.5, -72)
+	deathPanel.Size = UDim2.new(0, 260, 0, 144)
+	setTextLayout(destroyedLabel, UDim2.new(0, 16, 0, 14), UDim2.new(1, -32, 0, 38), 24)
+	setTextLayout(respawnLabel, UDim2.new(0, 16, 0, 58), UDim2.new(1, -32, 0, 28), 17)
+	deathReturnButton.Position = UDim2.new(0.15, 0, 1, -46)
+	deathReturnButton.Size = UDim2.new(0.7, 0, 0, 34)
+end
+
 local function updateLayout()
 	local camera = Workspace.CurrentCamera
 	local viewportSize = camera ~= nil and camera.ViewportSize or Vector2.new(1024, 768)
-	local compact = viewportSize.X < 620
-	local narrowTopHud = viewportSize.X < 720
 
-	if compact then
-		healthPanel.Position = UDim2.new(0, 12, 0, 56)
-		healthPanel.Size = UDim2.new(0, 220, 0, 78)
-		scorePanel.Position = UDim2.new(0, 12, 0, 142)
-		scorePanel.Size = UDim2.new(0, 220, 0, 128)
-	elseif narrowTopHud then
-		healthPanel.Position = UDim2.new(0, 18, 0, 58)
-		healthPanel.Size = UDim2.new(0, 260, 0, 78)
-		scorePanel.Position = UDim2.new(1, -272, 0, 58)
-		scorePanel.Size = UDim2.new(0, 250, 0, 128)
+	if isMobileLayout() then
+		applyMobileLayout(viewportSize)
 	else
-		healthPanel.Position = UDim2.new(0, 18, 0, 18)
-		healthPanel.Size = UDim2.new(0, 260, 0, 78)
-		scorePanel.Position = UDim2.new(1, -272, 0, 18)
-		scorePanel.Size = UDim2.new(0, 250, 0, 128)
+		applyDesktopLayout()
 	end
 end
 
@@ -323,11 +502,26 @@ local function formatUpgrades(upgradeIds)
 	return "Upgrades: " .. string.gsub(upgradeIds, ",", ", ")
 end
 
-local function updateHealth(ownedTank)
+local function getUpgradeCount(upgradeIds)
+	if typeof(upgradeIds) ~= "string" or upgradeIds == "" then
+		return 0
+	end
+
+	local count = 0
+
+	for _ in string.gmatch(upgradeIds, "[^,]+") do
+		count = count + 1
+	end
+
+	return count
+end
+
+local function updateHealth(ownedTank, mobileLayout)
 	local health, maxHealth = getOwnedTankHealth(ownedTank)
 	local normalizedHealth = clamp01(health / math.max(1, maxHealth))
+	local separator = mobileLayout and "/" or " / "
 
-	healthLabel.Text = "HP: " .. tostring(math.floor(health)) .. " / " .. tostring(math.floor(maxHealth))
+	healthLabel.Text = "HP: " .. tostring(math.floor(health)) .. separator .. tostring(math.floor(maxHealth))
 	healthFill.Size = UDim2.new(normalizedHealth, 0, 1, 0)
 
 	if normalizedHealth <= 0.3 then
@@ -344,9 +538,11 @@ local function updateOverlay()
 	screenGui.Enabled = visible
 
 	if not visible then
+		setMenuPopupOpen(false)
 		return
 	end
 
+	local mobileLayout = isMobileLayout()
 	updateLayout()
 
 	local score = localPlayer:GetAttribute("ArenaScore") or 0
@@ -356,11 +552,20 @@ local function updateOverlay()
 	local upgrades = localPlayer:GetAttribute("ArenaUpgradeIds") or ""
 	local ownedTank = getOwnedTank()
 
-	scoreLabel.Text = "Arena Score: " .. tostring(math.floor(score))
-	killsDeathsLabel.Text = "Kills: " .. tostring(math.floor(kills)) .. " Deaths: " .. tostring(math.floor(deaths))
-	streakLabel.Text = "Streak: " .. tostring(math.floor(streak))
-	upgradesLabel.Text = formatUpgrades(upgrades)
-	updateHealth(ownedTank)
+	if mobileLayout then
+		scoreLabel.Text = "Score: " .. tostring(math.floor(score))
+		killsDeathsLabel.Text = "K/D: " .. tostring(math.floor(kills)) .. "/" .. tostring(math.floor(deaths))
+		streakLabel.Text = "Streak: " .. tostring(math.floor(streak))
+		upgradesLabel.Text = mobileShowUpgradeList and formatUpgrades(upgrades)
+			or "Upg: " .. tostring(getUpgradeCount(upgrades))
+	else
+		scoreLabel.Text = "Arena Score: " .. tostring(math.floor(score))
+		killsDeathsLabel.Text = "Kills: " .. tostring(math.floor(kills)) .. " Deaths: " .. tostring(math.floor(deaths))
+		streakLabel.Text = "Streak: " .. tostring(math.floor(streak))
+		upgradesLabel.Text = formatUpgrades(upgrades)
+	end
+
+	updateHealth(ownedTank, mobileLayout)
 
 	local mode = localPlayer:GetAttribute("PlayerMode")
 	local isDead = mode == MODE_ARENA_RESPAWNING
@@ -382,10 +587,18 @@ local function updateOverlay()
 end
 
 local function requestReturnToLobby()
+	setMenuPopupOpen(false)
 	returnToMenuRequestEvent:FireServer()
 end
 
 returnButton.Activated:Connect(requestReturnToLobby)
+menuButton.Activated:Connect(function()
+	setMenuPopupOpen(true)
+end)
+resumeButton.Activated:Connect(function()
+	setMenuPopupOpen(false)
+end)
+popupReturnButton.Activated:Connect(requestReturnToLobby)
 deathReturnButton.Activated:Connect(requestReturnToLobby)
 
 localPlayer:GetAttributeChangedSignal("PlayerMode"):Connect(updateOverlay)
