@@ -30,6 +30,7 @@ local TankSpawnResetService = require(script.Parent:WaitForChild("Tanks"):WaitFo
 local PlayerPossessionService = require(script.Parent:WaitForChild("Players"):WaitForChild("PlayerPossessionService"))
 local LobbyService = require(script.Parent:WaitForChild("Lobby"):WaitForChild("LobbyService"))
 local ArenaCombatService = require(script.Parent:WaitForChild("Arena"):WaitForChild("ArenaCombatService"))
+local TrainingBotService = require(script.Parent:WaitForChild("Bots"):WaitForChild("TrainingBotService"))
 
 local primaryWeaponConfig = WeaponConfig.PrimaryWeapon
 local MOVE_SPEED = TankConfig.Movement.MoveSpeed
@@ -501,6 +502,15 @@ LobbyService.init({
 	dummyParticipant = dummyParticipant,
 })
 
+TrainingBotService.init({
+	roundMatchService = RoundMatchService,
+	tankParticipantRegistry = TankParticipantRegistry,
+	tankSpawnResetService = TankSpawnResetService,
+	tankMovementService = TankMovementService,
+	projectileService = ProjectileService,
+	dummyParticipant = dummyParticipant,
+})
+
 -- Init Possession Service
 PlayerPossessionService.init({
 	getOrCreateParticipantForPlayer = function(player)
@@ -670,6 +680,7 @@ RunService.Heartbeat:Connect(function(deltaTime)
 		end
 	end
 
+	TrainingBotService.update(deltaTime)
 	ProjectileService.updateProjectiles(deltaTime)
 end)
 
