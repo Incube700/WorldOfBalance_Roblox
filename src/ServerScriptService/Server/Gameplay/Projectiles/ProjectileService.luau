@@ -7,6 +7,7 @@ local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local ProjectileCatalog = require(configs:WaitForChild("ProjectileCatalog"))
 local WeaponConfig = require(configs:WaitForChild("WeaponConfig"))
+local WeaponSafetyConfig = require(configs:WaitForChild("WeaponSafetyConfig"))
 local VfxConfig = require(configs:WaitForChild("VfxConfig"))
 
 local TankParticipantRegistry = require(script.Parent.Parent:WaitForChild("TankParticipantRegistry"))
@@ -40,6 +41,8 @@ local projectileFolder = nil
 local vfxFolder = nil
 local root = nil
 local projectileRaycastParams = nil
+local muzzleObstructionRaycastParams = nil
+local muzzleObstructionOverlapParams = nil
 local projectileMapRaycastTargets = {}
 
 local callbacks = {
@@ -52,6 +55,7 @@ local callbacks = {
 	isNoDamageProjectile = nil,
 	shouldRecordShot = nil,
 	areProjectilesEnabled = nil,
+	sendBlockedShotFeedback = nil,
 }
 
 function ProjectileService.init(orchestratorRoot, projFolder, effectsFolder, options)
@@ -63,10 +67,194 @@ function ProjectileService.init(orchestratorRoot, projFolder, effectsFolder, opt
 	projectileRaycastParams = RaycastParams.new()
 	projectileRaycastParams.FilterType = Enum.RaycastFilterType.Include
 	projectileRaycastParams.IgnoreWater = true
+	muzzleObstructionRaycastParams = RaycastParams.new()
+	muzzleObstructionRaycastParams.FilterType = Enum.RaycastFilterType.Include
+	muzzleObstructionRaycastParams.IgnoreWater = true
+	muzzleObstructionOverlapParams = OverlapParams.new()
+	muzzleObstructionOverlapParams.FilterType = Enum.RaycastFilterType.Include
+	muzzleObstructionOverlapParams.MaxParts = 10
 end
 
 function ProjectileService.setMapRaycastTargets(targets)
 	projectileMapRaycastTargets = targets
+end
+
+local function findBasePart(model, partName)
+	if model == nil then
+		return nil
+	end
+
+	local directChild = model:FindFirstChild(partName)
+
+	if directChild ~= nil and directChild:IsA("BasePart") then
+		return directChild
+	end
+
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant.Name == partName and descendant:IsA("BasePart") then
+			return descendant
+		end
+	end
+
+	return nil
+end
+
+local function getParticipantModel(participant)
+	if participant == nil then
+		return nil
+	end
+
+	return TankParticipantRegistry.getParticipantPhysicalModel(participant) or participant.Model or participant.PhysicalModel
+end
+
+local function getParticipantBasePart(participant, partName)
+	if participant == nil then
+		return nil
+	end
+
+	local directPart = participant[partName]
+
+	if directPart ~= nil and directPart:IsA("BasePart") and directPart.Parent ~= nil then
+		return directPart
+	end
+
+	local model = getParticipantModel(participant)
+	local resolvedPart = findBasePart(model, partName)
+
+	if resolvedPart ~= nil then
+		participant[partName] = resolvedPart
+	end
+
+	return resolvedPart
+end
+
+local function getSafeMuzzleOrigin(participant)
+	local turret = getParticipantBasePart(participant, "Turret")
+
+	if turret ~= nil then
+		return turret.Position
+	end
+
+	local body = getParticipantBasePart(participant, "Body")
+
+	if body ~= nil then
+		return body.Position + Vector3.new(0, 2, 0)
+	end
+
+	local controlState = participant ~= nil and participant.ControlState or nil
+
+	if controlState ~= nil and typeof(controlState.Position) == "Vector3" then
+		return controlState.Position + Vector3.new(0, 2, 0)
+	end
+
+	return nil
+end
+
+local function getValidMapRaycastTargets()
+	local targets = {}
+
+	for _, target in ipairs(projectileMapRaycastTargets or {}) do
+		if target ~= nil and target.Parent ~= nil then
+			table.insert(targets, target)
+		end
+	end
+
+	return targets
+end
+
+local function debugMuzzleBlocked(participant, obstaclePart, reason)
+	if WeaponSafetyConfig.Debug ~= true then
+		return
+	end
+
+	local obstaclePath = obstaclePart ~= nil and obstaclePart:GetFullName() or "unknown"
+	local tankId = participant ~= nil and participant.TankId or "unknown"
+	print(("[MUZZLE BLOCKED] tank=%s reason=%s obstacle=%s"):format(tostring(tankId), tostring(reason), obstaclePath))
+end
+
+local function getMuzzleOverlapObstacle(muzzlePosition, targets)
+	local radius = math.max(0, tonumber(WeaponSafetyConfig.MuzzleCheckRadius) or 0)
+
+	if radius <= 0 or muzzleObstructionOverlapParams == nil then
+		return nil
+	end
+
+	muzzleObstructionOverlapParams.FilterDescendantsInstances = targets
+	local overlappingParts = Workspace:GetPartBoundsInRadius(
+		muzzlePosition,
+		radius + math.max(0, tonumber(WeaponSafetyConfig.MuzzleClearancePadding) or 0),
+		muzzleObstructionOverlapParams
+	)
+
+	for _, part in ipairs(overlappingParts) do
+		if part ~= nil and part.Parent ~= nil then
+			return part
+		end
+	end
+
+	return nil
+end
+
+local function getMuzzleObstruction(participant)
+	if WeaponSafetyConfig.MuzzleObstructionCheckEnabled ~= true then
+		return false, nil, nil, nil
+	end
+
+	local shootPoint = getParticipantBasePart(participant, "ShootPoint")
+
+	if shootPoint == nil then
+		return false, nil, nil, nil
+	end
+
+	local safeOrigin = getSafeMuzzleOrigin(participant)
+
+	if safeOrigin == nil then
+		return false, nil, nil, nil
+	end
+
+	local muzzlePosition = shootPoint.Position
+	local segment = muzzlePosition - safeOrigin
+
+	if segment.Magnitude < 0.001 then
+		return false, nil, nil, nil
+	end
+
+	local targets = getValidMapRaycastTargets()
+
+	if #targets == 0 then
+		return false, nil, nil, nil
+	end
+
+	if muzzleObstructionRaycastParams ~= nil then
+		muzzleObstructionRaycastParams.FilterDescendantsInstances = targets
+		local result = Workspace:Raycast(safeOrigin, segment, muzzleObstructionRaycastParams)
+
+		if result ~= nil then
+			return true, result.Instance, result.Position, "raycast"
+		end
+	end
+
+	local overlapObstacle = getMuzzleOverlapObstacle(muzzlePosition, targets)
+
+	if overlapObstacle ~= nil then
+		return true, overlapObstacle, muzzlePosition, "muzzleOverlap"
+	end
+
+	return false, nil, nil, nil
+end
+
+local function sendBlockedShotFeedback(participant, position)
+	if WeaponSafetyConfig.BlockedShotFeedbackEnabled ~= true then
+		return
+	end
+
+	if callbacks.sendBlockedShotFeedback ~= nil then
+		callbacks.sendBlockedShotFeedback(
+			participant,
+			position,
+			WeaponSafetyConfig.BlockedShotFeedbackText or "BARREL BLOCKED"
+		)
+	end
 end
 
 local function hasTexture(config)
@@ -664,6 +852,15 @@ function ProjectileService.tryShoot(participant, direction)
 	local cooldown = (participant.WeaponConfig.ShootCooldown or SHOOT_COOLDOWN) * cooldownMultiplier
 	local lastShotTime = participant.LastShotTime or 0
 	if currentTime - lastShotTime < cooldown then return false end
+
+	local isMuzzleBlocked, obstaclePart, blockedPosition, blockedReason = getMuzzleObstruction(participant)
+
+	if isMuzzleBlocked then
+		debugMuzzleBlocked(participant, obstaclePart, blockedReason)
+		sendBlockedShotFeedback(participant, blockedPosition or participant.ShootPoint.Position)
+		return false
+	end
+
 	participant.LastShotTime = currentTime
 	participant.WeaponReadyAt = currentTime + cooldown
 	participant.WeaponState.LastShotTime = participant.LastShotTime

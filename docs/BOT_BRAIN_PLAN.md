@@ -64,11 +64,30 @@ The current v0 bot:
 
 The bot is intentionally imperfect:
 
-- it thinks on `BotConfig.ThinkInterval`;
+- it updates decisions on `BotConfig.ThinkInterval`;
+- it still acts every server heartbeat, so body/turret rotation and layout do not wait for the next think tick;
 - it switches strafe direction every 1.0-2.2 seconds;
 - it has `AimErrorDegrees`;
 - it checks fire at `FireCheckInterval`;
 - it uses `FireChance` and random reaction delays instead of firing every frame.
+
+## Smoothing Step
+
+The current safe smoothing step has two layers:
+
+- server-side bot movement separates think from act, with `BodyTurnSpeedRadians` and `TurretTurnSpeedRadians`;
+- client-side `WOBTankVisualSmoothing.client.luau` smooths non-owned tanks and bot tanks visually only.
+
+This does not move damage, hit detection, projectiles, or match result to the client. The smoothing script is a visual MVP for replicated remote tanks. The cleaner future version is a dedicated `Visual` folder or client visual proxy for every tank prefab.
+
+## Debug Bot Hook
+
+`DebugSpawnBotRequestEvent` and `DebugRemoveBotRequestEvent` exist as guarded test hooks. In v0 they do not create a second bot:
+
+- requests are ignored outside Studio/allowed users;
+- PvP does not spawn dummy bots;
+- active Training already owns `DummyTank` through `RoundMatchService`;
+- dynamic bot spawning is deferred until a real bot participant/model factory exists.
 
 ## What Bot v0 Does Not Do
 
@@ -83,6 +102,7 @@ Bot v0 does not:
 - create projectiles manually;
 - write damage directly;
 - bypass `ProjectileService`, `ProjectileCombatService`, or `RoundMatchService`.
+- create multiple arena/practice bots.
 
 ## Future
 
@@ -96,3 +116,5 @@ Future improvements can be layered without changing the core combat path:
 - `BotBrain` modules per behavior;
 - bot-controlled PvE participants outside Training;
 - `TankParticipantFactory` and `TankModelFactory` for spawned bot templates.
+- `BotManager` and `BotParticipantFactory`;
+- `ArenaPractice` mode with multiple bots, respawn rules, score timer, and explicit arena bot lifecycle.

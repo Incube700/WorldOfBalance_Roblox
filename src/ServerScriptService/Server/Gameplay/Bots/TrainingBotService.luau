@@ -13,9 +13,10 @@ local PARTICIPANT_STATE_IN_MATCH = "InMatch"
 
 local MOVE_SPEED = TankConfig.Movement.MoveSpeed
 local REVERSE_MOVE_SPEED_MULTIPLIER = TankConfig.Movement.ReverseMoveSpeedMultiplier or 1
-local BODY_TURN_SPEED = TankConfig.Movement.BodyTurnSpeedRadians
+local BODY_TURN_SPEED = BotConfig.BodyTurnSpeedRadians or TankConfig.Movement.BodyTurnSpeedRadians
 local turretConfig = TankConfig.Turret or {}
-local TURRET_TURN_SPEED = turretConfig.TurnSpeedRadiansPerSecond
+local TURRET_TURN_SPEED = BotConfig.TurretTurnSpeedRadians
+	or turretConfig.TurnSpeedRadiansPerSecond
 	or math.rad(turretConfig.TurnSpeedDegreesPerSecond or TankConfig.Movement.TurretTurnSpeedDegrees or 240)
 
 local roundMatchService = nil
@@ -35,6 +36,14 @@ local aimErrorRadians = 0
 local nextAimErrorSwitchAt = 0
 local nextAllowedShotAt = 0
 local lastWarnTimeByKey = {}
+local botDecision = {
+	DesiredMoveYaw = nil,
+	DesiredAimYaw = nil,
+	DesiredThrottle = 0,
+	DirectionToTarget = nil,
+	TargetDistance = nil,
+	TargetParticipant = nil,
+}
 
 local lineOfSightRaycastParams = RaycastParams.new()
 lineOfSightRaycastParams.FilterType = Enum.RaycastFilterType.Include
@@ -55,13 +64,17 @@ local function warnThrottled(key, message)
 	warn(message)
 end
 
-local function normalizeAngleRadians(angle)
+local function normalizeAngle(angle)
 	local fullTurn = math.pi * 2
 	return ((angle + math.pi) % fullTurn) - math.pi
 end
 
+local function shortestAngleDelta(fromAngle, toAngle)
+	return normalizeAngle(toAngle - fromAngle)
+end
+
 local function moveAngleTowards(currentAngle, targetAngle, maxDelta)
-	local delta = normalizeAngleRadians(targetAngle - currentAngle)
+	local delta = shortestAngleDelta(currentAngle, targetAngle)
 
 	if math.abs(delta) <= maxDelta then
 		return targetAngle
@@ -343,25 +356,25 @@ local function hasLineOfSight(origin, targetPosition)
 	return result == nil
 end
 
-local function applyBotMovement(deltaTime, target)
+local function updateBotDecision(target)
 	local state = dummyParticipant.ControlState
 
 	if state == nil or typeof(state.Position) ~= "Vector3" then
-		warnThrottled("missingControlState", "[BOT] DummyTank has no ControlState; bot update skipped.")
-		return nil, nil
+		warnThrottled("missingControlState", "[BOT] DummyTank has no ControlState; bot decision skipped.")
+		return false
 	end
 
 	local targetPosition = getParticipantPosition(target)
 
 	if targetPosition == nil then
 		warnThrottled("missingTargetPosition", "[BOT] Training target has no Body/ControlState position.")
-		return nil, nil
+		return false
 	end
 
 	local directionToTarget, distance = getFlatDirection(state.Position, targetPosition)
 
 	if directionToTarget == nil then
-		return nil, nil
+		return false
 	end
 
 	local now = os.clock()
@@ -369,45 +382,69 @@ local function applyBotMovement(deltaTime, target)
 	refreshAimError(now)
 
 	local desiredMoveDirection, throttle = getBotMoveDecision(distance, directionToTarget)
-	local currentBodyYaw = state.BodyYaw or getYawFromFlatDirection(desiredMoveDirection, 0)
-	local desiredBodyYaw = getYawFromFlatDirection(desiredMoveDirection, currentBodyYaw)
-	desiredBodyYaw = moveAngleTowards(currentBodyYaw, desiredBodyYaw, BODY_TURN_SPEED * deltaTime)
+	local currentBodyYaw = state.BodyYaw or 0
+
+	botDecision.DesiredMoveYaw = getYawFromFlatDirection(desiredMoveDirection, currentBodyYaw)
+	botDecision.DesiredAimYaw = getYawFromFlatDirection(directionToTarget, state.TurretYaw or currentBodyYaw) + aimErrorRadians
+	botDecision.DesiredThrottle = throttle
+	botDecision.DirectionToTarget = directionToTarget
+	botDecision.TargetDistance = distance
+	botDecision.TargetParticipant = target
+
+	return true
+end
+
+local function applyBotMovement(deltaTime)
+	local state = dummyParticipant.ControlState
+
+	if state == nil or typeof(state.Position) ~= "Vector3" then
+		warnThrottled("missingControlState", "[BOT] DummyTank has no ControlState; bot movement skipped.")
+		return false
+	end
+
+	local desiredBodyYaw = botDecision.DesiredMoveYaw
+	local desiredTurretYaw = botDecision.DesiredAimYaw
+
+	if desiredBodyYaw == nil or desiredTurretYaw == nil then
+		return false
+	end
+
+	local currentBodyYaw = state.BodyYaw or desiredBodyYaw
+	local resolvedBodyYaw = moveAngleTowards(currentBodyYaw, desiredBodyYaw, BODY_TURN_SPEED * deltaTime)
+	local throttle = botDecision.DesiredThrottle or 0
 
 	local moveSpeed = MOVE_SPEED * (throttle < 0 and REVERSE_MOVE_SPEED_MULTIPLIER or 1)
-	local desiredMove = getDirectionFromYaw(desiredBodyYaw) * throttle * moveSpeed * deltaTime
+	local desiredMove = getDirectionFromYaw(resolvedBodyYaw) * throttle * moveSpeed * deltaTime
 	local resolvedPosition = state.Position
-	local resolvedBodyYaw = currentBodyYaw
 
 	if tankMovementService.resolveTankMovement ~= nil then
-		resolvedPosition = tankMovementService.resolveTankMovement(state.Position, desiredBodyYaw, desiredMove)
-		resolvedBodyYaw = desiredBodyYaw
+		resolvedPosition = tankMovementService.resolveTankMovement(state.Position, resolvedBodyYaw, desiredMove)
 	elseif tankMovementService.resolveTankPose ~= nil then
 		resolvedPosition, resolvedBodyYaw = tankMovementService.resolveTankPose(
 			state.Position,
 			currentBodyYaw,
 			desiredMove,
-			desiredBodyYaw,
+			resolvedBodyYaw,
 			{ TankId = dummyParticipant.TankId .. ":Bot" }
 		)
 	end
 
-	local targetTurretYaw = getYawFromFlatDirection(directionToTarget, state.TurretYaw or resolvedBodyYaw) + aimErrorRadians
 	local currentTurretYaw = state.TurretYaw or resolvedBodyYaw
 
 	state.Position = resolvedPosition
 	state.BodyYaw = resolvedBodyYaw
-	state.TurretYaw = moveAngleTowards(currentTurretYaw, targetTurretYaw, TURRET_TURN_SPEED * deltaTime)
+	state.TurretYaw = moveAngleTowards(currentTurretYaw, desiredTurretYaw, TURRET_TURN_SPEED * deltaTime)
 
 	local model = getParticipantModel(dummyParticipant)
 
 	if model == nil then
 		warnThrottled("missingDummyModel", "[BOT] DummyTank has no model; bot layout skipped.")
-		return directionToTarget, distance
+		return false
 	end
 
 	tankSpawnResetService.layoutTank(model, state.Position, state.BodyYaw, state.TurretYaw)
 
-	return directionToTarget, distance
+	return true
 end
 
 local function maybeShoot(deltaTime, target, directionToTarget, distance)
@@ -477,6 +514,15 @@ local function maybeShoot(deltaTime, target, directionToTarget, distance)
 	end
 end
 
+local function resetBotDecision()
+	botDecision.DesiredMoveYaw = nil
+	botDecision.DesiredAimYaw = nil
+	botDecision.DesiredThrottle = 0
+	botDecision.DirectionToTarget = nil
+	botDecision.TargetDistance = nil
+	botDecision.TargetParticipant = nil
+end
+
 function TrainingBotService.init(options)
 	options = options or {}
 
@@ -493,30 +539,31 @@ function TrainingBotService.init(options)
 	nextStrafeSwitchAt = 0
 	nextAimErrorSwitchAt = 0
 	nextAllowedShotAt = 0
+	resetBotDecision()
 end
 
 function TrainingBotService.update(deltaTime)
 	if BotConfig.Enabled ~= true then
+		resetBotDecision()
+		return
+	end
+
+	local target = getActiveTrainingTarget()
+
+	if target == nil then
+		resetBotDecision()
 		return
 	end
 
 	elapsedSinceThink += deltaTime
 
-	if elapsedSinceThink < BotConfig.ThinkInterval then
-		return
+	if elapsedSinceThink >= BotConfig.ThinkInterval or botDecision.TargetParticipant ~= target then
+		elapsedSinceThink = 0
+		updateBotDecision(target)
 	end
 
-	local stepDeltaTime = elapsedSinceThink
-	elapsedSinceThink = 0
-
-	local target = getActiveTrainingTarget()
-
-	if target == nil then
-		return
-	end
-
-	local directionToTarget, distance = applyBotMovement(stepDeltaTime, target)
-	maybeShoot(stepDeltaTime, target, directionToTarget, distance)
+	applyBotMovement(deltaTime)
+	maybeShoot(deltaTime, target, botDecision.DirectionToTarget, botDecision.TargetDistance)
 end
 
 return TrainingBotService

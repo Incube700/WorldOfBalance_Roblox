@@ -15,6 +15,7 @@ local WeaponConfig = require(configs:WaitForChild("WeaponConfig"))
 local ProjectileCatalog = require(configs:WaitForChild("ProjectileCatalog"))
 local MatchConfig = require(configs:WaitForChild("MatchConfig"))
 local BattleArenaConfig = require(configs:WaitForChild("BattleArenaConfig"))
+local DebugBotConfig = require(configs:WaitForChild("DebugBotConfig"))
 
 -- Services
 local PlayerTankSpawner = require(script.Parent:WaitForChild("PlayerTankSpawner"))
@@ -27,6 +28,7 @@ local ProjectileCombatService = require(script.Parent:WaitForChild("Combat"):Wai
 local RoundMatchService = require(script.Parent:WaitForChild("Round"):WaitForChild("RoundMatchService"))
 local ProjectileService = require(script.Parent:WaitForChild("Projectiles"):WaitForChild("ProjectileService"))
 local TankSpawnResetService = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankSpawnResetService"))
+local TankCustomizationService = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankCustomizationService"))
 local PlayerPossessionService = require(script.Parent:WaitForChild("Players"):WaitForChild("PlayerPossessionService"))
 local LobbyService = require(script.Parent:WaitForChild("Lobby"):WaitForChild("LobbyService"))
 local ArenaCombatService = require(script.Parent:WaitForChild("Arena"):WaitForChild("ArenaCombatService"))
@@ -65,6 +67,8 @@ local combatFeedbackEvent = getOrCreateRemoteEvent("CombatFeedbackEvent")
 local startMatchRequestEvent = getOrCreateRemoteEvent("StartMatchRequestEvent")
 local returnToMenuRequestEvent = getOrCreateRemoteEvent("ReturnToMenuRequestEvent")
 local rematchRequestEvent = getOrCreateRemoteEvent("RematchRequestEvent")
+local debugSpawnBotRequestEvent = getOrCreateRemoteEvent("DebugSpawnBotRequestEvent")
+local debugRemoveBotRequestEvent = getOrCreateRemoteEvent("DebugRemoveBotRequestEvent")
 
 -- Folders
 local root = Workspace:WaitForChild("WOB_Generated")
@@ -99,6 +103,7 @@ end
 local function registerTankParticipant(config)
 	local model = config.Model
 	PlayerTankSpawner.ensurePhysicalTankModel(model)
+	TankCustomizationService.applySkin(model, config.SkinId)
 	local tankParts = PlayerTankSpawner.getTankParts(model)
 
 	local participant = {
@@ -408,6 +413,16 @@ ProjectileService.init(root, projectileFolder, vfxFolder, {
 	isNoDamageProjectile = function(participant) return LobbyService.isNoDamageProjectile(participant) end,
 	shouldRecordShot = function(participant) return LobbyService.shouldRecordShot(participant) end,
 	areProjectilesEnabled = function() return LobbyService.areProjectilesEnabled() end,
+	sendBlockedShotFeedback = function(participant, pos, text)
+		if participant ~= nil and participant.OwnerPlayer ~= nil then
+			combatFeedbackEvent:FireClient(participant.OwnerPlayer, {
+				Type = "BlockedShot",
+				Position = pos,
+				Text = text,
+				Color = Color3.fromRGB(255, 220, 90),
+			})
+		end
+	end,
 })
 
 -- Collect map targets for projectiles
@@ -551,6 +566,79 @@ Players.PlayerRemoving:Connect(function(player)
 	PlayerPossessionService.removePlayer(player)
 end)
 
+local function isDebugBotRequestAllowed(player)
+	if DebugBotConfig.Enabled ~= true then
+		return false
+	end
+
+	if RunService:IsStudio() then
+		return true
+	end
+
+	for _, userId in ipairs(DebugBotConfig.AllowedUserIds or {}) do
+		if userId == player.UserId then
+			return true
+		end
+	end
+
+	return false
+end
+
+local function isParticipantInList(participant, participants)
+	for _, activeParticipant in ipairs(participants or {}) do
+		if activeParticipant == participant then
+			return true
+		end
+	end
+
+	return false
+end
+
+local function handleDebugSpawnBotRequest(player)
+	if not isDebugBotRequestAllowed(player) then
+		return
+	end
+
+	local activeMatch = RoundMatchService.getActiveMatch()
+
+	if activeMatch == nil then
+		print("[DEBUG BOT] Spawn ignored: no active Training match.")
+		return
+	end
+
+	if DebugBotConfig.SpawnOnlyInTraining ~= false and activeMatch.MatchMode ~= "Training" then
+		print("[DEBUG BOT] Spawn ignored: active match is not Training.")
+		return
+	end
+
+	if (tonumber(DebugBotConfig.MaxDebugBots) or 0) <= 0 then
+		print("[DEBUG BOT] Spawn ignored: MaxDebugBots is 0.")
+		return
+	end
+
+	if isParticipantInList(dummyParticipant, activeMatch.Participants) then
+		print("[DEBUG BOT] DummyTank already active in Training; no extra bot spawned.")
+		return
+	end
+
+	print("[DEBUG BOT] Spawn request accepted, but dynamic bot spawning is deferred until BotParticipantFactory.")
+end
+
+local function handleDebugRemoveBotRequest(player)
+	if not isDebugBotRequestAllowed(player) then
+		return
+	end
+
+	local activeMatch = RoundMatchService.getActiveMatch()
+
+	if activeMatch == nil or activeMatch.MatchMode ~= "Training" then
+		print("[DEBUG BOT] Remove ignored: no active Training dummy.")
+		return
+	end
+
+	print("[DEBUG BOT] Remove request ignored: Training dummy is owned by RoundMatchService v0.")
+end
+
 -- Remote Connections
 startMatchRequestEvent.OnServerEvent:Connect(function(player)
 	if DEBUG_INPUT then
@@ -567,6 +655,9 @@ end)
 rematchRequestEvent.OnServerEvent:Connect(function(player)
 	LobbyService.handleRematchRequest(player)
 end)
+
+debugSpawnBotRequestEvent.OnServerEvent:Connect(handleDebugSpawnBotRequest)
+debugRemoveBotRequestEvent.OnServerEvent:Connect(handleDebugRemoveBotRequest)
 
 resetDummyRequestEvent.OnServerEvent:Connect(function(player)
 	local participant = PlayerPossessionService.getPlayerParticipantByPlayer(player)
