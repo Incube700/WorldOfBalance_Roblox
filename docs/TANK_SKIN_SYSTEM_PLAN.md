@@ -85,6 +85,10 @@ Future saved player data should store IDs, not whole models:
 
 DataStore should never save full Roblox tank models.
 
+## Bolts Later
+
+Soft currency v0 adds persistent `Bolts`, but spending is not implemented yet. Future skins may be bought with Bolts through a server-authoritative shop/inventory flow. For now, `SkinCatalog` is only a safe cosmetic catalog and no skin purchase/equip UI exists.
+
 ## Future Services
 
 Safe future steps:

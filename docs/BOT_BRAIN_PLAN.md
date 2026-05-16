@@ -80,6 +80,23 @@ The current safe smoothing step has two layers:
 
 This does not move damage, hit detection, projectiles, or match result to the client. The smoothing script is a visual MVP for replicated remote tanks. The cleaner future version is a dedicated `Visual` folder or client visual proxy for every tank prefab.
 
+## Arena Bounds
+
+Training bot movement is constrained by `BotConfig` arena bounds:
+
+- `ArenaBoundsEnabled`
+- `ArenaMinX`
+- `ArenaMaxX`
+- `ArenaMinZ`
+- `ArenaMaxZ`
+- `ReturnToCenterDistance`
+
+The bot checks its desired next position before movement is applied. If it is near or past the configured edge, it steers back toward the arena center and keeps using `TankMovementService.resolveTankMovement` for wall/cover blocking. The final dummy `ControlState.Position` is clamped inside the configured bounds.
+
+This only affects the Training dummy bot. Player controls, PvP movement, projectile damage, armor, and ricochet formulas are unchanged.
+
+Future scene support can replace these config values with a dedicated `Workspace.WOB_Generated.Map.ArenaBounds` or similar editor-authored bounds object.
+
 ## Debug Bot Hook
 
 `DebugSpawnBotRequestEvent` and `DebugRemoveBotRequestEvent` exist as guarded test hooks. In v0 they do not create a second bot:

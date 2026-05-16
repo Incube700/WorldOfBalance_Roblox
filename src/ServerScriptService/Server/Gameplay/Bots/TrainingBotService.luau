@@ -116,6 +116,87 @@ local function getDirectionFromYaw(yaw)
 	return flat.Unit
 end
 
+local function getArenaBounds()
+	if BotConfig.ArenaBoundsEnabled ~= true then
+		return nil
+	end
+
+	local minX = tonumber(BotConfig.ArenaMinX) or -96
+	local maxX = tonumber(BotConfig.ArenaMaxX) or 96
+	local minZ = tonumber(BotConfig.ArenaMinZ) or -96
+	local maxZ = tonumber(BotConfig.ArenaMaxZ) or 96
+
+	if minX > maxX then
+		minX, maxX = maxX, minX
+	end
+
+	if minZ > maxZ then
+		minZ, maxZ = maxZ, minZ
+	end
+
+	return {
+		MinX = minX,
+		MaxX = maxX,
+		MinZ = minZ,
+		MaxZ = maxZ,
+	}
+end
+
+local function getArenaCenter(bounds)
+	return Vector3.new(
+		(bounds.MinX + bounds.MaxX) * 0.5,
+		0,
+		(bounds.MinZ + bounds.MaxZ) * 0.5
+	)
+end
+
+local function clampPositionToArenaBounds(position, bounds)
+	if bounds == nil then
+		return position
+	end
+
+	return Vector3.new(
+		math.clamp(position.X, bounds.MinX, bounds.MaxX),
+		position.Y,
+		math.clamp(position.Z, bounds.MinZ, bounds.MaxZ)
+	)
+end
+
+local function isOutsideArenaBounds(position, bounds)
+	return position.X < bounds.MinX
+		or position.X > bounds.MaxX
+		or position.Z < bounds.MinZ
+		or position.Z > bounds.MaxZ
+end
+
+local function isNearArenaEdge(position, bounds)
+	local returnToCenterDistance = math.max(0, tonumber(BotConfig.ReturnToCenterDistance) or 0)
+
+	if isOutsideArenaBounds(position, bounds) then
+		return true
+	end
+
+	if returnToCenterDistance <= 0 then
+		return false
+	end
+
+	return position.X <= bounds.MinX + returnToCenterDistance
+		or position.X >= bounds.MaxX - returnToCenterDistance
+		or position.Z <= bounds.MinZ + returnToCenterDistance
+		or position.Z >= bounds.MaxZ - returnToCenterDistance
+end
+
+local function getDirectionToArenaCenter(position, bounds, fallbackDirection)
+	local center = getArenaCenter(bounds)
+	local direction = getFlatDirection(position, center)
+
+	if direction ~= nil then
+		return direction
+	end
+
+	return fallbackDirection or Vector3.new(0, 0, -1)
+end
+
 local function findBasePart(model, partName)
 	if model == nil then
 		return nil
@@ -383,6 +464,12 @@ local function updateBotDecision(target)
 
 	local desiredMoveDirection, throttle = getBotMoveDecision(distance, directionToTarget)
 	local currentBodyYaw = state.BodyYaw or 0
+	local arenaBounds = getArenaBounds()
+
+	if arenaBounds ~= nil and isNearArenaEdge(state.Position, arenaBounds) then
+		desiredMoveDirection = getDirectionToArenaCenter(state.Position, arenaBounds, desiredMoveDirection)
+		throttle = math.max(0.1, math.abs(BotConfig.MoveThrottle or 0.75))
+	end
 
 	botDecision.DesiredMoveYaw = getYawFromFlatDirection(desiredMoveDirection, currentBodyYaw)
 	botDecision.DesiredAimYaw = getYawFromFlatDirection(directionToTarget, state.TurretYaw or currentBodyYaw) + aimErrorRadians
@@ -416,6 +503,19 @@ local function applyBotMovement(deltaTime)
 	local moveSpeed = MOVE_SPEED * (throttle < 0 and REVERSE_MOVE_SPEED_MULTIPLIER or 1)
 	local desiredMove = getDirectionFromYaw(resolvedBodyYaw) * throttle * moveSpeed * deltaTime
 	local resolvedPosition = state.Position
+	local arenaBounds = getArenaBounds()
+
+	if arenaBounds ~= nil and isOutsideArenaBounds(state.Position + desiredMove, arenaBounds) then
+		local returnDirection = getDirectionToArenaCenter(state.Position, arenaBounds, getDirectionFromYaw(resolvedBodyYaw))
+		local returnYaw = getYawFromFlatDirection(returnDirection, resolvedBodyYaw)
+
+		resolvedBodyYaw = moveAngleTowards(currentBodyYaw, returnYaw, BODY_TURN_SPEED * deltaTime)
+		throttle = math.max(0.1, math.abs(BotConfig.MoveThrottle or 0.75))
+		moveSpeed = MOVE_SPEED
+		desiredMove = getDirectionFromYaw(resolvedBodyYaw) * throttle * moveSpeed * deltaTime
+		botDecision.DesiredMoveYaw = returnYaw
+		botDecision.DesiredThrottle = throttle
+	end
 
 	if tankMovementService.resolveTankMovement ~= nil then
 		resolvedPosition = tankMovementService.resolveTankMovement(state.Position, resolvedBodyYaw, desiredMove)
@@ -428,6 +528,8 @@ local function applyBotMovement(deltaTime)
 			{ TankId = dummyParticipant.TankId .. ":Bot" }
 		)
 	end
+
+	resolvedPosition = clampPositionToArenaBounds(resolvedPosition, arenaBounds)
 
 	local currentTurretYaw = state.TurretYaw or resolvedBodyYaw
 

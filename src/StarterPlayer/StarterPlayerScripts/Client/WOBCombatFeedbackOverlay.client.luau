@@ -126,6 +126,10 @@ local function trimOldFeedback()
 end
 
 local function showFeedback(payload)
+	if typeof(payload) == "table" and payload.AudioOnly == true then
+		return
+	end
+
 	local mode = localPlayer:GetAttribute("PlayerMode")
 	local isGameplayVisible = mode == "Lobby"
 		or mode == "QueuedForDuel"

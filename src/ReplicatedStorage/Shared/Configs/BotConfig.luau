@@ -14,6 +14,12 @@ local BotConfig = table.freeze({
 	FireCheckInterval = 0.25,
 	FireChance = 0.55,
 	LineOfSightEnabled = true,
+	ArenaBoundsEnabled = true,
+	ArenaMinX = -96,
+	ArenaMaxX = 96,
+	ArenaMinZ = -96,
+	ArenaMaxZ = 96,
+	ReturnToCenterDistance = 12,
 })
 
 return BotConfig

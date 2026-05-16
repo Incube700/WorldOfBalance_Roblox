@@ -20,6 +20,8 @@ local DebugBotConfig = require(configs:WaitForChild("DebugBotConfig"))
 -- Services
 local PlayerTankSpawner = require(script.Parent:WaitForChild("PlayerTankSpawner"))
 local MatchStatsService = require(script.Parent:WaitForChild("Stats"):WaitForChild("MatchStatsService"))
+local PlayerWalletService = require(script.Parent:WaitForChild("Economy"):WaitForChild("PlayerWalletService"))
+local KillRewardService = require(script.Parent:WaitForChild("Economy"):WaitForChild("KillRewardService"))
 local TankMovementService = require(script.Parent:WaitForChild("Movement"):WaitForChild("TankMovementService"))
 local TankParticipantRegistry = require(script.Parent:WaitForChild("TankParticipantRegistry"))
 local ProjectileCombatService = require(script.Parent:WaitForChild("Combat"):WaitForChild("ProjectileCombatService"))
@@ -311,6 +313,16 @@ local function playDeathExplosion(participant)
 	vfxHelpers.createBurningTank(deathPosition)
 end
 
+local function sendCombatFeedbackPayload(feedbackType, pos, text, color, audioOnly)
+	combatFeedbackEvent:FireAllClients({
+		Type = feedbackType,
+		Position = pos,
+		Text = text,
+		Color = color,
+		AudioOnly = audioOnly == true,
+	})
+end
+
 local function clearActiveMatchInputs()
 	local activeMatch = RoundMatchService.getActiveMatch()
 
@@ -347,7 +359,9 @@ local function damageParticipant(participant, amount, sourceProjectile)
 
 		if newHealth <= 0 then
 			TankParticipantRegistry.setParticipantIsDead(participant, true)
+			local deathPosition = getParticipantVfxPosition(participant)
 			playDeathExplosion(participant)
+			sendCombatFeedbackPayload("TankDestroyed", deathPosition, "", Color3.fromRGB(255, 140, 90), true)
 			TankSpawnResetService.darkenTank(participant.Model)
 			print("[ARENA_DEAD] " .. participant.TankId .. " destroyed")
 
@@ -378,7 +392,9 @@ local function damageParticipant(participant, amount, sourceProjectile)
 
 	if newHealth <= 0 then
 		TankParticipantRegistry.setParticipantIsDead(participant, true)
+		local deathPosition = getParticipantVfxPosition(participant)
 		playDeathExplosion(participant)
+		sendCombatFeedbackPayload("TankDestroyed", deathPosition, "", Color3.fromRGB(255, 140, 90), true)
 		TankSpawnResetService.darkenTank(participant.Model)
 		print("[DEAD] " .. participant.TankId .. " destroyed")
 
@@ -388,6 +404,16 @@ local function damageParticipant(participant, amount, sourceProjectile)
 		if winnerParticipant ~= nil then
 			RoundMatchService.getRoundState().WinnerTankId = winnerParticipant.TankId
 		end
+
+		KillRewardService.awardTankKill(
+			sourceProjectile ~= nil and sourceProjectile.OwnerParticipant or winnerParticipant,
+			participant,
+			{
+				Projectile = sourceProjectile,
+				NoDamage = sourceProjectile ~= nil and sourceProjectile.NoDamage == true,
+				RoundNumber = root:GetAttribute("RoundNumber"),
+			}
+		)
 
 		RoundMatchService.endRound(RoundMatchService.getRoundResultForDestroyedParticipant(participant))
 		clearActiveMatchInputs()
@@ -423,6 +449,9 @@ ProjectileService.init(root, projectileFolder, vfxFolder, {
 			})
 		end
 	end,
+	sendCombatFeedback = function(ftype, pos, text, color, audioOnly)
+		sendCombatFeedbackPayload(ftype, pos, text, color, audioOnly)
+	end,
 })
 
 -- Collect map targets for projectiles
@@ -445,6 +474,13 @@ local function collectMapTargets()
 end
 ProjectileService.setMapRaycastTargets(collectMapTargets())
 
+KillRewardService.init({
+	playerWalletService = PlayerWalletService,
+	roundMatchService = RoundMatchService,
+	lobbyService = LobbyService,
+	tankParticipantRegistry = TankParticipantRegistry,
+})
+
 -- Init Combat Service
 ProjectileCombatService.init({
 	getParticipantIsDead = function(p) return TankParticipantRegistry.getParticipantIsDead(p) end,
@@ -454,7 +490,7 @@ ProjectileCombatService.init({
 	createRicochetVfx = function(pos, normal) ProjectileService.getVFXHelpers().createRicochetVfx(pos, normal) end,
 	destroyProjectile = function(proj) ProjectileService.destroyProjectile(proj) end,
 	sendCombatFeedback = function(ftype, pos, text, color)
-		combatFeedbackEvent:FireAllClients({ Type = ftype, Position = pos, Text = text, Color = color })
+		sendCombatFeedbackPayload(ftype, pos, text, color, false)
 	end,
 	damageParticipant = damageParticipant,
 	canDamageParticipant = function(projectile, targetParticipant)
@@ -558,12 +594,28 @@ TankParticipantRegistry.setParticipantModelVisible(playerParticipant, false)
 TankParticipantRegistry.setParticipantModelVisible(dummyParticipant, false)
 TankParticipantRegistry.setParticipantModelVisible(player2Participant, false)
 
+local function handlePlayerAdded(player)
+	task.spawn(function()
+		PlayerWalletService.loadPlayer(player)
+	end)
+
+	PlayerPossessionService.assignPlayer(player)
+end
+
 -- Player Connections
-for _, player in ipairs(Players:GetPlayers()) do PlayerPossessionService.assignPlayer(player) end
-Players.PlayerAdded:Connect(function(player) PlayerPossessionService.assignPlayer(player) end)
+for _, player in ipairs(Players:GetPlayers()) do handlePlayerAdded(player) end
+Players.PlayerAdded:Connect(handlePlayerAdded)
 Players.PlayerRemoving:Connect(function(player)
+	PlayerWalletService.savePlayer(player)
 	LobbyService.playerRemoving(player)
 	PlayerPossessionService.removePlayer(player)
+	PlayerWalletService.removePlayer(player)
+end)
+
+game:BindToClose(function()
+	for _, player in ipairs(Players:GetPlayers()) do
+		PlayerWalletService.savePlayer(player)
+	end
 end)
 
 local function isDebugBotRequestAllowed(player)

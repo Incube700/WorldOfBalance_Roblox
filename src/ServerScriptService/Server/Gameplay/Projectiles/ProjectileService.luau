@@ -56,6 +56,7 @@ local callbacks = {
 	shouldRecordShot = nil,
 	areProjectilesEnabled = nil,
 	sendBlockedShotFeedback = nil,
+	sendCombatFeedback = nil,
 }
 
 function ProjectileService.init(orchestratorRoot, projFolder, effectsFolder, options)
@@ -255,6 +256,14 @@ local function sendBlockedShotFeedback(participant, position)
 			WeaponSafetyConfig.BlockedShotFeedbackText or "BARREL BLOCKED"
 		)
 	end
+end
+
+local function sendProjectileFeedback(feedbackType, position, text, color, audioOnly)
+	if callbacks.sendCombatFeedback == nil then
+		return
+	end
+
+	callbacks.sendCombatFeedback(feedbackType, position, text, color, audioOnly == true)
 end
 
 local function hasTexture(config)
@@ -866,11 +875,13 @@ function ProjectileService.tryShoot(participant, direction)
 	participant.WeaponState.LastShotTime = participant.LastShotTime
 	participant.WeaponState.WeaponReadyAt = participant.WeaponReadyAt
 	local damageMultiplier = math.max(0, getArenaNumberModifier(participant, "ArenaDamageMultiplier", 1))
+	local shotOrigin = participant.ShootPoint.Position
 	for _, shot in ipairs(getShotPattern(participant, participant.ShootPoint.Position, flatDirection.Unit)) do
 		ProjectileService.createProjectile(participant, shot.Origin, shot.Direction, {
 			DamageMultiplier = damageMultiplier,
 		})
 	end
+	sendProjectileFeedback("Shot", shotOrigin, "", Color3.fromRGB(255, 230, 150), true)
 	if callbacks.shouldRecordShot == nil or callbacks.shouldRecordShot(participant) == true then
 		MatchStatsService.recordShotFired(participant)
 	end
@@ -940,6 +951,7 @@ function ProjectileService.updateProjectiles(deltaTime)
                 table.remove(projectiles, i)
             else
                 createRicochetVfx(result.Position, result.Normal)
+                sendProjectileFeedback("Ricochet", result.Position, "", Color3.fromRGB(255, 220, 70), true)
                 ProjectileCombatService.applyProjectileRicochet(projectile, result.Position, result.Normal)
                 ProjectileCombatService.printBounce(projectile)
             end
