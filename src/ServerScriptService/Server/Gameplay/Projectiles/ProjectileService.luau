@@ -367,10 +367,6 @@ local function createFlash(position, config, name, direction, skipParticleBurst)
 	return flash
 end
 
-local function createShotSound(position)
-	CombatVfxService.playConfiguredSound(position, shotVfxConfig, "CannonShot")
-end
-
 local function createMuzzleFlash(position, direction)
 	local flatDirection = Vector3.new(direction.X, 0, direction.Z)
 	if flatDirection.Magnitude < 0.001 then
@@ -378,7 +374,6 @@ local function createMuzzleFlash(position, direction)
 	else
 		flatDirection = flatDirection.Unit
 	end
-	createShotSound(position)
 	local muzzleTemplateHandled = CombatVfxService.playVfxTemplate(
 		position,
 		flatDirection,
@@ -542,7 +537,6 @@ end
 
 local function createRicochetVfx(position, normal)
 	local direction = typeof(normal) == "Vector3" and normal or Vector3.yAxis
-	CombatVfxService.playConfiguredSound(position, ricochetConfig, "Ricochet")
 
 	local templateHandled = CombatVfxService.playVfxTemplate(
 		position,

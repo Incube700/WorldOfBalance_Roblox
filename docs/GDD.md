@@ -90,6 +90,14 @@ Server owns damage, health, round result, match result and stats. Client owns in
 
 The game should be simple enough to test, publish, iterate and expand. Avoid systems that require a large team before the core loop is proven.
 
+### 4.6 Feedback / Presentation Architecture
+
+Gameplay logic and presentation are separate responsibilities. Gameplay services produce facts: shot, ricochet, damage, death, reward, win or loss. Presentation controllers produce feelings: VFX, audio, HUD, overlays and short feedback text.
+
+Current MVP ownership is explicit: `VfxConfig` owns visual effects only, `AudioConfig` owns audio playback settings, and `AudioCatalog` owns allowed sound definitions and `SoundId` values. Do not duplicate sound ownership in VFX configs.
+
+Future target: gameplay services emit facts through `CombatFeedbackService`, then client VFX, audio and UI controllers decide how to show or play them. Player audio customization should select validated catalog IDs, never arbitrary client-provided sound assets.
+
 ## 5. Core gameplay loop
 
 Current target loop:

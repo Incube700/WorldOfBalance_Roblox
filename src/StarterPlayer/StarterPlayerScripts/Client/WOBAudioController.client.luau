@@ -8,6 +8,7 @@ local localPlayer = Players.LocalPlayer
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local AudioConfig = require(configs:WaitForChild("AudioConfig"))
+local AudioCatalog = require(configs:WaitForChild("AudioCatalog"))
 
 if AudioConfig.Enabled ~= true then
 	return
@@ -18,6 +19,7 @@ local combatFeedbackEvent = remotes:FindFirstChild("CombatFeedbackEvent")
 local runtimeVfxFolder = nil
 local lastRewardSequence = tonumber(localPlayer:GetAttribute("LastBoltsRewardSequence")) or 0
 local lastRoundResult = nil
+local rng = Random.new()
 
 local function getRuntimeVfxFolder()
 	if runtimeVfxFolder ~= nil and runtimeVfxFolder.Parent ~= nil then
@@ -31,26 +33,40 @@ local function getRuntimeVfxFolder()
 	return runtimeVfxFolder or Workspace
 end
 
-local function getSoundConfig(soundKey)
-	local sounds = AudioConfig.Sounds or {}
-	return sounds[soundKey]
+local function resolveSoundDefinition(category, payload)
+	if typeof(category) ~= "string" or category == "" then
+		return nil, nil
+	end
+
+	-- TODO: later resolve owner/custom sound by payload.OwnerUserId and validated player loadout attributes.
+	local defaultSoundIds = AudioCatalog.DefaultSoundIds or {}
+	local sounds = AudioCatalog.Sounds or {}
+	local soundKey = defaultSoundIds[category]
+	local soundDefinition = soundKey ~= nil and sounds[soundKey] or nil
+
+	if soundDefinition == nil then
+		return nil, nil
+	end
+
+	return soundKey, soundDefinition
 end
 
-local function canPlay(soundConfig)
+local function canPlay(soundDefinition)
 	return AudioConfig.Enabled == true
-		and soundConfig ~= nil
-		and typeof(soundConfig.SoundId) == "string"
-		and soundConfig.SoundId ~= ""
+		and soundDefinition ~= nil
+		and typeof(soundDefinition.SoundId) == "string"
+		and soundDefinition.SoundId ~= ""
 end
 
-local function getVolume(soundConfig, is2D)
+local function getVolume(soundDefinition, is2D)
 	local channelVolume = is2D and (AudioConfig.UIVolume or 1) or (AudioConfig.CombatVolume or 1)
-	return (AudioConfig.MasterVolume or 1) * channelVolume * (soundConfig.Volume or 1)
+	return (AudioConfig.MasterVolume or 1) * channelVolume * (soundDefinition.Volume or 1)
 end
 
-local function getPlaybackSpeed(soundConfig)
-	local baseSpeed = tonumber(soundConfig.PlaybackSpeed) or 1
-	return baseSpeed * (1 + Random.new():NextNumber(-0.03, 0.03))
+local function getPlaybackSpeed(soundDefinition)
+	local baseSpeed = tonumber(soundDefinition.PlaybackSpeed) or 1
+	local pitchJitter = math.max(0, tonumber(AudioConfig.PitchJitter) or 0)
+	return baseSpeed * (1 + rng:NextNumber(-pitchJitter, pitchJitter))
 end
 
 local function cleanupSound(sound, holder, fallbackLifetime)
@@ -74,23 +90,23 @@ local function cleanupSound(sound, holder, fallbackLifetime)
 	Debris:AddItem(holder or sound, fallbackLifetime or 6)
 end
 
-local function configureSound(sound, soundConfig, is2D)
-	sound.SoundId = soundConfig.SoundId
-	sound.Volume = getVolume(soundConfig, is2D)
-	sound.PlaybackSpeed = getPlaybackSpeed(soundConfig)
+local function configureSound(sound, soundDefinition, is2D)
+	sound.SoundId = soundDefinition.SoundId
+	sound.Volume = getVolume(soundDefinition, is2D)
+	sound.PlaybackSpeed = getPlaybackSpeed(soundDefinition)
 
 	if is2D ~= true then
 		sound.RollOffMode = Enum.RollOffMode.InverseTapered
-		sound.RollOffMaxDistance = soundConfig.RollOffMaxDistance or 120
+		sound.RollOffMaxDistance = soundDefinition.RollOffMaxDistance or 120
 	end
 end
 
-local function play2DSound(soundKey)
-	local soundConfig = getSoundConfig(soundKey)
+local function play2DSound(category, payload)
+	local soundKey, soundDefinition = resolveSoundDefinition(category, payload)
 
-	if not canPlay(soundConfig) then
+	if not canPlay(soundDefinition) then
 		if AudioConfig.Debug == true then
-			print("[AUDIO] skipped " .. tostring(soundKey))
+			print("[AUDIO] skipped " .. tostring(category))
 		end
 
 		return
@@ -98,25 +114,25 @@ local function play2DSound(soundKey)
 
 	local sound = Instance.new("Sound")
 	sound.Name = "WOB_" .. tostring(soundKey)
-	configureSound(sound, soundConfig, true)
+	configureSound(sound, soundDefinition, true)
 	sound.Parent = SoundService
 	sound:Play()
 	cleanupSound(sound, nil, math.max(2, sound.TimeLength + 1))
 end
 
-local function play3DSound(soundKey, worldPosition)
-	local soundConfig = getSoundConfig(soundKey)
+local function play3DSound(category, worldPosition, payload)
+	local soundKey, soundDefinition = resolveSoundDefinition(category, payload)
 
-	if not canPlay(soundConfig) then
+	if not canPlay(soundDefinition) then
 		if AudioConfig.Debug == true then
-			print("[AUDIO] skipped " .. tostring(soundKey))
+			print("[AUDIO] skipped " .. tostring(category))
 		end
 
 		return
 	end
 
-	if soundConfig.Is2D == true or typeof(worldPosition) ~= "Vector3" then
-		play2DSound(soundKey)
+	if soundDefinition.Is2D == true or typeof(worldPosition) ~= "Vector3" then
+		play2DSound(category, payload)
 		return
 	end
 
@@ -134,7 +150,7 @@ local function play3DSound(soundKey, worldPosition)
 
 	local sound = Instance.new("Sound")
 	sound.Name = tostring(soundKey)
-	configureSound(sound, soundConfig, false)
+	configureSound(sound, soundDefinition, false)
 	sound.Parent = holder
 	sound:Play()
 	cleanupSound(sound, holder, math.max(3, sound.TimeLength + 1))
@@ -144,9 +160,15 @@ local function upperText(value)
 	return string.upper(tostring(value or ""))
 end
 
-local function chooseSoundKey(payload)
+local function chooseSoundCategory(payload)
 	if typeof(payload) ~= "table" then
 		return nil
+	end
+
+	local explicitCategory = payload.SoundCategory or payload.AudioCategory or payload.Category
+
+	if typeof(explicitCategory) == "string" and (AudioCatalog.DefaultSoundIds or {})[explicitCategory] ~= nil then
+		return explicitCategory
 	end
 
 	local payloadType = tostring(payload.Type or "")
@@ -182,13 +204,13 @@ local function chooseSoundKey(payload)
 end
 
 local function handleCombatFeedback(payload)
-	local soundKey = chooseSoundKey(payload)
+	local soundCategory = chooseSoundCategory(payload)
 
-	if soundKey == nil then
+	if soundCategory == nil then
 		return
 	end
 
-	play3DSound(soundKey, typeof(payload.Position) == "Vector3" and payload.Position or nil)
+	play3DSound(soundCategory, typeof(payload.Position) == "Vector3" and payload.Position or nil, payload)
 end
 
 local function handleBoltReward()

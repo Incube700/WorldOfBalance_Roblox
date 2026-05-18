@@ -2,7 +2,7 @@
 
 ## Goal
 
-Audio v0 adds a lightweight client-side sound playback layer for combat, reward, and simple UI events. It does not add final audio assets. `AudioConfig.luau` contains placeholder `SoundId` fields that can be replaced manually later.
+Audio v0 adds a lightweight client-side sound playback layer for combat, reward, and simple UI events. It does not add final audio assets. `AudioCatalog.luau` contains allowed sound definitions with replaceable `SoundId` fields.
 
 ## Authority
 
@@ -17,16 +17,43 @@ Gameplay stays server-authoritative:
 
 ## Config
 
-`AudioConfig.luau` controls:
+`AudioConfig.luau` controls playback settings:
 
 - `Enabled`
 - `Debug`
 - `MasterVolume`
 - `CombatVolume`
 - `UIVolume`
-- per-sound `SoundId`, `Volume`, `PlaybackSpeed`, and optional `RollOffMaxDistance` / `Is2D`.
+- `PitchJitter`
+- future playback limits such as `MaxSoundsPerSecond`.
+
+`AudioCatalog.luau` controls allowed sound definitions:
+
+- default sound keys per category;
+- `SoundId`;
+- display name;
+- volume;
+- playback speed;
+- 2D/3D behavior;
+- rolloff distance for 3D sounds.
 
 Empty `SoundId` means that sound is disabled. The audio controller skips it without warning unless debug is enabled.
+
+## Current Ownership Rule
+
+Current MVP audio ownership:
+
+- `VfxConfig` owns visual effects only: muzzle flash, smoke, sparks, explosion visuals, particles and templates.
+- `AudioConfig` owns playback settings only.
+- `AudioCatalog` owns allowed sound definitions and `SoundId` values.
+- `WOBAudioController.client.luau` is the only client-side owner of sound playback.
+
+Avoid duplicate sound ownership:
+
+- Do not put `Shot` / `Ricochet` / `DeathExplosion` sounds in `VfxConfig`.
+- Do not play world combat sounds through `CombatVfxService`.
+- `CombatFeedbackEvent` payloads may identify an event/category, but must not send arbitrary `SoundId` values.
+- The client resolves sounds locally from `AudioCatalog`.
 
 ## Client Controller
 
@@ -76,12 +103,25 @@ Safe next audio work:
 - mute/audio settings toggle;
 - engine loop only after careful performance and annoyance testing.
 
-Do not use copyrighted or meme sounds. Use Roblox Creator Store or properly licensed SFX, then paste asset IDs into `AudioConfig`.
+## Future Player Audio Customization
+
+Future player audio customization should store IDs only:
+
+- `EquippedShotSoundId = "DefaultCannonShot"`
+- `EquippedRicochetSoundId = "DefaultRicochet"`
+
+Later, the server should validate ownership. The client should still resolve only allowed sounds from `AudioCatalog`.
+
+If custom sound is public cosmetic, combat feedback payloads may include `OwnerUserId`, and clients can resolve that owner's validated loadout later. If custom sound is local-only, only the local player hears their equipped sound while others hear defaults.
+
+The client must never accept an arbitrary `SoundId` from an untrusted RemoteEvent.
+
+Do not use copyrighted or meme sounds. Use Roblox Creator Store or properly licensed SFX, then paste asset IDs into `AudioCatalog`.
 
 ## Manual Test
 
-1. Leave all `SoundId` values empty and play. There should be no errors.
-2. Paste a test SoundId into `Shot` and `BoltReward`.
+1. Leave all `AudioCatalog` `SoundId` values empty and play. There should be no errors.
+2. Paste a test SoundId into `AudioCatalog.Sounds.DefaultCannonShot.SoundId` and `AudioCatalog.Sounds.DefaultBoltReward.SoundId`.
 3. Start Training.
 4. Shoot: `Shot` should play.
 5. Kill `DummyTank`: `BoltReward` should play.

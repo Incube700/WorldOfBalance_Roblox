@@ -1,11 +1,6 @@
+-- Visual-only config. Combat audio is owned by AudioCatalog/WOBAudioController.
 local VfxConfig = table.freeze({
 	Shot = table.freeze({
-		SoundId = "rbxassetid://139771888058836",
-		SoundVolume = 0.75,
-		SoundRollOffMaxDistance = 180,
-		SoundPlaybackSpeed = 1,
-		SoundPlaybackSpeedJitter = 0.04,
-
 		MuzzleFlash = table.freeze({
 			Enabled = true,
 			TemplateName = "MuzzleEffectTemplate",
@@ -229,11 +224,6 @@ local VfxConfig = table.freeze({
 		UseImpactFallback = true,
 		UseProceduralFallback = true,
 		UseFlashFallback = true,
-		SoundId = "",
-		SoundVolume = 0.45,
-		SoundRollOffMaxDistance = 120,
-		SoundPlaybackSpeed = 1.1,
-		SoundPlaybackSpeedJitter = 0.08,
 		TextureId = "rbxassetid://1038411245",
 		EmitCount = 9,
 		ParticleLifetimeMin = 0.1,
@@ -262,8 +252,6 @@ local VfxConfig = table.freeze({
 		UseProceduralFallback = true,
 		FallbackPartCount = 12,
 		FallbackLifetime = 1.2,
-		SoundId = "",
-		SoundVolume = 0.9,
 		Scale = 1.0,
 	}),
 

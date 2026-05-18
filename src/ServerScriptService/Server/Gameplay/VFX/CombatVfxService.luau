@@ -277,6 +277,7 @@ function CombatVfxService.emitAllParticles(rootInstance, emitCount)
 end
 
 function CombatVfxService.playAllSounds(rootInstance, soundVolumeOverride)
+	-- Legacy helper. Do not use for new combat audio; AudioCatalog/WOBAudioController owns sound playback.
 	if rootInstance == nil then
 		return
 	end
@@ -303,6 +304,7 @@ function CombatVfxService.playAllSounds(rootInstance, soundVolumeOverride)
 end
 
 function CombatVfxService.playConfiguredSound(position, config, effectName)
+	-- Legacy helper. Do not use for new combat audio; AudioCatalog/WOBAudioController owns sound playback.
 	if config == nil or not isNonEmptyString(config.SoundId) then
 		return false
 	end
@@ -387,7 +389,6 @@ function CombatVfxService.playVfxTemplate(position, direction, config, effectNam
 	end
 
 	CombatVfxService.emitAllParticles(cloneOrError, config.TemplateEmitCount or config.EmitCount or 1)
-	CombatVfxService.playAllSounds(cloneOrError, config.SoundVolume)
 	Debris:AddItem(cloneOrError, getTemplateLifetime(config))
 
 	return true
