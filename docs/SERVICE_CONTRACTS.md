@@ -27,6 +27,7 @@ It should stay thin. New feature logic should live in focused services instead o
 - Initial prototype participant registration for player, dummy, and Player2.
 - RemoteEvent creation/wiring.
 - Player lifecycle wiring.
+- `PlayerWalletService` load/save/remove lifecycle wiring.
 - The heartbeat order:
   - `LobbyService.update(deltaTime)`
   - server-authoritative player movement application
@@ -261,6 +262,7 @@ Participant fields/attributes are updated through `TankParticipantRegistry` and 
 - `player -> participant` map.
 - Latest input table by player.
 - Initial participant input state on assignment.
+- Current persistent stats load trigger through `PersistentPlayerStatsService.loadPlayer(player)`.
 - Cleanup on player remove.
 
 ### What It Must Not Own
@@ -271,6 +273,7 @@ Participant fields/attributes are updated through `TankParticipantRegistry` and 
 - Damage/death.
 - Bot control.
 - Client UI.
+- Wallet/economy persistence.
 
 ### Public Functions / Entry Points
 
@@ -295,6 +298,10 @@ Player lifecycle:
 - character suppression through `CharacterAdded`.
 
 Participant/model attributes are published by `TankParticipantRegistry`, not owned here.
+
+Current side effect:
+
+- `assignPlayer(player)` starts `PersistentPlayerStatsService.loadPlayer(player)` asynchronously.
 
 ### Manual Play Mode Checks
 
@@ -891,6 +898,20 @@ These are LocalScripts/ModuleScripts, so entry points are Roblox events and modu
 - RemoteEvent `:FireServer()` calls for input/requests
 - `WOBClientInputState` shared input state used by mobile/desktop input.
 
+`WOBClientInputState` public functions:
+
+- `setMobileEnabled(isEnabled)`
+- `isMobileEnabled()`
+- `setMobileMovement(moveInput, turnInput, isActive)`
+- `resetMobileMovement()`
+- `getMobileMovement()`
+- `setMobileAimWorldPoint(aimWorldPoint)`
+- `getMobileAimWorldPoint()`
+- `requestMobileShoot(aimWorldPoint)`
+- `consumeMobileShootRequest()`
+- `clearMobileShootRequest()`
+- `resetMobileInput(clearAim)`
+
 ### Events / Remotes / Attributes They Use
 
 Client -> server remotes:
@@ -959,3 +980,38 @@ Important attributes read:
 - Wallet overlay shows `+1 Bolt` from server-set attributes only.
 - Result/rematch/return UI does not mutate gameplay directly beyond request remotes.
 
+## Known Architecture Risks
+
+These are current practical risks observed in the source. They are not blockers for the prototype, but they should guide future changes.
+
+### Orchestrator Coupling
+
+`WOBGameplayServer.server.luau` still owns important bridge logic for player movement, death handling, death VFX, wallet lifecycle wiring, and `CombatFeedbackEvent` payload emission. This is acceptable for the current prototype, but new feature rules should move into focused services so the orchestrator stays thin.
+
+### Persistent Stats Load Is Tied To Possession
+
+`PlayerPossessionService.assignPlayer(player)` currently starts `PersistentPlayerStatsService.loadPlayer(player)`. That is real current behavior, but it mixes possession with persistent stats lifecycle. Future cleanup could move all persistent player-data loading into a dedicated player data/bootstrap service.
+
+### ProjectileService Still Owns Combat VFX
+
+`ProjectileService` still creates projectile visuals, muzzle VFX, wall impact VFX, ricochet VFX, and exposes death/burning VFX helpers. Audio ownership has moved to `AudioCatalog` / `WOBAudioController`, but VFX is still partly server-side and coupled to projectile code. Future target is a `CombatFeedbackService` plus client-side `WOBCombatVfxController`.
+
+### Legacy Sound Helpers Still Exist
+
+`CombatVfxService.playAllSounds` and `CombatVfxService.playConfiguredSound` still exist as legacy helpers. Current `playVfxTemplate` no longer calls `playAllSounds`, and new combat audio should not use these helpers. If a future edit reintroduces template sound playback, it can accidentally bypass `AudioCatalog`.
+
+### Scene Contract Fragility
+
+Lobby pads, arena bounds, movement obstacles, spawn points, and VFX templates depend on Studio scene objects and attributes. Manual scene edits can desync visual pads/triggers or leave stale obstacles. Run the relevant audit/repair command scripts after moving lobby pads, arena geometry, or VFX templates.
+
+### Movement Obstacle Cache Delay
+
+`TankMovementService` caches movement obstacle parts for a short period and invalidates on descendant add/remove. Attribute or `CanQuery` changes may not be reflected until cache expiry unless the scene is repaired/reloaded. This is fine for normal play, but can confuse live Studio debugging.
+
+### Client Visual Smoothing Is An MVP Fallback
+
+`WOBTankVisualSmoothing.client.luau` smooths non-owned tanks visually on the client. This improves remote/bot readability, but it is still smoothing replicated physical parts as an MVP fallback. A cleaner future tank prefab should split server gameplay parts from client visual proxy/`Visual` parts.
+
+### RoundMatch And Arena Are Separate On Purpose
+
+`RoundMatchService` owns Training/PvP round results. `ArenaCombatService` owns endless arena death/respawn/score. Mixing these flows would cause arena deaths to show duel result UI or duel deaths to respawn endlessly, so new modes should choose a service boundary explicitly.
