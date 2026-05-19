@@ -265,6 +265,7 @@ function CombatVfxService.sanitizeVfxClone(rootInstance, config)
 	config = config or {}
 	local playTemplateSounds = config.PlayTemplateSounds == true
 	local soundVolumeOverride = config.SoundVolume
+	local muteTemplateSounds = not playTemplateSounds or soundVolumeOverride == 0
 	local allowLoopedSounds = config.AllowLoopedSounds == true
 	local instancesToDestroy = {}
 
@@ -278,11 +279,11 @@ function CombatVfxService.sanitizeVfxClone(rootInstance, config)
 
 			if typeof(soundVolumeOverride) == "number" then
 				instance.Volume = soundVolumeOverride
-			elseif not playTemplateSounds then
+			elseif muteTemplateSounds then
 				instance.Volume = 0
 			end
 
-			if not playTemplateSounds then
+			if muteTemplateSounds then
 				pcall(function()
 					instance:Stop()
 				end)
@@ -323,6 +324,10 @@ end
 function CombatVfxService.playAllSounds(rootInstance, soundVolumeOverride)
 	-- Legacy helper. Do not use for new combat audio; AudioCatalog/WOBAudioController owns sound playback.
 	if rootInstance == nil then
+		return
+	end
+
+	if soundVolumeOverride == 0 then
 		return
 	end
 
@@ -435,7 +440,7 @@ function CombatVfxService.playVfxTemplate(position, direction, config, effectNam
 
 	CombatVfxService.emitAllParticles(cloneOrError, config.TemplateEmitCount or config.EmitCount or 1)
 
-	if config.PlayTemplateSounds == true then
+	if config.PlayTemplateSounds == true and config.SoundVolume ~= 0 then
 		CombatVfxService.playAllSounds(cloneOrError, config.SoundVolume)
 	end
 

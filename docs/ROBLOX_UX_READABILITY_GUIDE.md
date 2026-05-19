@@ -14,6 +14,8 @@
 - World tank HP/reload bars are preferred over large duplicate top HP/reload panels on mobile combat screens.
 - Top HP panels can be hidden in BattleArena and on mobile Duel/Training when `HudConfig.WorldHealthBars` is enabled.
 - The large top Reload panel should be hidden in BattleArena/mobile when `HudConfig.WorldHealthBars.ShowReloadBar` is enabled.
+- The base modular `HUD` should be disabled outside active `InMatch` play so old HP/reload panels do not appear in lobby, result, or BattleArena.
+- Desktop Training/Duel may temporarily keep top HP panels for comparison, but mobile should trust the world bars first.
 - Do not place new buttons near the right-side AIM/FIRE cluster or left-side MOVE stick.
 - Avoid long text in combat. Use short status labels and let world signs teach the player in lobby.
 

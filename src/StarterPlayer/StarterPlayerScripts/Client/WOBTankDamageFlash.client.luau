@@ -8,19 +8,49 @@ local HudConfig = require(configs:WaitForChild("HudConfig"))
 
 local root = Workspace:WaitForChild("WOB_Generated")
 local flashConfig = HudConfig.DamageFlash or {}
-local LOCAL_VISUALS_FOLDER_NAME = "WOBLocalDamageFlash"
+local RUNTIME_ROOT_NAME = "WOB_Runtime"
+local CLIENT_RUNTIME_FOLDER_NAME = "Client"
+local LOCAL_VISUALS_FOLDER_NAME = "DamageFlash"
 local DAMAGE_SERIAL_ATTRIBUTE = "LastDamageSerial"
 
-local localVisualsFolder = Workspace:FindFirstChild(LOCAL_VISUALS_FOLDER_NAME)
+local function getOrCreateFolder(parent, name)
+	local folder = parent:FindFirstChild(name)
+
+	if folder == nil then
+		folder = Instance.new("Folder")
+		folder.Name = name
+		folder.Parent = parent
+	elseif not folder:IsA("Folder") then
+		return nil
+	end
+
+	return folder
+end
+
+local runtimeRoot = Workspace:FindFirstChild(RUNTIME_ROOT_NAME) or Workspace:WaitForChild(RUNTIME_ROOT_NAME, 10)
+
+if runtimeRoot == nil then
+	runtimeRoot = getOrCreateFolder(Workspace, RUNTIME_ROOT_NAME)
+end
+
+local clientRuntimeFolder = runtimeRoot ~= nil and getOrCreateFolder(runtimeRoot, CLIENT_RUNTIME_FOLDER_NAME) or nil
+local localVisualsFolder = clientRuntimeFolder ~= nil
+	and getOrCreateFolder(clientRuntimeFolder, LOCAL_VISUALS_FOLDER_NAME)
+	or nil
+
+local staleRootFolder = Workspace:FindFirstChild("WOBLocalDamageFlash")
+
+if staleRootFolder ~= nil then
+	staleRootFolder:Destroy()
+end
 
 if localVisualsFolder == nil then
-	localVisualsFolder = Instance.new("Folder")
-	localVisualsFolder.Name = LOCAL_VISUALS_FOLDER_NAME
-	localVisualsFolder.Parent = Workspace
-else
-	for _, child in ipairs(localVisualsFolder:GetChildren()) do
-		child:Destroy()
-	end
+	warn("[HIT FLASH] disabled: Workspace.WOB_Runtime.Client.DamageFlash could not be created")
+	return
+end
+
+for _, child in ipairs(localVisualsFolder:GetChildren()) do
+	child:Destroy()
 end
 
 local recordsByModel = {}
@@ -41,6 +71,31 @@ local function getNumberAttribute(instance, attributeName)
 	end
 
 	return nil
+end
+
+local function getDepthMode(config)
+	if config.DepthMode == "AlwaysOnTop" then
+		return Enum.HighlightDepthMode.AlwaysOnTop
+	end
+
+	return Enum.HighlightDepthMode.Occluded
+end
+
+local function debugDamageDetected(model, serial)
+	local config = getFlashConfig()
+
+	if config.Debug ~= true then
+		return
+	end
+
+	local amount = tonumber(model:GetAttribute("LastDamageAmount")) or 0
+	print(
+		("[HIT FLASH] detected model=%s serial=%s amount=%s"):format(
+			model:GetFullName(),
+			tostring(serial),
+			tostring(amount)
+		)
+	)
 end
 
 local function isTankName(name)
@@ -118,7 +173,6 @@ local function getOrCreateHighlight(model, record)
 	local highlight = Instance.new("Highlight")
 	highlight.Name = "DamageFlash_" .. model.Name
 	highlight.Adornee = model
-	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 	highlight.OutlineTransparency = 1
 	highlight.Enabled = false
 	highlight.Parent = localVisualsFolder
@@ -137,35 +191,67 @@ local function playFlash(model, record)
 	local highlight = getOrCreateHighlight(model, record)
 	local isLethal = model:GetAttribute("LastDamageWasLethal") == true
 	local duration = isLethal and (config.LethalDuration or 0.22) or (config.Duration or 0.14)
+	local colorPulseDuration = math.max(0.03, duration * 0.35)
+	local fadeDuration = math.max(0.04, duration - colorPulseDuration)
 	local startTransparency = config.FillTransparencyStart or 0.15
+	local midTransparency = config.FillTransparencyMid or 0.32
 	local endTransparency = config.FillTransparencyEnd or 1
+	local startColor = config.ColorStart or Color3.fromRGB(255, 255, 245)
 	local fillColor = config.Color or Color3.fromRGB(255, 245, 180)
 
 	if record.Tween ~= nil then
 		record.Tween:Cancel()
 	end
 
+	record.Sequence = (record.Sequence or 0) + 1
+	local sequence = record.Sequence
+
 	highlight.Adornee = model
-	highlight.FillColor = fillColor
+	highlight.DepthMode = getDepthMode(config)
+	highlight.FillColor = startColor
 	highlight.FillTransparency = startTransparency
 	highlight.OutlineTransparency = 1
 	highlight.Enabled = true
 
-	local tween = TweenService:Create(
+	local colorTween = TweenService:Create(
 		highlight,
-		TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ FillTransparency = endTransparency }
+		TweenInfo.new(colorPulseDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{
+			FillColor = fillColor,
+			FillTransparency = midTransparency,
+		}
 	)
-	record.Tween = tween
+	record.Tween = colorTween
 
-	tween.Completed:Connect(function()
-		if recordsByModel[model] == record and record.Tween == tween then
+	colorTween.Completed:Connect(function()
+		if recordsByModel[model] ~= record or record.Sequence ~= sequence then
+			return
+		end
+
+		local fadeTween = TweenService:Create(
+			highlight,
+			TweenInfo.new(fadeDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ FillTransparency = endTransparency }
+		)
+		record.Tween = fadeTween
+
+		fadeTween.Completed:Connect(function()
+			if recordsByModel[model] == record and record.Sequence == sequence and record.Tween == fadeTween then
+				highlight.Enabled = false
+				record.Tween = nil
+			end
+		end)
+
+		fadeTween:Play()
+	end)
+
+	task.delay(duration + 0.08, function()
+		if recordsByModel[model] == record and record.Sequence == sequence then
 			highlight.Enabled = false
-			record.Tween = nil
 		end
 	end)
 
-	tween:Play()
+	colorTween:Play()
 end
 
 local function onDamageSerialChanged(model)
@@ -180,6 +266,7 @@ local function onDamageSerialChanged(model)
 	record.LastSerial = nextSerial
 
 	if nextSerial > previousSerial and nextSerial > 0 then
+		debugDamageDetected(model, nextSerial)
 		playFlash(model, record)
 	end
 end
@@ -193,6 +280,7 @@ local function ensureRecord(model)
 		Connections = {},
 		Highlight = nil,
 		LastSerial = tonumber(model:GetAttribute(DAMAGE_SERIAL_ATTRIBUTE)) or 0,
+		Sequence = 0,
 		Tween = nil,
 	}
 
@@ -235,11 +323,9 @@ local function discoverTankModels()
 	local models = {}
 	local testObjects = root:FindFirstChild("TestObjects")
 	local battleArena = root:FindFirstChild("BattleArena")
-	local battleArenaMap = battleArena ~= nil and battleArena:FindFirstChild("Map") or nil
 
 	collectModelsFromRoot(testObjects, models)
 	collectModelsFromRoot(battleArena, models)
-	collectModelsFromRoot(battleArenaMap, models)
 
 	for model in pairs(models) do
 		if shouldWatchModel(model) then
@@ -254,9 +340,12 @@ local function discoverTankModels()
 	end
 end
 
+discoverTankModels()
+
 task.spawn(function()
 	while localVisualsFolder.Parent ~= nil do
 		discoverTankModels()
-		task.wait(1)
+		local worldHealthBarsConfig = HudConfig.WorldHealthBars or {}
+		task.wait(getFlashConfig().DiscoveryInterval or worldHealthBarsConfig.DiscoveryInterval or 1)
 	end
 end)

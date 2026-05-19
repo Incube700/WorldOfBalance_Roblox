@@ -178,6 +178,8 @@ if hud:IsA("ScreenGui") then
 	hud.ResetOnSpawn = false
 	hud.IgnoreGuiInset = false
 	hud.DisplayOrder = math.max(hud.DisplayOrder, 10)
+	hud.Enabled = false
+	hud:SetAttribute("WOBDisabledByDefaultOutsideMatch", true)
 end
 
 local root, rootCreated = getOrCreate(hud, "Frame", "Root")
@@ -197,14 +199,23 @@ end
 local enemyPanel, enemyCreated = getOrCreate(root, "Frame", "EnemyStatusPanel")
 stylePanel(enemyPanel, enemyCreated, UDim2.new(0, 18, 0, 18), UDim2.new(0, 280, 0, 70))
 addStatusBar(enemyPanel, "EnemyHpLabel", "EnemyHpBack", "EnemyHpFill", "Opponent HP: 100 / 100", Color3.fromRGB(235, 90, 80))
+if enemyPanel:IsA("GuiObject") then
+	enemyPanel.Visible = false
+end
 
 local weaponPanel, weaponCreated = getOrCreate(root, "Frame", "WeaponStatusPanel")
 stylePanel(weaponPanel, weaponCreated, UDim2.new(0, 18, 0, 96), UDim2.new(0, 280, 0, 70))
 addStatusBar(weaponPanel, "ReloadLabel", "ReloadBack", "ReloadFill", "Reload: READY", Color3.fromRGB(95, 180, 255))
+if weaponPanel:IsA("GuiObject") then
+	weaponPanel.Visible = false
+end
 
 local playerPanel, playerCreated = getOrCreate(root, "Frame", "PlayerStatusPanel")
 stylePanel(playerPanel, playerCreated, UDim2.new(0, 18, 0, 174), UDim2.new(0, 280, 0, 70))
 addStatusBar(playerPanel, "PlayerHpLabel", "PlayerHpBack", "PlayerHpFill", "You HP: 100 / 100", Color3.fromRGB(80, 220, 135))
+if playerPanel:IsA("GuiObject") then
+	playerPanel.Visible = false
+end
 
 local roundPanel, roundCreated = getOrCreate(root, "Frame", "RoundStatusPanel")
 stylePanel(roundPanel, roundCreated, UDim2.new(0.5, -140, 0, 18), UDim2.new(0, 280, 0, 78))
@@ -296,4 +307,4 @@ styleTextLabel(
 	Color3.fromRGB(105, 235, 145)
 )
 
-print("[WOB] Modular HUD ready at StarterGui/HUD/Root. Move panels in Studio if needed, then File -> Save to File.")
+print("[WOB] Modular HUD ready at StarterGui/HUD/Root. Legacy HP/reload panels are hidden by default; runtime scripts show only needed panels. File -> Save to File.")

@@ -10,6 +10,7 @@ local utils = shared:WaitForChild("Utils")
 local WeaponConfig = require(configs:WaitForChild("WeaponConfig"))
 local HudConfig = require(configs:WaitForChild("HudConfig"))
 local MatchConfig = require(configs:WaitForChild("MatchConfig"))
+local MobileControlsConfig = require(configs:WaitForChild("MobileControlsConfig"))
 local TankModelResolver = require(utils:WaitForChild("TankModelResolver"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local resetDummyRequestEvent = remotes:WaitForChild("ResetDummyRequestEvent")
@@ -436,7 +437,7 @@ local function isCombatHudVisible()
 end
 
 local function isMobileLayout()
-	return UserInputService.TouchEnabled == true
+	return UserInputService.TouchEnabled == true or MobileControlsConfig.ForceEnabledInStudio == true
 end
 
 local function shouldHideTopHpPanels()
@@ -471,13 +472,11 @@ local function shouldHideLargeReloadPanel()
 	local combatHudConfig = HudConfig.CombatHud or {}
 	local worldHealthBarsConfig = HudConfig.WorldHealthBars or {}
 
-	if worldHealthBarsConfig.Enabled ~= true or worldHealthBarsConfig.ShowReloadBar ~= true then
+	if worldHealthBarsConfig.Enabled ~= true then
 		return false
 	end
 
-	if combatHudConfig.HideLargeReloadPanelWhenWorldReloadEnabled ~= true
-		and combatHudConfig.CompactReload ~= true
-	then
+	if combatHudConfig.CompactReload ~= true then
 		return false
 	end
 
@@ -487,7 +486,11 @@ local function shouldHideLargeReloadPanel()
 		return true
 	end
 
-	return isMobileLayout()
+	if isMobileLayout() then
+		return true
+	end
+
+	return false
 end
 
 local function applyCombatHudVisibility()

@@ -83,7 +83,8 @@ if root == nil then
 else
 	local runtime = ensureFolder(root, "Runtime")
 	ensureFolder(runtime, "Projectiles")
-	ensureFolder(runtime, "VFX")
+	local wobRuntime = ensureFolder(Workspace, "WOB_Runtime")
+	ensureFolder(wobRuntime, "VFX")
 	if DEBUG_BOOTSTRAP then
 		print("[PVP] runtime folders bootstrapped")
 	end

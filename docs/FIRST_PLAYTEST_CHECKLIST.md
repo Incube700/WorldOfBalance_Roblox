@@ -56,6 +56,7 @@
 - Player tank has one world HP bar.
 - DummyTank or enemy tank has one world HP bar.
 - Each world bar has a green HP fill and a blue reload fill.
+- Lobby and BattleArena do not show stale modular `Player HP`, `Enemy HP`, or `Reload` panels behind the active UI.
 - Shooting `DummyTank` lowers the world HP bar.
 - Shooting resets the blue reload fill, then it fills left-to-right until the next shot is ready.
 - Successful damage flashes the damaged tank white-yellow.
@@ -64,6 +65,7 @@
 - Round reset creates fresh bars without duplicate old BillboardGui clones.
 - BattleArena respawn replaces stale bars/highlights cleanly.
 - BattleArena/mobile hides large top HP and Reload panels while score/result HUD remains usable.
+- Desktop Training/Duel may still show legacy top HP panels unless `HudConfig.WorldHealthBars.HideTopHpPanelsInTraining` or `HideTopHpPanelsInDuel` is enabled.
 
 ## Crystals Reward Check
 

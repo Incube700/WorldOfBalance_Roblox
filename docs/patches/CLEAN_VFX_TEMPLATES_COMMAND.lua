@@ -80,12 +80,19 @@ local vfxTemplates = assets ~= nil and assets:FindFirstChild("VFX") or nil
 
 sanitizeVfxFolder(vfxTemplates, "ReplicatedStorage.Shared.Assets.VFX")
 
-local generatedRoot = Workspace:FindFirstChild("WOB_Generated")
-local runtime = generatedRoot ~= nil and generatedRoot:FindFirstChild("Runtime") or nil
-local runtimeVfx = runtime ~= nil and runtime:FindFirstChild("VFX") or nil
+local wobRuntime = Workspace:FindFirstChild("WOB_Runtime")
+local runtimeVfx = wobRuntime ~= nil and wobRuntime:FindFirstChild("VFX") or nil
 
 if runtimeVfx ~= nil then
-	sanitizeVfxFolder(runtimeVfx, "Workspace.WOB_Generated.Runtime.VFX")
+	sanitizeVfxFolder(runtimeVfx, "Workspace.WOB_Runtime.VFX")
+end
+
+local generatedRoot = Workspace:FindFirstChild("WOB_Generated")
+local legacyRuntime = generatedRoot ~= nil and generatedRoot:FindFirstChild("Runtime") or nil
+local legacyRuntimeVfx = legacyRuntime ~= nil and legacyRuntime:FindFirstChild("VFX") or nil
+
+if legacyRuntimeVfx ~= nil then
+	sanitizeVfxFolder(legacyRuntimeVfx, "Workspace.WOB_Generated.Runtime.VFX legacy")
 end
 
 print(

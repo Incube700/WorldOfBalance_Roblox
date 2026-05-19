@@ -15,7 +15,10 @@ local HudConfig = require(configs:WaitForChild("HudConfig"))
 local generated = Workspace:WaitForChild("WOB_Generated")
 
 local GUI_NAME = "WOBTankWorldHealthBars"
-local ANCHOR_FOLDER_NAME = "WOB_ClientHealthBarAnchors"
+local RUNTIME_ROOT_NAME = "WOB_Runtime"
+local CLIENT_RUNTIME_FOLDER_NAME = "Client"
+local ANCHOR_FOLDER_NAME = "HealthBarAnchors"
+local LEGACY_ANCHOR_FOLDER_NAME = "WOB_ClientHealthBarAnchors"
 local TEMPLATE_NAME = "TankHealthBillboard"
 
 local worldHealthBarsConfig = HudConfig.WorldHealthBars or {}
@@ -57,15 +60,47 @@ local guiFolder = Instance.new("Folder")
 guiFolder.Name = GUI_NAME
 guiFolder.Parent = playerGui
 
-local existingAnchorFolder = Workspace:FindFirstChild(ANCHOR_FOLDER_NAME)
+local function getOrCreateFolder(parent, name)
+	local folder = parent:FindFirstChild(name)
+
+	if folder == nil then
+		folder = Instance.new("Folder")
+		folder.Name = name
+		folder.Parent = parent
+	elseif not folder:IsA("Folder") then
+		return nil
+	end
+
+	return folder
+end
+
+local legacyAnchorFolder = Workspace:FindFirstChild(LEGACY_ANCHOR_FOLDER_NAME)
+
+if legacyAnchorFolder ~= nil then
+	legacyAnchorFolder:Destroy()
+end
+
+local runtimeRoot = Workspace:FindFirstChild(RUNTIME_ROOT_NAME) or Workspace:WaitForChild(RUNTIME_ROOT_NAME, 10)
+
+if runtimeRoot == nil then
+	runtimeRoot = getOrCreateFolder(Workspace, RUNTIME_ROOT_NAME)
+end
+
+local clientRuntimeFolder = runtimeRoot ~= nil and getOrCreateFolder(runtimeRoot, CLIENT_RUNTIME_FOLDER_NAME) or nil
+local existingAnchorFolder = clientRuntimeFolder ~= nil and clientRuntimeFolder:FindFirstChild(ANCHOR_FOLDER_NAME) or nil
 
 if existingAnchorFolder ~= nil then
 	existingAnchorFolder:Destroy()
 end
 
+if clientRuntimeFolder == nil then
+	warn("[WOB] Tank world health bars disabled: Workspace.WOB_Runtime.Client could not be created")
+	return
+end
+
 local anchorFolder = Instance.new("Folder")
 anchorFolder.Name = ANCHOR_FOLDER_NAME
-anchorFolder.Parent = Workspace
+anchorFolder.Parent = clientRuntimeFolder
 
 local recordsByModel = {}
 local warnedMissingTemplate = false

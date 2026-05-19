@@ -22,8 +22,34 @@ local lastCrystalRewardSequence = tonumber(localPlayer:GetAttribute("LastCrystal
 local lastRoundResult = nil
 local rng = Random.new()
 
+local function getOrCreateFolder(parent, name)
+	local folder = parent:FindFirstChild(name)
+
+	if folder == nil then
+		folder = Instance.new("Folder")
+		folder.Name = name
+		folder.Parent = parent
+	elseif not folder:IsA("Folder") then
+		return nil
+	end
+
+	return folder
+end
+
 local function getRuntimeVfxFolder()
 	if runtimeVfxFolder ~= nil and runtimeVfxFolder.Parent ~= nil then
+		return runtimeVfxFolder
+	end
+
+	local wobRuntime = Workspace:FindFirstChild("WOB_Runtime") or Workspace:WaitForChild("WOB_Runtime", 2)
+
+	if wobRuntime == nil then
+		wobRuntime = getOrCreateFolder(Workspace, "WOB_Runtime")
+	end
+
+	runtimeVfxFolder = wobRuntime ~= nil and getOrCreateFolder(wobRuntime, "VFX") or nil
+
+	if runtimeVfxFolder ~= nil then
 		return runtimeVfxFolder
 	end
 

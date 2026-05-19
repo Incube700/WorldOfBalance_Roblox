@@ -8,14 +8,46 @@ local ProjectileVisualConfig = require(configs:WaitForChild("ProjectileVisualCon
 
 local root = Workspace:WaitForChild("WOB_Generated")
 local localPlayer = Players.LocalPlayer
-local runtime = root:WaitForChild("Runtime", 20)
+local function getOrCreateFolder(parent, name)
+	local folder = parent:FindFirstChild(name)
 
-if runtime == nil then
-	warn("[WOB] Impact feedback overlay disabled: Runtime folder was not found")
-	return
+	if folder == nil then
+		folder = Instance.new("Folder")
+		folder.Name = name
+		folder.Parent = parent
+	elseif not folder:IsA("Folder") then
+		return nil
+	end
+
+	return folder
 end
 
-local vfxFolder = runtime:WaitForChild("VFX", 20)
+local function waitForRuntimeVfxFolder(timeout)
+	local deadline = os.clock() + timeout
+	local fallbackLegacyVfxFolder = nil
+
+	while os.clock() < deadline do
+		local wobRuntime = Workspace:FindFirstChild("WOB_Runtime")
+		local vfxFolder = wobRuntime ~= nil and wobRuntime:FindFirstChild("VFX") or nil
+
+		if vfxFolder ~= nil then
+			return vfxFolder
+		end
+
+		local legacyRuntime = root:FindFirstChild("Runtime")
+		local legacyVfxFolder = legacyRuntime ~= nil and legacyRuntime:FindFirstChild("VFX") or nil
+
+		if legacyVfxFolder ~= nil then
+			fallbackLegacyVfxFolder = fallbackLegacyVfxFolder or legacyVfxFolder
+		end
+
+		task.wait(0.1)
+	end
+
+	return fallbackLegacyVfxFolder
+end
+
+local vfxFolder = waitForRuntimeVfxFolder(20)
 
 if vfxFolder == nil then
 	warn("[WOB] Impact feedback overlay disabled: VFX folder was not found")
@@ -45,12 +77,19 @@ local function refreshDummyBody()
 	return dummyBody
 end
 
-local localVisuals = Workspace:FindFirstChild("WOB_LocalVisuals")
+local staleLocalVisuals = Workspace:FindFirstChild("WOB_LocalVisuals")
+
+if staleLocalVisuals ~= nil then
+	staleLocalVisuals:Destroy()
+end
+
+local wobRuntime = getOrCreateFolder(Workspace, "WOB_Runtime")
+local clientRuntime = wobRuntime ~= nil and getOrCreateFolder(wobRuntime, "Client") or nil
+local localVisuals = clientRuntime ~= nil and getOrCreateFolder(clientRuntime, "LocalVisuals") or nil
 
 if localVisuals == nil then
-	localVisuals = Instance.new("Folder")
-	localVisuals.Name = "WOB_LocalVisuals"
-	localVisuals.Parent = Workspace
+	warn("[WOB] Impact feedback overlay disabled: Workspace.WOB_Runtime.Client.LocalVisuals could not be created")
+	return
 end
 
 local impactFolder = localVisuals:FindFirstChild("ImpactFeedback")

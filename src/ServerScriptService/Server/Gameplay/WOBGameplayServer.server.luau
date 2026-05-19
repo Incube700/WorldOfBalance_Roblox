@@ -76,6 +76,9 @@ local debugRemoveBotRequestEvent = getOrCreateRemoteEvent("DebugRemoveBotRequest
 -- Folders
 local root = Workspace:WaitForChild("WOB_Generated")
 local runtime = root:WaitForChild("Runtime")
+local wobRuntime = Workspace:FindFirstChild("WOB_Runtime") or Instance.new("Folder")
+wobRuntime.Name = "WOB_Runtime"
+wobRuntime.Parent = Workspace
 local map = root:WaitForChild("Map")
 local testObjects = root:WaitForChild("TestObjects")
 
@@ -84,9 +87,15 @@ projectileFolder.Name = "Projectiles"
 projectileFolder.Parent = runtime
 projectileFolder:ClearAllChildren()
 
-local vfxFolder = runtime:FindFirstChild("VFX") or Instance.new("Folder")
+local legacyVfxFolder = runtime:FindFirstChild("VFX")
+
+if legacyVfxFolder ~= nil then
+	legacyVfxFolder:ClearAllChildren()
+end
+
+local vfxFolder = wobRuntime:FindFirstChild("VFX") or Instance.new("Folder")
 vfxFolder.Name = "VFX"
-vfxFolder.Parent = runtime
+vfxFolder.Parent = wobRuntime
 vfxFolder:ClearAllChildren()
 
 -- Tank Prototypes

@@ -10,6 +10,9 @@ local shootRequestEvent = remotes:WaitForChild("ShootRequestEvent")
 
 local root = Workspace:WaitForChild("WOB_Generated")
 local runtime = root:WaitForChild("Runtime")
+local wobRuntime = Workspace:FindFirstChild("WOB_Runtime") or Instance.new("Folder")
+wobRuntime.Name = "WOB_Runtime"
+wobRuntime.Parent = Workspace
 local map = root:WaitForChild("Map")
 local testObjects = root:WaitForChild("TestObjects")
 local ricochetWalls = map:FindFirstChild("RicochetWalls")
@@ -19,9 +22,9 @@ local projectileFolder = runtime:FindFirstChild("Projectiles") or Instance.new("
 projectileFolder.Name = "Projectiles"
 projectileFolder.Parent = runtime
 
-local vfxFolder = runtime:FindFirstChild("VFX") or Instance.new("Folder")
+local vfxFolder = wobRuntime:FindFirstChild("VFX") or Instance.new("Folder")
 vfxFolder.Name = "VFX"
-vfxFolder.Parent = runtime
+vfxFolder.Parent = wobRuntime
 
 local playerTank = testObjects:WaitForChild("PlayerTankPrototype")
 local dummyTank = testObjects:WaitForChild("DummyTank")

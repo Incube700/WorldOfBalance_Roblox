@@ -102,7 +102,19 @@ Sizing/color tuning lives in:
 
 - `docs/patches/CREATE_OR_REPAIR_TANK_HEALTH_BILLBOARD_TEMPLATE_COMMAND.lua` for the editable Studio template.
 - `src/StarterPlayer/StarterPlayerScripts/Client/WOBTankWorldHealthBars.client.luau` for runtime fallback/layout repair.
-- `src/ReplicatedStorage/Shared/Configs/HudConfig.luau` for enabling world bars and hiding duplicate top HUD panels.
+- `src/ReplicatedStorage/Shared/Configs/HudConfig.luau` for enabling world bars and hiding duplicate top HP/reload HUD panels.
+
+## Top HUD Cleanup
+
+World bars are the primary combat HP readout. The old modular top HUD should not duplicate large `Player HP` and `Enemy HP` blocks in BattleArena or on mobile.
+
+Current rules:
+
+- BattleArena hides its large top HP panel when `HudConfig.WorldHealthBars.HideTopHpPanelsInBattleArena = true`.
+- Mobile Duel/Training hides the modular `PlayerStatusPanel` and `EnemyStatusPanel` when `HideTopHpPanelsOnMobile = true`.
+- Desktop Training/Duel can still keep top HP panels while the layout is being tuned, because `HideTopHpPanelsInTraining` and `HideTopHpPanelsInDuel` default to `false`.
+- Large top Reload is temporary. On mobile, it is hidden when `HudConfig.CombatHud.CompactReload = true`; the thin blue world reload bar remains.
+- `WOBHudBootstrap` keeps the base `HUD` disabled by default outside `InMatch`, so stale Studio HUD panels do not sit behind lobby/BattleArena UI.
 
 ## Client Runtime
 

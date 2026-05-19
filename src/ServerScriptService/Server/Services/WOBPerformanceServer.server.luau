@@ -14,6 +14,7 @@ local PerformanceConfig = require(
 local root = Workspace:WaitForChild("WOB_Generated")
 local map = root:FindFirstChild("Map")
 local runtime = root:FindFirstChild("Runtime")
+local wobRuntime = Workspace:FindFirstChild("WOB_Runtime")
 local testObjects = root:FindFirstChild("TestObjects")
 local activeProfileName = tostring(PerformanceConfig.ActiveProfile or "Default")
 
@@ -115,6 +116,14 @@ local function shouldCastShadow(part)
 		return shadowConfig.RuntimeCastShadow == true
 	end
 
+	if wobRuntime == nil then
+		wobRuntime = Workspace:FindFirstChild("WOB_Runtime")
+	end
+
+	if wobRuntime ~= nil and part:IsDescendantOf(wobRuntime) then
+		return shadowConfig.RuntimeCastShadow == true
+	end
+
 	if isFloorPart(part) then
 		return shadowConfig.FloorCastShadow == true
 	end
@@ -160,6 +169,13 @@ end
 
 applyLightingProfile()
 optimizeModel(root)
+
+if wobRuntime ~= nil then
+	optimizeModel(wobRuntime)
+	wobRuntime.DescendantAdded:Connect(function(descendant)
+		applyShadowProfile(descendant)
+	end)
+end
 
 root.DescendantAdded:Connect(function(descendant)
 	applyShadowProfile(descendant)

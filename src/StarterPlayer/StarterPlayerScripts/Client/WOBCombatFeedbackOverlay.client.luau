@@ -8,12 +8,38 @@ local combatFeedbackEvent = remotes:WaitForChild("CombatFeedbackEvent")
 
 local root = Workspace:WaitForChild("WOB_Generated")
 local localPlayer = Players.LocalPlayer
-local localVisuals = Workspace:FindFirstChild("WOB_LocalVisuals")
+local function getOrCreateFolder(parent, name)
+	local folder = parent:FindFirstChild(name)
+
+	if folder == nil then
+		folder = Instance.new("Folder")
+		folder.Name = name
+		folder.Parent = parent
+	elseif not folder:IsA("Folder") then
+		return nil
+	end
+
+	return folder
+end
+
+local staleLocalVisuals = Workspace:FindFirstChild("WOB_LocalVisuals")
+
+if staleLocalVisuals ~= nil then
+	staleLocalVisuals:Destroy()
+end
+
+local wobRuntime = Workspace:FindFirstChild("WOB_Runtime") or Workspace:WaitForChild("WOB_Runtime", 10)
+
+if wobRuntime == nil then
+	wobRuntime = getOrCreateFolder(Workspace, "WOB_Runtime")
+end
+
+local clientRuntime = wobRuntime ~= nil and getOrCreateFolder(wobRuntime, "Client") or nil
+local localVisuals = clientRuntime ~= nil and getOrCreateFolder(clientRuntime, "LocalVisuals") or nil
 
 if localVisuals == nil then
-	localVisuals = Instance.new("Folder")
-	localVisuals.Name = "WOB_LocalVisuals"
-	localVisuals.Parent = Workspace
+	warn("[WOB] Combat feedback overlay disabled: Workspace.WOB_Runtime.Client.LocalVisuals could not be created")
+	return
 end
 
 local feedbackFolder = localVisuals:FindFirstChild("CombatFeedback")

@@ -918,13 +918,11 @@ local function shouldHideLargeReloadPanel()
 	local combatHudConfig = HudConfig.CombatHud or {}
 	local worldHealthBarsConfig = HudConfig.WorldHealthBars or {}
 
-	if worldHealthBarsConfig.Enabled ~= true or worldHealthBarsConfig.ShowReloadBar ~= true then
+	if worldHealthBarsConfig.Enabled ~= true then
 		return false
 	end
 
-	if combatHudConfig.HideLargeReloadPanelWhenWorldReloadEnabled ~= true
-		and combatHudConfig.CompactReload ~= true
-	then
+	if combatHudConfig.CompactReload ~= true then
 		return false
 	end
 
@@ -934,7 +932,11 @@ local function shouldHideLargeReloadPanel()
 		return true
 	end
 
-	return isMobileLayout()
+	if isMobileLayout() then
+		return true
+	end
+
+	return false
 end
 
 local function shouldShowGameplayHudPanel(panelName, isVisible)

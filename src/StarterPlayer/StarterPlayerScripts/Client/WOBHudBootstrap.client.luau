@@ -7,6 +7,16 @@ local playerGui = localPlayer:WaitForChild("PlayerGui")
 local HUD_GUI_NAME = "HUD"
 local HUD_ROOT_NAME = "Root"
 
+local function shouldHideHudByDefault()
+	return localPlayer:GetAttribute("PlayerMode") ~= "InMatch"
+end
+
+local function applyDefaultHudVisibility(hud)
+	if hud ~= nil and hud:IsA("ScreenGui") and shouldHideHudByDefault() then
+		hud.Enabled = false
+	end
+end
+
 local function hasValidHud(container)
 	local hud = container:FindFirstChild(HUD_GUI_NAME)
 
@@ -20,9 +30,10 @@ local function hasValidHud(container)
 end
 
 local function ensureHudInPlayerGui()
-	local playerHasHud = hasValidHud(playerGui)
+	local playerHasHud, playerHud = hasValidHud(playerGui)
 
 	if playerHasHud then
+		applyDefaultHudVisibility(playerHud)
 		print("[WOB HUD] PlayerGui/HUD already available")
 		return
 	end
@@ -42,6 +53,7 @@ local function ensureHudInPlayerGui()
 
 	local clonedHud = starterHud:Clone()
 	clonedHud.ResetOnSpawn = false
+	applyDefaultHudVisibility(clonedHud)
 	clonedHud.Parent = playerGui
 
 	print("[WOB HUD] cloned StarterGui/HUD into PlayerGui/HUD")

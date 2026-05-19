@@ -52,10 +52,15 @@ local HudConfig = table.freeze({
 
 	DamageFlash = table.freeze({
 		Enabled = true,
+		Debug = false,
+		DiscoveryInterval = 0.5,
 		Duration = 0.14,
 		LethalDuration = 0.22,
+		DepthMode = "Occluded",
 		FillTransparencyStart = 0.15,
+		FillTransparencyMid = 0.32,
 		FillTransparencyEnd = 1,
+		ColorStart = Color3.fromRGB(255, 255, 245),
 		Color = Color3.fromRGB(255, 245, 180),
 	}),
 })
