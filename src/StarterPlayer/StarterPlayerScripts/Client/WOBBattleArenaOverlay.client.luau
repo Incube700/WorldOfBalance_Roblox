@@ -578,7 +578,7 @@ local function updateOverlay()
 		scoreLabel.Text = "Arena Score: " .. tostring(math.floor(score))
 		killsDeathsLabel.Text = "Kills: " .. tostring(math.floor(kills)) .. " Deaths: " .. tostring(math.floor(deaths))
 		streakLabel.Text = "Streak: " .. tostring(math.floor(streak))
-		upgradesLabel.Text = formatUpgrades(upgrades)
+		upgradesLabel.Text = "Upg: " .. tostring(getUpgradeCount(upgrades))
 	end
 
 	updateHealth(ownedTank, mobileLayout)

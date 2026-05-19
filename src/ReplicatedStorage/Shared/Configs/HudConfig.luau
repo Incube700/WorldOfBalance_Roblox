@@ -32,13 +32,22 @@ local HudConfig = table.freeze({
 
 	WorldHealthBars = table.freeze({
 		Enabled = true,
+		ShowReloadBar = true,
 		ShowOwnTank = true,
 		HideTopHpPanelsOnMobile = true,
 		HideTopHpPanelsInBattleArena = true,
-		HideTopHpPanelsInDuelMobile = false,
+		HideTopHpPanelsInTraining = false,
+		HideTopHpPanelsInDuel = false,
 		DeadHideDelay = 1.0,
 		DiscoveryInterval = 1.0,
 		MaxDistance = 180,
+	}),
+
+	CombatHud = table.freeze({
+		CompactReload = true,
+		HideLargeReloadPanelWhenWorldReloadEnabled = true,
+		HideEnemyHpPanelWhenWorldBarsEnabled = true,
+		HidePlayerHpPanelWhenWorldBarsEnabled = true,
 	}),
 
 	DamageFlash = table.freeze({

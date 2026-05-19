@@ -1,11 +1,16 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local localPlayer = Players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
 
 local root = Workspace:WaitForChild("WOB_Generated")
+local shared = ReplicatedStorage:WaitForChild("Shared")
+local configs = shared:WaitForChild("Configs")
+local HudConfig = require(configs:WaitForChild("HudConfig"))
+local MobileControlsConfig = require(configs:WaitForChild("MobileControlsConfig"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local startMatchRequestEvent = remotes:WaitForChild("StartMatchRequestEvent")
 local returnToMenuRequestEvent = remotes:WaitForChild("ReturnToMenuRequestEvent")
@@ -24,6 +29,8 @@ local SHELL_PANEL_HIDDEN = "Hidden"
 local PLAYER_MODE_LOBBY = "Lobby"
 local PLAYER_MODE_QUEUED = "QueuedForDuel"
 local PLAYER_MODE_IN_MATCH = "InMatch"
+local PLAYER_MODE_IN_BATTLE_ARENA = "InBattleArena"
+local PLAYER_MODE_ARENA_RESPAWNING = "ArenaRespawning"
 local PLAYER_MODE_RESULT = "Result"
 local LAST_CRYSTALS_REWARD_AMOUNT_ATTRIBUTE = "LastCrystalsRewardAmount"
 local LAST_CRYSTALS_REWARD_REASON_ATTRIBUTE = "LastCrystalsRewardReason"
@@ -875,6 +882,80 @@ local function updateStatsPanel()
 	end
 end
 
+local function isMobileLayout()
+	return UserInputService.TouchEnabled == true or MobileControlsConfig.ForceEnabledInStudio == true
+end
+
+local function shouldHideTopHpPanels()
+	local worldHealthBarsConfig = HudConfig.WorldHealthBars or {}
+
+	if worldHealthBarsConfig.Enabled ~= true then
+		return false
+	end
+
+	local mode = getLocalPlayerMode()
+
+	if mode == PLAYER_MODE_IN_BATTLE_ARENA or mode == PLAYER_MODE_ARENA_RESPAWNING then
+		return worldHealthBarsConfig.HideTopHpPanelsInBattleArena == true
+	end
+
+	if isMobileLayout() and worldHealthBarsConfig.HideTopHpPanelsOnMobile == true then
+		return true
+	end
+
+	local matchMode = root:GetAttribute("MatchMode")
+
+	if matchMode == "Training" then
+		return worldHealthBarsConfig.HideTopHpPanelsInTraining == true
+	elseif matchMode == "PvP" then
+		return worldHealthBarsConfig.HideTopHpPanelsInDuel == true
+	end
+
+	return false
+end
+
+local function shouldHideLargeReloadPanel()
+	local combatHudConfig = HudConfig.CombatHud or {}
+	local worldHealthBarsConfig = HudConfig.WorldHealthBars or {}
+
+	if worldHealthBarsConfig.Enabled ~= true or worldHealthBarsConfig.ShowReloadBar ~= true then
+		return false
+	end
+
+	if combatHudConfig.HideLargeReloadPanelWhenWorldReloadEnabled ~= true
+		and combatHudConfig.CompactReload ~= true
+	then
+		return false
+	end
+
+	local mode = getLocalPlayerMode()
+
+	if mode == PLAYER_MODE_IN_BATTLE_ARENA or mode == PLAYER_MODE_ARENA_RESPAWNING then
+		return true
+	end
+
+	return isMobileLayout()
+end
+
+local function shouldShowGameplayHudPanel(panelName, isVisible)
+	if not isVisible then
+		return false
+	end
+
+	local combatHudConfig = HudConfig.CombatHud or {}
+	local hideTopHpPanels = shouldHideTopHpPanels()
+
+	if panelName == "EnemyStatusPanel" then
+		return not (hideTopHpPanels and combatHudConfig.HideEnemyHpPanelWhenWorldBarsEnabled ~= false)
+	elseif panelName == "PlayerStatusPanel" then
+		return not (hideTopHpPanels and combatHudConfig.HidePlayerHpPanelWhenWorldBarsEnabled ~= false)
+	elseif panelName == "WeaponStatusPanel" then
+		return not shouldHideLargeReloadPanel()
+	end
+
+	return true
+end
+
 local function setGameplayHudVisible(isVisible)
 	for _, guiName in ipairs(HUD_GUI_NAMES) do
 		local gui = playerGui:FindFirstChild(guiName)
@@ -897,7 +978,7 @@ local function setGameplayHudVisible(isVisible)
 		local panel = rootFrame:FindFirstChild(panelName)
 
 		if panel ~= nil and panel:IsA("GuiObject") then
-			panel.Visible = isVisible
+			panel.Visible = shouldShowGameplayHudPanel(panelName, isVisible)
 		end
 	end
 end
@@ -1111,6 +1192,7 @@ root:GetAttributeChangedSignal("GameState"):Connect(function()
 end)
 
 localPlayer:GetAttributeChangedSignal("PlayerMode"):Connect(updateShell)
+root:GetAttributeChangedSignal("MatchMode"):Connect(updateShell)
 localPlayer:GetAttributeChangedSignal("RematchStatus"):Connect(function()
 	updateRematchButton()
 	updateShell()

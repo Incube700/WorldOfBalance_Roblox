@@ -435,6 +435,10 @@ local function isCombatHudVisible()
 	return mode == "InMatch" and root:GetAttribute("GameState") == "Playing"
 end
 
+local function isMobileLayout()
+	return UserInputService.TouchEnabled == true
+end
+
 local function shouldHideTopHpPanels()
 	local worldHealthBarsConfig = HudConfig.WorldHealthBars or {}
 
@@ -442,31 +446,74 @@ local function shouldHideTopHpPanels()
 		return false
 	end
 
-	if worldHealthBarsConfig.HideTopHpPanelsInDuelMobile == false then
+	local mode = localPlayer:GetAttribute("PlayerMode")
+
+	if mode == "InBattleArena" or mode == "ArenaRespawning" then
+		return worldHealthBarsConfig.HideTopHpPanelsInBattleArena == true
+	end
+
+	if isMobileLayout() and worldHealthBarsConfig.HideTopHpPanelsOnMobile == true then
+		return true
+	end
+
+	local matchMode = root:GetAttribute("MatchMode")
+
+	if matchMode == "Training" then
+		return worldHealthBarsConfig.HideTopHpPanelsInTraining == true
+	elseif matchMode == "PvP" then
+		return worldHealthBarsConfig.HideTopHpPanelsInDuel == true
+	end
+
+	return false
+end
+
+local function shouldHideLargeReloadPanel()
+	local combatHudConfig = HudConfig.CombatHud or {}
+	local worldHealthBarsConfig = HudConfig.WorldHealthBars or {}
+
+	if worldHealthBarsConfig.Enabled ~= true or worldHealthBarsConfig.ShowReloadBar ~= true then
 		return false
 	end
 
-	return UserInputService.TouchEnabled == true and worldHealthBarsConfig.HideTopHpPanelsOnMobile == true
+	if combatHudConfig.HideLargeReloadPanelWhenWorldReloadEnabled ~= true
+		and combatHudConfig.CompactReload ~= true
+	then
+		return false
+	end
+
+	local mode = localPlayer:GetAttribute("PlayerMode")
+
+	if mode == "InBattleArena" or mode == "ArenaRespawning" then
+		return true
+	end
+
+	return isMobileLayout()
 end
 
 local function applyCombatHudVisibility()
 	local isVisible = isCombatHudVisible()
 	local hideTopHpPanels = isVisible and shouldHideTopHpPanels()
+	local hideLargeReloadPanel = isVisible and shouldHideLargeReloadPanel()
+	local combatHudConfig = HudConfig.CombatHud or {}
+	local hideEnemyHpPanel = hideTopHpPanels
+		and combatHudConfig.HideEnemyHpPanelWhenWorldBarsEnabled ~= false
+	local hidePlayerHpPanel = hideTopHpPanels
+		and combatHudConfig.HidePlayerHpPanelWhenWorldBarsEnabled ~= false
 
 	if roundUi.ScreenGui ~= nil then
 		roundUi.ScreenGui.Enabled = isVisible
 	end
 
 	if roundUi.EnemyStatusPanel ~= nil then
-		roundUi.EnemyStatusPanel.Visible = isVisible and not hideTopHpPanels
+		roundUi.EnemyStatusPanel.Visible = isVisible and not hideEnemyHpPanel
 	end
 
 	if roundUi.PlayerStatusPanel ~= nil then
-		roundUi.PlayerStatusPanel.Visible = isVisible and not hideTopHpPanels
+		roundUi.PlayerStatusPanel.Visible = isVisible and not hidePlayerHpPanel
 	end
 
 	if roundUi.WeaponStatusPanel ~= nil then
-		roundUi.WeaponStatusPanel.Visible = isVisible
+		roundUi.WeaponStatusPanel.Visible = isVisible and not hideLargeReloadPanel
 	end
 
 	if not isVisible then

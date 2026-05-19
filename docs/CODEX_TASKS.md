@@ -56,18 +56,19 @@
 - Publish checklist additions: confirm Rojo VFX guard, no infinite fire sound, Duel +1 Crystal, readable lobby signs/showcases, mobile controls/HUD, BattleArena/Training/Duel regressions.
 - Recommended commit message: `Polish playtest UX rewards and lobby showcases`.
 
-## Current Add-on Sprint — Tank World HP Bars and Hit Flash
+## Current Add-on Sprint — Tank World HP/Reload Bars and Hit Flash
 
 - Статус: combat readability pass поверх существующего damage/combat logic.
 - Docs: `docs/TANK_WORLD_HEALTH_BARS.md`, `docs/COMBAT_HIT_FLASH.md`, `docs/ROBLOX_UX_READABILITY_GUIDE.md`.
 - Server attributes: tank models expose `CurrentHealth`, `MaxHealth`, `HP`, `IsDead`, `IsAlive`, `OwnerName`, `TankId`, and `TankParticipantId`.
 - Damage metadata: `LastDamageSerial`, `LastDamageAmount`, `LastDamageAt`, `LastDamageAtServerTime`, and `LastDamageWasLethal` update only after successful damage.
-- World HP bars: `WOBTankWorldHealthBars.client.luau` clones `ReplicatedStorage.Shared.Assets.UI.TankHealthBillboard` into `PlayerGui/WOBTankWorldHealthBars`, updates from attributes, and cleans up on model removal/deactivation.
+- Reload metadata: accepted server shots publish `LastShotAtServerTime`, `ReloadDuration`, `ReloadProgress`, and `ReloadReady` as presentation-only attributes. Client UI must not use these as shooting authority.
+- World HP/reload bars: `WOBTankWorldHealthBars.client.luau` clones `ReplicatedStorage.Shared.Assets.UI.TankHealthBillboard` into `PlayerGui/WOBTankWorldHealthBars`, updates green HP from health attributes, updates blue reload fill from reload attributes, and cleans up on model removal/deactivation.
 - Template command: run `docs/patches/CREATE_OR_REPAIR_TANK_HEALTH_BILLBOARD_TEMPLATE_COMMAND.lua` outside Play Mode. `default.project.json` protects `ReplicatedStorage.Shared.Assets.UI` with `$ignoreUnknownInstances = true`.
 - Hit flash: `WOBTankDamageFlash.client.luau` listens to `LastDamageSerial` and uses local `Highlight` feedback only on real damage.
-- HUD cleanup: `HudConfig.WorldHealthBars` can hide big top HP panels in BattleArena and on mobile Duel/Training while preserving result/reload/score UI.
-- Manual checks: Training dummy HP bar decreases, successful damage flashes, lethal bar goes zero/hides, round reset/respawn creates no duplicate bars/highlights, mobile combat screen is less crowded.
-- Recommended commit message: `Add tank world HP bars and hit flash`.
+- HUD cleanup: `HudConfig.WorldHealthBars` can hide big top HP panels and large top Reload panels in BattleArena/mobile while preserving result/score UI.
+- Manual checks: Training dummy HP bar decreases, successful damage flashes, blue reload fill resets/fills after shooting, lethal bar goes zero/hides, round reset/respawn creates no duplicate bars/highlights, mobile combat screen is less crowded.
+- Recommended commit message: `Add reload bar to tank world HUD`.
 
 ## Current Sprint — Stable Fun Duel v0.1
 

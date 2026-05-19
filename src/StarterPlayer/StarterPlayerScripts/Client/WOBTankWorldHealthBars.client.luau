@@ -1,22 +1,38 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local localPlayer = Players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
+
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
+local assets = shared:WaitForChild("Assets")
+local uiAssets = assets:FindFirstChild("UI")
 local HudConfig = require(configs:WaitForChild("HudConfig"))
 
-local root = Workspace:WaitForChild("WOB_Generated")
-local worldHealthConfig = HudConfig.WorldHealthBars or {}
-local GUI_FOLDER_NAME = "WOBTankWorldHealthBars"
+local generated = Workspace:WaitForChild("WOB_Generated")
+
+local GUI_NAME = "WOBTankWorldHealthBars"
+local ANCHOR_FOLDER_NAME = "WOB_ClientHealthBarAnchors"
 local TEMPLATE_NAME = "TankHealthBillboard"
-local BILLBOARD_SIZE = UDim2.fromOffset(130, 42)
-local MIN_Y_OFFSET = 3.5
-local EXTRA_Y_OFFSET = 1.4
+
+local worldHealthBarsConfig = HudConfig.WorldHealthBars or {}
+local SHOW_RELOAD_BAR = worldHealthBarsConfig.Enabled ~= false and worldHealthBarsConfig.ShowReloadBar ~= false
+local BILLBOARD_SIZE = SHOW_RELOAD_BAR and UDim2.fromOffset(68, 14) or UDim2.fromOffset(64, 8)
+local HEIGHT_OFFSET = Vector3.new(0, 2.2, 0)
+
+-- Top-down offset по плоскости карты.
+-- Если бар с неправильной стороны — меняй -5 на 5.
+local WORLD_OFFSET = Vector3.new(0, 0, -7)
+
 local MAX_DISTANCE = 180
-local TANK_ATTRIBUTE_NAMES = {
+local DISCOVERY_INTERVAL = 1
+
+local HEALTH_ATTRIBUTES = { "CurrentHealth", "HP", "Health" }
+
+local TRACKED_ATTRIBUTES = {
 	"CurrentHealth",
 	"HP",
 	"Health",
@@ -24,38 +40,39 @@ local TANK_ATTRIBUTE_NAMES = {
 	"IsDead",
 	"IsAlive",
 	"IsActive",
-	"OwnerName",
-	"OwnerUserId",
+	"TankParticipantId",
+	"LastShotAtServerTime",
+	"ReloadDuration",
+	"ReloadProgress",
+	"ReloadReady",
 }
 
-local existingFolder = playerGui:FindFirstChild(GUI_FOLDER_NAME)
+local existingGui = playerGui:FindFirstChild(GUI_NAME)
 
-if existingFolder ~= nil then
-	existingFolder:Destroy()
+if existingGui ~= nil then
+	existingGui:Destroy()
 end
 
-local billboardFolder = Instance.new("Folder")
-billboardFolder.Name = GUI_FOLDER_NAME
-billboardFolder.Parent = playerGui
+local guiFolder = Instance.new("Folder")
+guiFolder.Name = GUI_NAME
+guiFolder.Parent = playerGui
+
+local existingAnchorFolder = Workspace:FindFirstChild(ANCHOR_FOLDER_NAME)
+
+if existingAnchorFolder ~= nil then
+	existingAnchorFolder:Destroy()
+end
+
+local anchorFolder = Instance.new("Folder")
+anchorFolder.Name = ANCHOR_FOLDER_NAME
+anchorFolder.Parent = Workspace
 
 local recordsByModel = {}
 local warnedMissingTemplate = false
 
-local function getWorldHealthConfig()
-	return HudConfig.WorldHealthBars or worldHealthConfig
-end
-
-local function clamp01(value)
-	return math.clamp(value, 0, 1)
-end
-
-local function getNumberAttribute(instance, attributeNames)
-	if instance == nil then
-		return nil
-	end
-
-	for _, attributeName in ipairs(attributeNames) do
-		local value = instance:GetAttribute(attributeName)
+local function getNumberAttribute(instance, names)
+	for _, name in ipairs(names) do
+		local value = instance:GetAttribute(name)
 
 		if typeof(value) == "number" then
 			return value
@@ -65,15 +82,59 @@ local function getNumberAttribute(instance, attributeNames)
 	return nil
 end
 
-local function findNamedBasePart(model, partName)
-	local directChild = model:FindFirstChild(partName)
+local function getServerTimeNow()
+	local success, serverTime = pcall(function()
+		return Workspace:GetServerTimeNow()
+	end)
 
-	if directChild ~= nil and directChild:IsA("BasePart") then
-		return directChild
+	if success and typeof(serverTime) == "number" then
+		return serverTime
+	end
+
+	return os.clock()
+end
+
+local function getHealth(model)
+	local maxHealth = getNumberAttribute(model, { "MaxHealth" }) or 100
+	local currentHealth = getNumberAttribute(model, HEALTH_ATTRIBUTES) or maxHealth
+
+	return math.max(0, currentHealth), math.max(1, maxHealth)
+end
+
+local function getReloadRatio(model)
+	if not SHOW_RELOAD_BAR then
+		return 1
+	end
+
+	if model:GetAttribute("ReloadReady") == true then
+		return 1
+	end
+
+	local lastShotAtServerTime = model:GetAttribute("LastShotAtServerTime")
+	local reloadDuration = model:GetAttribute("ReloadDuration")
+
+	if typeof(lastShotAtServerTime) == "number" and typeof(reloadDuration) == "number" and reloadDuration > 0 then
+		return math.clamp((getServerTimeNow() - lastShotAtServerTime) / reloadDuration, 0, 1)
+	end
+
+	local reloadProgress = model:GetAttribute("ReloadProgress")
+
+	if typeof(reloadProgress) == "number" then
+		return math.clamp(reloadProgress, 0, 1)
+	end
+
+	return 1
+end
+
+local function findBasePart(model, name)
+	local child = model:FindFirstChild(name)
+
+	if child ~= nil and child:IsA("BasePart") then
+		return child
 	end
 
 	for _, descendant in ipairs(model:GetDescendants()) do
-		if descendant.Name == partName and descendant:IsA("BasePart") then
+		if descendant.Name == name and descendant:IsA("BasePart") then
 			return descendant
 		end
 	end
@@ -81,8 +142,8 @@ local function findNamedBasePart(model, partName)
 	return nil
 end
 
-local function getAdorneePart(model)
-	local body = findNamedBasePart(model, "Body")
+local function getBodyPart(model)
+	local body = findBasePart(model, "Body")
 
 	if body ~= nil then
 		return body
@@ -92,103 +153,39 @@ local function getAdorneePart(model)
 		return model.PrimaryPart
 	end
 
-	local hull = findNamedBasePart(model, "Hull")
-
-	if hull ~= nil then
-		return hull
-	end
-
-	for _, descendant in ipairs(model:GetDescendants()) do
-		if descendant:IsA("BasePart") then
-			return descendant
-		end
-	end
-
-	return nil
+	return findBasePart(model, "Hull")
 end
 
-local function getBillboardYOffset(model)
-	local success, _, size = pcall(function()
-		return model:GetBoundingBox()
-	end)
-
-	if success and typeof(size) == "Vector3" then
-		return math.max(MIN_Y_OFFSET, size.Y * 0.5 + EXTRA_Y_OFFSET)
-	end
-
-	return MIN_Y_OFFSET
-end
-
-local function isTankName(name)
-	return name == "DummyTank"
-		or name == "Player2TankPrototype"
-		or name == "PlayerTankPrototype"
-		or string.match(name, "^PlayerTank_") ~= nil
-		or string.find(name, "Tank") ~= nil
-end
-
-local function hasParticipantIdentity(model)
-	return model:GetAttribute("TankParticipantId") ~= nil or model:GetAttribute("TankId") ~= nil
-end
-
-local function hasHealthAttributes(model)
-	return getNumberAttribute(model, { "CurrentHealth", "HP", "Health" }) ~= nil
-		or getNumberAttribute(model, { "MaxHealth" }) ~= nil
-end
-
-local function isOwnTank(model)
-	local ownerUserId = model:GetAttribute("OwnerUserId")
-
-	return typeof(ownerUserId) == "number" and ownerUserId == localPlayer.UserId
-end
-
-local function shouldShowModel(model)
-	local config = getWorldHealthConfig()
-
-	if config.Enabled == false then
-		return false
-	end
-
+local function isTankModel(model)
 	if not model:IsA("Model") then
 		return false
 	end
 
-	if model.Parent == nil then
+	if model:GetAttribute("IsActive") == false then
 		return false
 	end
 
-	local isActive = model:GetAttribute("IsActive")
+	local hasHealth = getNumberAttribute(model, HEALTH_ATTRIBUTES) ~= nil
+	local hasMaxHealth = getNumberAttribute(model, { "MaxHealth" }) ~= nil
+	local hasParticipant = model:GetAttribute("TankParticipantId") ~= nil
+	local hasBody = getBodyPart(model) ~= nil
 
-	if isActive == false then
-		return false
-	end
-
-	local hasIdentity = hasParticipantIdentity(model)
-	local hasHealth = hasHealthAttributes(model)
-	local tankNamed = isTankName(model.Name)
-
-	if not hasIdentity and not hasHealth and not (tankNamed and isActive == true) then
-		return false
-	end
-
-	if config.ShowOwnTank == false and isOwnTank(model) then
-		return false
-	end
-
-	return getAdorneePart(model) ~= nil
+	return hasBody and (hasHealth or hasMaxHealth or hasParticipant)
 end
 
 local function findTemplate()
-	local assets = shared:FindFirstChild("Assets")
-	local ui = assets ~= nil and assets:FindFirstChild("UI") or nil
-	local template = ui ~= nil and ui:FindFirstChild(TEMPLATE_NAME) or nil
+	if uiAssets == nil then
+		return nil
+	end
+
+	local template = uiAssets:FindFirstChild(TEMPLATE_NAME)
 
 	if template ~= nil and template:IsA("BillboardGui") then
 		return template
 	end
 
 	if not warnedMissingTemplate then
-		warn("[WOB] TankHealthBillboard template missing; using local fallback. Run docs/patches/CREATE_OR_REPAIR_TANK_HEALTH_BILLBOARD_TEMPLATE_COMMAND.lua.")
+		warn("[WOB] TankHealthBillboard template missing. Using local fallback.")
 		warnedMissingTemplate = true
 	end
 
@@ -200,111 +197,280 @@ local function createFallbackBillboard()
 	billboard.Name = TEMPLATE_NAME
 	billboard.AlwaysOnTop = true
 	billboard.LightInfluence = 0
-	billboard.MaxDistance = worldHealthConfig.MaxDistance or MAX_DISTANCE
+	billboard.MaxDistance = MAX_DISTANCE
 	billboard.Size = BILLBOARD_SIZE
-	billboard.StudsOffset = Vector3.new(0, MIN_Y_OFFSET, 0)
+	billboard.StudsOffset = Vector3.zero
 
-	local rootFrame = Instance.new("Frame")
-	rootFrame.Name = "Root"
-	rootFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-	rootFrame.Position = UDim2.fromScale(0.5, 0.5)
-	rootFrame.Size = UDim2.fromScale(1, 1)
-	rootFrame.BackgroundTransparency = 1
-	rootFrame.BorderSizePixel = 0
-	rootFrame.Rotation = 0
-	rootFrame.Parent = billboard
+	local root = Instance.new("Frame")
+	root.Name = "Root"
+	root.BackgroundTransparency = 1
+	root.BorderSizePixel = 0
+	root.Size = UDim2.fromScale(1, 1)
+	root.Parent = billboard
 
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Name = "PlayerName"
-	nameLabel.AnchorPoint = Vector2.new(0.5, 0)
-	nameLabel.Position = UDim2.new(0.5, 0, 0, 0)
-	nameLabel.Size = UDim2.new(1, 0, 0, 16)
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.BorderSizePixel = 0
-	nameLabel.Font = Enum.Font.GothamBold
-	nameLabel.Text = "TANK"
-	nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	nameLabel.TextScaled = true
-	nameLabel.TextStrokeTransparency = 0.25
-	nameLabel.ZIndex = 3
-	nameLabel.Parent = rootFrame
+	local barsRoot = Instance.new("Frame")
+	barsRoot.Name = "BarsRoot"
+	barsRoot.BackgroundTransparency = 1
+	barsRoot.BorderSizePixel = 0
+	barsRoot.Size = UDim2.fromScale(1, 1)
+	barsRoot.Parent = root
 
 	local barBack = Instance.new("Frame")
 	barBack.Name = "BarBack"
-	barBack.AnchorPoint = Vector2.new(0.5, 1)
-	barBack.Position = UDim2.new(0.5, 0, 1, 0)
-	barBack.Size = UDim2.new(1, 0, 0, 14)
-	barBack.BackgroundColor3 = Color3.fromRGB(12, 14, 16)
-	barBack.BackgroundTransparency = 0.2
+	barBack.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	barBack.BackgroundTransparency = 0.15
 	barBack.BorderSizePixel = 0
 	barBack.ClipsDescendants = true
-	barBack.Rotation = 0
-	barBack.ZIndex = 1
-	barBack.Parent = rootFrame
+	barBack.Size = SHOW_RELOAD_BAR and UDim2.new(1, 0, 0, 8) or UDim2.fromScale(1, 1)
+	barBack.Parent = barsRoot
 
 	local redBar = Instance.new("Frame")
 	redBar.Name = "RedBar"
 	redBar.AnchorPoint = Vector2.new(0, 0.5)
-	redBar.Position = UDim2.new(0, 0, 0.5, 0)
-	redBar.Size = UDim2.new(1, 0, 1, 0)
+	redBar.Position = UDim2.fromScale(0, 0.5)
+	redBar.Size = UDim2.fromScale(1, 1)
 	redBar.BackgroundColor3 = Color3.fromRGB(185, 45, 45)
 	redBar.BorderSizePixel = 0
-	redBar.Rotation = 0
 	redBar.ZIndex = 1
 	redBar.Parent = barBack
 
 	local greenBar = Instance.new("Frame")
 	greenBar.Name = "GreenBar"
 	greenBar.AnchorPoint = Vector2.new(0, 0.5)
-	greenBar.Position = UDim2.new(0, 0, 0.5, 0)
-	greenBar.Size = UDim2.new(1, 0, 1, 0)
+	greenBar.Position = UDim2.fromScale(0, 0.5)
+	greenBar.Size = UDim2.fromScale(1, 1)
 	greenBar.BackgroundColor3 = Color3.fromRGB(90, 225, 115)
 	greenBar.BorderSizePixel = 0
-	greenBar.Rotation = 0
 	greenBar.ZIndex = 2
 	greenBar.Parent = barBack
 
-	local hpText = Instance.new("TextLabel")
-	hpText.Name = "HpText"
-	hpText.AnchorPoint = Vector2.new(0.5, 0.5)
-	hpText.Position = UDim2.fromScale(0.5, 0.5)
-	hpText.Size = UDim2.fromScale(1, 1)
-	hpText.BackgroundTransparency = 1
-	hpText.BorderSizePixel = 0
-	hpText.Font = Enum.Font.GothamBold
-	hpText.Text = "100/100"
-	hpText.TextColor3 = Color3.fromRGB(255, 255, 255)
-	hpText.TextScaled = true
-	hpText.TextStrokeTransparency = 0.2
-	hpText.Rotation = 0
-	hpText.ZIndex = 3
-	hpText.Parent = barBack
+	if SHOW_RELOAD_BAR then
+		local reloadBack = Instance.new("Frame")
+		reloadBack.Name = "ReloadBack"
+		reloadBack.BackgroundColor3 = Color3.fromRGB(8, 16, 28)
+		reloadBack.BackgroundTransparency = 0.12
+		reloadBack.BorderSizePixel = 0
+		reloadBack.ClipsDescendants = true
+		reloadBack.Position = UDim2.new(0, 0, 0, 10)
+		reloadBack.Size = UDim2.new(1, 0, 0, 4)
+		reloadBack.Parent = barsRoot
+
+		local reloadBar = Instance.new("Frame")
+		reloadBar.Name = "ReloadBar"
+		reloadBar.AnchorPoint = Vector2.new(0, 0.5)
+		reloadBar.Position = UDim2.fromScale(0, 0.5)
+		reloadBar.Size = UDim2.fromScale(1, 1)
+		reloadBar.BackgroundColor3 = Color3.fromRGB(80, 190, 255)
+		reloadBar.BorderSizePixel = 0
+		reloadBar.ZIndex = 2
+		reloadBar.Parent = reloadBack
+	end
 
 	return billboard
 end
 
-local function cloneBillboard()
-	local template = findTemplate()
-	local billboard = template ~= nil and template:Clone() or createFallbackBillboard()
-	local config = getWorldHealthConfig()
+local function findDescendant(root, name, className)
+	local object = root:FindFirstChild(name, true)
 
-	billboard.AlwaysOnTop = true
-	billboard.LightInfluence = 0
-	billboard.MaxDistance = config.MaxDistance or MAX_DISTANCE
-	billboard.Size = BILLBOARD_SIZE
-	billboard.Enabled = true
-
-	return billboard
-end
-
-local function findDescendant(rootObject, name, className)
-	local descendant = rootObject:FindFirstChild(name, true)
-
-	if descendant ~= nil and (className == nil or descendant:IsA(className)) then
-		return descendant
+	if object ~= nil and (className == nil or object:IsA(className)) then
+		return object
 	end
 
 	return nil
+end
+
+local function getOrCreateFrame(parent, name)
+	local existing = parent:FindFirstChild(name)
+
+	if existing ~= nil then
+		if existing:IsA("Frame") then
+			return existing
+		end
+
+		warn(("[WOB] %s.%s is %s, expected Frame. World health bar layout may be incomplete."):format(
+			parent:GetFullName(),
+			name,
+			existing.ClassName
+		))
+		return nil
+	end
+
+	local frame = Instance.new("Frame")
+	frame.Name = name
+	frame.BorderSizePixel = 0
+	frame.Parent = parent
+
+	return frame
+end
+
+local function configureBillboard(billboard)
+	billboard.Size = BILLBOARD_SIZE
+	billboard.StudsOffset = Vector3.zero
+	billboard.AlwaysOnTop = true
+	billboard.LightInfluence = 0
+	billboard.MaxDistance = MAX_DISTANCE
+	billboard.Enabled = true
+end
+
+local function configureBillboardLayout(billboard)
+	local root = findDescendant(billboard, "Root", "Frame")
+
+	if root == nil then
+		root = Instance.new("Frame")
+		root.Name = "Root"
+		root.Parent = billboard
+	end
+
+	root.BackgroundTransparency = 1
+	root.BorderSizePixel = 0
+	root.Size = UDim2.fromScale(1, 1)
+
+	local barsRoot = root:FindFirstChild("BarsRoot")
+
+	if barsRoot == nil then
+		barsRoot = Instance.new("Frame")
+		barsRoot.Name = "BarsRoot"
+		barsRoot.Parent = root
+	elseif not barsRoot:IsA("Frame") then
+		warn("[WOB] TankHealthBillboard BarsRoot is " .. barsRoot.ClassName .. ", expected Frame.")
+		return
+	end
+
+	barsRoot.BackgroundTransparency = 1
+	barsRoot.BorderSizePixel = 0
+	barsRoot.Size = UDim2.fromScale(1, 1)
+
+	local barBack = findDescendant(billboard, "BarBack", "Frame") or getOrCreateFrame(barsRoot, "BarBack")
+
+	if barBack ~= nil then
+		barBack.Parent = barsRoot
+		barBack.AnchorPoint = Vector2.new(0, 0)
+		barBack.Position = UDim2.fromOffset(0, 0)
+		barBack.Size = SHOW_RELOAD_BAR and UDim2.new(1, 0, 0, 8) or UDim2.fromScale(1, 1)
+		barBack.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+		barBack.BackgroundTransparency = 0.15
+		barBack.BorderSizePixel = 0
+		barBack.ClipsDescendants = true
+
+		local redBar = findDescendant(barBack, "RedBar", "Frame") or getOrCreateFrame(barBack, "RedBar")
+		local greenBar = findDescendant(barBack, "GreenBar", "Frame") or getOrCreateFrame(barBack, "GreenBar")
+
+		if redBar ~= nil then
+			redBar.AnchorPoint = Vector2.new(0, 0.5)
+			redBar.Position = UDim2.fromScale(0, 0.5)
+			redBar.Size = UDim2.fromScale(1, 1)
+			redBar.BackgroundColor3 = Color3.fromRGB(185, 45, 45)
+			redBar.BorderSizePixel = 0
+			redBar.ZIndex = 1
+		end
+
+		if greenBar ~= nil then
+			greenBar.AnchorPoint = Vector2.new(0, 0.5)
+			greenBar.Position = UDim2.fromScale(0, 0.5)
+			greenBar.BackgroundColor3 = Color3.fromRGB(90, 225, 115)
+			greenBar.BorderSizePixel = 0
+			greenBar.ZIndex = 2
+		end
+	end
+
+	local reloadBack = findDescendant(billboard, "ReloadBack", "Frame")
+
+	if SHOW_RELOAD_BAR then
+		reloadBack = reloadBack or getOrCreateFrame(barsRoot, "ReloadBack")
+
+		if reloadBack ~= nil then
+			reloadBack.Parent = barsRoot
+			reloadBack.AnchorPoint = Vector2.new(0, 0)
+			reloadBack.Position = UDim2.new(0, 0, 0, 10)
+			reloadBack.Size = UDim2.new(1, 0, 0, 4)
+			reloadBack.BackgroundColor3 = Color3.fromRGB(8, 16, 28)
+			reloadBack.BackgroundTransparency = 0.30
+			reloadBack.BorderSizePixel = 0
+			reloadBack.ClipsDescendants = true
+			reloadBack.Visible = true
+
+			local reloadBar = findDescendant(reloadBack, "ReloadBar", "Frame") or getOrCreateFrame(reloadBack, "ReloadBar")
+
+			if reloadBar ~= nil then
+				reloadBar.AnchorPoint = Vector2.new(0, 0.5)
+				reloadBar.Position = UDim2.fromScale(0, 0.5)
+				reloadBar.Size = UDim2.fromScale(1, 1)
+				reloadBar.BackgroundColor3 = Color3.fromRGB(80, 190, 255)
+				reloadBar.BorderSizePixel = 0
+				reloadBar.ZIndex = 2
+				reloadBar.Visible = true
+			end
+		end
+	elseif reloadBack ~= nil then
+		reloadBack.Visible = false
+	end
+end
+
+local function createBillboard()
+	local template = findTemplate()
+	local billboard = template ~= nil and template:Clone() or createFallbackBillboard()
+
+	configureBillboard(billboard)
+	configureBillboardLayout(billboard)
+
+	local playerName = findDescendant(billboard, "PlayerName", "TextLabel")
+	local hpText = findDescendant(billboard, "HpText", "TextLabel")
+
+	if playerName ~= nil then
+		playerName.Visible = false
+	end
+
+	if hpText ~= nil then
+		hpText.Visible = false
+	end
+
+	return billboard
+end
+
+local function createAnchorPart(model)
+	local anchor = Instance.new("Part")
+	anchor.Name = "HealthBarAnchor_" .. model.Name
+	anchor.Anchored = true
+	anchor.CanCollide = false
+	anchor.CanTouch = false
+	anchor.CanQuery = false
+	anchor.Transparency = 1
+	anchor.Size = Vector3.new(0.2, 0.2, 0.2)
+	anchor.Parent = anchorFolder
+
+	return anchor
+end
+
+local function getModelCenter(model)
+	local success, cframe = pcall(function()
+		return model:GetBoundingBox()
+	end)
+
+	if success and typeof(cframe) == "CFrame" then
+		return cframe.Position
+	end
+
+	local bodyPart = getBodyPart(model)
+
+	if bodyPart ~= nil then
+		return bodyPart.Position
+	end
+
+	return nil
+end
+
+local function updateAnchor(model, record)
+	if record.AnchorPart == nil then
+		return
+	end
+
+	local center = getModelCenter(model)
+
+	if center == nil then
+		return
+	end
+
+	record.AnchorPart.Position = center + HEIGHT_OFFSET + WORLD_OFFSET
 end
 
 local function disconnectRecord(record)
@@ -328,14 +494,35 @@ local function cleanupModel(model)
 		record.Billboard:Destroy()
 	end
 
+	if record.AnchorPart ~= nil then
+		record.AnchorPart:Destroy()
+	end
+
 	recordsByModel[model] = nil
 end
 
-local function getModelHealth(model)
-	local maxHealth = getNumberAttribute(model, { "MaxHealth" }) or 100
-	local health = getNumberAttribute(model, { "CurrentHealth", "HP", "Health" }) or maxHealth
+local function updateReloadBar(model, record)
+	if not SHOW_RELOAD_BAR then
+		if record.ReloadBack ~= nil then
+			record.ReloadBack.Visible = false
+		end
 
-	return math.max(0, health), math.max(1, maxHealth)
+		return
+	end
+
+	if record.ReloadBack ~= nil then
+		record.ReloadBack.Visible = true
+	end
+
+	if record.ReloadBar == nil then
+		return
+	end
+
+	local reloadRatio = getReloadRatio(model)
+	record.ReloadBar.AnchorPoint = Vector2.new(0, 0.5)
+	record.ReloadBar.Position = UDim2.fromScale(0, 0.5)
+	record.ReloadBar.Size = UDim2.new(reloadRatio, 0, 1, 0)
+	record.ReloadBar.Visible = true
 end
 
 local function updateRecord(model)
@@ -345,68 +532,38 @@ local function updateRecord(model)
 		return
 	end
 
-	if not shouldShowModel(model) then
+	if not isTankModel(model) then
 		cleanupModel(model)
 		return
 	end
 
-	local adornee = getAdorneePart(model)
+	local currentHealth, maxHealth = getHealth(model)
+	local ratio = math.clamp(currentHealth / maxHealth, 0, 1)
+	local isDead = model:GetAttribute("IsDead") == true
+	or model:GetAttribute("IsAlive") == false
+	or currentHealth <= 0
 
-	if adornee == nil then
-		cleanupModel(model)
-		return
-	end
+	updateAnchor(model, record)
 
-	local health, maxHealth = getModelHealth(model)
-	local ratio = clamp01(health / maxHealth)
-	local isDead = model:GetAttribute("IsDead") == true or model:GetAttribute("IsAlive") == false or health <= 0
-	local ownerName = model:GetAttribute("OwnerName")
-	local displayName = typeof(ownerName) == "string" and ownerName ~= "" and ownerName or model.Name
-
-	record.Billboard.Adornee = adornee
-	record.Billboard.Enabled = true
-	record.Billboard.Size = BILLBOARD_SIZE
-	record.Billboard.StudsOffset = Vector3.new(0, getBillboardYOffset(model), 0)
-	record.Billboard.MaxDistance = getWorldHealthConfig().MaxDistance or MAX_DISTANCE
+	record.Billboard.Adornee = record.AnchorPart
+	record.Billboard.Enabled = not isDead
+	configureBillboard(record.Billboard)
 
 	if record.RedBar ~= nil then
 		record.RedBar.AnchorPoint = Vector2.new(0, 0.5)
-		record.RedBar.Position = UDim2.new(0, 0, 0.5, 0)
-		record.RedBar.Size = UDim2.new(1, 0, 1, 0)
+		record.RedBar.Position = UDim2.fromScale(0, 0.5)
+		record.RedBar.Size = UDim2.fromScale(1, 1)
 		record.RedBar.Visible = true
-		record.RedBar.BackgroundColor3 = Color3.fromRGB(185, 45, 45)
 	end
 
 	if record.GreenBar ~= nil then
 		record.GreenBar.AnchorPoint = Vector2.new(0, 0.5)
-		record.GreenBar.Position = UDim2.new(0, 0, 0.5, 0)
+		record.GreenBar.Position = UDim2.fromScale(0, 0.5)
 		record.GreenBar.Size = UDim2.new(ratio, 0, 1, 0)
 		record.GreenBar.Visible = ratio > 0
-		record.GreenBar.BackgroundColor3 = Color3.fromRGB(90, 225, 115)
 	end
 
-	if record.HpText ~= nil then
-		record.HpText.Text = tostring(math.floor(health)) .. "/" .. tostring(math.floor(maxHealth))
-	end
-
-	if record.PlayerName ~= nil then
-		record.PlayerName.Text = displayName
-	end
-
-	if isDead then
-		local hideToken = {}
-		record.HideToken = hideToken
-
-		task.delay(getWorldHealthConfig().DeadHideDelay or 1.0, function()
-			local latestRecord = recordsByModel[model]
-
-			if latestRecord == record and latestRecord.HideToken == hideToken then
-				latestRecord.Billboard.Enabled = false
-			end
-		end)
-	else
-		record.HideToken = nil
-	end
+	updateReloadBar(model, record)
 end
 
 local function ensureRecord(model)
@@ -415,23 +572,23 @@ local function ensureRecord(model)
 		return
 	end
 
-	local billboard = cloneBillboard()
+	local billboard = createBillboard()
 	billboard.Name = "TankHealthBillboard_" .. model.Name
-	billboard.Parent = billboardFolder
+	billboard.Parent = guiFolder
 
 	local record = {
 		Billboard = billboard,
+		AnchorPart = createAnchorPart(model),
 		RedBar = findDescendant(billboard, "RedBar", "Frame"),
 		GreenBar = findDescendant(billboard, "GreenBar", "Frame"),
-		HpText = findDescendant(billboard, "HpText", "TextLabel"),
-		PlayerName = findDescendant(billboard, "PlayerName", "TextLabel"),
+		ReloadBack = findDescendant(billboard, "ReloadBack", "Frame"),
+		ReloadBar = findDescendant(billboard, "ReloadBar", "Frame"),
 		Connections = {},
-		HideToken = nil,
 	}
 
 	recordsByModel[model] = record
 
-	for _, attributeName in ipairs(TANK_ATTRIBUTE_NAMES) do
+	for _, attributeName in ipairs(TRACKED_ATTRIBUTES) do
 		table.insert(record.Connections, model:GetAttributeChangedSignal(attributeName):Connect(function()
 			updateRecord(model)
 		end))
@@ -446,46 +603,37 @@ local function ensureRecord(model)
 	updateRecord(model)
 end
 
-local function collectModelsFromRoot(scanRoot, models)
-	if scanRoot == nil or scanRoot.Parent == nil then
+local function scanRoot(scanRoot)
+	if scanRoot == nil then
 		return
 	end
 
-	if scanRoot:IsA("Model") then
-		models[scanRoot] = true
-	end
-
 	for _, descendant in ipairs(scanRoot:GetDescendants()) do
-		if descendant:IsA("Model") then
-			models[descendant] = true
+		if descendant:IsA("Model") and isTankModel(descendant) then
+			ensureRecord(descendant)
 		end
 	end
 end
 
-local function discoverTankModels()
-	local models = {}
-	local testObjects = root:FindFirstChild("TestObjects")
-	local battleArena = root:FindFirstChild("BattleArena")
-	local battleArenaMap = battleArena ~= nil and battleArena:FindFirstChild("Map") or nil
-
-	collectModelsFromRoot(testObjects, models)
-	collectModelsFromRoot(battleArena, models)
-	collectModelsFromRoot(battleArenaMap, models)
-
-	for model in pairs(models) do
-		if shouldShowModel(model) then
-			ensureRecord(model)
-		end
-	end
+local function discover()
+	scanRoot(generated:FindFirstChild("TestObjects"))
+	scanRoot(generated:FindFirstChild("BattleArena"))
 
 	for model in pairs(recordsByModel) do
 		updateRecord(model)
 	end
 end
 
-task.spawn(function()
-	while billboardFolder.Parent ~= nil do
-		discoverTankModels()
-		task.wait(getWorldHealthConfig().DiscoveryInterval or 1.0)
+RunService.Heartbeat:Connect(function()
+	for model, record in pairs(recordsByModel) do
+		if model.Parent ~= nil and record.AnchorPart ~= nil then
+			updateAnchor(model, record)
+			updateReloadBar(model, record)
+		end
 	end
 end)
+
+while guiFolder.Parent ~= nil do
+	discover()
+	task.wait(DISCOVERY_INTERVAL)
+end

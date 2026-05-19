@@ -70,8 +70,8 @@ clearChildren(template)
 template.AlwaysOnTop = true
 template.LightInfluence = 0
 template.MaxDistance = 180
-template.Size = UDim2.fromOffset(130, 42)
-template.StudsOffset = Vector3.new(0, 4.5, 0)
+template.Size = UDim2.fromOffset(68, 14)
+template.StudsOffset = Vector3.zero
 template.Enabled = true
 
 local root = makeFrame(template, "Root")
@@ -81,22 +81,30 @@ root.Size = UDim2.fromScale(1, 1)
 root.BackgroundTransparency = 1
 
 local playerName = makeLabel(root, "PlayerName")
-playerName.AnchorPoint = Vector2.new(0.5, 0)
-playerName.Position = UDim2.new(0.5, 0, 0, 0)
-playerName.Size = UDim2.new(1, 0, 0, 16)
+playerName.AnchorPoint = Vector2.new(0.5, 0.5)
+playerName.Position = UDim2.fromScale(0.5, 0.5)
+playerName.Size = UDim2.fromScale(1, 1)
 playerName.BackgroundTransparency = 1
 playerName.Text = "TANK"
 playerName.TextColor3 = Color3.fromRGB(255, 255, 255)
 playerName.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 playerName.TextStrokeTransparency = 0.25
+playerName.Visible = false
 playerName.ZIndex = 3
 
-local barBack = makeFrame(root, "BarBack")
-barBack.AnchorPoint = Vector2.new(0.5, 1)
-barBack.Position = UDim2.new(0.5, 0, 1, 0)
-barBack.Size = UDim2.new(1, 0, 0, 14)
-barBack.BackgroundColor3 = Color3.fromRGB(12, 14, 16)
-barBack.BackgroundTransparency = 0.2
+local barsRoot = makeFrame(root, "BarsRoot")
+barsRoot.AnchorPoint = Vector2.new(0, 0)
+barsRoot.Position = UDim2.fromOffset(0, 0)
+barsRoot.Size = UDim2.fromScale(1, 1)
+barsRoot.BackgroundTransparency = 1
+barsRoot.ZIndex = 1
+
+local barBack = makeFrame(barsRoot, "BarBack")
+barBack.AnchorPoint = Vector2.new(0, 0)
+barBack.Position = UDim2.fromOffset(0, 0)
+barBack.Size = UDim2.new(1, 0, 0, 8)
+barBack.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+barBack.BackgroundTransparency = 0.15
 barBack.ClipsDescendants = true
 barBack.ZIndex = 1
 
@@ -125,7 +133,25 @@ hpText.Text = "100/100"
 hpText.TextColor3 = Color3.fromRGB(255, 255, 255)
 hpText.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 hpText.TextStrokeTransparency = 0.2
+hpText.Visible = false
 hpText.ZIndex = 3
+
+local reloadBack = makeFrame(barsRoot, "ReloadBack")
+reloadBack.AnchorPoint = Vector2.new(0, 0)
+reloadBack.Position = UDim2.new(0, 0, 0, 10)
+reloadBack.Size = UDim2.new(1, 0, 0, 4)
+reloadBack.BackgroundColor3 = Color3.fromRGB(8, 16, 28)
+reloadBack.BackgroundTransparency = 0.12
+reloadBack.ClipsDescendants = true
+reloadBack.ZIndex = 1
+
+local reloadBar = makeFrame(reloadBack, "ReloadBar")
+reloadBar.AnchorPoint = Vector2.new(0, 0.5)
+reloadBar.Position = UDim2.new(0, 0, 0.5, 0)
+reloadBar.Size = UDim2.new(1, 0, 1, 0)
+reloadBar.BackgroundColor3 = Color3.fromRGB(80, 190, 255)
+reloadBar.BackgroundTransparency = 0
+reloadBar.ZIndex = 2
 
 print("[WOB] TankHealthBillboard rebuilt:", template:GetFullName())
 print("[WOB] Rojo guard: default.project.json must keep ReplicatedStorage.Shared.Assets.UI with $ignoreUnknownInstances=true.")

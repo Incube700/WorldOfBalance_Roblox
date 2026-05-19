@@ -108,6 +108,47 @@ local function getParticipantModel(participant)
 	return TankParticipantRegistry.getParticipantPhysicalModel(participant) or participant.Model or participant.PhysicalModel
 end
 
+local function getServerTimeNow()
+	local success, serverTime = pcall(function()
+		return Workspace:GetServerTimeNow()
+	end)
+
+	if success and typeof(serverTime) == "number" then
+		return serverTime
+	end
+
+	return os.clock()
+end
+
+local function publishReloadPresentationState(participant, cooldown)
+	local model = getParticipantModel(participant)
+
+	if model == nil then
+		return
+	end
+
+	local shotServerTime = getServerTimeNow()
+	local reloadDuration = math.max(0.01, tonumber(cooldown) or 0)
+
+	model:SetAttribute("LastShotAtServerTime", shotServerTime)
+	model:SetAttribute("ReloadDuration", reloadDuration)
+	model:SetAttribute("ReloadProgress", 0)
+	model:SetAttribute("ReloadReady", false)
+
+	task.delay(reloadDuration, function()
+		if model.Parent == nil then
+			return
+		end
+
+		if model:GetAttribute("LastShotAtServerTime") ~= shotServerTime then
+			return
+		end
+
+		model:SetAttribute("ReloadProgress", 1)
+		model:SetAttribute("ReloadReady", true)
+	end)
+end
+
 local function getParticipantBasePart(participant, partName)
 	if participant == nil then
 		return nil
@@ -869,6 +910,7 @@ function ProjectileService.tryShoot(participant, direction)
 	participant.WeaponReadyAt = currentTime + cooldown
 	participant.WeaponState.LastShotTime = participant.LastShotTime
 	participant.WeaponState.WeaponReadyAt = participant.WeaponReadyAt
+	publishReloadPresentationState(participant, cooldown)
 	local damageMultiplier = math.max(0, getArenaNumberModifier(participant, "ArenaDamageMultiplier", 1))
 	local shotOrigin = participant.ShootPoint.Position
 	for _, shot in ipairs(getShotPattern(participant, participant.ShootPoint.Position, flatDirection.Unit)) do
