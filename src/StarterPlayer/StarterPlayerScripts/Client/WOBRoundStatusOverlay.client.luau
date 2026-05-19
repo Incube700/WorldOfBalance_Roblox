@@ -166,6 +166,9 @@ local function waitForModularHud()
 	return {
 		Source = "Modular Studio HUD",
 		ScreenGui = hud,
+		EnemyStatusPanel = enemyStatusPanel,
+		WeaponStatusPanel = weaponStatusPanel,
+		PlayerStatusPanel = playerStatusPanel,
 		RoundStatusPanel = roundStatusPanel,
 		EnemyHpLabel = enemyHpLabel,
 		EnemyHpFill = enemyHpFill,
@@ -401,6 +404,9 @@ local function createEmergencyRoundUi(reason)
 	return {
 		Source = "Emergency modular runtime UI",
 		ScreenGui = screenGui,
+		EnemyStatusPanel = enemyPanel,
+		WeaponStatusPanel = weaponPanel,
+		PlayerStatusPanel = playerPanel,
 		RoundStatusPanel = roundPanel,
 		EnemyHpLabel = enemyHpLabel,
 		EnemyHpFill = enemyHpFill,
@@ -429,11 +435,38 @@ local function isCombatHudVisible()
 	return mode == "InMatch" and root:GetAttribute("GameState") == "Playing"
 end
 
+local function shouldHideTopHpPanels()
+	local worldHealthBarsConfig = HudConfig.WorldHealthBars or {}
+
+	if worldHealthBarsConfig.Enabled ~= true then
+		return false
+	end
+
+	if worldHealthBarsConfig.HideTopHpPanelsInDuelMobile == false then
+		return false
+	end
+
+	return UserInputService.TouchEnabled == true and worldHealthBarsConfig.HideTopHpPanelsOnMobile == true
+end
+
 local function applyCombatHudVisibility()
 	local isVisible = isCombatHudVisible()
+	local hideTopHpPanels = isVisible and shouldHideTopHpPanels()
 
 	if roundUi.ScreenGui ~= nil then
 		roundUi.ScreenGui.Enabled = isVisible
+	end
+
+	if roundUi.EnemyStatusPanel ~= nil then
+		roundUi.EnemyStatusPanel.Visible = isVisible and not hideTopHpPanels
+	end
+
+	if roundUi.PlayerStatusPanel ~= nil then
+		roundUi.PlayerStatusPanel.Visible = isVisible and not hideTopHpPanels
+	end
+
+	if roundUi.WeaponStatusPanel ~= nil then
+		roundUi.WeaponStatusPanel.Visible = isVisible
 	end
 
 	if not isVisible then

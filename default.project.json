@@ -11,6 +11,10 @@
           "VFX": {
             "$className": "Folder",
             "$ignoreUnknownInstances": true
+          },
+          "UI": {
+            "$className": "Folder",
+            "$ignoreUnknownInstances": true
           }
         }
       }

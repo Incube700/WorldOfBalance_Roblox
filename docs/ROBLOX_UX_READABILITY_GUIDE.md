@@ -11,8 +11,19 @@
 
 - Lobby/result can show wallet progression; combat should stay minimal.
 - BattleArena mobile HUD should stay in top corners, with Return hidden behind a small Menu.
+- World tank HP bars are preferred over large duplicate top HP panels on mobile combat screens.
+- Top HP panels can be hidden in BattleArena and on mobile Duel/Training when `HudConfig.WorldHealthBars` is enabled.
 - Do not place new buttons near the right-side AIM/FIRE cluster or left-side MOVE stick.
 - Avoid long text in combat. Use short status labels and let world signs teach the player in lobby.
+
+## Combat Readability
+
+- Active tanks should expose `CurrentHealth`, `MaxHealth`, `IsDead`, `OwnerName`, and `TankParticipantId`.
+- Tank HP bars should be compact world-space `BillboardGui` objects, not Roblox Humanoid healthbars.
+- HP bars should be readable at normal camera distance without covering the tank or aim line.
+- Dead tank bars should hit zero, then hide after a short grace delay so round outcomes remain readable.
+- Damage flash should be client-side `Highlight` feedback triggered by `LastDamageSerial`, not by mutating tank part colors.
+- Ricochets and no-penetration hits should not flash unless real damage was applied.
 
 ## Rewards
 
@@ -48,3 +59,6 @@
 - Showcases do not block driving routes or pad triggers.
 - HUD text fits on mobile and desktop.
 - Result screen and wallet make Duel rewards understandable.
+- Player and enemy tanks have one HP bar each during Training/Duel/BattleArena.
+- Damage lowers the world HP bar and creates one short white-yellow flash.
+- Round reset, death, and respawn do not create duplicate HP bars or stale highlights.

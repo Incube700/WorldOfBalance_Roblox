@@ -83,6 +83,7 @@ end
 
 local function setParticipantAttributesOnModel(model, participant)
 	model:SetAttribute("TankId", participant.TankId)
+	model:SetAttribute("TankParticipantId", participant.TankId)
 	model:SetAttribute("IsActive", participant.IsActive ~= false)
 	model:SetAttribute("IsAlive", participant.IsAlive ~= false)
 	model:SetAttribute("IsDead", participant.IsDead == true)
@@ -104,6 +105,10 @@ local function setParticipantAttributesOnModel(model, participant)
 	else
 		model:SetAttribute("OwnerUserId", participant.OwnerUserId)
 		model:SetAttribute("OwnerName", participant.OwnerName)
+	end
+
+	if model:GetAttribute("LastDamageSerial") == nil then
+		model:SetAttribute("LastDamageSerial", 0)
 	end
 end
 
@@ -302,6 +307,36 @@ function TankParticipantRegistry.setParticipantHealth(participant, health)
 	setAttributeOnParticipantModels(participant, "HP", health)
 	setAttributeOnOwnerPlayer(participant, "CurrentHealth", health)
 	setAttributeOnOwnerPlayer(participant, "HP", health)
+end
+
+function TankParticipantRegistry.recordParticipantDamage(participant, damageAmount, wasLethal)
+	if participant == nil then
+		return
+	end
+
+	local damage = tonumber(damageAmount) or 0
+
+	if damage <= 0 then
+		return
+	end
+
+	local model = TankParticipantRegistry.getParticipantPhysicalModel(participant) or participant.Model
+	local currentSerial = 0
+
+	if model ~= nil then
+		currentSerial = tonumber(model:GetAttribute("LastDamageSerial")) or 0
+	elseif participant.Model ~= nil then
+		currentSerial = tonumber(participant.Model:GetAttribute("LastDamageSerial")) or 0
+	end
+
+	local nextSerial = currentSerial + 1
+	local now = os.clock()
+
+	setAttributeOnParticipantModels(participant, "LastDamageSerial", nextSerial)
+	setAttributeOnParticipantModels(participant, "LastDamageAmount", damage)
+	setAttributeOnParticipantModels(participant, "LastDamageAt", now)
+	setAttributeOnParticipantModels(participant, "LastDamageAtServerTime", now)
+	setAttributeOnParticipantModels(participant, "LastDamageWasLethal", wasLethal == true)
 end
 
 function TankParticipantRegistry.getParticipantIsDead(participant)

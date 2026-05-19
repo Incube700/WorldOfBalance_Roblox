@@ -29,6 +29,26 @@ local HudConfig = table.freeze({
 			Reset = Color3.fromRGB(120, 255, 150),
 		}),
 	}),
+
+	WorldHealthBars = table.freeze({
+		Enabled = true,
+		ShowOwnTank = true,
+		HideTopHpPanelsOnMobile = true,
+		HideTopHpPanelsInBattleArena = true,
+		HideTopHpPanelsInDuelMobile = true,
+		DeadHideDelay = 1.0,
+		DiscoveryInterval = 1.0,
+		MaxDistance = 220,
+	}),
+
+	DamageFlash = table.freeze({
+		Enabled = true,
+		Duration = 0.14,
+		LethalDuration = 0.22,
+		FillTransparencyStart = 0.15,
+		FillTransparencyEnd = 1,
+		Color = Color3.fromRGB(255, 245, 180),
+	}),
 })
 
 return HudConfig

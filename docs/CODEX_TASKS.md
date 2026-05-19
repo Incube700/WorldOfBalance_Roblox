@@ -56,6 +56,19 @@
 - Publish checklist additions: confirm Rojo VFX guard, no infinite fire sound, Duel +1 Crystal, readable lobby signs/showcases, mobile controls/HUD, BattleArena/Training/Duel regressions.
 - Recommended commit message: `Polish playtest UX rewards and lobby showcases`.
 
+## Current Add-on Sprint — Tank World HP Bars and Hit Flash
+
+- Статус: combat readability pass поверх существующего damage/combat logic.
+- Docs: `docs/TANK_WORLD_HEALTH_BARS.md`, `docs/COMBAT_HIT_FLASH.md`, `docs/ROBLOX_UX_READABILITY_GUIDE.md`.
+- Server attributes: tank models expose `CurrentHealth`, `MaxHealth`, `HP`, `IsDead`, `IsAlive`, `OwnerName`, `TankId`, and `TankParticipantId`.
+- Damage metadata: `LastDamageSerial`, `LastDamageAmount`, `LastDamageAt`, `LastDamageAtServerTime`, and `LastDamageWasLethal` update only after successful damage.
+- World HP bars: `WOBTankWorldHealthBars.client.luau` clones `ReplicatedStorage.Shared.Assets.UI.TankHealthBillboard` into `PlayerGui/WOBTankWorldHealthBars`, updates from attributes, and cleans up on model removal/deactivation.
+- Template command: run `docs/patches/CREATE_OR_REPAIR_TANK_HEALTH_BILLBOARD_TEMPLATE_COMMAND.lua` outside Play Mode. `default.project.json` protects `ReplicatedStorage.Shared.Assets.UI` with `$ignoreUnknownInstances = true`.
+- Hit flash: `WOBTankDamageFlash.client.luau` listens to `LastDamageSerial` and uses local `Highlight` feedback only on real damage.
+- HUD cleanup: `HudConfig.WorldHealthBars` can hide big top HP panels in BattleArena and on mobile Duel/Training while preserving result/reload/score UI.
+- Manual checks: Training dummy HP bar decreases, successful damage flashes, lethal bar goes zero/hides, round reset/respawn creates no duplicate bars/highlights, mobile combat screen is less crowded.
+- Recommended commit message: `Add tank world HP bars and hit flash`.
+
 ## Current Sprint — Stable Fun Duel v0.1
 
 - Статус: code-first stabilization sprint after audit in `docs/STABLE_FUN_DUEL_V01_AUDIT.md`; current gameplay advancement notes: `docs/STABLE_FUN_DUEL_GAMEPLAY_ADVANCEMENT.md`.

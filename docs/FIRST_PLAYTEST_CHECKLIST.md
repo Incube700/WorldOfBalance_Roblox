@@ -4,8 +4,10 @@
 
 - Confirm `default.project.json` still has `$ignoreUnknownInstances = true` under `ReplicatedStorage.Shared.Assets.VFX`.
 - Run `docs/patches/MUTE_BURNING_VFX_SOUNDS_COMMAND.lua` outside Play Mode if `TankBurningTemplate` exists.
+- Run `docs/patches/CREATE_OR_REPAIR_TANK_HEALTH_BILLBOARD_TEMPLATE_COMMAND.lua` outside Play Mode.
 - Run `docs/patches/CREATE_OR_REPAIR_LOBBY_SHOWCASES_COMMAND.lua` outside Play Mode.
 - Run `docs/patches/CREATE_OR_REPAIR_LOBBY_GUIDANCE_COMMAND.lua` outside Play Mode.
+- Confirm `ReplicatedStorage.Shared.Assets.UI.TankHealthBillboard` exists and `default.project.json` keeps `ReplicatedStorage.Shared.Assets.UI` protected with `$ignoreUnknownInstances = true`.
 - Confirm lobby signs are readable: `BATTLE ARENA`, `DUEL`, `TRAINING`, Crystals tip, and coming soon showcases.
 - Confirm showcases are visible but do not block ArenaPad, DuelPad, TrainingPad, spawn points, or the main driving route.
 - Confirm no Robux/IAP/purchase prompt was added.
@@ -37,8 +39,8 @@
 - Player mode becomes `InBattleArena`.
 - Tank spawns at one of 8 arena spawns.
 - Tank can drive and shoot in BattleArena.
-- Desktop Arena HUD shows `HP`, `Arena Score`, `Kills`, `Deaths`, `Streak`, and `Upgrades`.
-- Mobile Arena HUD shows compact `HP`, `Score`, `K/D`, `Streak`, `Upg`, and a small `Menu`.
+- Desktop Arena HUD shows `Arena Score`, `Kills`, `Deaths`, `Streak`, and `Upgrades`; tank HP is readable above the active tank.
+- Mobile Arena HUD shows compact score/status, a small `Menu`, and tank HP above the active tank without crowding controls.
 - Mobile `Menu` opens `Resume` and `Return to Lobby`; `Resume` closes the popup.
 - Tank can cross the center area unless it is visibly blocked by cover/ricochet walls.
 - Self-hit or forced death switches to `ArenaRespawning`.
@@ -47,6 +49,18 @@
 - Tank respawns after `BattleArenaConfig.RespawnDelay`.
 - Return to Lobby returns to lobby spawn and resets arena score/upgrades.
 - DuelPad and Training still work after returning.
+
+## Combat Readability Check
+
+- Player tank has one world HP bar.
+- DummyTank or enemy tank has one world HP bar.
+- Shooting `DummyTank` lowers the world HP bar.
+- Successful damage flashes the damaged tank white-yellow.
+- Ricochet/no-damage hits do not trigger damage flash.
+- Lethal hit sets the bar to zero, flashes, then the bar hides after a short grace delay.
+- Round reset creates fresh bars without duplicate old BillboardGui clones.
+- BattleArena respawn replaces stale bars/highlights cleanly.
+- Mobile Duel/Training can hide large top HP panels while reload/result HUD remains usable.
 
 ## Crystals Reward Check
 
@@ -87,7 +101,7 @@
 - Mobile `MOVE`, `AIM`, and `FIRE` controls appear in Lobby, QueuedForDuel, InMatch, and InBattleArena.
 - Mobile right `AIM` stick rotates the turret/aim laser, and `FIRE` shoots in that direction.
 - Mobile left `MOVE` and right `AIM` can be used simultaneously.
-- Mobile BattleArena HUD is compact: HP top-left, score top-right, Return to Lobby behind Menu, center mostly free.
+- Mobile BattleArena HUD is compact: world HP bar on the tank, score/status top-right, Return to Lobby behind Menu, center mostly free.
 - Mobile BattleArena Menu popup Return works and Resume closes the popup.
 - Mobile controls hide/disable during ArenaRespawning.
 - Wallet HUD shows Bolts and Crystals in lobby/result, and does not crowd BattleArena combat HUD.

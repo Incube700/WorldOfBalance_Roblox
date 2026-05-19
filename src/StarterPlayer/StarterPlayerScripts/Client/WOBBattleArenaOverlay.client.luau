@@ -8,6 +8,7 @@ local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local utils = shared:WaitForChild("Utils")
 local BattleArenaConfig = require(configs:WaitForChild("BattleArenaConfig"))
+local HudConfig = require(configs:WaitForChild("HudConfig"))
 local MobileControlsConfig = require(configs:WaitForChild("MobileControlsConfig"))
 local TankModelResolver = require(utils:WaitForChild("TankModelResolver"))
 
@@ -366,6 +367,20 @@ local function isMobileLayout()
 	return UserInputService.TouchEnabled == true or MobileControlsConfig.ForceEnabledInStudio == true
 end
 
+local function shouldHideTopHealthPanel(mobileLayout)
+	local worldHealthBarsConfig = HudConfig.WorldHealthBars or {}
+
+	if worldHealthBarsConfig.Enabled ~= true then
+		return false
+	end
+
+	if worldHealthBarsConfig.HideTopHpPanelsInBattleArena == true then
+		return true
+	end
+
+	return mobileLayout and worldHealthBarsConfig.HideTopHpPanelsOnMobile == true
+end
+
 local function setTextLayout(label, position, size, textSize)
 	label.Position = position
 	label.Size = size
@@ -544,6 +559,7 @@ local function updateOverlay()
 
 	local mobileLayout = isMobileLayout()
 	updateLayout()
+	healthPanel.Visible = not shouldHideTopHealthPanel(mobileLayout)
 
 	local score = localPlayer:GetAttribute("ArenaScore") or 0
 	local kills = localPlayer:GetAttribute("ArenaKills") or 0

@@ -357,6 +357,7 @@ local function damageParticipant(participant, amount, sourceProjectile)
 		local currentHealth = TankParticipantRegistry.getParticipantHealth(participant)
 		local newHealth = math.max(0, currentHealth - amount)
 		TankParticipantRegistry.setParticipantHealth(participant, newHealth)
+		TankParticipantRegistry.recordParticipantDamage(participant, amount, newHealth <= 0)
 
 		print("[ARENA_DAMAGE] " .. participant.TankId .. " -" .. math.floor(amount) .. " HP (" .. math.floor(newHealth) .. ")")
 
@@ -390,6 +391,7 @@ local function damageParticipant(participant, amount, sourceProjectile)
 	local currentHealth = TankParticipantRegistry.getParticipantHealth(participant)
 	local newHealth = math.max(0, currentHealth - amount)
 	TankParticipantRegistry.setParticipantHealth(participant, newHealth)
+	TankParticipantRegistry.recordParticipantDamage(participant, amount, newHealth <= 0)
 
 	print("[DAMAGE] " .. participant.TankId .. " -" .. math.floor(amount) .. " HP (" .. math.floor(newHealth) .. ")")
 
