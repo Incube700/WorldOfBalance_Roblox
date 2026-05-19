@@ -1,6 +1,14 @@
 -- Run this in Studio Command Bar outside Play Mode.
 -- Creates a disposable world preview clone for ReplicatedStorage.Shared.Assets.UI.TankHealthBillboard.
 
+local ENABLE_MUTATION = false
+
+if ENABLE_MUTATION ~= true then
+	warn("[DISABLED PATCH] This script can overwrite manually tuned scene/UI/VFX. Read docs/SAFE_PATCH_WORKFLOW.md and set ENABLE_MUTATION=true manually if you really need it.")
+	return
+end
+
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 

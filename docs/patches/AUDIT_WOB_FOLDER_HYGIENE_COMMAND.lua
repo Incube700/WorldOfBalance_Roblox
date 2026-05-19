@@ -34,6 +34,7 @@ local wobRuntime = Workspace:FindFirstChild("WOB_Runtime")
 local runtimeVfx = wobRuntime ~= nil and wobRuntime:FindFirstChild("VFX") or nil
 local runtimeClient = wobRuntime ~= nil and wobRuntime:FindFirstChild("Client") or nil
 local healthBarAnchors = runtimeClient ~= nil and runtimeClient:FindFirstChild("HealthBarAnchors") or nil
+local clientVisuals = runtimeClient ~= nil and runtimeClient:FindFirstChild("Visuals") or nil
 local donors = Workspace:FindFirstChild("WOB_EditorOnly_AssetDonors")
 
 printStatus("ReplicatedStorage.Shared.Assets.VFX", vfx)
@@ -41,6 +42,7 @@ printStatus("ReplicatedStorage.Shared.Assets.UI", ui)
 printStatus("Workspace.WOB_Runtime.VFX", runtimeVfx)
 printStatus("Workspace.WOB_Runtime.Client", runtimeClient)
 printStatus("Workspace.WOB_Runtime.Client.HealthBarAnchors", healthBarAnchors)
+printStatus("Workspace.WOB_Runtime.Client.Visuals", clientVisuals)
 printStatus("Workspace.WOB_EditorOnly_AssetDonors", donors)
 
 local orphanPaths = {
@@ -57,6 +59,7 @@ local orphanPaths = {
 	{ Workspace, { "WOB_ClientHealthBarAnchors" } },
 	{ Workspace, { "WOBLocalDamageFlash" } },
 	{ Workspace, { "WOB_LocalVisuals" } },
+	{ Workspace, { "WOB_Runtime", "Client", "LocalVisuals" } },
 }
 
 local orphanCount = 0

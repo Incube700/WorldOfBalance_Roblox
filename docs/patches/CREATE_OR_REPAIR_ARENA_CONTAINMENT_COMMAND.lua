@@ -2,6 +2,14 @@
 -- Run outside Play Mode. It creates/repairs arena containment collision only.
 -- Use REPAIR_LOBBY_VERTICAL_CONTAINMENT_COMMAND.lua for elevated lobby railings/walls.
 
+local ENABLE_MUTATION = false
+
+if ENABLE_MUTATION ~= true then
+	warn("[DISABLED PATCH] This script can overwrite manually tuned scene/UI/VFX. Read docs/SAFE_PATCH_WORKFLOW.md and set ENABLE_MUTATION=true manually if you really need it.")
+	return
+end
+
+
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 

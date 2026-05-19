@@ -1,0 +1,98 @@
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
+	<Meta name="ExplicitAutoJoints">true</Meta>
+	<External>null</External>
+	<External>nil</External>
+	<Item class="Model" referent="RBXWOBTankBurningTemplate">
+		<Properties>
+			<BinaryString name="AttributesSerialize"></BinaryString>
+			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+			<bool name="DefinesCapabilities">false</bool>
+			<string name="Name">TankBurningTemplate</string>
+			<int64 name="SourceAssetId">-1</int64>
+			<BinaryString name="Tags"></BinaryString>
+		</Properties>
+		<Item class="Part" referent="RBXWOBTankBurningFire">
+			<Properties>
+				<bool name="Anchored">true</bool>
+				<bool name="CanCollide">false</bool>
+				<bool name="CanQuery">false</bool>
+				<bool name="CanTouch">false</bool>
+				<bool name="CastShadow">false</bool>
+				<Color3uint8 name="Color3uint8">4286611584</Color3uint8>
+				<float name="Reflectance">0</float>
+				<Vector3 name="Size">
+					<X>1</X>
+					<Y>1</Y>
+					<Z>1</Z>
+				</Vector3>
+				<float name="Transparency">1</float>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">FIRE</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<BinaryString name="Tags"></BinaryString>
+			</Properties>
+			<Item class="Fire" referent="RBXWOBTankBurningFireVisual">
+				<Properties>
+					<Color3 name="Color">
+						<R>1</R>
+						<G>0.49</G>
+						<B>0.16</B>
+					</Color3>
+					<bool name="Enabled">true</bool>
+					<float name="Heat">6</float>
+					<Color3 name="SecondaryColor">
+						<R>1</R>
+						<G>0.92</G>
+						<B>0.45</B>
+					</Color3>
+					<float name="Size">5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">FireVisual</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<BinaryString name="Tags"></BinaryString>
+				</Properties>
+			</Item>
+			<Item class="Smoke" referent="RBXWOBTankBurningSmokeVisual">
+				<Properties>
+					<Color3 name="Color">
+						<R>0.18</R>
+						<G>0.18</G>
+						<B>0.17</B>
+					</Color3>
+					<bool name="Enabled">true</bool>
+					<float name="Opacity">0.28</float>
+					<float name="RiseVelocity">3</float>
+					<float name="Size">4</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">SmokeVisual</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<BinaryString name="Tags"></BinaryString>
+				</Properties>
+			</Item>
+			<Item class="PointLight" referent="RBXWOBTankBurningLight">
+				<Properties>
+					<float name="Brightness">1.2</float>
+					<Color3 name="Color">
+						<R>1</R>
+						<G>0.54</G>
+						<B>0.2</B>
+					</Color3>
+					<bool name="Enabled">true</bool>
+					<float name="Range">9</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">FireLight</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<BinaryString name="Tags"></BinaryString>
+				</Properties>
+			</Item>
+		</Item>
+	</Item>
+</roblox>

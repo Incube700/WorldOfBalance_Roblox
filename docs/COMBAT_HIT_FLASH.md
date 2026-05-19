@@ -26,7 +26,7 @@ The client listens for `LastDamageSerial`. No serial change means no flash, so r
 - tweens `FillTransparency` from readable to invisible;
 - uses a slightly longer duration for lethal damage.
 
-The `Highlight` lives under `Workspace.WOBLocalDamageFlash` on the local client. It is destroyed when the tank model is removed or deactivated.
+The `Highlight` lives under `Workspace.WOB_Runtime.Client.Visuals.DamageFlash` on the local client. It is destroyed when the tank model is removed or deactivated.
 
 ## Config
 

@@ -1,6 +1,14 @@
 -- One-time Roblox Studio Command Bar cleanup for legacy Studio-owned scripts.
 -- Run outside Play Mode after Rojo-managed Server/Client scripts are synced.
 
+local ENABLE_MUTATION = false
+
+if ENABLE_MUTATION ~= true then
+	warn("[DISABLED PATCH] This script can overwrite manually tuned scene/UI/VFX. Read docs/SAFE_PATCH_WORKFLOW.md and set ENABLE_MUTATION=true manually if you really need it.")
+	return
+end
+
+
 local ServerScriptService = game:GetService("ServerScriptService")
 local StarterGui = game:GetService("StarterGui")
 local StarterPlayer = game:GetService("StarterPlayer")

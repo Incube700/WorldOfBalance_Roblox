@@ -1,6 +1,14 @@
 -- Run in Studio Command Bar outside Play Mode.
 -- Previews templates from ReplicatedStorage/Shared/Assets/VFX in Workspace/WOB_Generated/VFXPreview.
 
+local ENABLE_MUTATION = false
+
+if ENABLE_MUTATION ~= true then
+	warn("[DISABLED PATCH] This script can overwrite manually tuned scene/UI/VFX. Read docs/SAFE_PATCH_WORKFLOW.md and set ENABLE_MUTATION=true manually if you really need it.")
+	return
+end
+
+
 local PREVIEW_PLAY_SOUNDS = true
 local PREVIEW_SPACING = 12
 local PREVIEW_CLEAN_OLD = true

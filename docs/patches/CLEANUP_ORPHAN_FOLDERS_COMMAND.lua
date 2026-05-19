@@ -1,13 +1,12 @@
--- Optional Roblox Studio Command Bar helper.
--- Run outside Play Mode. Moves known orphan WOB folders into Workspace.WOB_EditorOnly_AssetDonors.OrphanBackups.
+-- Roblox Studio Command Bar helper.
+-- Moves reviewed orphan folders into Workspace.WOB_EditorOnly_AssetDonors.OrphanBackups.
 
 local ENABLE_MUTATION = false
 
 if ENABLE_MUTATION ~= true then
-	warn("[DISABLED PATCH] This script can overwrite manually tuned scene/UI/VFX. Read docs/SAFE_PATCH_WORKFLOW.md and set ENABLE_MUTATION=true manually if you really need it.")
+	warn("[DISABLED PATCH] Cleanup is disabled. Run audit first and enable manually only after review.")
 	return
 end
-
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -47,23 +46,23 @@ local function findPath(root, pathParts)
 	return current
 end
 
+local function uniqueName(parent, baseName)
+	local candidate = baseName
+	local index = 1
+
+	while parent:FindFirstChild(candidate) ~= nil do
+		index += 1
+		candidate = baseName .. "_" .. tostring(index)
+	end
+
+	return candidate
+end
+
 local donors = getOrCreateFolder(Workspace, "WOB_EditorOnly_AssetDonors")
 local backups = donors ~= nil and getOrCreateFolder(donors, "OrphanBackups") or nil
 
 if backups == nil then
 	return
-end
-
-local function uniqueName(parent, baseName)
-	local name = baseName
-	local index = 1
-
-	while parent:FindFirstChild(name) ~= nil do
-		index += 1
-		name = baseName .. "_" .. tostring(index)
-	end
-
-	return name
 end
 
 local function moveFolder(instance, reason)
@@ -81,27 +80,28 @@ local function moveFolder(instance, reason)
 	end
 
 	local originalPath = instance:GetFullName()
-	local backupName = uniqueName(backups, instance.Name .. "_Orphan")
 	instance:SetAttribute("WOBOrphanOriginalPath", originalPath)
 	instance:SetAttribute("WOBOrphanReason", reason)
-	instance.Name = backupName
+	instance.Name = uniqueName(backups, instance.Name .. "_Orphan")
 	instance.Parent = backups
 	print("[WOB FOLDER CLEAN] moved " .. originalPath .. " -> " .. instance:GetFullName() .. " reason=" .. reason)
 	return true
 end
 
 local shared = ReplicatedStorage:FindFirstChild("Shared")
-local generated = Workspace:FindFirstChild("WOB_Generated")
-local legacyRuntime = generated ~= nil and generated:FindFirstChild("Runtime") or nil
 
 local orphanSpecs = {
 	{ ReplicatedStorage, { "Assets" }, "ReplicatedStorage.Assets outside Shared.Assets" },
-	{ ReplicatedStorage, { "VFX" }, "ReplicatedStorage.VFX outside Shared.Assets" },
 	{ ReplicatedStorage, { "UI" }, "ReplicatedStorage.UI outside Shared.Assets" },
-	{ shared, { "VFX" }, "ReplicatedStorage.Shared.VFX outside Shared.Assets" },
+	{ ReplicatedStorage, { "VFX" }, "ReplicatedStorage.VFX outside Shared.Assets" },
+	{ ReplicatedStorage, { "UX" }, "ReplicatedStorage.UX outside Shared.Assets" },
 	{ shared, { "UI" }, "ReplicatedStorage.Shared.UI outside Shared.Assets" },
+	{ shared, { "VFX" }, "ReplicatedStorage.Shared.VFX outside Shared.Assets" },
+	{ shared, { "UX" }, "ReplicatedStorage.Shared.UX outside Shared.Assets" },
 	{ Workspace, { "Assets" }, "Workspace.Assets should not hold WOB assets" },
+	{ Workspace, { "UI" }, "Workspace.UI should not hold WOB UI" },
 	{ Workspace, { "VFX" }, "Workspace.VFX should use Workspace.WOB_Runtime.VFX" },
+	{ Workspace, { "UX" }, "Workspace.UX should not hold WOB UI" },
 	{ Workspace, { "Runtime" }, "Workspace.Runtime should use Workspace.WOB_Runtime" },
 	{ Workspace, { "Client" }, "Workspace.Client should use Workspace.WOB_Runtime.Client" },
 	{ Workspace, { "HealthBarAnchors" }, "health anchors should use Workspace.WOB_Runtime.Client.HealthBarAnchors" },
@@ -109,7 +109,7 @@ local orphanSpecs = {
 	{ Workspace, { "WOBLocalDamageFlash" }, "damage flash should use Workspace.WOB_Runtime.Client.Visuals.DamageFlash" },
 	{ Workspace, { "WOB_LocalVisuals" }, "local visuals should use Workspace.WOB_Runtime.Client.Visuals" },
 	{ Workspace, { "WOB_Runtime", "Client", "LocalVisuals" }, "legacy local visuals should use Workspace.WOB_Runtime.Client.Visuals" },
-	{ legacyRuntime, { "VFX" }, "legacy runtime VFX should use Workspace.WOB_Runtime.VFX" },
+	{ Workspace, { "WOB_Generated", "Runtime", "VFX" }, "legacy runtime VFX should use Workspace.WOB_Runtime.VFX" },
 }
 
 local movedCount = 0

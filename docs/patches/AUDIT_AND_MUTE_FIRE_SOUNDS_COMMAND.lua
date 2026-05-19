@@ -1,6 +1,14 @@
 -- One-time Roblox Studio Command Bar helper.
 -- Run outside Play Mode. Audits known sound containers and mutes fire/burning/campfire loops.
 
+local ENABLE_MUTATION = false
+
+if ENABLE_MUTATION ~= true then
+	warn("[DISABLED PATCH] This script can overwrite manually tuned scene/UI/VFX. Read docs/SAFE_PATCH_WORKFLOW.md and set ENABLE_MUTATION=true manually if you really need it.")
+	return
+end
+
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")

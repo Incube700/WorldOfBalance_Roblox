@@ -10,7 +10,8 @@ local root = Workspace:WaitForChild("WOB_Generated")
 local flashConfig = HudConfig.DamageFlash or {}
 local RUNTIME_ROOT_NAME = "WOB_Runtime"
 local CLIENT_RUNTIME_FOLDER_NAME = "Client"
-local LOCAL_VISUALS_FOLDER_NAME = "DamageFlash"
+local VISUALS_FOLDER_NAME = "Visuals"
+local DAMAGE_FLASH_FOLDER_NAME = "DamageFlash"
 local DAMAGE_SERIAL_ATTRIBUTE = "LastDamageSerial"
 
 local function getOrCreateFolder(parent, name)
@@ -34,8 +35,11 @@ if runtimeRoot == nil then
 end
 
 local clientRuntimeFolder = runtimeRoot ~= nil and getOrCreateFolder(runtimeRoot, CLIENT_RUNTIME_FOLDER_NAME) or nil
-local localVisualsFolder = clientRuntimeFolder ~= nil
-	and getOrCreateFolder(clientRuntimeFolder, LOCAL_VISUALS_FOLDER_NAME)
+local visualsFolder = clientRuntimeFolder ~= nil
+	and getOrCreateFolder(clientRuntimeFolder, VISUALS_FOLDER_NAME)
+	or nil
+local localVisualsFolder = visualsFolder ~= nil
+	and getOrCreateFolder(visualsFolder, DAMAGE_FLASH_FOLDER_NAME)
 	or nil
 
 local staleRootFolder = Workspace:FindFirstChild("WOBLocalDamageFlash")
@@ -45,7 +49,7 @@ if staleRootFolder ~= nil then
 end
 
 if localVisualsFolder == nil then
-	warn("[HIT FLASH] disabled: Workspace.WOB_Runtime.Client.DamageFlash could not be created")
+	warn("[HIT FLASH] disabled: Workspace.WOB_Runtime.Client.Visuals.DamageFlash could not be created")
 	return
 end
 

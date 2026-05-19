@@ -6,12 +6,12 @@ Current cleanup pass rule: do not implement third-person camera yet.
 
 - `DuelCameraMode = TopDown`
 - `TrainingCameraMode = TopDown`
-- `BattleArenaCameraMode = TopDown`
-- `OpenWorldCameraMode = Unimplemented`
+- `BattleArenaCameraMode = TopDown` now, `ThirdPerson` later
+- `OpenWorldExtractionCameraMode = ThirdPerson` later
 
 `Duel` should stay strict top-down because aiming, ricochet readability, HP world bars, and reload bars are tuned around that view.
 
-`BattleArena` stays top-down for the current published playtest loop. A future BattleArena/OpenWorld pass can switch to a Roblox-style third-person camera when the larger-space movement and combat readability are ready for it.
+`BattleArena` stays top-down for the current published playtest loop. A future BattleArena/OpenWorld/Extraction pass can switch to a Roblox-style third-person camera when the larger-space movement and combat readability are ready for it.
 
 ## Future Controller
 
@@ -25,7 +25,8 @@ Responsibilities:
 
 - Resolve camera mode from player state, for example `PlayerMode` and future mode attributes.
 - Keep `Duel` and `Training` in top-down mode.
-- Allow `BattleArena` and `OpenWorld` to opt into third-person later.
+- Keep `BattleArena` top-down now.
+- Allow `BattleArena`, `OpenWorld`, and `OpenWorldExtraction` to opt into third-person later.
 - Keep camera behavior separate from combat, reload, health bars, mobile controls, and scene repair scripts.
 
 ## Deferred Third-Person Work

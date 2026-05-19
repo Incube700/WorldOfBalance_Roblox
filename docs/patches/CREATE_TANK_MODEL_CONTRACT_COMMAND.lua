@@ -1,6 +1,14 @@
 -- One-time Roblox Studio Command Bar repair for saved physical tank models.
 -- Run outside Play Mode, then File -> Save to File.
 
+local ENABLE_MUTATION = false
+
+if ENABLE_MUTATION ~= true then
+	warn("[DISABLED PATCH] This script can overwrite manually tuned scene/UI/VFX. Read docs/SAFE_PATCH_WORKFLOW.md and set ENABLE_MUTATION=true manually if you really need it.")
+	return
+end
+
+
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 

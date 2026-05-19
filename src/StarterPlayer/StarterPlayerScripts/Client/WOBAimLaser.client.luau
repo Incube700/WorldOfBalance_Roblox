@@ -49,10 +49,10 @@ if wobRuntime == nil then
 end
 
 local clientRuntime = wobRuntime ~= nil and getOrCreateFolder(wobRuntime, "Client") or nil
-local localVisuals = clientRuntime ~= nil and getOrCreateFolder(clientRuntime, "LocalVisuals") or nil
+local localVisuals = clientRuntime ~= nil and getOrCreateFolder(clientRuntime, "Visuals") or nil
 
 if localVisuals == nil then
-	warn("[WOB] Aim laser disabled: Workspace.WOB_Runtime.Client.LocalVisuals could not be created")
+	warn("[WOB] Aim laser disabled: Workspace.WOB_Runtime.Client.Visuals could not be created")
 	return
 end
 
