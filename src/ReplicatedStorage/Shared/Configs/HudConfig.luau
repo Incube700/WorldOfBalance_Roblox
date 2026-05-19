@@ -35,10 +35,10 @@ local HudConfig = table.freeze({
 		ShowOwnTank = true,
 		HideTopHpPanelsOnMobile = true,
 		HideTopHpPanelsInBattleArena = true,
-		HideTopHpPanelsInDuelMobile = true,
+		HideTopHpPanelsInDuelMobile = false,
 		DeadHideDelay = 1.0,
 		DiscoveryInterval = 1.0,
-		MaxDistance = 220,
+		MaxDistance = 180,
 	}),
 
 	DamageFlash = table.freeze({

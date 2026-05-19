@@ -12,6 +12,10 @@ local root = Workspace:WaitForChild("WOB_Generated")
 local worldHealthConfig = HudConfig.WorldHealthBars or {}
 local GUI_FOLDER_NAME = "WOBTankWorldHealthBars"
 local TEMPLATE_NAME = "TankHealthBillboard"
+local BILLBOARD_SIZE = UDim2.fromOffset(130, 42)
+local MIN_Y_OFFSET = 3.5
+local EXTRA_Y_OFFSET = 1.4
+local MAX_DISTANCE = 180
 local TANK_ATTRIBUTE_NAMES = {
 	"CurrentHealth",
 	"HP",
@@ -78,14 +82,14 @@ local function findNamedBasePart(model, partName)
 end
 
 local function getAdorneePart(model)
-	if model.PrimaryPart ~= nil and model.PrimaryPart:IsDescendantOf(model) then
-		return model.PrimaryPart
-	end
-
 	local body = findNamedBasePart(model, "Body")
 
 	if body ~= nil then
 		return body
+	end
+
+	if model.PrimaryPart ~= nil and model.PrimaryPart:IsDescendantOf(model) then
+		return model.PrimaryPart
 	end
 
 	local hull = findNamedBasePart(model, "Hull")
@@ -101,6 +105,18 @@ local function getAdorneePart(model)
 	end
 
 	return nil
+end
+
+local function getBillboardYOffset(model)
+	local success, _, size = pcall(function()
+		return model:GetBoundingBox()
+	end)
+
+	if success and typeof(size) == "Vector3" then
+		return math.max(MIN_Y_OFFSET, size.Y * 0.5 + EXTRA_Y_OFFSET)
+	end
+
+	return MIN_Y_OFFSET
 end
 
 local function isTankName(name)
@@ -179,79 +195,90 @@ local function findTemplate()
 	return nil
 end
 
-local function addCorner(parent, radius)
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = radius
-	corner.Parent = parent
-end
-
 local function createFallbackBillboard()
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = TEMPLATE_NAME
 	billboard.AlwaysOnTop = true
 	billboard.LightInfluence = 0
-	billboard.MaxDistance = worldHealthConfig.MaxDistance or 220
-	billboard.Size = UDim2.fromOffset(130, 38)
-	billboard.StudsOffset = Vector3.new(0, 5, 0)
+	billboard.MaxDistance = worldHealthConfig.MaxDistance or MAX_DISTANCE
+	billboard.Size = BILLBOARD_SIZE
+	billboard.StudsOffset = Vector3.new(0, MIN_Y_OFFSET, 0)
 
-	local background = Instance.new("Frame")
-	background.Name = "Background"
-	background.AnchorPoint = Vector2.new(0.5, 0.5)
-	background.Position = UDim2.fromScale(0.5, 0.5)
-	background.Size = UDim2.fromScale(1, 1)
-	background.BackgroundColor3 = Color3.fromRGB(9, 12, 15)
-	background.BackgroundTransparency = 0.18
-	background.BorderSizePixel = 0
-	background.ZIndex = 1
-	background.Parent = billboard
-	addCorner(background, UDim.new(0, 6))
+	local rootFrame = Instance.new("Frame")
+	rootFrame.Name = "Root"
+	rootFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+	rootFrame.Position = UDim2.fromScale(0.5, 0.5)
+	rootFrame.Size = UDim2.fromScale(1, 1)
+	rootFrame.BackgroundTransparency = 1
+	rootFrame.BorderSizePixel = 0
+	rootFrame.Rotation = 0
+	rootFrame.Parent = billboard
 
 	local nameLabel = Instance.new("TextLabel")
 	nameLabel.Name = "PlayerName"
-	nameLabel.Position = UDim2.new(0, 6, 0, 2)
-	nameLabel.Size = UDim2.new(1, -12, 0, 16)
+	nameLabel.AnchorPoint = Vector2.new(0.5, 0)
+	nameLabel.Position = UDim2.new(0.5, 0, 0, 0)
+	nameLabel.Size = UDim2.new(1, 0, 0, 16)
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.BorderSizePixel = 0
 	nameLabel.Font = Enum.Font.GothamBold
 	nameLabel.Text = "TANK"
-	nameLabel.TextColor3 = Color3.fromRGB(245, 255, 250)
+	nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 	nameLabel.TextScaled = true
-	nameLabel.TextStrokeTransparency = 0.45
+	nameLabel.TextStrokeTransparency = 0.25
 	nameLabel.ZIndex = 3
-	nameLabel.Parent = billboard
+	nameLabel.Parent = rootFrame
+
+	local barBack = Instance.new("Frame")
+	barBack.Name = "BarBack"
+	barBack.AnchorPoint = Vector2.new(0.5, 1)
+	barBack.Position = UDim2.new(0.5, 0, 1, 0)
+	barBack.Size = UDim2.new(1, 0, 0, 14)
+	barBack.BackgroundColor3 = Color3.fromRGB(12, 14, 16)
+	barBack.BackgroundTransparency = 0.2
+	barBack.BorderSizePixel = 0
+	barBack.ClipsDescendants = true
+	barBack.Rotation = 0
+	barBack.ZIndex = 1
+	barBack.Parent = rootFrame
 
 	local redBar = Instance.new("Frame")
 	redBar.Name = "RedBar"
-	redBar.Position = UDim2.new(0, 8, 0, 21)
-	redBar.Size = UDim2.new(1, -16, 0, 9)
-	redBar.BackgroundColor3 = Color3.fromRGB(165, 45, 45)
+	redBar.AnchorPoint = Vector2.new(0, 0.5)
+	redBar.Position = UDim2.new(0, 0, 0.5, 0)
+	redBar.Size = UDim2.new(1, 0, 1, 0)
+	redBar.BackgroundColor3 = Color3.fromRGB(185, 45, 45)
 	redBar.BorderSizePixel = 0
-	redBar.ZIndex = 2
-	redBar.Parent = billboard
-	addCorner(redBar, UDim.new(0, 4))
+	redBar.Rotation = 0
+	redBar.ZIndex = 1
+	redBar.Parent = barBack
 
 	local greenBar = Instance.new("Frame")
 	greenBar.Name = "GreenBar"
-	greenBar.Size = UDim2.fromScale(1, 1)
+	greenBar.AnchorPoint = Vector2.new(0, 0.5)
+	greenBar.Position = UDim2.new(0, 0, 0.5, 0)
+	greenBar.Size = UDim2.new(1, 0, 1, 0)
 	greenBar.BackgroundColor3 = Color3.fromRGB(90, 225, 115)
 	greenBar.BorderSizePixel = 0
-	greenBar.ZIndex = 3
-	greenBar.Parent = redBar
-	addCorner(greenBar, UDim.new(0, 4))
+	greenBar.Rotation = 0
+	greenBar.ZIndex = 2
+	greenBar.Parent = barBack
 
 	local hpText = Instance.new("TextLabel")
 	hpText.Name = "HpText"
-	hpText.Position = UDim2.new(0, 8, 0, 27)
-	hpText.Size = UDim2.new(1, -16, 0, 10)
+	hpText.AnchorPoint = Vector2.new(0.5, 0.5)
+	hpText.Position = UDim2.fromScale(0.5, 0.5)
+	hpText.Size = UDim2.fromScale(1, 1)
 	hpText.BackgroundTransparency = 1
 	hpText.BorderSizePixel = 0
 	hpText.Font = Enum.Font.GothamBold
 	hpText.Text = "100/100"
-	hpText.TextColor3 = Color3.fromRGB(255, 245, 180)
+	hpText.TextColor3 = Color3.fromRGB(255, 255, 255)
 	hpText.TextScaled = true
-	hpText.TextStrokeTransparency = 0.45
-	hpText.ZIndex = 4
-	hpText.Parent = billboard
+	hpText.TextStrokeTransparency = 0.2
+	hpText.Rotation = 0
+	hpText.ZIndex = 3
+	hpText.Parent = barBack
 
 	return billboard
 end
@@ -263,7 +290,8 @@ local function cloneBillboard()
 
 	billboard.AlwaysOnTop = true
 	billboard.LightInfluence = 0
-	billboard.MaxDistance = config.MaxDistance or 220
+	billboard.MaxDistance = config.MaxDistance or MAX_DISTANCE
+	billboard.Size = BILLBOARD_SIZE
 	billboard.Enabled = true
 
 	return billboard
@@ -337,17 +365,24 @@ local function updateRecord(model)
 
 	record.Billboard.Adornee = adornee
 	record.Billboard.Enabled = true
+	record.Billboard.Size = BILLBOARD_SIZE
+	record.Billboard.StudsOffset = Vector3.new(0, getBillboardYOffset(model), 0)
+	record.Billboard.MaxDistance = getWorldHealthConfig().MaxDistance or MAX_DISTANCE
+
+	if record.RedBar ~= nil then
+		record.RedBar.AnchorPoint = Vector2.new(0, 0.5)
+		record.RedBar.Position = UDim2.new(0, 0, 0.5, 0)
+		record.RedBar.Size = UDim2.new(1, 0, 1, 0)
+		record.RedBar.Visible = true
+		record.RedBar.BackgroundColor3 = Color3.fromRGB(185, 45, 45)
+	end
 
 	if record.GreenBar ~= nil then
+		record.GreenBar.AnchorPoint = Vector2.new(0, 0.5)
+		record.GreenBar.Position = UDim2.new(0, 0, 0.5, 0)
 		record.GreenBar.Size = UDim2.new(ratio, 0, 1, 0)
-
-		if ratio <= 0.3 then
-			record.GreenBar.BackgroundColor3 = Color3.fromRGB(235, 80, 70)
-		elseif ratio <= 0.6 then
-			record.GreenBar.BackgroundColor3 = Color3.fromRGB(240, 190, 80)
-		else
-			record.GreenBar.BackgroundColor3 = Color3.fromRGB(90, 225, 115)
-		end
+		record.GreenBar.Visible = ratio > 0
+		record.GreenBar.BackgroundColor3 = Color3.fromRGB(90, 225, 115)
 	end
 
 	if record.HpText ~= nil then
@@ -386,6 +421,7 @@ local function ensureRecord(model)
 
 	local record = {
 		Billboard = billboard,
+		RedBar = findDescendant(billboard, "RedBar", "Frame"),
 		GreenBar = findDescendant(billboard, "GreenBar", "Frame"),
 		HpText = findDescendant(billboard, "HpText", "TextLabel"),
 		PlayerName = findDescendant(billboard, "PlayerName", "TextLabel"),
