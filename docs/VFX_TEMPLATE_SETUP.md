@@ -122,6 +122,26 @@ Then commit those `.rbxmx` files. The ignore guard prevents accidental deletion 
 
 Если один из этих объектов отсутствует в `ReplicatedStorage.Shared.Assets.VFX`, runtime не должен падать: `WarnIfMissingTemplate=false` отключает Output spam для optional slots, а `UseProceduralFallback=true` оставляет базовый эффект там, где fallback предусмотрен.
 
+## Burning template audio safety
+
+`TankBurningTemplate` должен быть visual-only для текущего playtest. Combat audio owned by `AudioCatalog/WOBAudioController`; template sounds are muted by config:
+
+```lua
+BurningTank = table.freeze({
+	PlayTemplateSounds = false,
+	SoundVolume = 0,
+	AllowLoopedSounds = false,
+})
+```
+
+Если в Studio уже есть `ReplicatedStorage.Shared.Assets.VFX.TankBurningTemplate`, перед Publish запусти вне Play Mode:
+
+```text
+docs/patches/MUTE_BURNING_VFX_SOUNDS_COMMAND.lua
+```
+
+Скрипт не удаляет VFX template. Он ставит `Sound.Volume = 0`, `Sound.Looped = false`, `Sound.Playing = false` и удаляет donor `Script`/`LocalScript`/`ClickDetector` descendants внутри burning template.
+
 ## Stable Fun Duel v0.1 VFX Rule
 
 Для v0.1 gameplay readability не зависит от Creator Store templates. Базовая игра должна выглядеть нормально, даже если `ReplicatedStorage/Shared/Assets/VFX` пустой и там есть только `.gitkeep`/`VfxTemplateCatalog`.
@@ -226,14 +246,15 @@ Script клонирует source asset, заменяет старый `TankExplo
 	DeathExplosion = table.freeze({
 		Enabled = true,
 		TemplateName = "TankExplosionTemplate",
-		TemplateLifetime = 4,
+		TemplateLifetime = 1,
 		TemplateEmitCount = 28,
-		SoundVolume = 0.9,
+		PlayTemplateSounds = false,
+		SoundVolume = 0,
 		UseProceduralFallback = true,
 	})
 ```
 
-Когда танк умирает, сервер клонирует `TankExplosionTemplate`, ставит его в позицию `Body` или `PrimaryPart`, вызывает `Emit()` у всех `ParticleEmitter`, играет все `Sound`, оставляет lights на время жизни clone и удаляет clone через `Debris`.
+Когда танк умирает, сервер клонирует `TankExplosionTemplate`, ставит его в позицию `Body` или `PrimaryPart`, вызывает `Emit()` у всех `ParticleEmitter`, гасит template sounds unless `PlayTemplateSounds=true`, оставляет lights на время жизни clone и удаляет clone через `Debris`.
 
 ## Как назвать template
 
@@ -284,9 +305,10 @@ TemplateName = "37194537"
 
 - сервер ищет template в `ReplicatedStorage/Shared/Assets/VFX`;
 - клонирует его в `Workspace/WOB_Generated/Runtime/VFX`;
+- удаляет donor `Script`/`LocalScript`/`ClickDetector` из runtime clone;
 - ставит clone в точку выстрела или попадания;
 - вызывает `Emit()` у всех `ParticleEmitter`;
-- вызывает `Play()` у всех `Sound`;
+- вызывает `Play()` у template `Sound` только если config explicitly has `PlayTemplateSounds=true`;
 - оставляет `Light` жить на время `TemplateLifetime`;
 - удаляет clone через `Debris`.
 
@@ -300,13 +322,13 @@ TemplateName = "37194537"
 
 `TextureId` можно оставить заполненным как fallback. Тогда при пустом или плохом `TemplateName` будет работать старый particle/procedural эффект.
 
-`Shot.SoundId` остается отдельным звуком выстрела через `CombatVfxService.playConfiguredSound`. Рабочий default:
+Звук выстрела сейчас живет в `AudioCatalog/WOBAudioController`, а не в VFX template. Рабочий default:
 
 ```lua
-SoundId = "rbxassetid://139771888058836"
+DefaultCannonShot.SoundId = "rbxassetid://139771888058836"
 ```
 
-Если звук выстрела пропал, сначала проверь, что это значение не заменено на другой asset id и что `Shot.SoundId` не пустой. Если твой template уже содержит звук выстрела и получается дубль, очисти `Shot.SoundId = ""`.
+Если звук выстрела пропал, сначала проверь `src/ReplicatedStorage/Shared/Configs/AudioCatalog.luau` и `WOBAudioController.client.luau`. VFX templates should remain visual-only unless a future audio pass explicitly opts in.
 
 ## Почему Workspace не склад ассетов
 
@@ -402,9 +424,9 @@ ReplicatedStorage/Shared/Assets/VFX
 - smoke: `0.4`-`1.2`;
 - impact/no-pen: `0.3`-`0.8`;
 - ricochet: `0.4`-`0.9`;
-- death explosion: `3`-`4`;
+- death explosion: `1`-`1.5` for playtest readability without lingering runtime load;
 - burning tank: `4`-`6`.
 
-`SoundVolume` задает громкость template sounds и configured `SoundId`. Пустой `SoundId` валиден. Ошибки проигрывания звука throttled и не ломают gameplay.
+`SoundVolume` применяется только если template sounds explicitly enabled. Current playtest default is visual-only VFX: `PlayTemplateSounds=false`, so looped/fire sounds must stay muted.
 
 Для проверки collision/query открой preview clone или template в Studio и проверь каждый `BasePart`: `CanCollide=false`, `CanTouch=false`, `CanQuery=false`. Collector и preview script выставляют эти flags автоматически, но ручная проверка полезна после импорта из Toolbox.

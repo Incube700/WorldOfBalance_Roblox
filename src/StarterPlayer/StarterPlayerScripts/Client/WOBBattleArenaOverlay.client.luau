@@ -612,5 +612,16 @@ localPlayer:GetAttributeChangedSignal("CurrentHealth"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("MaxHealth"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("IsDead"):Connect(updateOverlay)
 
-RunService.RenderStepped:Connect(updateOverlay)
+local overlayUpdateAccumulator = 0
+
+RunService.RenderStepped:Connect(function(deltaTime)
+	overlayUpdateAccumulator += deltaTime
+
+	if overlayUpdateAccumulator < 0.1 then
+		return
+	end
+
+	overlayUpdateAccumulator = 0
+	updateOverlay()
+end)
 updateOverlay()

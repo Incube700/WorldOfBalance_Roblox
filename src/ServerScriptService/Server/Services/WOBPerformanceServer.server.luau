@@ -15,9 +15,34 @@ local root = Workspace:WaitForChild("WOB_Generated")
 local map = root:FindFirstChild("Map")
 local runtime = root:FindFirstChild("Runtime")
 local testObjects = root:FindFirstChild("TestObjects")
+local activeProfileName = tostring(PerformanceConfig.ActiveProfile or "Default")
+
+local function getActiveProfile()
+	local profiles = PerformanceConfig.Profiles
+
+	if typeof(profiles) == "table" then
+		local profile = profiles[activeProfileName]
+
+		if typeof(profile) == "table" then
+			return profile
+		end
+	end
+
+	return PerformanceConfig
+end
+
+local activeProfile = getActiveProfile()
+
+local function getLightingConfig()
+	return activeProfile.Lighting or PerformanceConfig.Lighting
+end
+
+local function getBasePartConfig()
+	return activeProfile.BasePart or PerformanceConfig.BasePart
+end
 
 local function applyLightingProfile()
-	local lightingConfig = PerformanceConfig.Lighting
+	local lightingConfig = getLightingConfig()
 
 	Lighting.GlobalShadows = lightingConfig.ShadowsEnabled == true and lightingConfig.GlobalShadows ~= false
 	Lighting.Brightness = lightingConfig.Brightness
@@ -79,9 +104,10 @@ local function isTankPart(part)
 end
 
 local function shouldCastShadow(part)
-	local shadowConfig = PerformanceConfig.BasePart
+	local shadowConfig = getBasePartConfig()
+	local lightingConfig = getLightingConfig()
 
-	if PerformanceConfig.Lighting.ShadowsEnabled ~= true then
+	if lightingConfig.ShadowsEnabled ~= true then
 		return false
 	end
 
@@ -123,9 +149,11 @@ local function optimizeModel(model)
 end
 
 local function optimizeCharacter(character)
+	local shadowConfig = getBasePartConfig()
+
 	for _, descendant in ipairs(character:GetDescendants()) do
 		if descendant:IsA("BasePart") then
-			descendant.CastShadow = PerformanceConfig.BasePart.CharacterCastShadow == true
+			descendant.CastShadow = shadowConfig.CharacterCastShadow == true
 		end
 	end
 end
@@ -151,4 +179,4 @@ for _, player in ipairs(Players:GetPlayers()) do
 	end
 end
 
-print("[WOB] Performance profile applied: shadows enabled for tanks/walls/cover; floor/runtime shadows controlled.")
+print("[WOB] Performance profile applied: " .. activeProfileName)

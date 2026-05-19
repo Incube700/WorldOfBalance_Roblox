@@ -18,6 +18,7 @@ local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local combatFeedbackEvent = remotes:FindFirstChild("CombatFeedbackEvent")
 local runtimeVfxFolder = nil
 local lastRewardSequence = tonumber(localPlayer:GetAttribute("LastBoltsRewardSequence")) or 0
+local lastCrystalRewardSequence = tonumber(localPlayer:GetAttribute("LastCrystalsRewardSequence")) or 0
 local lastRoundResult = nil
 local rng = Random.new()
 
@@ -227,6 +228,20 @@ local function handleBoltReward()
 	end
 end
 
+local function handleCrystalReward()
+	local nextSequence = tonumber(localPlayer:GetAttribute("LastCrystalsRewardSequence")) or 0
+
+	if nextSequence == lastCrystalRewardSequence then
+		return
+	end
+
+	lastCrystalRewardSequence = nextSequence
+
+	if (tonumber(localPlayer:GetAttribute("LastCrystalsRewardAmount")) or 0) > 0 then
+		play2DSound("CrystalReward")
+	end
+end
+
 local function handleRoundResult()
 	local result = tostring(localPlayer:GetAttribute("RoundResult") or "")
 
@@ -252,6 +267,14 @@ localPlayer:GetAttributeChangedSignal("LastBoltsRewardAmount"):Connect(function(
 	if tonumber(localPlayer:GetAttribute("LastBoltsRewardSequence")) == nil then
 		if (tonumber(localPlayer:GetAttribute("LastBoltsRewardAmount")) or 0) > 0 then
 			play2DSound("BoltReward")
+		end
+	end
+end)
+localPlayer:GetAttributeChangedSignal("LastCrystalsRewardSequence"):Connect(handleCrystalReward)
+localPlayer:GetAttributeChangedSignal("LastCrystalsRewardAmount"):Connect(function()
+	if tonumber(localPlayer:GetAttribute("LastCrystalsRewardSequence")) == nil then
+		if (tonumber(localPlayer:GetAttribute("LastCrystalsRewardAmount")) or 0) > 0 then
+			play2DSound("CrystalReward")
 		end
 	end
 end)

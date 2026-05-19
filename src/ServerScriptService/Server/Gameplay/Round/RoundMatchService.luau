@@ -78,6 +78,7 @@ local callbacks = {
 	onResetCombatAttributes = nil,
 	onApplySpawn = nil,
 	getSpawnTransforms = nil,
+	onFinalMatchRewards = nil,
 	onMatchEnded = nil,
 }
 
@@ -510,6 +511,10 @@ function RoundMatchService.endRound(result)
 					MatchStatsService.persistFinalMatchStats(participant, participantMatchResult)
 				end
 			end
+		end
+
+		if callbacks.onFinalMatchRewards then
+			callbacks.onFinalMatchRewards(activeMatch, matchState)
 		end
 	end
 

@@ -36,6 +36,9 @@ local PLAYER_HP_PREFIX = "You HP: "
 local HEALTH_SEPARATOR = HudConfig.DummyHealth.Separator or " / "
 local SHOW_SMALL_ROUND_RESULT_OVERLAY = MatchConfig.ShowSmallRoundResultOverlay ~= false
 local SHOW_SMALL_MATCH_RESULT_BEFORE_FULL_RESULT = MatchConfig.ShowSmallMatchResultBeforeFullResult ~= false
+local LAST_CRYSTALS_REWARD_AMOUNT_ATTRIBUTE = "LastCrystalsRewardAmount"
+local LAST_CRYSTALS_REWARD_REASON_ATTRIBUTE = "LastCrystalsRewardReason"
+local LAST_CRYSTALS_REWARD_MATCH_ID_ATTRIBUTE = "LastCrystalsRewardMatchId"
 
 local lastShotTime = -100
 local currentPlayerTank = nil
@@ -539,6 +542,27 @@ local function getLocalMatchResult(matchResult)
 	return ""
 end
 
+local function getCurrentMatchCrystalRewardText()
+	if tostring(localPlayer:GetAttribute(LAST_CRYSTALS_REWARD_REASON_ATTRIBUTE) or "") ~= "DuelWin" then
+		return ""
+	end
+
+	local matchId = tostring(localPlayer:GetAttribute("MatchId") or "")
+	local rewardMatchId = tostring(localPlayer:GetAttribute(LAST_CRYSTALS_REWARD_MATCH_ID_ATTRIBUTE) or "")
+
+	if matchId == "" or rewardMatchId ~= matchId then
+		return ""
+	end
+
+	local amount = math.max(0, math.floor(tonumber(localPlayer:GetAttribute(LAST_CRYSTALS_REWARD_AMOUNT_ATTRIBUTE)) or 0))
+
+	if amount <= 0 then
+		return ""
+	end
+
+	return "+" .. tostring(amount) .. " Crystal" .. (amount == 1 and "" or "s")
+end
+
 local function getTankHealth(model, fallbackMaxHealth)
 	if model == nil then
 		return nil, fallbackMaxHealth
@@ -658,7 +682,13 @@ local function updateRoundResult()
 		end
 
 		local seconds = getCountdownSeconds("MatchResultAt", "ResultStartsIn")
-		roundUi.RestartHintLabel.Text = "Final " .. youWins .. " / " .. opponentSideWins .. " - Result in " .. seconds
+		local rewardText = localMatchResult == "Win" and getCurrentMatchCrystalRewardText() or ""
+
+		if rewardText ~= "" then
+			roundUi.RestartHintLabel.Text = rewardText .. " - Final " .. youWins .. " / " .. opponentSideWins .. " - Result in " .. seconds
+		else
+			roundUi.RestartHintLabel.Text = "Final " .. youWins .. " / " .. opponentSideWins .. " - Result in " .. seconds
+		end
 	elseif result == "Win" then
 		roundUi.RoundResultLabel.Text = "ROUND WON"
 		roundUi.RoundResultLabel.TextColor3 = Color3.fromRGB(105, 235, 145)
@@ -767,6 +797,18 @@ root:GetAttributeChangedSignal("MatchWinnerTankId"):Connect(function()
 	updateSeriesStatus()
 end)
 root:GetAttributeChangedSignal("MatchLoserTankId"):Connect(function()
+	updateRoundResult()
+	updateSeriesStatus()
+end)
+localPlayer:GetAttributeChangedSignal(LAST_CRYSTALS_REWARD_AMOUNT_ATTRIBUTE):Connect(function()
+	updateRoundResult()
+	updateSeriesStatus()
+end)
+localPlayer:GetAttributeChangedSignal(LAST_CRYSTALS_REWARD_REASON_ATTRIBUTE):Connect(function()
+	updateRoundResult()
+	updateSeriesStatus()
+end)
+localPlayer:GetAttributeChangedSignal(LAST_CRYSTALS_REWARD_MATCH_ID_ATTRIBUTE):Connect(function()
 	updateRoundResult()
 	updateSeriesStatus()
 end)

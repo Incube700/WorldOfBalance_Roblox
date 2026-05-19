@@ -1,6 +1,8 @@
 local CurrencyConfig = table.freeze({
 	CurrencyId = "Bolts",
 	DisplayName = "Bolts",
+	CrystalCurrencyId = "Crystals",
+	CrystalDisplayName = "Crystals",
 
 	Rewards = table.freeze({
 		TrainingKill = 1,
@@ -15,6 +17,22 @@ local CurrencyConfig = table.freeze({
 		UnsavedBalance = "UnsavedBolts",
 		LastRewardAmount = "LastBoltsRewardAmount",
 		LastRewardReason = "LastBoltsRewardReason",
+	}),
+
+	Crystals = table.freeze({
+		CurrencyId = "Crystals",
+		DisplayName = "Crystals",
+
+		Attributes = table.freeze({
+			Balance = "Crystals",
+			PersistentBalance = "PersistentCrystals",
+			SessionEarned = "SessionCrystalsEarned",
+			UnsavedBalance = "UnsavedCrystals",
+			LastRewardAmount = "LastCrystalsRewardAmount",
+			LastRewardReason = "LastCrystalsRewardReason",
+			LastRewardSequence = "LastCrystalsRewardSequence",
+			LastRewardMatchId = "LastCrystalsRewardMatchId",
+		}),
 	}),
 })
 

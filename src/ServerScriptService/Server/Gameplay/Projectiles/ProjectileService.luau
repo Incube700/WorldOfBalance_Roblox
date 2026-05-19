@@ -563,7 +563,8 @@ local function createProceduralDeathExplosion(position, config)
 		return false
 	end
 
-	local lifetime = math.max(0.25, config.TemplateLifetime or 1.2)
+	local lifetime = math.max(0.25, config.FallbackLifetime or config.TemplateLifetime or 1.2)
+	local shardCount = math.clamp(math.floor(tonumber(config.FallbackPartCount) or 8), 0, 12)
 
 	local flash = Instance.new("Part")
 	flash.Name = "VFX_DeathExplosionFlash"
@@ -587,7 +588,7 @@ local function createProceduralDeathExplosion(position, config)
 	light.Parent = flash
 	Debris:AddItem(flash, math.min(lifetime, 0.45))
 
-	for index = 1, 10 do
+	for index = 1, shardCount do
 		local spark = Instance.new("Part")
 		spark.Name = "VFX_DeathExplosionShard"
 		spark.Size = Vector3.new(0.35, 0.35, 2.2)

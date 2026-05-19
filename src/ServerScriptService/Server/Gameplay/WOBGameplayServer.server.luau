@@ -22,6 +22,7 @@ local PlayerTankSpawner = require(script.Parent:WaitForChild("PlayerTankSpawner"
 local MatchStatsService = require(script.Parent:WaitForChild("Stats"):WaitForChild("MatchStatsService"))
 local PlayerWalletService = require(script.Parent:WaitForChild("Economy"):WaitForChild("PlayerWalletService"))
 local KillRewardService = require(script.Parent:WaitForChild("Economy"):WaitForChild("KillRewardService"))
+local MatchRewardService = require(script.Parent:WaitForChild("Economy"):WaitForChild("MatchRewardService"))
 local TankMovementService = require(script.Parent:WaitForChild("Movement"):WaitForChild("TankMovementService"))
 local TankParticipantRegistry = require(script.Parent:WaitForChild("TankParticipantRegistry"))
 local ProjectileCombatService = require(script.Parent:WaitForChild("Combat"):WaitForChild("ProjectileCombatService"))
@@ -81,10 +82,12 @@ local testObjects = root:WaitForChild("TestObjects")
 local projectileFolder = runtime:FindFirstChild("Projectiles") or Instance.new("Folder")
 projectileFolder.Name = "Projectiles"
 projectileFolder.Parent = runtime
+projectileFolder:ClearAllChildren()
 
 local vfxFolder = runtime:FindFirstChild("VFX") or Instance.new("Folder")
 vfxFolder.Name = "VFX"
 vfxFolder.Parent = runtime
+vfxFolder:ClearAllChildren()
 
 -- Tank Prototypes
 local playerTank = PlayerTankSpawner.ensurePhysicalTankModel(testObjects:WaitForChild("PlayerTankPrototype"))
@@ -481,6 +484,10 @@ KillRewardService.init({
 	tankParticipantRegistry = TankParticipantRegistry,
 })
 
+MatchRewardService.init({
+	playerWalletService = PlayerWalletService,
+})
+
 -- Init Combat Service
 ProjectileCombatService.init({
 	getParticipantIsDead = function(p) return TankParticipantRegistry.getParticipantIsDead(p) end,
@@ -523,6 +530,9 @@ RoundMatchService.init(root, {
 	end,
 	onApplySpawn = function(p, s) TankSpawnResetService.applySpawnToParticipant(p, s) end,
 	getSpawnTransforms = function() return TankSpawnResetService.getAllSpawnTransforms() end,
+	onFinalMatchRewards = function(activeMatch, matchState)
+		MatchRewardService.awardFinalMatchRewards(activeMatch, matchState)
+	end,
 	onMatchEnded = function(activeMatch)
 		LobbyService.onMatchEnded(activeMatch)
 	end,

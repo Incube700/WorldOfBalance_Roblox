@@ -39,6 +39,23 @@
 - Документация должна жить в `docs/`.
 - MVP пока не реализован как механика. Текущий фокус — документация, структура и затем маленькие проверяемые шаги.
 
+## Current Sprint — Playtest Polish, Rewards, and Lobby UX
+
+- Статус: mobile/playtest polish pass поверх Stable Fun Duel + BattleArena, без переписывания loop.
+- Master doc: `docs/PLAYTEST_POLISH_MASTER_PASS.md`.
+- Mobile performance notes: `docs/MOBILE_PERFORMANCE_PASS.md`.
+- UX/readability rules: `docs/ROBLOX_UX_READABILITY_GUIDE.md`.
+- Crystals: внутриигровая валюта, не Robux/IAP. Хранится в `PlayerWalletService` рядом с Bolts и публикуется через attributes `Crystals`, `PersistentCrystals`, `SessionCrystalsEarned`, `UnsavedCrystals`.
+- Reward config: `src/ReplicatedStorage/Shared/Configs/RewardConfig.luau`.
+- Duel reward owner: `MatchRewardService.luau`; только финальная победа в real PvP Duel дает `RewardConfig.DuelWinCrystals` (`+1` сейчас). Training и BattleArena не дают Crystals.
+- Fire loop hotfix: `VfxConfig.BurningTank` mutes template sounds by default; `CombatVfxService` sanitizes runtime VFX clone sounds/scripts; run `docs/patches/MUTE_BURNING_VFX_SOUNDS_COMMAND.lua` outside Play Mode for existing Studio template cleanup.
+- Performance profile: `PerformanceConfig.ActiveProfile = "MobileLow"` disables expensive shadows for playtest. `Balanced` remains available in config for later visual polish.
+- Lobby scene scripts:
+  - `docs/patches/CREATE_OR_REPAIR_LOBBY_SHOWCASES_COMMAND.lua`
+  - `docs/patches/CREATE_OR_REPAIR_LOBBY_GUIDANCE_COMMAND.lua`
+- Publish checklist additions: confirm Rojo VFX guard, no infinite fire sound, Duel +1 Crystal, readable lobby signs/showcases, mobile controls/HUD, BattleArena/Training/Duel regressions.
+- Recommended commit message: `Polish playtest UX rewards and lobby showcases`.
+
 ## Current Sprint — Stable Fun Duel v0.1
 
 - Статус: code-first stabilization sprint after audit in `docs/STABLE_FUN_DUEL_V01_AUDIT.md`; current gameplay advancement notes: `docs/STABLE_FUN_DUEL_GAMEPLAY_ADVANCEMENT.md`.

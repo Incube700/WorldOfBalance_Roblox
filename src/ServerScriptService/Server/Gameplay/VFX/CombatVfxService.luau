@@ -257,6 +257,50 @@ local function forEachInstance(rootInstance, callback)
 	end
 end
 
+function CombatVfxService.sanitizeVfxClone(rootInstance, config)
+	if rootInstance == nil then
+		return
+	end
+
+	config = config or {}
+	local playTemplateSounds = config.PlayTemplateSounds == true
+	local soundVolumeOverride = config.SoundVolume
+	local allowLoopedSounds = config.AllowLoopedSounds == true
+	local instancesToDestroy = {}
+
+	forEachInstance(rootInstance, function(instance)
+		if instance:IsA("Script") or instance:IsA("LocalScript") or instance:IsA("ClickDetector") then
+			table.insert(instancesToDestroy, instance)
+		elseif instance:IsA("Sound") then
+			if allowLoopedSounds ~= true then
+				instance.Looped = false
+			end
+
+			if typeof(soundVolumeOverride) == "number" then
+				instance.Volume = soundVolumeOverride
+			elseif not playTemplateSounds then
+				instance.Volume = 0
+			end
+
+			if not playTemplateSounds then
+				pcall(function()
+					instance:Stop()
+				end)
+
+				pcall(function()
+					instance.Playing = false
+				end)
+			end
+		end
+	end)
+
+	for _, instance in ipairs(instancesToDestroy) do
+		if instance.Parent ~= nil then
+			instance:Destroy()
+		end
+	end
+end
+
 function CombatVfxService.emitAllParticles(rootInstance, emitCount)
 	if rootInstance == nil then
 		return
@@ -377,6 +421,7 @@ function CombatVfxService.playVfxTemplate(position, direction, config, effectNam
 	local effectCFrame = getEffectCFrame(position, direction)
 	local success, cloneOrError = pcall(function()
 		local clone = template:Clone()
+		CombatVfxService.sanitizeVfxClone(clone, config)
 		return CombatVfxService.pivotVfxClone(clone, effectCFrame, effectName)
 	end)
 
@@ -389,6 +434,11 @@ function CombatVfxService.playVfxTemplate(position, direction, config, effectNam
 	end
 
 	CombatVfxService.emitAllParticles(cloneOrError, config.TemplateEmitCount or config.EmitCount or 1)
+
+	if config.PlayTemplateSounds == true then
+		CombatVfxService.playAllSounds(cloneOrError, config.SoundVolume)
+	end
+
 	Debris:AddItem(cloneOrError, getTemplateLifetime(config))
 
 	return true

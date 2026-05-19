@@ -7,6 +7,7 @@ local AudioCatalog = table.freeze({
 		TankDestroyed = "DefaultExplosion",
 		BarrelBlocked = "DefaultBarrelBlocked",
 		BoltReward = "DefaultBoltReward",
+		CrystalReward = "DefaultBoltReward",
 		ButtonClick = "DefaultButtonClick",
 		Win = "DefaultWin",
 		Lose = "DefaultLose",

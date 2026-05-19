@@ -25,6 +25,9 @@ local PLAYER_MODE_LOBBY = "Lobby"
 local PLAYER_MODE_QUEUED = "QueuedForDuel"
 local PLAYER_MODE_IN_MATCH = "InMatch"
 local PLAYER_MODE_RESULT = "Result"
+local LAST_CRYSTALS_REWARD_AMOUNT_ATTRIBUTE = "LastCrystalsRewardAmount"
+local LAST_CRYSTALS_REWARD_REASON_ATTRIBUTE = "LastCrystalsRewardReason"
+local LAST_CRYSTALS_REWARD_MATCH_ID_ATTRIBUTE = "LastCrystalsRewardMatchId"
 
 local HUD_GUI_NAMES = {
 	"HUD",
@@ -435,8 +438,8 @@ local function createLobbyControls(screenGui)
 	local hintLabel = getOrCreate(screenGui, "TextLabel", "LobbyHintLabel")
 	hintLabel.AnchorPoint = Vector2.new(0.5, 0)
 	hintLabel.Position = UDim2.new(0.5, 0, 0, 18)
-	hintLabel.Size = UDim2.new(0, 420, 0, 36)
-	styleLabel(hintLabel, "Drive onto Duel Pad for PvP or Arena Pad for free battle", 18, Color3.fromRGB(244, 255, 248))
+	hintLabel.Size = UDim2.new(0, 520, 0, 40)
+	styleLabel(hintLabel, "Drive to Arena, Duel, or Training. Win Duels to earn Crystals.", 17, Color3.fromRGB(244, 255, 248))
 	hintLabel.BackgroundColor3 = Color3.fromRGB(7, 9, 11)
 	hintLabel.BackgroundTransparency = 0.28
 	hintLabel.BorderSizePixel = 0
@@ -760,6 +763,27 @@ local function formatMatchResult(result)
 	return tostring(result)
 end
 
+local function getCurrentMatchCrystalRewardText()
+	if tostring(localPlayer:GetAttribute(LAST_CRYSTALS_REWARD_REASON_ATTRIBUTE) or "") ~= "DuelWin" then
+		return ""
+	end
+
+	local matchId = tostring(localPlayer:GetAttribute("MatchId") or "")
+	local rewardMatchId = tostring(localPlayer:GetAttribute(LAST_CRYSTALS_REWARD_MATCH_ID_ATTRIBUTE) or "")
+
+	if matchId == "" or rewardMatchId ~= matchId then
+		return ""
+	end
+
+	local amount = math.max(0, math.floor(tonumber(localPlayer:GetAttribute(LAST_CRYSTALS_REWARD_AMOUNT_ATTRIBUTE)) or 0))
+
+	if amount <= 0 then
+		return ""
+	end
+
+	return "+" .. tostring(amount) .. " Crystal" .. (amount == 1 and "" or "s")
+end
+
 local function updateResultStats()
 	local shots = runtimeNumber("StatsShotsFired")
 	local hits = runtimeNumber("StatsHits")
@@ -788,6 +812,7 @@ local function updateResultStats()
 		DamageDealt = runtimeIntText("StatsDamageDealt"),
 		DamageTaken = runtimeIntText("StatsDamageTaken"),
 	}
+	local rewardText = values.MatchResult == "Victory" and getCurrentMatchCrystalRewardText() or ""
 
 	for key, text in pairs(values) do
 		local label = statValueLabels[key]
@@ -803,6 +828,14 @@ local function updateResultStats()
 			if duplicateLabel ~= nil and duplicateLabel:IsA("TextLabel") then
 				duplicateLabel.Text = text
 			end
+		end
+	end
+
+	for _, screenGui in ipairs(getShellScreenGuis()) do
+		local resultTitleLabel = findDescendant(screenGui, "ResultTitleLabel")
+
+		if resultTitleLabel ~= nil and resultTitleLabel:IsA("TextLabel") then
+			resultTitleLabel.Text = rewardText ~= "" and ("Victory " .. rewardText) or "Your Match Result"
 		end
 	end
 end
@@ -1082,6 +1115,9 @@ localPlayer:GetAttributeChangedSignal("RematchStatus"):Connect(function()
 	updateRematchButton()
 	updateShell()
 end)
+localPlayer:GetAttributeChangedSignal(LAST_CRYSTALS_REWARD_AMOUNT_ATTRIBUTE):Connect(updateResultStats)
+localPlayer:GetAttributeChangedSignal(LAST_CRYSTALS_REWARD_REASON_ATTRIBUTE):Connect(updateResultStats)
+localPlayer:GetAttributeChangedSignal(LAST_CRYSTALS_REWARD_MATCH_ID_ATTRIBUTE):Connect(updateResultStats)
 
 for _, attributeName in ipairs(STAT_ATTRIBUTES) do
 	root:GetAttributeChangedSignal(attributeName):Connect(updateResultStats)
