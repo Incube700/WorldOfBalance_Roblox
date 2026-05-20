@@ -50,6 +50,10 @@ local function getYawFromFlatDirection(direction, fallbackYaw)
 	return math.atan2(-unit.X, -unit.Z)
 end
 
+local function computeFacingYaw(fromPosition, toPosition, fallbackYaw)
+	return getYawFromFlatDirection(toPosition - fromPosition, fallbackYaw)
+end
+
 local function getSpawnPart(spawnName)
 	local root = map ~= nil and map.Parent or nil
 	local spawnPointsFolder = root ~= nil and root:FindFirstChild("SpawnPoints") or nil
@@ -88,6 +92,12 @@ local function makeSpawnTransform(position, yaw, source)
 		TurretYaw = yaw,
 		Source = source,
 	}
+end
+
+local function faceSpawnTransformAt(spawnTransform, targetPosition)
+	local yaw = computeFacingYaw(spawnTransform.Position, targetPosition, spawnTransform.BodyYaw or 0)
+
+	return makeSpawnTransform(spawnTransform.Position, yaw, spawnTransform.Source)
 end
 
 local function isLobbySpawnSource(source)
@@ -182,10 +192,14 @@ function TankSpawnResetService.getSpawnTransform(spawnName, fallbackPosition, fa
 end
 
 function TankSpawnResetService.getAllSpawnTransforms()
+	local playerTransform = TankSpawnResetService.getSpawnTransform("PlayerSpawn", PLAYER_INITIAL_POSITION, DUMMY_INITIAL_POSITION)
+	local dummyTransform = TankSpawnResetService.getSpawnTransform("DummySpawn", DUMMY_INITIAL_POSITION, PLAYER_INITIAL_POSITION)
+	local player2Transform = TankSpawnResetService.getSpawnTransform("Player2Spawn", PLAYER2_INITIAL_POSITION, PLAYER_INITIAL_POSITION)
+
 	return {
-		Player = TankSpawnResetService.getSpawnTransform("PlayerSpawn", PLAYER_INITIAL_POSITION, DUMMY_INITIAL_POSITION),
-		Dummy = TankSpawnResetService.getSpawnTransform("DummySpawn", DUMMY_INITIAL_POSITION, PLAYER_INITIAL_POSITION),
-		Player2 = TankSpawnResetService.getSpawnTransform("Player2Spawn", PLAYER2_INITIAL_POSITION, PLAYER_INITIAL_POSITION),
+		Player = faceSpawnTransformAt(playerTransform, dummyTransform.Position),
+		Dummy = faceSpawnTransformAt(dummyTransform, playerTransform.Position),
+		Player2 = faceSpawnTransformAt(player2Transform, playerTransform.Position),
 	}
 end
 

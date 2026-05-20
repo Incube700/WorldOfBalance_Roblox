@@ -31,7 +31,7 @@ local ProjectileCombatService = require(script.Parent:WaitForChild("Combat"):Wai
 local RoundMatchService = require(script.Parent:WaitForChild("Round"):WaitForChild("RoundMatchService"))
 local ProjectileService = require(script.Parent:WaitForChild("Projectiles"):WaitForChild("ProjectileService"))
 local TankSpawnResetService = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankSpawnResetService"))
-local TankCustomizationService = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankCustomizationService"))
+local TankFactory = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankFactory"))
 local PlayerPossessionService = require(script.Parent:WaitForChild("Players"):WaitForChild("PlayerPossessionService"))
 local LobbyService = require(script.Parent:WaitForChild("Lobby"):WaitForChild("LobbyService"))
 local ArenaCombatService = require(script.Parent:WaitForChild("Arena"):WaitForChild("ArenaCombatService"))
@@ -104,55 +104,31 @@ local dummyTank = PlayerTankSpawner.ensurePhysicalTankModel(testObjects:WaitForC
 local player2TankParts = PlayerTankSpawner.getOrCreateRuntimePlayerTank(playerTank, testObjects, "Player2TankPrototype")
 local player2Tank = player2TankParts.Model
 local tankMovementIgnoredModels = { playerTank, player2Tank, dummyTank }
+local tankFactory = TankFactory.new({
+	PlayerTankSpawner = PlayerTankSpawner,
+	TankParticipantRegistry = TankParticipantRegistry,
+	DefaultWeaponConfig = primaryWeaponConfig,
+})
 
 -- Helpers
-local function findOptionalTankChild(model, childName)
-	local child = model:FindFirstChild(childName, true) or model:WaitForChild(childName, 5)
-	if child == nil then
-		warn("[SERVER] " .. model.Name .. "." .. childName .. " missing; continuing without blocking startup")
-	end
-	return child
-end
-
 local function registerTankParticipant(config)
-	local model = config.Model
-	PlayerTankSpawner.ensurePhysicalTankModel(model)
-	TankCustomizationService.applySkin(model, config.SkinId)
-	local tankParts = PlayerTankSpawner.getTankParts(model)
-
-	local participant = {
+	return tankFactory:SpawnTank({
 		TankId = config.TankId,
-		Model = tankParts.Model,
-		PhysicalModel = tankParts.Model,
-		Body = tankParts.Body or findOptionalTankChild(model, "Body"),
-		Turret = tankParts.Turret or findOptionalTankChild(model, "Turret"),
-		Barrel = tankParts.Barrel or findOptionalTankChild(model, "Barrel"),
-		ShootPoint = tankParts.ShootPoint or findOptionalTankChild(model, "ShootPoint"),
-		Hitboxes = tankParts.Hitboxes or findOptionalTankChild(model, "Hitboxes"),
-		OwnerPlayer = nil,
-		OwnerUserId = nil,
+		ExistingModel = config.Model,
+		Role = config.Role,
 		TeamId = config.TeamId,
 		IsBot = config.IsBot,
 		IsPlayerTank = config.IsPlayerTank,
-		ControllerType = config.IsBot and "Dummy" or "Player",
+		ControllerType = config.ControllerType,
 		SpawnName = config.SpawnName,
-		SpawnTransform = nil,
-		WeaponTypeId = primaryWeaponConfig.Id,
-		WeaponConfig = primaryWeaponConfig,
-		LastShotTime = 0,
-		WeaponReadyAt = 0,
-		WeaponState = { LastShotTime = 0, WeaponReadyAt = 0 },
-		Health = 100,
-		MaxHealth = 100,
-		DefaultMaxHealth = 100,
-		IsAlive = true,
-		IsDead = false,
-		IsControllable = true,
-		CanMove = true,
-		CanShoot = true,
 		IsActive = config.IsActive ~= false,
-	}
-	return TankParticipantRegistry.registerTankParticipant(participant)
+		Loadout = {
+			SkinId = config.SkinId or "Default",
+			WeaponId = primaryWeaponConfig.Id,
+			UpgradeLevels = {},
+		},
+		StatsProfileId = config.StatsProfileId,
+	})
 end
 
 -- Initialize Registry
@@ -162,9 +138,9 @@ TankParticipantRegistry.init({
 	ARMOR_HITBOX_TRANSPARENCY = TankConfig.Armor.ArmorHitboxTransparency or 0.4,
 })
 
-local playerParticipant = registerTankParticipant({ TankId = "PlayerTankPrototype", Model = playerTank, TeamId = "Player", IsBot = false, IsPlayerTank = true, SpawnName = "PlayerSpawn", IsActive = false })
-local dummyParticipant = registerTankParticipant({ TankId = "DummyTank", Model = dummyTank, TeamId = "Dummy", IsBot = true, IsPlayerTank = false, SpawnName = "DummySpawn", IsActive = false })
-local player2Participant = registerTankParticipant({ TankId = "Player2TankPrototype", Model = player2Tank, TeamId = "Player2", IsBot = false, IsPlayerTank = true, SpawnName = "Player2Spawn", IsActive = false })
+local playerParticipant = registerTankParticipant({ TankId = "PlayerTankPrototype", Model = playerTank, Role = "Player", TeamId = "Player", IsBot = false, IsPlayerTank = true, SpawnName = "PlayerSpawn", IsActive = false, StatsProfileId = "DuelNormalized" })
+local dummyParticipant = registerTankParticipant({ TankId = "DummyTank", Model = dummyTank, Role = "Dummy", TeamId = "Dummy", IsBot = true, IsPlayerTank = false, SpawnName = "DummySpawn", IsActive = false, StatsProfileId = "TrainingDummy" })
+local player2Participant = registerTankParticipant({ TankId = "Player2TankPrototype", Model = player2Tank, Role = "DuelOpponent", TeamId = "Player2", IsBot = false, IsPlayerTank = true, SpawnName = "Player2Spawn", IsActive = false, StatsProfileId = "DuelNormalized" })
 
 -- Setup Raycast Params
 local tankMovementRaycastParams = RaycastParams.new()
@@ -220,11 +196,13 @@ local function getOrCreatePlayerParticipantForPlayer(player)
 	local participant = registerTankParticipant({
 		TankId = tankName,
 		Model = tankParts.Model,
+		Role = "Player",
 		TeamId = "Player_" .. tostring(player.UserId),
 		IsBot = false,
 		IsPlayerTank = true,
 		SpawnName = "LobbySpawn",
 		IsActive = true,
+		StatsProfileId = "DuelNormalized",
 	})
 
 	table.insert(tankMovementIgnoredModels, participant.Model)

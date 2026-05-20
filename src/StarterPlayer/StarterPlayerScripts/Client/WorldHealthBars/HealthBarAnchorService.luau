@@ -40,26 +40,32 @@ local function getBodyPart(model)
 		return body
 	end
 
+	local hull = findBasePart(model, "Hull")
+
+	if hull ~= nil then
+		return hull
+	end
+
 	if model.PrimaryPart ~= nil and model.PrimaryPart:IsDescendantOf(model) then
 		return model.PrimaryPart
 	end
 
-	return findBasePart(model, "Hull")
+	return nil
 end
 
-local function getModelCenter(model)
+local function getAnchorPosition(model)
+	local bodyPart = getBodyPart(model)
+
+	if bodyPart ~= nil then
+		return bodyPart.Position
+	end
+
 	local success, cframe = pcall(function()
 		return model:GetBoundingBox()
 	end)
 
 	if success and typeof(cframe) == "CFrame" then
 		return cframe.Position
-	end
-
-	local bodyPart = getBodyPart(model)
-
-	if bodyPart ~= nil then
-		return bodyPart.Position
 	end
 
 	return nil
@@ -133,7 +139,7 @@ function HealthBarAnchorService:UpdateAnchor(model, anchor)
 		return
 	end
 
-	local center = getModelCenter(model)
+	local center = getAnchorPosition(model)
 
 	if center == nil then
 		return

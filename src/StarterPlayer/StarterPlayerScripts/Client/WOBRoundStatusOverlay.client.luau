@@ -171,6 +171,7 @@ local function waitForModularHud()
 		WeaponStatusPanel = weaponStatusPanel,
 		PlayerStatusPanel = playerStatusPanel,
 		RoundStatusPanel = roundStatusPanel,
+		MatchSeriesPanel = matchSeriesPanel,
 		EnemyHpLabel = enemyHpLabel,
 		EnemyHpFill = enemyHpFill,
 		ReloadLabel = reloadLabel,
@@ -409,6 +410,7 @@ local function createEmergencyRoundUi(reason)
 		WeaponStatusPanel = weaponPanel,
 		PlayerStatusPanel = playerPanel,
 		RoundStatusPanel = roundPanel,
+		MatchSeriesPanel = matchPanel,
 		EnemyHpLabel = enemyHpLabel,
 		EnemyHpFill = enemyHpFill,
 		ReloadLabel = reloadLabel,
@@ -493,7 +495,48 @@ local function shouldHideLargeReloadPanel()
 	return false
 end
 
+local function setLabelLayout(label, position, size, textSize, wrapped)
+	if label == nil then
+		return
+	end
+
+	label.Position = position
+	label.Size = size
+	label.TextScaled = false
+	label.TextSize = textSize
+	label.TextWrapped = wrapped == true
+	label.TextTruncate = wrapped == true and Enum.TextTruncate.None or Enum.TextTruncate.AtEnd
+end
+
+local function applyMobileSeriesLayout(matchEnded)
+	if roundUi.MatchSeriesPanel == nil then
+		return
+	end
+
+	local camera = Workspace.CurrentCamera
+	local viewportSize = camera ~= nil and camera.ViewportSize or Vector2.new(1024, 768)
+	local panelWidth = math.clamp(viewportSize.X - 24, 220, 300)
+	local panelHeight = matchEnded and 72 or 52
+
+	roundUi.MatchSeriesPanel.AnchorPoint = Vector2.new(0.5, 0)
+	roundUi.MatchSeriesPanel.Position = UDim2.new(0.5, 0, 0, 18)
+	roundUi.MatchSeriesPanel.Size = UDim2.fromOffset(panelWidth, panelHeight)
+
+	setLabelLayout(roundUi.RoundLabel, UDim2.new(0, 10, 0, 4), UDim2.new(0, 76, 0, 18), 13, false)
+	setLabelLayout(roundUi.ScoreLabel, UDim2.new(0, 88, 0, 4), UDim2.new(1, -98, 0, 18), 13, false)
+	setLabelLayout(roundUi.TargetWinsLabel, UDim2.new(0, 10, 0, 24), UDim2.new(1, -20, 0, 18), 12, false)
+	setLabelLayout(roundUi.MatchResultLabel, UDim2.new(0, 10, 0, 46), UDim2.new(1, -20, 0, 20), 16, false)
+end
+
+local function applyCombatHudLayout()
+	if isMobileLayout() then
+		applyMobileSeriesLayout(root:GetAttribute("MatchEnded") == true)
+	end
+end
+
 local function applyCombatHudVisibility()
+	applyCombatHudLayout()
+
 	local isVisible = isCombatHudVisible()
 	local hideTopHpPanels = isVisible and shouldHideTopHpPanels()
 	local hideLargeReloadPanel = isVisible and shouldHideLargeReloadPanel()
@@ -808,10 +851,23 @@ local function updateSeriesStatus()
 	local matchEnded = root:GetAttribute("MatchEnded") == true
 	local matchResult = root:GetAttribute("MatchResult") or ""
 	local localMatchResult = getLocalMatchResult(matchResult)
+	local mobileLayout = isMobileLayout()
 
-	roundUi.RoundLabel.Text = "Round: " .. roundNumber
-	roundUi.ScoreLabel.Text = "Score: You " .. youWins .. " / Opponent " .. opponentWins
-	roundUi.TargetWinsLabel.Text = "First to " .. targetWins
+	applyCombatHudLayout()
+
+	if mobileLayout then
+		roundUi.RoundLabel.Text = "R: " .. roundNumber
+		roundUi.ScoreLabel.Text = "You " .. youWins .. " / Opp " .. opponentWins
+		roundUi.TargetWinsLabel.Text = "First to " .. targetWins
+	else
+		roundUi.RoundLabel.Text = "Round: " .. roundNumber
+		roundUi.ScoreLabel.Text = "Score: You " .. youWins .. " / Opponent " .. opponentWins
+		roundUi.TargetWinsLabel.Text = "First to " .. targetWins
+	end
+
+	roundUi.RoundLabel.Visible = true
+	roundUi.ScoreLabel.Visible = true
+	roundUi.TargetWinsLabel.Visible = true
 
 	if matchEnded then
 		if localMatchResult == "Win" then

@@ -22,13 +22,17 @@ local root = Workspace:WaitForChild("WOB_Generated")
 local GUI_NAME = "WOBBattleArenaOverlay"
 local MODE_IN_BATTLE_ARENA = "InBattleArena"
 local MODE_ARENA_RESPAWNING = "ArenaRespawning"
+local PERSISTENT_BOLTS_ATTRIBUTE = "PersistentBolts"
+local UNSAVED_BOLTS_ATTRIBUTE = "UnsavedBolts"
+local CRYSTALS_ATTRIBUTE = "Crystals"
+local PERSISTENT_CRYSTALS_ATTRIBUTE = "PersistentCrystals"
+local UNSAVED_CRYSTALS_ATTRIBUTE = "UnsavedCrystals"
 local PANEL_Z_INDEX = 10
 local ACTION_Z_INDEX = 20
 local POPUP_Z_INDEX = 30
 
 local mobileHudConfig = BattleArenaConfig.MobileHud or {}
 local mobileHudCompact = mobileHudConfig.Compact ~= false
-local mobileShowUpgradeList = mobileHudConfig.ShowUpgradeList == true
 local mobileUseMenuForReturn = mobileHudConfig.UseMenuForReturn ~= false
 
 local existingGui = playerGui:FindFirstChild(GUI_NAME)
@@ -87,6 +91,7 @@ local function makeLabel(parent, name, position, size, textSize, font)
 	label.TextColor3 = Color3.fromRGB(241, 255, 248)
 	label.TextSize = textSize
 	label.TextWrapped = true
+	label.TextTruncate = Enum.TextTruncate.AtEnd
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.TextYAlignment = Enum.TextYAlignment.Center
 	label.ZIndex = parent:IsA("GuiObject") and parent.ZIndex + 1 or PANEL_Z_INDEX + 1
@@ -387,12 +392,18 @@ local function setTextLayout(label, position, size, textSize)
 	label.TextSize = textSize
 end
 
+local function setCompactText(label, isCompact)
+	label.TextWrapped = not isCompact
+	label.TextTruncate = isCompact and Enum.TextTruncate.AtEnd or Enum.TextTruncate.None
+end
+
 local function applyDesktopLayout()
 	healthPanel.AnchorPoint = Vector2.new(0, 0)
 	healthPanel.Position = UDim2.new(0, 18, 0, 18)
 	healthPanel.Size = UDim2.new(0, 260, 0, 78)
 	healthPanel.BackgroundTransparency = 0.1
 	setTextLayout(healthLabel, UDim2.new(0, 14, 0, 8), UDim2.new(1, -28, 0, 28), 18)
+	setCompactText(healthLabel, false)
 	healthBack.Position = UDim2.new(0, 14, 0, 46)
 	healthBack.Size = UDim2.new(1, -28, 0, 14)
 
@@ -404,6 +415,10 @@ local function applyDesktopLayout()
 	setTextLayout(killsDeathsLabel, UDim2.new(0, 14, 0, 36), UDim2.new(1, -28, 0, 24), 16)
 	setTextLayout(streakLabel, UDim2.new(0, 14, 0, 62), UDim2.new(1, -28, 0, 22), 14)
 	setTextLayout(upgradesLabel, UDim2.new(0, 14, 0, 86), UDim2.new(1, -28, 0, 34), 14)
+	setCompactText(scoreLabel, false)
+	setCompactText(killsDeathsLabel, false)
+	setCompactText(streakLabel, false)
+	setCompactText(upgradesLabel, false)
 	upgradesLabel.Visible = true
 
 	returnButton.AnchorPoint = Vector2.new(1, 1)
@@ -424,40 +439,66 @@ local function applyDesktopLayout()
 end
 
 local function applyMobileLayout(viewportSize)
-	local panelWidth = viewportSize.X < 390 and 148 or 170
-	local hasTopCenterSpace = viewportSize.X >= panelWidth * 2 + 152
-	local topY = 48
-	local panelY = hasTopCenterSpace and topY or 88
+	local topY = 18
+	local sideInset = 12
+	local menuWidth = mobileUseMenuForReturn and 68 or 0
+	local scoreWidth = math.clamp(viewportSize.X - sideInset * 3 - menuWidth, 188, 270)
+	local showBolts = scoreWidth >= 224
+	local scoreContentWidth = scoreWidth - 20
+	local scoreColumnWidth = math.floor((scoreContentWidth - 6) * 0.5)
 
 	if not mobileHudCompact then
-		panelWidth = 170
+		scoreWidth = math.clamp(viewportSize.X - sideInset * 2, 220, 300)
+		scoreContentWidth = scoreWidth - 20
+		scoreColumnWidth = math.floor((scoreContentWidth - 6) * 0.5)
+		showBolts = true
 	end
 
 	healthPanel.AnchorPoint = Vector2.new(0, 0)
-	healthPanel.Position = UDim2.fromOffset(16, panelY)
-	healthPanel.Size = UDim2.fromOffset(panelWidth, 54)
+	healthPanel.Position = UDim2.fromOffset(sideInset, 78)
+	healthPanel.Size = UDim2.fromOffset(math.min(scoreWidth, 180), 54)
 	healthPanel.BackgroundTransparency = 0.32
 	setTextLayout(healthLabel, UDim2.new(0, 10, 0, 4), UDim2.new(1, -20, 0, 24), 14)
+	setCompactText(healthLabel, true)
 	healthBack.Position = UDim2.new(0, 10, 0, 36)
 	healthBack.Size = UDim2.new(1, -20, 0, 6)
 
-	scorePanel.AnchorPoint = Vector2.new(1, 0)
-	scorePanel.Position = UDim2.new(1, -16, 0, panelY)
-	scorePanel.Size = UDim2.fromOffset(panelWidth, 72)
+	scorePanel.AnchorPoint = Vector2.new(0, 0)
+	scorePanel.Position = UDim2.fromOffset(sideInset, topY)
+	scorePanel.Size = UDim2.fromOffset(scoreWidth, showBolts and 48 or 44)
 	scorePanel.BackgroundTransparency = 0.32
-	setTextLayout(scoreLabel, UDim2.new(0, 10, 0, 4), UDim2.new(1, -20, 0, 16), 13)
-	setTextLayout(killsDeathsLabel, UDim2.new(0, 10, 0, 21), UDim2.new(1, -20, 0, 16), 13)
-	setTextLayout(streakLabel, UDim2.new(0, 10, 0, 38), UDim2.new(1, -20, 0, 16), 12)
-	setTextLayout(upgradesLabel, UDim2.new(0, 10, 0, 54), UDim2.new(1, -20, 0, 14), 12)
-	upgradesLabel.Visible = true
+	setTextLayout(scoreLabel, UDim2.new(0, 10, 0, 3), UDim2.fromOffset(scoreColumnWidth, 18), 12)
+	setTextLayout(
+		killsDeathsLabel,
+		UDim2.new(0, 16 + scoreColumnWidth, 0, 3),
+		UDim2.fromOffset(scoreColumnWidth, 18),
+		12
+	)
+	setTextLayout(
+		streakLabel,
+		UDim2.new(0, 10, 0, 23),
+		UDim2.fromOffset(showBolts and scoreColumnWidth or scoreContentWidth, 18),
+		12
+	)
+	setTextLayout(
+		upgradesLabel,
+		UDim2.new(0, 16 + scoreColumnWidth, 0, 23),
+		UDim2.fromOffset(scoreColumnWidth, 18),
+		12
+	)
+	setCompactText(scoreLabel, true)
+	setCompactText(killsDeathsLabel, true)
+	setCompactText(streakLabel, true)
+	setCompactText(upgradesLabel, true)
+	upgradesLabel.Visible = showBolts
 
 	returnButton.Visible = not mobileUseMenuForReturn
 	menuButton.Visible = mobileUseMenuForReturn
-	menuButton.AnchorPoint = Vector2.new(0.5, 0)
-	menuButton.Position = UDim2.new(0.5, 0, 0, topY)
-	menuButton.Size = UDim2.fromOffset(72, 36)
+	menuButton.AnchorPoint = Vector2.new(1, 0)
+	menuButton.Position = UDim2.new(1, -sideInset, 0, topY)
+	menuButton.Size = UDim2.fromOffset(menuWidth, 34)
 	menuButton.Text = "Menu"
-	menuButton.TextSize = 14
+	menuButton.TextSize = 13
 
 	deathPanel.Position = UDim2.new(0.5, -130, 0.5, -72)
 	deathPanel.Size = UDim2.new(0, 260, 0, 144)
@@ -509,14 +550,6 @@ local function getOwnedTankHealth(ownedTank)
 	return health, maxHealth
 end
 
-local function formatUpgrades(upgradeIds)
-	if typeof(upgradeIds) ~= "string" or upgradeIds == "" then
-		return "Upgrades: -"
-	end
-
-	return "Upgrades: " .. string.gsub(upgradeIds, ",", ", ")
-end
-
 local function getUpgradeCount(upgradeIds)
 	if typeof(upgradeIds) ~= "string" or upgradeIds == "" then
 		return 0
@@ -529,6 +562,32 @@ local function getUpgradeCount(upgradeIds)
 	end
 
 	return count
+end
+
+local function getVisibleBolts()
+	local persistentBolts = tonumber(localPlayer:GetAttribute(PERSISTENT_BOLTS_ATTRIBUTE))
+
+	if persistentBolts ~= nil then
+		return math.max(0, math.floor(persistentBolts))
+	end
+
+	return math.max(0, math.floor(tonumber(localPlayer:GetAttribute(UNSAVED_BOLTS_ATTRIBUTE)) or 0))
+end
+
+local function getVisibleCrystals()
+	local crystals = tonumber(localPlayer:GetAttribute(CRYSTALS_ATTRIBUTE))
+
+	if crystals ~= nil then
+		return math.max(0, math.floor(crystals))
+	end
+
+	local persistentCrystals = tonumber(localPlayer:GetAttribute(PERSISTENT_CRYSTALS_ATTRIBUTE))
+
+	if persistentCrystals ~= nil then
+		return math.max(0, math.floor(persistentCrystals))
+	end
+
+	return math.max(0, math.floor(tonumber(localPlayer:GetAttribute(UNSAVED_CRYSTALS_ATTRIBUTE)) or 0))
 end
 
 local function updateHealth(ownedTank, mobileLayout)
@@ -569,11 +628,17 @@ local function updateOverlay()
 	local ownedTank = getOwnedTank()
 
 	if mobileLayout then
-		scoreLabel.Text = "Score: " .. tostring(math.floor(score))
+		local camera = Workspace.CurrentCamera
+		local viewportSize = camera ~= nil and camera.ViewportSize or Vector2.new(1024, 768)
+		local useShortLabels = viewportSize.X < 390
+		local scorePrefix = useShortLabels and "S" or "Score"
+		local crystalsPrefix = useShortLabels and "C" or "Crystals"
+		local boltsPrefix = useShortLabels and "B" or "Bolts"
+
+		scoreLabel.Text = scorePrefix .. ": " .. tostring(math.floor(score))
 		killsDeathsLabel.Text = "K/D: " .. tostring(math.floor(kills)) .. "/" .. tostring(math.floor(deaths))
-		streakLabel.Text = "Streak: " .. tostring(math.floor(streak))
-		upgradesLabel.Text = mobileShowUpgradeList and formatUpgrades(upgrades)
-			or "Upg: " .. tostring(getUpgradeCount(upgrades))
+		streakLabel.Text = crystalsPrefix .. ": " .. tostring(getVisibleCrystals())
+		upgradesLabel.Text = boltsPrefix .. ": " .. tostring(getVisibleBolts())
 	else
 		scoreLabel.Text = "Arena Score: " .. tostring(math.floor(score))
 		killsDeathsLabel.Text = "Kills: " .. tostring(math.floor(kills)) .. " Deaths: " .. tostring(math.floor(deaths))
@@ -627,6 +692,11 @@ localPlayer:GetAttributeChangedSignal("ArenaRespawnAt"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("CurrentHealth"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("MaxHealth"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("IsDead"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal(PERSISTENT_BOLTS_ATTRIBUTE):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal(UNSAVED_BOLTS_ATTRIBUTE):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal(CRYSTALS_ATTRIBUTE):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal(PERSISTENT_CRYSTALS_ATTRIBUTE):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal(UNSAVED_CRYSTALS_ATTRIBUTE):Connect(updateOverlay)
 
 local overlayUpdateAccumulator = 0
 

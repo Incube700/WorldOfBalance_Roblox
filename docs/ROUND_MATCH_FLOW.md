@@ -14,6 +14,26 @@ Date: 2026-05-13.
 
 For v0.1, round flow is intentionally simple: one death ends the current round, a small overlay appears, controls are disabled, then the next round starts automatically once. The full Result screen, Rematch, and Return to Lobby belong only to `MatchEnd`.
 
+## Entry Points
+
+- Main Menu `Play` starts a quick Training match.
+- `TrainingPad` / `StartPad` starts Training when the player tank is inside the pad trigger.
+- `DuelPad` queues two players for PvP Duel.
+- `ArenaPad` sends eligible players to BattleArena.
+
+Lobby pad detection follows `docs/PAD_CONTACT_ZONE_CONTRACT.md`: resolve the pad root by name or `WOBPadType`, resolve `Trigger` or `WOBPadTrigger = true`, then do server-side bounds polling against the owned tank body. A named pad root without a usable trigger is ignored so it cannot shadow a valid pad found by attributes.
+
+## Spawn Facing
+
+Training and Duel spawn transforms face their opponent pair:
+
+- Training player faces `DummyTank`.
+- `DummyTank` faces the player.
+- Duel player A faces player B.
+- Duel player B faces player A.
+
+BattleArena uses its own arena spawn flow and is not changed by Duel/Training facing rules.
+
 ## Config
 
 Round timing lives in `src/ReplicatedStorage/Shared/Configs/MatchConfig.luau`:

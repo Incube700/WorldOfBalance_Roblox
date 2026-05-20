@@ -1,12 +1,27 @@
 # Tank Factory And Upgrades Plan
 
-Current prototypes are temporary and should not be deleted in this stabilization pass:
+Current prototypes are temporary and should not be deleted in this architecture pass:
 
 - `PlayerTankPrototype`
 - `Player2TankPrototype`
 - `DummyTank`
 
 They exist because the current playtest loop depends on known scene objects and attributes.
+
+## Current Foundation
+
+`src/ServerScriptService/Server/Gameplay/Tanks/TankFactory.luau` now exists as an adapter layer over the current prototype flow.
+
+Current behavior:
+
+- legacy prototypes remain the source models;
+- `ExistingModel` can register an already-created tank;
+- `TemplateModel` can be cloned into a provided parent;
+- factory applies role, team, owner, loadout, stats profile, health, and weapon attributes;
+- factory registers participants through `TankParticipantRegistry`;
+- `WOBGameplayServer.server.luau` uses the factory wrapper for current participant creation.
+
+This is not a full migration to one template yet.
 
 ## Future Direction
 
@@ -26,6 +41,7 @@ UpgradeConfig
 `TankRole` examples:
 
 - `Player`
+- `DuelOpponent`
 - `Dummy`
 - `Bot`
 - `Enemy`
@@ -38,20 +54,28 @@ UpgradeConfig
 
 ## Upgrade Currencies
 
-Bolts can cover basic upgrades:
+Bolts can cover basic upgrades outside normalized Duel:
 
 - HP
 - Damage
 - Reload
 - Speed
+- Projectile Speed
 
 Crystals can cover rarer unlocks:
 
 - skins;
 - special weapons;
 - VFX;
+- sidegrades;
 - premium cosmetics.
+
+## Duel Normalization
+
+Duel should stay skill-based and normalized by default. Permanent stat upgrades should not apply to Duel unless a separate non-ranked/fun mode explicitly allows it.
+
+BattleArena and future Extraction can use progression because they are not pure competitive Duel.
 
 ## Not In This Pass
 
-Do not migrate prototypes, combat stats, upgrades, spawning, or cosmetics in the source-of-truth cleanup pass.
+Do not delete prototypes, migrate the scene, create `ServerStorage.TankTemplates`, add a shop UI, add bots, or make permanent upgrades active in Duel in this pass.

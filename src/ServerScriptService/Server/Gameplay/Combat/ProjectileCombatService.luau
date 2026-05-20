@@ -3,14 +3,15 @@ local ProjectileCombatService = {}
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
-local TankConfig = require(configs:WaitForChild("TankConfig"))
-local RicochetMath = require(shared:WaitForChild("Utils"):WaitForChild("RicochetMath"))
+local DebugCombatConfig = require(configs:WaitForChild("DebugCombatConfig"))
+local ArmorHitResolver = require(script.Parent:WaitForChild("ArmorHitResolver"))
 local MatchStatsService = require(script.Parent.Parent:WaitForChild("Stats"):WaitForChild("MatchStatsService"))
 
-local TANK_ARMOR = TankConfig.Armor
 local PROJECTILE_RICOCHET_OFFSET = 0.45
+local ARMOR_DEBUG_THROTTLE_SECONDS = math.max(0.05, tonumber(DebugCombatConfig.ArmorDebugThrottleSeconds) or 0.25)
 
 local dependencies = {}
+local lastArmorDebugLogByKey = {}
 
 function ProjectileCombatService.init(deps)
 	dependencies = deps
@@ -26,23 +27,35 @@ end
 
 local DEBUG_PROJECTILES = false
 
-local function printArmorResult(prefix, targetName, armorHit, projectile)
-	if not DEBUG_PROJECTILES then return end
+local function printArmorResult(_prefix, targetName, armorHit, projectile)
+	if DebugCombatConfig.ArmorDebug ~= true and not DEBUG_PROJECTILES then
+		return
+	end
+
+	local key = tostring(targetName) .. ":" .. tostring(armorHit.Result)
+	local now = os.clock()
+
+	if now - (lastArmorDebugLogByKey[key] or 0) < ARMOR_DEBUG_THROTTLE_SECONDS then
+		return
+	end
+
+	lastArmorDebugLogByKey[key] = now
 
 	print(
-		prefix
-			.. " "
-			.. targetName
-			.. " zone="
+		"[ARMOR] zone="
 			.. armorHit.Zone
 			.. " angle="
-			.. formatNumber(armorHit.HitAngleDegrees)
-			.. " effectiveArmor="
+			.. formatNumber(armorHit.ImpactAngleDegrees)
+			.. " effective="
 			.. formatNumber(armorHit.EffectiveArmor)
-			.. " penetration="
-			.. formatNumber(projectile.Penetration)
+			.. " pen="
+			.. formatNumber(projectile.PenetrationPower or projectile.Penetration or 0)
+			.. " result="
+			.. armorHit.Result
 			.. " damage="
-			.. math.floor(armorHit.Damage)
+			.. math.floor(armorHit.FinalDamage)
+			.. " tank="
+			.. targetName
 	)
 end
 
@@ -59,29 +72,23 @@ local function printBounce(projectile)
 	)
 end
 
-local function resolveArmorHit(projectile, targetParticipant, hitNormal, armorZone)
-	local tankBodyCFrame = targetParticipant.Model:GetPivot()
-
-	if targetParticipant.Body ~= nil then
-		tankBodyCFrame = targetParticipant.Body.CFrame
+local function getParticipantModel(participant)
+	if participant == nil then
+		return nil
 	end
 
-	return RicochetMath.ResolveArmorHit({
-		incomingDirection = projectile.Direction,
-		hitNormal = hitNormal,
-		tankBodyCFrame = tankBodyCFrame,
-		armorZone = armorZone,
-		projectilePenetration = projectile.Penetration,
-		currentDamage = projectile.Damage,
-		armorConfig = TANK_ARMOR,
-		autoRicochetAngleDegrees = TANK_ARMOR.AutoRicochetAngleDegrees,
-		safeMinCos = TANK_ARMOR.SafeMinCos,
-	})
+	return participant.PhysicalModel or participant.Model
 end
 
 local function applyProjectileRicochet(projectile, hitPosition, hitNormal, options)
 	options = options or {}
-	projectile.Direction = reflect(projectile.Direction, hitNormal)
+	local nextDirection = options.Direction
+
+	if typeof(nextDirection) ~= "Vector3" or nextDirection.Magnitude < 0.001 then
+		nextDirection = reflect(projectile.Direction, hitNormal)
+	end
+
+	projectile.Direction = nextDirection.Unit
 	projectile.Position = hitPosition + projectile.Direction * PROJECTILE_RICOCHET_OFFSET
 	projectile.BounceCount += 1
 	projectile.Damage *= projectile.DamageMultiplierPerBounce
@@ -135,12 +142,21 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 		MatchStatsService.recordProjectileTankHitStats(projectile)
 	end
 
-	local armorHit = resolveArmorHit(projectile, targetParticipant, hitNormal, armorZone)
+	local armorHit = ArmorHitResolver.ResolveHit({
+		TankModel = getParticipantModel(targetParticipant),
+		BodyPart = targetParticipant.Body,
+		HitPosition = hitPosition,
+		ProjectileDirection = projectile.Direction,
+		BaseDamage = projectile.Damage,
+		PenetrationPower = projectile.PenetrationPower or projectile.Penetration,
+		ArmorZoneHint = armorZone,
+	})
+	local armorNormal = armorHit.NormalWorld or hitNormal
 
-	if armorHit.Result == "Penetrated" then
+	if armorHit.Result == "Penetration" then
 		printArmorResult("[PEN]", targetParticipant.TankId, armorHit, projectile)
 
-		local damageText = "-" .. math.floor(armorHit.Damage)
+		local damageText = "-" .. math.floor(armorHit.FinalDamage)
 		local isSelfHit = targetParticipant == projectile.OwnerParticipant
 
 		if isSelfHit and projectile.OwnerPlayer ~= nil then
@@ -151,9 +167,9 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 		end
 
 		if isSelfHit and createSelfHitVfx ~= nil then
-			createSelfHitVfx(hitPosition, hitNormal)
+			createSelfHitVfx(hitPosition, armorNormal)
 		elseif createDamageHitVfx ~= nil then
-			createDamageHitVfx(hitPosition, hitNormal)
+			createDamageHitVfx(hitPosition, armorNormal)
 		end
 
 		sendCombatFeedback(
@@ -163,8 +179,8 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 			Color3.fromRGB(255, 105, 75)
 		)
 
-		if damageParticipant(targetParticipant, armorHit.Damage, projectile) and projectile.NoStats ~= true then
-			MatchStatsService.recordProjectileDamageStats(projectile, targetParticipant, armorHit.Damage)
+		if damageParticipant(targetParticipant, armorHit.FinalDamage, projectile) and projectile.NoStats ~= true then
+			MatchStatsService.recordProjectileDamageStats(projectile, targetParticipant, armorHit.FinalDamage)
 		end
 
 		destroyProjectile(projectile)
@@ -175,7 +191,7 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 		printArmorResult("[ARMOR-RICOCHET]", targetParticipant.TankId, armorHit, projectile)
 
 		if createRicochetVfx ~= nil then
-			createRicochetVfx(hitPosition, hitNormal)
+			createRicochetVfx(hitPosition, armorNormal)
 		end
 
 		sendCombatFeedback(
@@ -184,30 +200,35 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 			"RICOCHET",
 			Color3.fromRGB(255, 220, 70)
 		)
-	else
-		printArmorResult("[NO-PEN]", targetParticipant.TankId, armorHit, projectile)
 
-		if createNoPenVfx ~= nil then
-			createNoPenVfx(hitPosition, hitNormal)
+		if projectile.BounceCount >= projectile.MaxBounces then
+			destroyProjectile(projectile)
+			return true
 		end
 
-		sendCombatFeedback(
-			"NoPenetration",
-			hitPosition,
-			"NO PEN",
-			Color3.fromRGB(180, 220, 255)
-		)
+		applyProjectileRicochet(projectile, hitPosition, armorNormal, {
+			Direction = armorHit.RicochetDirection,
+		})
+		printBounce(projectile)
+
+		return false
 	end
 
-	if projectile.BounceCount >= projectile.MaxBounces then
-		destroyProjectile(projectile)
-		return true
+	printArmorResult("[NO-PEN]", targetParticipant.TankId, armorHit, projectile)
+
+	if createNoPenVfx ~= nil then
+		createNoPenVfx(hitPosition, armorNormal)
 	end
 
-	applyProjectileRicochet(projectile, hitPosition, hitNormal)
-	printBounce(projectile)
+	sendCombatFeedback(
+		"NoPenetration",
+		hitPosition,
+		"NO PEN",
+		Color3.fromRGB(180, 220, 255)
+	)
 
-	return false
+	destroyProjectile(projectile)
+	return true
 end
 
 ProjectileCombatService.printBounce = printBounce

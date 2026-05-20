@@ -18,7 +18,9 @@
 - Desktop Training/Duel may temporarily keep top HP panels for comparison, but mobile should trust the world bars first.
 - Do not place new buttons near the right-side AIM/FIRE cluster or left-side MOVE stick.
 - Avoid long text in combat. Use short status labels and let world signs teach the player in lobby.
+- Mobile BattleArena stats should fit in a small top strip: Score, K/D, Crystals, and Bolts if space allows. Hide long upgrade lists during combat.
 - Keep world HP/reload `BillboardGui.MaxDistance` in the 80-120 range for mobile combat unless a visual review shows it is too short.
+- World HP/reload anchors should follow the tank body/hull, not the full model bounding box, so turret/barrel rotation cannot move the bar.
 - Avoid non-debug startup prints from client overlays; repeated output noise can hide real mobile regressions during Studio tests.
 
 ## Mobile Performance Readability

@@ -730,3 +730,17 @@
 - No new orphan `Assets`, `UI`, `VFX`, `UX`, or runtime folders outside the WOB contracts.
 - Old Player HP / Enemy HP / Reload HUD panels do not cover mobile combat.
 - Manual scene performance edits require visual review; do not run repair/organize/clean/move scripts.
+
+## Gameplay/UX Fix Checklist
+
+- TrainingPad/StartPad starts Training and does not route players into Duel or BattleArena.
+- Main Menu Play still starts quick Training.
+- DuelPad still queues two players for PvP Duel.
+- ArenaPad still starts BattleArena.
+- Mobile BattleArena stats fit the screen width with Score, K/D, Crystals, and optional Bolts.
+- Mobile Duel/Training match stats fit the screen width.
+- World HP/reload bars stay anchored to the tank body/hull while turret and barrel rotate.
+- Duel tanks spawn facing each other.
+- Training player spawns facing DummyTank.
+- BattleArena spawn/respawn is unchanged.
+- No VFX/UI template, Rojo mapping, mobile controls, camera, bot, upgrade, or Extraction changes in this pass.

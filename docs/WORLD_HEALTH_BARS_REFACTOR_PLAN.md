@@ -53,11 +53,23 @@ src/StarterPlayer/StarterPlayerScripts/Client/WorldHealthBars/
 - HP/reload fill behavior and attribute listeners: `TankHealthBarRecord.luau`.
 - Discovery cadence and record lifecycle: `WorldHealthBarsController.luau`.
 
+## Anchor Placement
+
+`HealthBarAnchorService.luau` should anchor bars from a stable hull part, not from full model bounds:
+
+1. `Body`
+2. `Hull`
+3. `PrimaryPart`
+4. `Model:GetBoundingBox()` only as a fallback
+
+This prevents rotating turret/barrel parts from moving the HP/reload bar around the tank.
+
 ## Current Pass Scope
 
 Done now:
 
 - keep anchors under `Workspace.WOB_Runtime.Client.HealthBarAnchors`;
+- anchor bars from `Body`/`Hull` before falling back to full model bounds;
 - avoid moving combat/reload logic;
 - avoid changing HP/reload visual behavior;
 - keep discovery at the existing interval;

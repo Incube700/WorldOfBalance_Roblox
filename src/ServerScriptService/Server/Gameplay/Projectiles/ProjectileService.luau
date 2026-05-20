@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local ProjectileCatalog = require(configs:WaitForChild("ProjectileCatalog"))
+local TankArmorConfig = require(configs:WaitForChild("TankArmorConfig"))
 local WeaponConfig = require(configs:WaitForChild("WeaponConfig"))
 local WeaponSafetyConfig = require(configs:WaitForChild("WeaponSafetyConfig"))
 local VfxConfig = require(configs:WaitForChild("VfxConfig"))
@@ -26,8 +27,11 @@ local burningTankConfig = VfxConfig.BurningTank
 local ricochetConfig = VfxConfig.Ricochet
 
 local PROJECTILE_SPEED = projectileConfig.Speed
-local PROJECTILE_MAX_DAMAGE = projectileConfig.MaxDamage
-local PROJECTILE_PENETRATION = projectileConfig.Penetration
+local PROJECTILE_DAMAGE = projectileConfig.Damage or projectileConfig.MaxDamage
+local PROJECTILE_PENETRATION_POWER = projectileConfig.PenetrationPower
+	or projectileConfig.Penetration
+	or TankArmorConfig.Projectile.DefaultPenetrationPower
+local PROJECTILE_LEGACY_PENETRATION = projectileConfig.Penetration or PROJECTILE_PENETRATION_POWER
 local PROJECTILE_MAX_BOUNCES = projectileConfig.MaxRicochets
 local PROJECTILE_BOUNCE_SPEED_MULTIPLIER = projectileConfig.BounceSpeedMultiplier
 local PROJECTILE_DAMAGE_MULTIPLIER = projectileConfig.DamageMultiplierPerBounce
@@ -852,8 +856,10 @@ function ProjectileService.createProjectile(ownerParticipant, origin, direction,
 		Position = origin,
 		Direction = flatDirection,
 		Speed = PROJECTILE_SPEED,
-		Damage = PROJECTILE_MAX_DAMAGE * (tonumber(options.DamageMultiplier) or 1),
-		Penetration = PROJECTILE_PENETRATION,
+		BaseDamage = PROJECTILE_DAMAGE,
+		Damage = PROJECTILE_DAMAGE * (tonumber(options.DamageMultiplier) or 1),
+		PenetrationPower = PROJECTILE_PENETRATION_POWER,
+		Penetration = PROJECTILE_LEGACY_PENETRATION,
 		BounceCount = 0,
 		MaxBounces = PROJECTILE_MAX_BOUNCES,
 		BounceSpeedMultiplier = PROJECTILE_BOUNCE_SPEED_MULTIPLIER,

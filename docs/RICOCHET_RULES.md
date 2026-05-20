@@ -1,142 +1,157 @@
-# World of Balance: Ricochet Tanks — Ricochet Rules
+# World Of Balance: Ricochet Rules
 
 ## Current MVP
 
-- Projectile flies fast but visible.
+- Projectile flies fast but remains readable.
 - Projectile can bounce from arena walls.
-- Maximum ricochets: 3.
+- Maximum ricochets are defined by `ProjectileCatalog`.
 - Damage decreases after ricochets.
-- Projectile can damage dummy.
-- Projectile can damage player only after first ricochet through `CanHitOwner`.
+- Projectile can damage dummy and player tanks.
+- Projectile can damage its owner only after a ricochet through `CanHitOwner`.
 - Direct self-shot should not instantly hit owner.
 
-## Core Rule: Armor, Penetration, and Angle
+## Core Rule: Armor, Penetration, And Angle
 
-- Projectile penetration decides whether a shell can pass through effective armor.
-- Max damage is only an upper cap, not guaranteed damage.
+Projectile penetration decides whether a shell can pass through effective armor.
+
+Ricochet is not only wall bounce:
+
 - Direct hit into weak armor can penetrate.
+- Direct low-penetration front hit gives `NoPen`, not ricochet.
 - Glancing hit increases effective armor and can ricochet.
-- Ricochet can return and kill the shooter after the first bounce.
+- Corner hits have strong ricochet tendency.
 - Positioning and hull angle matter more than raw stats.
 
-## Implementation Notes
+The current armor policy lives in:
 
-- Ricochet math should live separately from projectile visuals.
-- Current module: `src/ReplicatedStorage/Shared/Utils/RicochetMath.luau`.
-- Projectile mechanics should use `ProjectileCatalog`.
-- Projectile visuals should use `ProjectileVisualConfig`.
-- Weapon firing should use `WeaponConfig`.
-- Do not put projectile rules into generic `GameplayConfig`.
+```text
+src/ServerScriptService/Server/Gameplay/Combat/ArmorHitResolver.luau
+src/ReplicatedStorage/Shared/Configs/TankArmorConfig.luau
+```
 
-## Do Not Implement Yet
+Low-level reflection math remains in:
 
-- Tank corner detection.
-- Different projectile behavior types.
+```text
+src/ReplicatedStorage/Shared/Utils/RicochetMath.luau
+```
 
-These are future milestones after current round loop is stable.
+## Tank Forward Convention
 
-## Projectile
+Current Roblox tank models use local `-Z` as front.
 
-Projectile has two separate combat parameters:
+- `Barrel` points toward local `-Z`.
+- `ShootPoint` is placed toward local `-Z`.
+- `FrontArmor` is placed toward local `-Z`.
+- Local `+Z` is rear.
+- Local `+/-X` are sides.
 
-### Penetration
+Do not reintroduce older `+Z = Front` assumptions.
 
-Penetration answers: can this shell pass through effective armor?
+## Armor Resolver Contract
 
-### Max Damage
+`ArmorHitResolver.ResolveHit(params)` returns:
 
-Max Damage is not guaranteed damage. It is the upper cap. Real damage depends on effective armor, penetration result, bounce count, and future critical zones.
+```text
+Result = Penetration | NoPen | Ricochet
+Zone = Front | Side | Rear | Corner
+ImpactAngleDegrees
+EffectiveArmor
+FinalDamage
+NormalWorld
+RicochetDirection optional
+```
 
-## Tank Armor
+The resolver uses stable hull orientation:
 
-Base zones:
+1. `Body`
+2. `Hull`
+3. `PrimaryPart`
 
-- Front = strongest.
-- Side = medium.
-- Rear = weak.
-
-Local orientation:
-
-- `+Z` = Front.
-- `-Z` = Rear.
-- `+/-X` = Side.
-
-## Armor Hitbox Contract
-
-Current Roblox prototype resolves tank armor hits only through explicit hull hitboxes:
-
-- `Hitboxes/FrontArmor` -> `Front`.
-- `Hitboxes/RearArmor` -> `Rear`.
-- `Hitboxes/LeftArmor` -> `Side`.
-- `Hitboxes/RightArmor` -> `Side`.
-
-`Body`, `Turret`, `Barrel`, `ShootPoint`, VFX, aim laser, and projectile glow are visual/readability objects. They must not decide armor penetration or tank ricochet results.
-
-Debug armor colors: front green, side yellow, rear red.
-
-Generic `RicochetMath.ClassifyArmorZone` stays available for future mesh/normal-based armor, but this prototype uses hitbox names because they are explicit and editable.
+Turret and barrel rotation must not decide hull armor zone.
 
 ## Angle And Effective Armor
 
+Angle definition:
+
+- `0` degrees = perpendicular/direct hit.
+- `90` degrees = glancing/parallel skim.
+
 Formula:
 
-```lua
-dot = Vector3.Dot(-incomingDirection.normalized, hitNormal.normalized)
-angle = acos(clamp(dot, -1, 1))
-effectiveArmor = armor / max(cos(angle), safeMinCos)
+```text
+EffectiveArmor = BaseArmor / max(cos(angle), EffectiveArmorMinCos)
 ```
 
-Design principle: more glancing hit = higher effective armor.
+Design principle: a more glancing hit means higher effective armor and higher ricochet chance.
 
 ## Current Combat Values
 
-- ProjectileMaxDamage = 110.
-- ProjectilePenetration = 45.
-- FrontArmor = 50.
-- SideArmor = 40.
-- RearArmor = 10.
-- MaxRicochets = 3.
-- BounceSpeedMultiplier = 0.78.
-- DamageMultiplierPerBounce = 0.75.
-- MinProjectileSpeed = 5.
+Projectile:
 
-Penetration:
+- `Damage = 110`
+- `MaxDamage = 110`
+- `PenetrationPower = 70`
+- legacy `Penetration = 45` remains for compatibility
+- `MaxRicochets = 3`
+- `BounceSpeedMultiplier = 0.78`
+- `DamageMultiplierPerBounce = 0.75`
+- `MinProjectileSpeed = 5`
 
-```text
-if penetration < effectiveArmor:
-    result = NoPenetration
-    damage = 0
-else:
-    result = Penetrated
-    damage = currentDamage
-```
+Armor:
 
-Auto ricochet:
+- Front armor = 80, damage multiplier = 0.65, ricochet angle = 60.
+- Side armor = 55, damage multiplier = 0.9, ricochet angle = 62.
+- Rear armor = 35, damage multiplier = 1.15, ricochet angle = 65.
+- Corner armor = 90, damage multiplier = 0.5, ricochet angle = 45.
+- `EffectiveArmorMinCos = 0.25`.
+
+Resolution:
 
 ```text
-if hitAngle >= AutoRicochetAngle:
+if impactAngle >= RicochetAngleDegrees:
     result = Ricochet
     damage = 0
+elseif PenetrationPower < EffectiveArmor:
+    result = NoPen
+    damage = 0
+else:
+    result = Penetration
+    damage = Damage * ZoneDamageMultiplier
 ```
-
-After bounce:
-
-```text
-currentDamage = currentDamage * DamageMultiplierPerBounce
-currentSpeed = Max(MinProjectileSpeed, currentSpeed * BounceSpeedMultiplier)
-```
-
-With `BounceSpeedMultiplier = 0.78`, visual speed loss may still be subtle. This is a tuning task, not a random fix.
 
 ## Examples
 
-Direct front hit: `FrontArmor = 50`, `EffectiveArmor = 50`, `Penetration = 45`, so `45 < 50 -> NoPenetration / Ricochet`, `Damage = 0`.
+Direct front hit:
 
-Direct side hit: `SideArmor = 40`, `EffectiveArmor = 40`, `Penetration = 45`, so `45 >= 40 -> Penetrated`.
+```text
+FrontArmor = 80
+EffectiveArmor = 80
+PenetrationPower = 70
+70 < 80 -> NoPen
+```
 
-Angled side hit: `SideArmor = 40`, but `EffectiveArmor > 45` due to angle, so result is `NoPenetration / Ricochet`.
+Direct side hit:
 
-Rear hit: `RearArmor = 10`, `Penetration = 45`, so result is `Penetrated`.
+```text
+SideArmor = 55
+EffectiveArmor = 55
+PenetrationPower = 70
+70 >= 55 -> Penetration
+```
+
+Glancing front hit:
+
+```text
+impactAngle >= 60 -> Ricochet
+```
+
+Rear hit:
+
+```text
+RearArmor = 35
+PenetrationPower = 70
+70 >= 35 -> Penetration
+```
 
 ## Ricochets
 
@@ -144,9 +159,9 @@ Projectile reflects from:
 
 - walls;
 - cover;
-- tank armor when auto ricochet or no penetration happens.
+- tank armor only when the armor resolver returns `Ricochet`.
 
-Reflection in Roblox:
+Reflection:
 
 ```lua
 reflected = direction - 2 * direction:Dot(normal) * normal
@@ -160,15 +175,15 @@ After ricochet:
 - bounce count increases;
 - after max ricochets, the next contact destroys projectile.
 
-Wall ricochets are readable through projectile motion/VFX and `[BOUNCE]` Output debug, not floating text. Armor feedback is shown only on tank interactions.
+`NoPen` consumes the shell and does not bounce.
 
 ## Aim Helper
 
-If an aim laser or helper is enabled, it is a visual-only readability layer:
+Aim laser/readability overlays are visual only:
 
-- it starts from the muzzle/barrel;
-- it must stop on the first wall, cover, or tank it would hit;
-- it must not own damage, penetration, armor, or ricochet rules.
+- they start from the muzzle/barrel;
+- they should stop on first wall, cover, or tank;
+- they must not own damage, penetration, armor, or ricochet rules.
 
 ## Parity Backlog Notes
 

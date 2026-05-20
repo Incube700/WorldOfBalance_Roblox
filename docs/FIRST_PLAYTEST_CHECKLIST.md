@@ -100,16 +100,26 @@
 ## Regression Checks
 
 - Lobby shooting remains no-damage.
+- TrainingPad/StartPad starts Training and logs `[TRAINING PAD] player entered ...`.
+- Main Menu Play still starts quick Training.
+- DuelPad still queues Duel and does not start Training/BattleArena.
+- ArenaPad still starts BattleArena and does not start Training/Duel.
 - Arena death never shows Match Result.
 - Arena death never calls `RoundMatchService.endRound`.
 - Duel death still ends only the duel round.
+- Duel tanks spawn facing each other.
+- Training player spawns facing DummyTank.
+- BattleArena spawn/respawn orientation remains unchanged.
 - Mobile `MOVE`, `AIM`, and `FIRE` controls appear in Lobby, QueuedForDuel, InMatch, and InBattleArena.
 - Mobile right `AIM` stick rotates the turret/aim laser, and `FIRE` shoots in that direction.
 - Mobile left `MOVE` and right `AIM` can be used simultaneously.
-- Mobile BattleArena HUD is compact: world HP/reload bar on the tank, score/status top-right, Return to Lobby behind Menu, center mostly free.
+- Mobile BattleArena HUD is compact: world HP/reload bar on the tank, score/K-D/Crystals/Bolts fit across the top, Return to Lobby behind Menu, center mostly free.
+- Mobile Duel/Training match stats fit screen width.
 - Mobile BattleArena Menu popup Return works and Resume closes the popup.
 - Mobile controls hide/disable during ArenaRespawning.
 - Wallet HUD shows Bolts and Crystals in lobby/result, and does not crowd BattleArena combat HUD.
+- Rotating turret/barrel does not move the world HP/reload bar around the tank.
+- No VFX/UI/Rojo source-of-truth changes are required for this pass.
 - No constant fire/campfire loop after death VFX.
 - Shot audio still plays.
 - Output has no red errors.

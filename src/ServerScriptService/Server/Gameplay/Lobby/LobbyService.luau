@@ -78,36 +78,8 @@ local function getTopLobbyChild(lobby, instance)
 	return nil
 end
 
-local function findPadRootByTypeOrName(padType, padNames)
-	local lobby = getLobby()
-
-	if lobby == nil then
-		return nil
-	end
-
-	for _, padName in ipairs(padNames or {}) do
-		local namedPad = lobby:FindFirstChild(padName)
-
-		if namedPad ~= nil then
-			return namedPad
-		end
-	end
-
-	for _, descendant in ipairs(lobby:GetDescendants()) do
-		if descendant:GetAttribute("WOBPadType") == padType then
-			local padRoot = getTopLobbyChild(lobby, descendant)
-
-			if padRoot ~= nil then
-				return padRoot
-			end
-		end
-	end
-
-	return nil
-end
-
-local function getPadTrigger(padRoot)
-	if padRoot == nil or padRoot:GetAttribute("WOBPadEnabled") == false then
+local function findPadTriggerInRoot(padRoot)
+	if padRoot == nil then
 		return nil
 	end
 
@@ -128,6 +100,48 @@ local function getPadTrigger(padRoot)
 	end
 
 	return nil
+end
+
+local function isUsablePadRoot(padRoot)
+	return padRoot ~= nil
+		and padRoot:GetAttribute("WOBPadEnabled") ~= false
+		and findPadTriggerInRoot(padRoot) ~= nil
+end
+
+local function findPadRootByTypeOrName(padType, padNames)
+	local lobby = getLobby()
+
+	if lobby == nil then
+		return nil
+	end
+
+	for _, padName in ipairs(padNames or {}) do
+		local namedPad = lobby:FindFirstChild(padName)
+
+		if isUsablePadRoot(namedPad) then
+			return namedPad
+		end
+	end
+
+	for _, descendant in ipairs(lobby:GetDescendants()) do
+		if descendant:GetAttribute("WOBPadType") == padType then
+			local padRoot = getTopLobbyChild(lobby, descendant)
+
+			if isUsablePadRoot(padRoot) then
+				return padRoot
+			end
+		end
+	end
+
+	return nil
+end
+
+local function getPadTrigger(padRoot)
+	if padRoot == nil or padRoot:GetAttribute("WOBPadEnabled") == false then
+		return nil
+	end
+
+	return findPadTriggerInRoot(padRoot)
 end
 
 local function getDuelPadRoot()
@@ -152,6 +166,20 @@ end
 
 local function getTrainingPad()
 	return getPadTrigger(getTrainingPadRoot())
+end
+
+local function applyPadContractAttributes(padRoot, pad, padType, requiredPlayers)
+	for _, instance in ipairs({ padRoot, pad }) do
+		if instance ~= nil then
+			instance:SetAttribute("WOBPadType", padType)
+			instance:SetAttribute("RequiredPlayers", requiredPlayers)
+			instance:SetAttribute("WOBPadEnabled", true)
+		end
+	end
+
+	if pad ~= nil then
+		pad:SetAttribute("WOBPadTrigger", true)
+	end
 end
 
 local function setDuelPadAttributes(queueCount, duelState, countdown)
@@ -425,9 +453,9 @@ local function startDuel(playerA, participantA, playerB, participantB, matchId)
 	roundMatchService.startPvPMatch(matchId, participantA, participantB)
 end
 
-local function startTraining(player, participant)
+local function startTraining(player, participant, source)
 	if roundMatchService.getActiveMatch() ~= nil then
-		print("[LOBBY] duel queue cancelled reason=ActiveMatch")
+		print("[TRAINING] start ignored reason=ActiveMatch source=" .. tostring(source or "Unknown"))
 		return
 	end
 
@@ -441,6 +469,7 @@ local function startTraining(player, participant)
 	resetRematchStatus(player)
 	setPlayerMode(player, participant, LobbyService.MODE_IN_MATCH, matchId, dummyParticipant.TankId)
 	TankParticipantRegistry.setParticipantMatchState(dummyParticipant, LobbyService.MODE_IN_MATCH, matchId, participant.TankId)
+	print("[TRAINING] match starting player=" .. player.Name .. " source=" .. tostring(source or "Unknown"))
 	roundMatchService.startTrainingMatch(matchId, participant, dummyParticipant)
 end
 
@@ -641,6 +670,7 @@ local function tryStartQueuedDuel(deltaTime, duelPad)
 end
 
 local function updateDuelPadQueue(deltaTime)
+	local duelPadRoot = getDuelPadRoot()
 	local duelPad = getDuelPad()
 
 	if duelPad == nil then
@@ -648,6 +678,8 @@ local function updateDuelPadQueue(deltaTime)
 		setDuelPadAttributes(0, DUEL_STATE_IDLE, 0)
 		return
 	end
+
+	applyPadContractAttributes(duelPadRoot, duelPad, "Duel", DUEL_QUEUE_REQUIRED)
 
 	for _, participant in ipairs(TankParticipantRegistry.getPlayerParticipants()) do
 		local player = getPlayerFromParticipant(participant)
@@ -680,13 +712,7 @@ local function updateArenaPadEntries()
 		return
 	end
 
-	for _, instance in ipairs({ arenaPadRoot, arenaPad }) do
-		if instance ~= nil then
-			instance:SetAttribute("WOBPadType", "BattleArena")
-			instance:SetAttribute("RequiredPlayers", 1)
-			instance:SetAttribute("WOBPadEnabled", true)
-		end
-	end
+	applyPadContractAttributes(arenaPadRoot, arenaPad, "BattleArena", 1)
 
 	for _, participant in ipairs(TankParticipantRegistry.getPlayerParticipants()) do
 		local player = getPlayerFromParticipant(participant)
@@ -712,13 +738,7 @@ local function updateTrainingPadEntries()
 		return
 	end
 
-	for _, instance in ipairs({ trainingPadRoot, trainingPad }) do
-		if instance ~= nil then
-			instance:SetAttribute("WOBPadType", "Training")
-			instance:SetAttribute("RequiredPlayers", 1)
-			instance:SetAttribute("WOBPadEnabled", true)
-		end
-	end
+	applyPadContractAttributes(trainingPadRoot, trainingPad, "Training", 1)
 
 	for _, participant in ipairs(TankParticipantRegistry.getPlayerParticipants()) do
 		local player = getPlayerFromParticipant(participant)
@@ -730,7 +750,7 @@ local function updateTrainingPadEntries()
 			if eligible and participantIsOnTrainingPad(participant, trainingPad) then
 				clearQueuedPlayer(player, "EnteredTrainingPad")
 				print("[TRAINING PAD] player entered Training pad " .. player.Name)
-				startTraining(player, participant)
+				startTraining(player, participant, "TrainingPad")
 			end
 		end
 	end
@@ -786,7 +806,7 @@ function LobbyService.handleStartMatchRequest(player)
 		return
 	end
 
-	startTraining(player, participant)
+	startTraining(player, participant, "MenuPlay")
 end
 
 function LobbyService.handleReturnToLobbyRequest(player)
@@ -841,7 +861,7 @@ function LobbyService.handleRematchRequest(player)
 	end
 
 	if matchId == nil or matchId == "" then
-		startTraining(player, participant)
+		startTraining(player, participant, "RematchFallback")
 		return
 	end
 
@@ -860,7 +880,7 @@ function LobbyService.handleRematchRequest(player)
 	if activeMatch ~= nil and activeMatch.MatchId == matchId and activeMatch.IsDuel ~= true then
 		roundMatchService.clearActiveMatch(matchId)
 		completedMatchesById[matchId] = nil
-		startTraining(player, participant)
+		startTraining(player, participant, "TrainingRematch")
 		return
 	end
 
