@@ -19,6 +19,7 @@ local testObjects = root:WaitForChild("TestObjects")
 local localPlayer = Players.LocalPlayer
 
 local DEBUG_AIM_LASER = false
+local LASER_TARGET_REFRESH_INTERVAL = 0.5
 local playerTank = nil
 local loggedOwnedTankId = nil
 
@@ -131,6 +132,20 @@ local function collectLaserMapTargets()
 	return targets
 end
 
+local cachedLaserTargets = {}
+local nextLaserTargetRefreshAt = 0
+
+local function getLaserMapTargets()
+	local now = os.clock()
+
+	if now >= nextLaserTargetRefreshAt then
+		cachedLaserTargets = collectLaserMapTargets()
+		nextLaserTargetRefreshAt = now + LASER_TARGET_REFRESH_INTERVAL
+	end
+
+	return cachedLaserTargets
+end
+
 local raycastParams = RaycastParams.new()
 raycastParams.FilterType = Enum.RaycastFilterType.Include
 raycastParams.IgnoreWater = true
@@ -189,6 +204,7 @@ local function refreshMuzzleParts()
 		playerTank = assignedTank
 		shootPoint = nil
 		barrel = nil
+		nextLaserTargetRefreshAt = 0
 
 		if playerTank ~= nil then
 			local tankId = playerTank:GetAttribute("TankId") or playerTank.Name
@@ -305,7 +321,7 @@ local function updateLaser()
 	local origin = muzzlePart.Position + Vector3.new(0, heightOffset, 0)
 	local rayOrigin = origin + direction * 1.2
 
-	raycastParams.FilterDescendantsInstances = collectLaserMapTargets()
+	raycastParams.FilterDescendantsInstances = getLaserMapTargets()
 
 	local result = Workspace:Raycast(
 		rayOrigin,
@@ -332,5 +348,3 @@ end
 
 RunService.RenderStepped:Connect(updateLaser)
 updateLaser()
-
-print("[WOB] Aim laser started")

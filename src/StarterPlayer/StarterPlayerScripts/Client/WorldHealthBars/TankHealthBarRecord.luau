@@ -171,6 +171,10 @@ function TankHealthBarRecord:Step()
 		return false
 	end
 
+	if self.Billboard.Enabled == false then
+		return true
+	end
+
 	self:UpdateAnchor()
 	self:UpdateReloadBar()
 

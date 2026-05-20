@@ -102,6 +102,7 @@ end
 
 local IMPACT_MARKER_HEIGHT = 0.16
 local PULSE_DEDUPE_SECONDS = 0.11
+local RECENT_PULSE_TTL = 2
 local DUMMY_HIT_RADIUS = 9.5
 
 local recentPulseByCell = {}
@@ -199,6 +200,13 @@ local function createPulse(position)
 	end
 
 	local now = os.clock()
+
+	for cachedCell, lastSeen in pairs(recentPulseByCell) do
+		if now - lastSeen > RECENT_PULSE_TTL then
+			recentPulseByCell[cachedCell] = nil
+		end
+	end
+
 	local cell = getPulseCell(position)
 	local lastPulse = recentPulseByCell[cell]
 
@@ -285,5 +293,3 @@ localPlayer:GetAttributeChangedSignal("PlayerMode"):Connect(function()
 		impactFolder:ClearAllChildren()
 	end
 end)
-
-print("[WOB] Impact feedback overlay started")

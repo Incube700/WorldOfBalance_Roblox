@@ -183,5 +183,3 @@ RunService.RenderStepped:Connect(function()
 		end
 	end
 end)
-
-print("[WOB] Projectile readability overlay started")

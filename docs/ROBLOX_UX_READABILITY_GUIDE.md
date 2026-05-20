@@ -18,6 +18,16 @@
 - Desktop Training/Duel may temporarily keep top HP panels for comparison, but mobile should trust the world bars first.
 - Do not place new buttons near the right-side AIM/FIRE cluster or left-side MOVE stick.
 - Avoid long text in combat. Use short status labels and let world signs teach the player in lobby.
+- Keep world HP/reload `BillboardGui.MaxDistance` in the 80-120 range for mobile combat unless a visual review shows it is too short.
+- Avoid non-debug startup prints from client overlays; repeated output noise can hide real mobile regressions during Studio tests.
+
+## Mobile Performance Readability
+
+- Prefer short-lived runtime VFX with Debris cleanup over persistent scene effects.
+- Runtime visual parts should use `CanCollide=false`, `CanTouch=false`, `CanQuery=false`, and `CastShadow=false`.
+- Do not run full-Workspace `GetDescendants` scans on `RenderStepped`; cache or throttle discovery.
+- Keep aim/readability helpers visually useful, but avoid creating new objects every frame.
+- Leave joystick controls unchanged unless a dedicated controls pass is requested.
 
 ## Combat Readability
 

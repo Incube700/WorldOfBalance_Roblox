@@ -6,6 +6,8 @@ local HudConfig = require(configs:WaitForChild("HudConfig"))
 
 local worldHealthBarsConfig = HudConfig.WorldHealthBars or {}
 local SHOW_RELOAD_BAR = worldHealthBarsConfig.Enabled ~= false and worldHealthBarsConfig.ShowReloadBar ~= false
+local maxDistance = math.max(80, tonumber(worldHealthBarsConfig.MaxDistance) or 120)
+local discoveryInterval = math.max(1, tonumber(worldHealthBarsConfig.DiscoveryInterval) or 1)
 
 local WorldHealthBarsConfig = {
 	GUI_NAME = "WOBTankWorldHealthBars",
@@ -19,8 +21,8 @@ local WorldHealthBarsConfig = {
 	BILLBOARD_SIZE = SHOW_RELOAD_BAR and UDim2.fromOffset(68, 14) or UDim2.fromOffset(64, 8),
 	HEIGHT_OFFSET = Vector3.new(0, 2.2, 0),
 	WORLD_OFFSET = Vector3.new(0, 0, -7),
-	MAX_DISTANCE = 180,
-	DISCOVERY_INTERVAL = 1,
+	MAX_DISTANCE = maxDistance,
+	DISCOVERY_INTERVAL = discoveryInterval,
 
 	HEALTH_ATTRIBUTES = { "CurrentHealth", "HP", "Health" },
 

@@ -220,6 +220,10 @@ localPlayer:GetAttributeChangedSignal("PlayerMode"):Connect(function()
 end)
 
 RunService.RenderStepped:Connect(function()
+	if #activeFeedback == 0 then
+		return
+	end
+
 	local currentTime = os.clock()
 
 	for i = #activeFeedback, 1, -1 do
@@ -244,5 +248,3 @@ RunService.RenderStepped:Connect(function()
 		end
 	end
 end)
-
-print("[WOB] Combat feedback overlay started")

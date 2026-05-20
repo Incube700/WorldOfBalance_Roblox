@@ -40,7 +40,7 @@ local HudConfig = table.freeze({
 		HideTopHpPanelsInDuel = false,
 		DeadHideDelay = 1.0,
 		DiscoveryInterval = 1.0,
-		MaxDistance = 180,
+		MaxDistance = 120,
 	}),
 
 	CombatHud = table.freeze({

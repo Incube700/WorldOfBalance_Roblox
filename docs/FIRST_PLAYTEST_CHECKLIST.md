@@ -114,3 +114,16 @@
 - Shot audio still plays.
 - Output has no red errors.
 - If the tank gets stuck, set `BattleArenaConfig.DebugCollision = true` and check `[MOVE BLOCKED]` obstacle path.
+
+## Mobile Performance Checklist
+
+- Join from the published link on a real phone.
+- Lobby FPS feels stable while driving near pads/showcases.
+- BattleArena FPS feels stable while driving, shooting, and respawning.
+- Shooting does not stutter badly.
+- HP/reload world bars remain visible without covering the fight.
+- No constant fire/campfire loop after death VFX.
+- Studio Output has no repeated debug spam.
+- No new orphan folders appear in Workspace or ReplicatedStorage.
+- Respawn/reset does not create duplicate HP bars.
+- Old HUD garbage does not appear over mobile combat HUD.

@@ -717,3 +717,16 @@
 - Ожидаемый результат: в проекте нет случайных тестовых файлов, мешающих чтению структуры.
 - Критерий проверки в Roblox Studio: Rojo подключается, Play не показывает лишние тестовые сообщения.
 - Какой коммит сделать: `Remove obsolete Rojo smoke test scripts`.
+
+## Mobile Playtest Performance Checklist
+
+- Phone join from the published link.
+- Lobby FPS feels stable near pads, signs, and showcases.
+- BattleArena FPS feels stable during driving, shooting, death, and respawn.
+- Shooting does not stutter badly.
+- HP/reload world bars are readable at mobile distance and do not duplicate after respawn.
+- No fire/campfire loop sound after death VFX.
+- No repeated output spam in Studio.
+- No new orphan `Assets`, `UI`, `VFX`, `UX`, or runtime folders outside the WOB contracts.
+- Old Player HP / Enemy HP / Reload HUD panels do not cover mobile combat.
+- Manual scene performance edits require visual review; do not run repair/organize/clean/move scripts.
