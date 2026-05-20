@@ -1,6 +1,6 @@
 # World Health Bars Refactor Plan
 
-`WOBTankWorldHealthBars.client.luau` is intentionally left mostly intact in this stabilization pass.
+`WOBTankWorldHealthBars.client.luau` has been split into small client modules. The refactor is intended to preserve the existing HP/reload world bar behavior while making future changes safer.
 
 The script currently owns too many responsibilities:
 
@@ -13,7 +13,7 @@ The script currently owns too many responsibilities:
 - managing runtime folder paths;
 - following tanks on heartbeat.
 
-## Future Target Structure
+## Implemented Structure
 
 ```text
 src/StarterPlayer/StarterPlayerScripts/Client/WorldHealthBars/
@@ -26,7 +26,32 @@ src/StarterPlayer/StarterPlayerScripts/Client/WorldHealthBars/
 └── WOBTankWorldHealthBars.client.luau
 ```
 
-`WOBTankWorldHealthBars.client.luau` should become a thin entry point.
+`WOBTankWorldHealthBars.client.luau` is now a thin entry point:
+
+- gets `Players.LocalPlayer`;
+- requires `WorldHealthBarsController`;
+- creates the controller;
+- calls `controller:Start()`.
+
+## Module Ownership
+
+| Module | Responsibility |
+| --- | --- |
+| `WorldHealthBarsConfig.luau` | Runtime constants, folder names, billboard size, offsets, max distance, discovery interval, watched attributes. |
+| `TankModelScanner.luau` | Tank model detection and scanning `Workspace.WOB_Generated.TestObjects` / `Workspace.WOB_Generated.BattleArena`. |
+| `HealthBarBillboardFactory.luau` | Resolve `ReplicatedStorage.Shared.Assets.UI.TankHealthBillboard`, clone/configure it, build fallback UI, hide optional text labels. |
+| `HealthBarAnchorService.luau` | Own `Workspace.WOB_Runtime.Client.HealthBarAnchors`, create/update/cleanup transparent anchor parts. |
+| `TankHealthBarRecord.luau` | Own one tank model's billboard, anchor, bars, attribute connections, HP/reload updates, cleanup. |
+| `WorldHealthBarsController.luau` | Own discovery loop, records map, Heartbeat anchor/reload updates, missing model cleanup. |
+
+## Where To Change Things
+
+- Size, offsets, max distance, folder names: `WorldHealthBarsConfig.luau`.
+- Tank detection / active model roots: `TankModelScanner.luau`.
+- Template lookup, fallback UI, bar hierarchy repair: `HealthBarBillboardFactory.luau`.
+- Anchor folder path and anchor placement: `HealthBarAnchorService.luau`.
+- HP/reload fill behavior and attribute listeners: `TankHealthBarRecord.luau`.
+- Discovery cadence and record lifecycle: `WorldHealthBarsController.luau`.
 
 ## Current Pass Scope
 
@@ -35,11 +60,13 @@ Done now:
 - keep anchors under `Workspace.WOB_Runtime.Client.HealthBarAnchors`;
 - avoid moving combat/reload logic;
 - avoid changing HP/reload visual behavior;
-- document the future split.
+- keep discovery at the existing interval;
+- keep Heartbeat limited to anchor movement and reload fill updates;
+- keep fallback billboard support when the template is missing;
+- implement the module split.
 
 Deferred:
 
-- extracting scanner/factory/services;
 - changing UI layout;
 - changing reload logic;
 - changing tank detection rules beyond bug fixes.

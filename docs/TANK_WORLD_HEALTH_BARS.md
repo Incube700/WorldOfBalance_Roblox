@@ -101,7 +101,8 @@ The red HP bar stays full width behind `GreenBar`. The dark reload background st
 Sizing/color tuning lives in:
 
 - `docs/patches/CREATE_OR_REPAIR_TANK_HEALTH_BILLBOARD_TEMPLATE_COMMAND.lua` for the editable Studio template.
-- `src/StarterPlayer/StarterPlayerScripts/Client/WOBTankWorldHealthBars.client.luau` for runtime fallback/layout repair.
+- `src/StarterPlayer/StarterPlayerScripts/Client/WorldHealthBars/WorldHealthBarsConfig.luau` for runtime size, offsets, max distance, and folder names.
+- `src/StarterPlayer/StarterPlayerScripts/Client/WorldHealthBars/HealthBarBillboardFactory.luau` for runtime fallback/layout repair.
 - `src/ReplicatedStorage/Shared/Configs/HudConfig.luau` for enabling world bars and hiding duplicate top HP/reload HUD panels.
 
 ## Top HUD Cleanup
@@ -118,7 +119,7 @@ Current rules:
 
 ## Client Runtime
 
-`WOBTankWorldHealthBars.client.luau`:
+`WOBTankWorldHealthBars.client.luau` is a thin entry point. Runtime ownership now lives under `src/StarterPlayer/StarterPlayerScripts/Client/WorldHealthBars`:
 
 - scans active tank models about once per second;
 - clones `TankHealthBillboard` into `PlayerGui/WOBTankWorldHealthBars`;
