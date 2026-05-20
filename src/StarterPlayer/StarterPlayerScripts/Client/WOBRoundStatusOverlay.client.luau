@@ -20,8 +20,6 @@ local localPlayer = Players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
 
 local root = Workspace:WaitForChild("WOB_Generated")
-local testObjects = root:WaitForChild("TestObjects")
-testObjects:WaitForChild("PlayerTankPrototype")
 
 local LEGACY_RUNTIME_GUI_NAME = "WOBRoundStatusOverlayGui"
 local EMERGENCY_GUI_NAME = "WOBRoundStatusEmergencyGui"
@@ -473,6 +471,15 @@ local function setLabelLayout(label, position, size, textSize, wrapped)
 	label.TextTruncate = wrapped == true and Enum.TextTruncate.None or Enum.TextTruncate.AtEnd
 end
 
+local function setLabelAlignment(label, xAlignment, yAlignment)
+	if label == nil then
+		return
+	end
+
+	label.TextXAlignment = xAlignment
+	label.TextYAlignment = yAlignment
+end
+
 local function applyMobileSeriesLayout(matchEnded)
 	if roundUi.MatchSeriesPanel == nil then
 		return
@@ -480,17 +487,45 @@ local function applyMobileSeriesLayout(matchEnded)
 
 	local camera = Workspace.CurrentCamera
 	local viewportSize = camera ~= nil and camera.ViewportSize or Vector2.new(1024, 768)
-	local panelWidth = math.clamp(viewportSize.X - 24, 220, 300)
-	local panelHeight = matchEnded and 72 or 52
+	local panelConfig = HudConfig.DuelMobileScorePanel or {}
+	local configuredSize = panelConfig.Size
+	local panelWidth = math.clamp(
+		typeof(configuredSize) == "UDim2" and configuredSize.X.Offset or 248,
+		220,
+		math.max(220, viewportSize.X - 24)
+	)
+	local panelHeight = matchEnded and 72 or math.max(48, typeof(configuredSize) == "UDim2" and configuredSize.Y.Offset or 56)
+	local anchorPoint = typeof(panelConfig.AnchorPoint) == "Vector2" and panelConfig.AnchorPoint or Vector2.new(0.5, 0)
+	local position = typeof(panelConfig.Position) == "UDim2" and panelConfig.Position or UDim2.new(0.5, 0, 0, 44)
+	local textSize = math.max(10, tonumber(panelConfig.TextSize) or 12)
 
-	roundUi.MatchSeriesPanel.AnchorPoint = Vector2.new(0.5, 0)
-	roundUi.MatchSeriesPanel.Position = UDim2.new(0.5, 0, 0, 18)
+	roundUi.MatchSeriesPanel.AnchorPoint = anchorPoint
+	roundUi.MatchSeriesPanel.Position = position
 	roundUi.MatchSeriesPanel.Size = UDim2.fromOffset(panelWidth, panelHeight)
+	roundUi.MatchSeriesPanel.BackgroundColor3 = Color3.fromRGB(9, 12, 15)
+	roundUi.MatchSeriesPanel.BackgroundTransparency = math.clamp(
+		tonumber(panelConfig.BackgroundTransparency) or 0.16,
+		0,
+		1
+	)
+	roundUi.MatchSeriesPanel.BorderSizePixel = 0
 
-	setLabelLayout(roundUi.RoundLabel, UDim2.new(0, 10, 0, 4), UDim2.new(0, 76, 0, 18), 13, false)
-	setLabelLayout(roundUi.ScoreLabel, UDim2.new(0, 88, 0, 4), UDim2.new(1, -98, 0, 18), 13, false)
-	setLabelLayout(roundUi.TargetWinsLabel, UDim2.new(0, 10, 0, 24), UDim2.new(1, -20, 0, 18), 12, false)
-	setLabelLayout(roundUi.MatchResultLabel, UDim2.new(0, 10, 0, 46), UDim2.new(1, -20, 0, 20), 16, false)
+	local corner = roundUi.MatchSeriesPanel:FindFirstChild("MobileScoreCorner")
+	if corner == nil then
+		corner = Instance.new("UICorner")
+		corner.Name = "MobileScoreCorner"
+		corner.Parent = roundUi.MatchSeriesPanel
+	end
+	corner.CornerRadius = UDim.new(0, tonumber(panelConfig.CornerRadius) or 6)
+
+	setLabelLayout(roundUi.RoundLabel, UDim2.new(0, 10, 0, 4), UDim2.new(1, -20, 0, 16), textSize, false)
+	setLabelLayout(roundUi.ScoreLabel, UDim2.new(0, 10, 0, 20), UDim2.new(1, -20, 0, 17), textSize + 1, false)
+	setLabelLayout(roundUi.TargetWinsLabel, UDim2.new(0, 10, 0, 38), UDim2.new(1, -20, 0, 14), textSize, false)
+	setLabelLayout(roundUi.MatchResultLabel, UDim2.new(0, 10, 0, 52), UDim2.new(1, -20, 0, 18), 15, false)
+	setLabelAlignment(roundUi.RoundLabel, Enum.TextXAlignment.Center, Enum.TextYAlignment.Center)
+	setLabelAlignment(roundUi.ScoreLabel, Enum.TextXAlignment.Center, Enum.TextYAlignment.Center)
+	setLabelAlignment(roundUi.TargetWinsLabel, Enum.TextXAlignment.Center, Enum.TextYAlignment.Center)
+	setLabelAlignment(roundUi.MatchResultLabel, Enum.TextXAlignment.Center, Enum.TextYAlignment.Center)
 end
 
 local function applyCombatHudLayout()
@@ -821,8 +856,8 @@ local function updateSeriesStatus()
 	applyCombatHudLayout()
 
 	if mobileLayout then
-		roundUi.RoundLabel.Text = "R: " .. roundNumber
-		roundUi.ScoreLabel.Text = "You " .. youWins .. " / Opp " .. opponentWins
+		roundUi.RoundLabel.Text = "Round " .. roundNumber
+		roundUi.ScoreLabel.Text = "You " .. youWins .. " : " .. opponentWins .. " Opp"
 		roundUi.TargetWinsLabel.Text = "First to " .. targetWins
 	else
 		roundUi.RoundLabel.Text = "Round: " .. roundNumber

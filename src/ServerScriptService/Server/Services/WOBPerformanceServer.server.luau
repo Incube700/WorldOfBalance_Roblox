@@ -97,11 +97,17 @@ local function isTankPart(part)
 		return false
 	end
 
-	local playerTank = testObjects:FindFirstChild("PlayerTankPrototype")
-	local dummyTank = testObjects:FindFirstChild("DummyTank")
+	local tankModel = part:FindFirstAncestorWhichIsA("Model")
 
-	return (playerTank ~= nil and part:IsDescendantOf(playerTank))
-		or (dummyTank ~= nil and part:IsDescendantOf(dummyTank))
+	if tankModel == nil or not tankModel:IsDescendantOf(testObjects) then
+		return false
+	end
+
+	return tankModel:GetAttribute("TankId") ~= nil
+		or tankModel:GetAttribute("TankRole") ~= nil
+		or tankModel:GetAttribute("IsPlayerTank") ~= nil
+		or tankModel:GetAttribute("IsBot") ~= nil
+		or tankModel:FindFirstChild("Hitboxes") ~= nil
 end
 
 local function shouldCastShadow(part)

@@ -441,7 +441,7 @@ local function updateBotDecision(target)
 	local state = dummyParticipant.ControlState
 
 	if state == nil or typeof(state.Position) ~= "Vector3" then
-		warnThrottled("missingControlState", "[BOT] DummyTank has no ControlState; bot decision skipped.")
+		warnThrottled("missingControlState", "[BOT] Training dummy has no ControlState; bot decision skipped.")
 		return false
 	end
 
@@ -485,7 +485,7 @@ local function applyBotMovement(deltaTime)
 	local state = dummyParticipant.ControlState
 
 	if state == nil or typeof(state.Position) ~= "Vector3" then
-		warnThrottled("missingControlState", "[BOT] DummyTank has no ControlState; bot movement skipped.")
+		warnThrottled("missingControlState", "[BOT] Training dummy has no ControlState; bot movement skipped.")
 		return false
 	end
 
@@ -540,7 +540,7 @@ local function applyBotMovement(deltaTime)
 	local model = getParticipantModel(dummyParticipant)
 
 	if model == nil then
-		warnThrottled("missingDummyModel", "[BOT] DummyTank has no model; bot layout skipped.")
+		warnThrottled("missingDummyModel", "[BOT] Training dummy has no model; bot layout skipped.")
 		return false
 	end
 
@@ -571,7 +571,7 @@ local function maybeShoot(deltaTime, target, directionToTarget, distance)
 	local shootPoint = getParticipantShootPoint(dummyParticipant)
 
 	if shootPoint == nil then
-		warnThrottled("missingShootPoint", "[BOT] DummyTank has no ShootPoint; bot cannot shoot.")
+		warnThrottled("missingShootPoint", "[BOT] Training dummy has no ShootPoint; bot cannot shoot.")
 		return
 	end
 

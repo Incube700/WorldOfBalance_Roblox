@@ -308,7 +308,8 @@ local function applySessionUpgrades(session)
 	publishSessionAttributes(session)
 
 	if changed and BattleArenaConfig.Debug == true then
-		print("[ARENA] upgrades " .. session.Player.Name .. " -> " .. table.concat(session.UpgradeIds, ","))
+		local ownerName = session.Player ~= nil and session.Player.Name or tostring(participant ~= nil and participant.TankId or "Bot")
+		print("[ARENA] upgrades " .. ownerName .. " -> " .. table.concat(session.UpgradeIds, ","))
 	end
 end
 
@@ -330,6 +331,28 @@ local function makeSession(player, participant)
 		ProjectileCount = 1,
 		SpreadDegrees = 0,
 		DoubleShotLateralOffset = 0,
+	}
+end
+
+local function makeBotSession(participant)
+	return {
+		Player = nil,
+		Participant = participant,
+		SessionId = "ArenaBot_" .. tostring(participant ~= nil and participant.TankId or "Unknown"),
+		RespawnToken = 0,
+		Score = 0,
+		Kills = 0,
+		Deaths = 0,
+		Streak = 0,
+		UpgradeIds = {},
+		ForcedUpgrades = {},
+		DamageMultiplier = 1,
+		FireRateMultiplier = 1,
+		MoveSpeedMultiplier = 1,
+		ProjectileCount = 1,
+		SpreadDegrees = 0,
+		DoubleShotLateralOffset = 0,
+		IsBotSession = true,
 	}
 end
 
@@ -356,6 +379,63 @@ end
 
 function ArenaCombatService.GetSession(player)
 	return sessionsByPlayer[player]
+end
+
+function ArenaCombatService.GetActivePlayerCount()
+	local count = 0
+
+	for player, _ in pairs(sessionsByPlayer) do
+		if player ~= nil and player.Parent == Players then
+			count += 1
+		end
+	end
+
+	return count
+end
+
+function ArenaCombatService.GetActiveParticipants()
+	local participants = {}
+
+	for participant, _ in pairs(sessionsByParticipant) do
+		if participant ~= nil then
+			table.insert(participants, participant)
+		end
+	end
+
+	return participants
+end
+
+function ArenaCombatService.RegisterBotParticipant(participant)
+	if participant == nil then
+		return nil
+	end
+
+	local existingSession = sessionsByParticipant[participant]
+
+	if existingSession ~= nil then
+		return existingSession
+	end
+
+	local session = makeBotSession(participant)
+	sessionsByParticipant[participant] = session
+	resetParticipantArenaModifiers(participant)
+	TankParticipantRegistry.setParticipantMatchState(participant, ArenaCombatService.MODE_IN_BATTLE_ARENA, nil, nil)
+
+	return session
+end
+
+function ArenaCombatService.UnregisterBotParticipant(participant)
+	local session = sessionsByParticipant[participant]
+
+	if session == nil or session.IsBotSession ~= true then
+		return nil
+	end
+
+	sessionsByParticipant[participant] = nil
+	resetParticipantArenaModifiers(participant)
+	TankParticipantRegistry.setParticipantMatchState(participant, nil, nil, nil)
+
+	return session
 end
 
 function ArenaCombatService.EnterArena(player)
@@ -510,7 +590,7 @@ function ArenaCombatService.OnParticipantKilled(killerParticipant, victimPartici
 		killerSession = sessionsByParticipant[killerParticipant]
 	end
 
-	if killerSession ~= nil then
+	if killerSession ~= nil and killerSession.IsBotSession ~= true then
 		killerSession.Score += BattleArenaConfig.KillScore
 		killerSession.Kills += 1
 		killerSession.Streak += 1

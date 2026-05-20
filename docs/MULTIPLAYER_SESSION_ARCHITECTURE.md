@@ -29,7 +29,8 @@ Bots are participants, not magic scene objects. Dummy tanks are participants use
 ## BattleArena
 
 - BattleArena can support many player participants.
-- BattleArena can later support bot participants.
+- BattleArena supports Bot v0.1 participants as arena filler when one player is alone.
+- Bots are registered in `ArenaCombatService` sessions and spawned through `TankFactory` as `ArenaBot`.
 - Progression and temporary run upgrades are allowed here because it is not pure competitive Duel.
 
 ## Future Extraction
@@ -41,10 +42,19 @@ Bots are participants, not magic scene objects. Dummy tanks are participants use
 
 ## Factory Direction
 
-`TankFactory` is the adapter layer that should eventually own tank spawning:
+`TankFactory` is now the server spawn boundary for migrated tank creation:
 
-- Role: `Player`, `DuelOpponent`, `Dummy`, `Bot`.
+- Role: `Player`, `DuelOpponent`, `Dummy`, `Bot`, `ArenaPlayer`, `ArenaBot`.
 - Loadout: skin, weapon, future sidegrades.
-- Stats profile: `DuelNormalized`, `ArenaDefault`, `TrainingDummy`.
+- Stats profile: `DuelNormalized`, `ArenaDefault`, `TrainingPlayer`, `TrainingDummy`, `BotDefault`.
+- `TankTemplateProvider` resolves legacy scene prototypes.
+- `TankStatsProvider` supplies initial stats and keeps Duel normalized by default.
 
-Legacy prototypes remain valid sources until the project migrates to one shared base tank template.
+Legacy prototypes remain valid template sources until the project migrates to one shared base tank template. Gameplay services should request participants by role/profile, not clone or select prototype names directly.
+
+## Bot v0.1
+
+- BattleArena bots use `Role = ArenaBot`, `StatsProfileId = BotDefault`, and `TeamId = "Bots"`.
+- Bot movement and shooting run server-side through existing tank movement and projectile services.
+- Duel remains exactly two human/player participants by default; BattleArena bots never join Duel.
+- Future bot AI should stay behind participant/session boundaries instead of becoming scene-specific scripts.

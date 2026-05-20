@@ -50,6 +50,16 @@ local HudConfig = table.freeze({
 		HidePlayerHpPanelWhenWorldBarsEnabled = true,
 	}),
 
+	DuelMobileScorePanel = table.freeze({
+		Enabled = true,
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 44),
+		Size = UDim2.fromOffset(248, 56),
+		TextSize = 12,
+		BackgroundTransparency = 0.16,
+		CornerRadius = 6,
+	}),
+
 	DamageFlash = table.freeze({
 		Enabled = true,
 		Debug = false,

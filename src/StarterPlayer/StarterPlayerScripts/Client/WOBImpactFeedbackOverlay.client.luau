@@ -66,7 +66,17 @@ local function refreshDummyBody()
 		return nil
 	end
 
-	local dummyTank = testObjects:FindFirstChild("DummyTank")
+	local dummyTank = nil
+
+	for _, descendant in ipairs(testObjects:GetDescendants()) do
+		if descendant:IsA("Model")
+			and descendant:GetAttribute("TankRole") == "Dummy"
+			and descendant:GetAttribute("IsActive") ~= false
+		then
+			dummyTank = descendant
+			break
+		end
+	end
 
 	if dummyTank == nil then
 		return nil

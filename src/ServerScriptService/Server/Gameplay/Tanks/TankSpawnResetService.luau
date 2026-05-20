@@ -8,6 +8,7 @@ local TankConfig = require(configs:WaitForChild("TankConfig"))
 local WeaponConfig = require(configs:WaitForChild("WeaponConfig"))
 
 local TankParticipantRegistry = require(script.Parent.Parent:WaitForChild("TankParticipantRegistry"))
+local TankRole = require(script.Parent:WaitForChild("TankRole"))
 
 local primaryWeaponConfig = WeaponConfig.PrimaryWeapon
 
@@ -449,7 +450,7 @@ function TankSpawnResetService.configureActiveParticipants(matchMode, player2Has
 		for _, participant in ipairs(TankParticipantRegistry.getParticipants()) do
 			if participant.IsPlayerTank == true then
 				TankParticipantRegistry.setParticipantModelVisible(participant, participant.OwnerPlayer ~= nil)
-			elseif participant.TankId == "DummyTank" then
+			elseif participant.Role == TankRole.Dummy then
 				TankParticipantRegistry.setParticipantModelVisible(
 					participant,
 					matchMode == "Training" and activeByParticipant[participant] == true
@@ -460,20 +461,21 @@ function TankSpawnResetService.configureActiveParticipants(matchMode, player2Has
 		return
 	end
 
-	local playerParticipant = TankParticipantRegistry.getParticipantById("PlayerTankPrototype")
-	local player2Participant = TankParticipantRegistry.getParticipantById("Player2TankPrototype")
-	local dummyParticipant = TankParticipantRegistry.getParticipantById("DummyTank")
+	for _, participant in ipairs(TankParticipantRegistry.getParticipants()) do
+		if participant.IsPlayerTank == true then
+			local isDuelOpponent = participant.Role == TankRole.DuelOpponent
+			local isVisible = not isDuelOpponent
 
-	if playerParticipant then
-		TankParticipantRegistry.setParticipantModelVisible(playerParticipant, true)
-	end
-	
-	if player2Participant then
-		TankParticipantRegistry.setParticipantModelVisible(player2Participant, matchMode == "PvP" and player2HasOwner)
-	end
-	
-	if dummyParticipant then
-		TankParticipantRegistry.setParticipantModelVisible(dummyParticipant, matchMode == "Training")
+			if isDuelOpponent then
+				isVisible = matchMode == "PvP" and player2HasOwner
+			elseif participant.OwnerPlayer ~= nil then
+				isVisible = true
+			end
+
+			TankParticipantRegistry.setParticipantModelVisible(participant, isVisible)
+		elseif participant.Role == TankRole.Dummy then
+			TankParticipantRegistry.setParticipantModelVisible(participant, matchMode == "Training")
+		end
 	end
 end
 

@@ -80,6 +80,9 @@ local callbacks = {
 	getSpawnTransforms = nil,
 	onFinalMatchRewards = nil,
 	onMatchEnded = nil,
+	getDefaultPlayerParticipant = nil,
+	getDefaultDuelOpponentParticipant = nil,
+	getDefaultTrainingOpponentParticipant = nil,
 }
 
 local function getPlayerSideParticipant()
@@ -87,7 +90,11 @@ local function getPlayerSideParticipant()
 		return activeMatch.PlayerParticipant
 	end
 
-	return TankParticipantRegistry.getParticipantById("PlayerTankPrototype")
+	if callbacks.getDefaultPlayerParticipant ~= nil then
+		return callbacks.getDefaultPlayerParticipant()
+	end
+
+	return nil
 end
 
 local function getOpponentSideParticipant()
@@ -96,10 +103,18 @@ local function getOpponentSideParticipant()
 	end
 
 	if matchMode == RoundMatchService.MATCH_MODE_PVP then
-		return TankParticipantRegistry.getParticipantById("Player2TankPrototype")
+		if callbacks.getDefaultDuelOpponentParticipant ~= nil then
+			return callbacks.getDefaultDuelOpponentParticipant()
+		end
+
+		return nil
 	end
 
-	return TankParticipantRegistry.getParticipantById("DummyTank")
+	if callbacks.getDefaultTrainingOpponentParticipant ~= nil then
+		return callbacks.getDefaultTrainingOpponentParticipant()
+	end
+
+	return nil
 end
 
 local function getActiveMatchParticipants()
@@ -251,11 +266,11 @@ function RoundMatchService.getOpponentForParticipant(participant)
 		end
 	end
 
-	if participant == TankParticipantRegistry.getParticipantById("PlayerTankPrototype") then
+	if participant == getPlayerSideParticipant() then
 		return getOpponentSideParticipant()
 	end
 
-	return TankParticipantRegistry.getParticipantById("PlayerTankPrototype")
+	return getPlayerSideParticipant()
 end
 
 function RoundMatchService.getRoundResultForDestroyedParticipant(participant)

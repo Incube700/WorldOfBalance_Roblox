@@ -31,7 +31,7 @@ local TankConfig = table.freeze({
 		ArmorHitboxThickness = 0.25,
 		ArmorHitboxHeight = 5.4,
 		ArmorHitboxYOffset = 1.4,
-		ArmorHitboxesVisible = true,
+		ArmorHitboxesVisible = false,
 		ArmorHitboxTransparency = 0.45,
 		ArmorHitboxMaterial = "SmoothPlastic",
 		FrontArmorColor = Color3.fromRGB(80, 255, 120),
@@ -58,8 +58,6 @@ local TankConfig = table.freeze({
 	}),
 
 	ModelNames = table.freeze({
-		PlayerTank = "PlayerTankPrototype",
-		DummyTank = "DummyTank",
 		Body = "Body",
 		Turret = "Turret",
 		Barrel = "Barrel",

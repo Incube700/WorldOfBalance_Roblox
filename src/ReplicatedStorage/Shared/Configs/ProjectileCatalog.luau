@@ -22,9 +22,8 @@ local DEFAULT_RICOCHET_SHELL = table.freeze({
 		ExcludedRuntimeGroups = table.freeze({
 			"Projectiles",
 			"VFX",
-			"PlayerTankPrototype",
 		}),
-		-- Active server excludes PlayerTankPrototype before first bounce, then allows ricochet self-hit.
+		-- Active server excludes the owner tank before first bounce, then allows ricochet self-hit.
 	}),
 })
 

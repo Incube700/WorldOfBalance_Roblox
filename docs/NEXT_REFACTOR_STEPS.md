@@ -11,7 +11,8 @@ This is a prioritized list for future safe work. Do not treat it as permission t
 
 ## P1
 
-- Bot v0.1 through `TankFactory`, only after current Duel/Training/BattleArena loop is verified.
+- Verify the real `TankFactory` spawn migration in Studio with 1-player, 2-player, and BattleArena tests.
+- Verify BattleArena Bot v0.1 through `TankFactory`: solo arena bot spawn, movement, shooting, death, respawn, and cleanup on return to Lobby.
 - Projectile radius collision if pass-through repeats after current swept raycast hardening.
 - Armor tuning with `DebugCombatConfig.ArmorDebug=true` in Studio only.
 - Split `RoundMatchService` into pure helpers in a dedicated pass:
@@ -22,11 +23,12 @@ This is a prioritized list for future safe work. Do not treat it as permission t
 
 ## P2
 
-- BattleArena bot participants.
+- Bot v0.1 polish: difficulty, better aim noise, simple obstacle avoidance, and visible bot kill attribution if needed.
 - Mode/session abstraction for Duel/BattleArena/Training.
 - Upgrade rules by mode.
 - Practice/Training pad polish.
 - Runtime folder helper modules.
+- Future `ServerStorage.TankTemplates.BaseTankTemplate` migration after template source-of-truth review.
 - Mobile controls experiment later, not during stability passes.
 
 ## P3

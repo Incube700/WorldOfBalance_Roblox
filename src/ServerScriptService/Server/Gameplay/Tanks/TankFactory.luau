@@ -4,8 +4,10 @@ TankFactory.__index = TankFactory
 local PlayerTankSpawner = require(script.Parent.Parent:WaitForChild("PlayerTankSpawner"))
 local TankParticipantRegistry = require(script.Parent.Parent:WaitForChild("TankParticipantRegistry"))
 local TankCustomizationService = require(script.Parent:WaitForChild("TankCustomizationService"))
-
-local DEFAULT_HEALTH = 100
+local TankArmorPartsService = require(script.Parent:WaitForChild("TankArmorPartsService"))
+local TankRole = require(script.Parent:WaitForChild("TankRole"))
+local TankSpawnRequest = require(script.Parent:WaitForChild("TankSpawnRequest"))
+local TankStatsProvider = require(script.Parent:WaitForChild("TankStatsProvider"))
 
 local function findOptionalTankChild(model, childName)
 	local child = model:FindFirstChild(childName, true) or model:WaitForChild(childName, 5)
@@ -18,31 +20,13 @@ local function findOptionalTankChild(model, childName)
 end
 
 local function getRoleDefaults(role)
-	if role == "Dummy" then
+	if role == TankRole.Dummy then
 		return true, false, "Dummy"
-	elseif role == "Bot" then
+	elseif role == TankRole.Bot or role == TankRole.ArenaBot then
 		return true, false, "Bot"
 	end
 
 	return false, true, "Player"
-end
-
-local function getRequestModel(request)
-	if request.ExistingModel ~= nil then
-		return request.ExistingModel, false
-	end
-
-	local templateModel = request.TemplateModel
-
-	if templateModel == nil then
-		return nil, false
-	end
-
-	local clone = templateModel:Clone()
-	clone.Name = request.TankId or request.Name or templateModel.Name
-	clone.Parent = request.Parent or templateModel.Parent
-
-	return clone, true
 end
 
 local function setModelAttribute(model, attributeName, value)
@@ -51,11 +35,26 @@ local function setModelAttribute(model, attributeName, value)
 	end
 end
 
+local function setParticipantModelsAttribute(participant, attributeName, value)
+	setModelAttribute(participant.Model, attributeName, value)
+
+	if participant.PhysicalModel ~= nil and participant.PhysicalModel ~= participant.Model then
+		setModelAttribute(participant.PhysicalModel, attributeName, value)
+	end
+end
+
+local function setOwnerPlayerAttribute(participant, attributeName, value)
+	if participant.OwnerPlayer ~= nil then
+		participant.OwnerPlayer:SetAttribute(attributeName, value)
+	end
+end
+
 local function applyFactoryAttributes(model, participant, request, loadout, statsProfileId)
 	setModelAttribute(model, "TankRole", participant.Role)
 	setModelAttribute(model, "StatsProfileId", statsProfileId)
 	setModelAttribute(model, "WeaponId", participant.WeaponTypeId)
-	setModelAttribute(model, "LoadoutSkinId", loadout.SkinId or request.SkinId or "Default")
+	setModelAttribute(model, "SkinId", loadout.SkinId)
+	setModelAttribute(model, "LoadoutSkinId", loadout.SkinId)
 
 	if loadout.UpgradeLevels ~= nil then
 		setModelAttribute(model, "HasUpgradeLevels", true)
@@ -100,6 +99,25 @@ local function resolveBoolean(value, fallback)
 	return fallback == true
 end
 
+local function getParticipantPhysicalModel(participant)
+	if participant == nil then
+		return nil
+	end
+
+	return participant.PhysicalModel or participant.Model
+end
+
+local function makeSpawnResult(participant, created, templateModel)
+	return {
+		TankModel = getParticipantPhysicalModel(participant),
+		Participant = participant,
+		BodyPart = participant ~= nil and participant.Body or nil,
+		Role = participant ~= nil and participant.Role or nil,
+		Created = created == true,
+		TemplateModel = templateModel,
+	}
+end
+
 function TankFactory.new(dependencies)
 	dependencies = dependencies or {}
 
@@ -107,35 +125,103 @@ function TankFactory.new(dependencies)
 		PlayerTankSpawner = dependencies.PlayerTankSpawner or PlayerTankSpawner,
 		TankParticipantRegistry = dependencies.TankParticipantRegistry or TankParticipantRegistry,
 		TankCustomizationService = dependencies.TankCustomizationService or TankCustomizationService,
+		TankStatsProvider = dependencies.TankStatsProvider or TankStatsProvider.new(),
+		TemplateProvider = dependencies.TemplateProvider,
 		DefaultWeaponConfig = dependencies.DefaultWeaponConfig,
+		SpawnParent = dependencies.SpawnParent,
 	}, TankFactory)
 end
 
-function TankFactory:SpawnTank(request)
-	request = request or {}
-
-	local role = request.Role or "Player"
-	local model, created = getRequestModel(request)
-
-	if model == nil or not model:IsA("Model") then
-		warn("[TANK FACTORY] SpawnTank ignored: missing Model for role=" .. tostring(role))
-		return nil, false
+function TankFactory:_getExistingModel(tankId, parent)
+	if tankId == nil or parent == nil then
+		return nil
 	end
 
-	local loadout = request.Loadout or {}
-	local statsProfileId = request.StatsProfileId or (role == "Dummy" and "TrainingDummy" or "DuelNormalized")
+	local existing = parent:FindFirstChild(tankId)
+
+	if existing ~= nil and existing:IsA("Model") then
+		return existing
+	end
+
+	return nil
+end
+
+function TankFactory:_getRequestModel(request)
+	if request.ExistingModel ~= nil then
+		return request.ExistingModel, false, nil
+	end
+
+	local parent = request.Parent or self.SpawnParent
+	local existing = self:_getExistingModel(request.TankId or request.Name, parent)
+
+	if existing ~= nil then
+		return existing, false, nil
+	end
+
+	local templateModel = request.TemplateModel
+
+	if templateModel == nil and self.TemplateProvider ~= nil then
+		templateModel = self.TemplateProvider:GetTemplateForRole(request.Role)
+	end
+
+	if templateModel == nil or not templateModel:IsA("Model") then
+		return nil, false, nil
+	end
+
+	local clone = templateModel:Clone()
+	clone.Name = request.TankId or request.Name or templateModel.Name
+	clone.Parent = parent or templateModel.Parent
+
+	return clone, true, templateModel
+end
+
+function TankFactory:_applyRegisteredStats(participant, stats)
+	participant.MaxHealth = stats.MaxHealth
+	participant.DefaultMaxHealth = stats.MaxHealth
+	participant.Health = stats.Health
+	participant.IsAlive = stats.Health > 0
+	participant.IsDead = stats.Health <= 0
+
+	setParticipantModelsAttribute(participant, "MaxHealth", stats.MaxHealth)
+	setParticipantModelsAttribute(participant, "DefaultMaxHealth", stats.MaxHealth)
+	setOwnerPlayerAttribute(participant, "MaxHealth", stats.MaxHealth)
+
+	self.TankParticipantRegistry.setParticipantHealth(participant, stats.Health)
+	self.TankParticipantRegistry.setParticipantIsDead(participant, stats.Health <= 0)
+end
+
+function TankFactory:SpawnTank(request)
+	request = TankSpawnRequest.Normalize(request)
+
+	if request.TankId ~= nil then
+		local existingParticipant = self.TankParticipantRegistry.getParticipantById(request.TankId)
+
+		if existingParticipant ~= nil then
+			return makeSpawnResult(existingParticipant, false, nil)
+		end
+	end
+
+	local role = request.Role
+	local model, created, templateModel = self:_getRequestModel(request)
+
+	if model == nil or not model:IsA("Model") then
+		error("[TANK FACTORY] SpawnTank failed: missing model for role=" .. tostring(role), 2)
+	end
+
+	local loadout = request.Loadout
+	local statsProfileId = request.StatsProfileId
 	local defaultIsBot, defaultIsPlayerTank, defaultControllerType = getRoleDefaults(role)
 	local ownerPlayer = request.OwnerPlayer
 	local ownerUserId = request.OwnerUserId or (ownerPlayer ~= nil and ownerPlayer.UserId or nil)
-	local ownerName = ownerPlayer ~= nil and ownerPlayer.Name or nil
+	local ownerName = request.OwnerName or (ownerPlayer ~= nil and ownerPlayer.Name or nil)
 	local weaponConfig = request.WeaponConfig or self.DefaultWeaponConfig
 
 	self.PlayerTankSpawner.ensurePhysicalTankModel(model)
-	self.TankCustomizationService.applySkin(model, loadout.SkinId or request.SkinId)
+	self.TankCustomizationService.applySkin(model, loadout.SkinId)
+	TankArmorPartsService.Configure(model)
 
 	local tankParts = self.PlayerTankSpawner.getTankParts(model)
-	local maxHealth = math.max(1, tonumber(request.MaxHealth) or DEFAULT_HEALTH)
-	local health = math.clamp(tonumber(request.Health) or maxHealth, 0, maxHealth)
+	local stats = self.TankStatsProvider:GetStats(statsProfileId, request, model)
 	local participant = {
 		TankId = request.TankId or model.Name,
 		Model = tankParts.Model,
@@ -155,16 +241,16 @@ function TankFactory:SpawnTank(request)
 		Role = role,
 		SpawnName = request.SpawnName,
 		SpawnTransform = getSpawnTransform(request),
-		WeaponTypeId = request.WeaponTypeId or loadout.WeaponId or (weaponConfig ~= nil and weaponConfig.Id or "PrototypeCannon"),
+		WeaponTypeId = request.WeaponTypeId or loadout.WeaponId or stats.WeaponId or (weaponConfig ~= nil and weaponConfig.Id or "PrototypeCannon"),
 		WeaponConfig = weaponConfig,
 		LastShotTime = 0,
 		WeaponReadyAt = 0,
 		WeaponState = { LastShotTime = 0, WeaponReadyAt = 0 },
-		Health = health,
-		MaxHealth = maxHealth,
-		DefaultMaxHealth = maxHealth,
-		IsAlive = health > 0,
-		IsDead = health <= 0,
+		Health = stats.Health,
+		MaxHealth = stats.MaxHealth,
+		DefaultMaxHealth = stats.MaxHealth,
+		IsAlive = stats.Health > 0,
+		IsDead = stats.Health <= 0,
 		IsControllable = request.IsControllable ~= false,
 		CanMove = request.CanMove ~= false,
 		CanShoot = request.CanShoot ~= false,
@@ -175,7 +261,10 @@ function TankFactory:SpawnTank(request)
 
 	applyFactoryAttributes(model, participant, request, loadout, statsProfileId)
 
-	return self.TankParticipantRegistry.registerTankParticipant(participant), created
+	local registeredParticipant = self.TankParticipantRegistry.registerTankParticipant(participant)
+	self:_applyRegisteredStats(registeredParticipant, stats)
+
+	return makeSpawnResult(registeredParticipant, created, templateModel)
 end
 
 return TankFactory

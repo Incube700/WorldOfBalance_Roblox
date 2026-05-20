@@ -252,6 +252,33 @@ function TankModelResolver.findTankByTankId(root, tankId, requirePhysical)
 	return fallback
 end
 
+function TankModelResolver.findTankByRole(root, role, requirePhysical)
+	local fallback = nil
+
+	for _, searchRoot in ipairs(getSearchRoots(root)) do
+		for _, descendant in ipairs(searchRoot:GetDescendants()) do
+			if descendant:IsA("Model")
+				and descendant:GetAttribute("TankRole") == role
+				and descendant:GetAttribute("IsActive") ~= false
+			then
+				local physicalModel = TankModelResolver.resolvePhysicalModel(root, descendant)
+
+				if physicalModel ~= nil then
+					return physicalModel
+				end
+
+				fallback = fallback or descendant
+			end
+		end
+	end
+
+	if requirePhysical == true then
+		return nil
+	end
+
+	return fallback
+end
+
 function TankModelResolver.findEnemyTank(root, userId)
 	local ownedTank = TankModelResolver.findOwnedTank(root, userId, true)
 	local opponentTankId = ownedTank ~= nil and ownedTank:GetAttribute("OpponentTankId") or nil
@@ -285,7 +312,7 @@ function TankModelResolver.findEnemyTank(root, userId)
 		end
 	end
 
-	return TankModelResolver.findTankByTankId(root, "DummyTank", true)
+	return TankModelResolver.findTankByRole(root, "Dummy", true)
 end
 
 return TankModelResolver

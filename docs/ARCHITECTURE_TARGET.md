@@ -60,10 +60,12 @@ Future helpers:
 Owns BattleArena state:
 
 - many players;
-- future bot participants;
+- Bot v0.1 participants;
 - respawn;
 - score/kills/deaths;
 - future run upgrades.
+
+Current arena entry reuses the already assigned factory-created player participant. BattleArena filler bots are spawned through `TankFactory` as `ArenaBot`; separate arena-only player tank spawning is deferred.
 
 Future helpers:
 
@@ -74,15 +76,29 @@ Future helpers:
 
 ### `TankFactory`
 
-Spawn adapter now, future spawn boundary:
+Current spawn boundary:
 
-- current: adapter over legacy prototypes;
+- current: server spawn path over `TankTemplateProvider`;
 - future: `BaseTankTemplate`;
-- roles: Player/Bot/Dummy/DuelOpponent;
+- roles: Player/Bot/Dummy/DuelOpponent/ArenaPlayer/ArenaBot;
 - loadout/stats/team/owner attributes;
+- `TankSpawnRequest` validation/normalization;
+- `TankStatsProvider` profile defaults;
 - participant registration.
 
-Do not delete legacy prototypes until all active spawn flows use the factory.
+Legacy prototypes are template sources only. Do not delete them until a Studio-reviewed `ServerStorage.TankTemplates.BaseTankTemplate` migration replaces them.
+
+### `BotService`
+
+BattleArena bot lifecycle:
+
+- maintain configured arena bot count;
+- spawn bots through `TankFactory`;
+- create one `BotController` per bot participant;
+- deactivate/hide bots when no arena players remain;
+- schedule bot respawn after death.
+
+It should not own Duel, Training quick flow, shop/upgrades, or scene mutation.
 
 ### `ArmorHitResolver`
 
@@ -231,7 +247,7 @@ No combat/mode authority.
 - Lobby = hub.
 - Duel = normalized 1v1 top-down.
 - Training/Practice = later proper bot practice.
-- BattleArena = many players plus future bots/run upgrades.
+- BattleArena = many players plus Bot v0.1/future run upgrades.
 - Future Extraction = separate later mode, not now.
 
 Do not mix all modes immediately. The current priority remains a stable playable loop built around readable Ricochet Duel.

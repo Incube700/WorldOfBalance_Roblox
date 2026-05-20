@@ -1,0 +1,347 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local shared = ReplicatedStorage:WaitForChild("Shared")
+local configs = shared:WaitForChild("Configs")
+local BotConfig = require(configs:WaitForChild("BotConfig"))
+
+local BotController = require(script.Parent:WaitForChild("BotController"))
+local BotSpawnPlanner = require(script.Parent:WaitForChild("BotSpawnPlanner"))
+local TankRole = require(script.Parent.Parent:WaitForChild("Tanks"):WaitForChild("TankRole"))
+local TankStatsProfile = require(script.Parent.Parent:WaitForChild("Tanks"):WaitForChild("TankStatsProfile"))
+
+local BotService = {}
+
+local MODE_IN_BATTLE_ARENA = "InBattleArena"
+local BOT_ID_PREFIX = "ArenaBot_"
+local BOT_TEAM_ID = "Bots"
+
+local tankFactory = nil
+local tankParticipantRegistry = nil
+local tankSpawnResetService = nil
+local tankMovementService = nil
+local projectileService = nil
+local arenaCombatService = nil
+local spawnPlanner = nil
+local addMovementIgnoredParticipant = nil
+
+local initialized = false
+local botRecords = {}
+local botRecordsById = {}
+local nextBotIndex = 1
+local lastDebugLogAtByKey = {}
+
+local function debugLog(key, message)
+	if BotConfig.Debug ~= true then
+		return
+	end
+
+	local now = os.clock()
+
+	if now - (lastDebugLogAtByKey[key] or 0) < 1 then
+		return
+	end
+
+	lastDebugLogAtByKey[key] = now
+	print(message)
+end
+
+local function isBattleArenaBotsEnabled()
+	local battleArenaConfig = BotConfig.BattleArena or {}
+
+	return BotConfig.Enabled == true and battleArenaConfig.Enabled == true
+end
+
+local function getConfiguredBotLimit()
+	local battleArenaConfig = BotConfig.BattleArena or {}
+	local safetyConfig = BotConfig.Safety or {}
+	local maxBots = math.max(0, math.floor(tonumber(battleArenaConfig.MaxBots) or 0))
+	local hardLimit = math.max(0, math.floor(tonumber(safetyConfig.MaxBotsHardLimit) or maxBots))
+
+	if hardLimit <= 0 then
+		return maxBots
+	end
+
+	return math.min(maxBots, hardLimit)
+end
+
+local function getDesiredBotCount()
+	if not isBattleArenaBotsEnabled() or arenaCombatService == nil then
+		return 0
+	end
+
+	local battleArenaConfig = BotConfig.BattleArena or {}
+	local playerCount = arenaCombatService.GetActivePlayerCount ~= nil
+		and arenaCombatService.GetActivePlayerCount()
+		or 0
+
+	if playerCount <= 0 then
+		return 0
+	end
+
+	local spawnThreshold = math.max(1, math.floor(tonumber(battleArenaConfig.SpawnWhenPlayerCountLessThan) or 2))
+
+	if playerCount >= spawnThreshold then
+		return 0
+	end
+
+	local minBots = math.max(0, math.floor(tonumber(battleArenaConfig.MinBots) or 0))
+
+	return math.min(minBots, getConfiguredBotLimit())
+end
+
+local function getActiveBotRecords()
+	local activeRecords = {}
+
+	for _, record in ipairs(botRecords) do
+		if record.Active == true then
+			table.insert(activeRecords, record)
+		end
+	end
+
+	return activeRecords
+end
+
+local function makeBotTankId()
+	local tankId = BOT_ID_PREFIX .. tostring(nextBotIndex)
+	nextBotIndex += 1
+	return tankId
+end
+
+local function getParticipantModel(participant)
+	if participant == nil then
+		return nil
+	end
+
+	if tankParticipantRegistry ~= nil and tankParticipantRegistry.getParticipantPhysicalModel ~= nil then
+		return tankParticipantRegistry.getParticipantPhysicalModel(participant)
+	end
+
+	return participant.PhysicalModel or participant.Model
+end
+
+local function isParticipantDead(participant)
+	if participant == nil then
+		return true
+	end
+
+	if tankParticipantRegistry ~= nil and tankParticipantRegistry.getParticipantIsDead ~= nil then
+		return tankParticipantRegistry.getParticipantIsDead(participant)
+	end
+
+	return participant.IsDead == true
+end
+
+local function registerBotInArena(participant)
+	if arenaCombatService ~= nil and arenaCombatService.RegisterBotParticipant ~= nil then
+		arenaCombatService.RegisterBotParticipant(participant)
+	end
+end
+
+local function unregisterBotFromArena(participant)
+	if arenaCombatService ~= nil and arenaCombatService.UnregisterBotParticipant ~= nil then
+		arenaCombatService.UnregisterBotParticipant(participant)
+	end
+end
+
+local function makeController(participant)
+	return BotController.new({
+		Participant = participant,
+		TankParticipantRegistry = tankParticipantRegistry,
+		TankMovementService = tankMovementService,
+		TankSpawnResetService = tankSpawnResetService,
+		ProjectileService = projectileService,
+		GetArenaParticipants = function()
+			if arenaCombatService ~= nil and arenaCombatService.GetActiveParticipants ~= nil then
+				return arenaCombatService.GetActiveParticipants()
+			end
+
+			return {}
+		end,
+	})
+end
+
+local function activateBotRecord(record)
+	local participant = record.Participant
+	local spawnTransform = spawnPlanner:GetNextSpawnTransform()
+
+	if addMovementIgnoredParticipant ~= nil then
+		addMovementIgnoredParticipant(participant)
+	end
+
+	registerBotInArena(participant)
+	tankParticipantRegistry.setParticipantMatchState(participant, MODE_IN_BATTLE_ARENA, nil, nil)
+	tankParticipantRegistry.setParticipantModelVisible(participant, true)
+	tankParticipantRegistry.resetParticipantHealth(participant)
+	tankSpawnResetService.restoreTankColors(participant.TankId)
+	tankSpawnResetService.applySpawnToParticipant(participant, spawnTransform)
+
+	record.Controller = makeController(participant)
+	record.Active = true
+	record.RespawnAt = nil
+
+	debugLog("spawn:" .. participant.TankId, "[BOT] spawned id=" .. tostring(participant.TankId))
+end
+
+local function createBotRecord()
+	local tankId = makeBotTankId()
+	local spawnTransform = spawnPlanner:GetNextSpawnTransform()
+	local result = tankFactory:SpawnTank({
+		TankId = tankId,
+		Role = TankRole.ArenaBot,
+		TeamId = BOT_TEAM_ID,
+		OwnerUserId = 0,
+		OwnerName = "Bot",
+		IsBot = true,
+		IsPlayerTank = false,
+		IsActive = true,
+		StatsProfileId = TankStatsProfile.BotDefault,
+		SpawnTransform = spawnTransform,
+		SpawnName = "ArenaBotSpawn",
+	})
+	local participant = result.Participant
+	local model = getParticipantModel(participant)
+
+	if model ~= nil then
+		tankSpawnResetService.captureTankColors(participant.TankId, model)
+	end
+
+	local record = {
+		TankId = tankId,
+		Participant = participant,
+		Controller = nil,
+		Active = false,
+		RespawnAt = nil,
+	}
+
+	table.insert(botRecords, record)
+	botRecordsById[tankId] = record
+	activateBotRecord(record)
+
+	return record
+end
+
+local function deactivateBotRecord(record)
+	if record == nil or record.Active ~= true then
+		return
+	end
+
+	local participant = record.Participant
+
+	if record.Controller ~= nil then
+		record.Controller:Destroy()
+		record.Controller = nil
+	end
+
+	unregisterBotFromArena(participant)
+
+	if participant ~= nil then
+		tankParticipantRegistry.setParticipantMatchState(participant, nil, nil, nil)
+		tankParticipantRegistry.setParticipantModelVisible(participant, false)
+	end
+
+	record.Active = false
+	record.RespawnAt = nil
+
+	debugLog("despawn:" .. tostring(record.TankId), "[BOT] despawned id=" .. tostring(record.TankId))
+end
+
+local function ensureBotCount(desiredCount)
+	local activeRecords = getActiveBotRecords()
+
+	while #activeRecords < desiredCount do
+		local inactiveRecord = nil
+
+		for _, record in ipairs(botRecords) do
+			if record.Active ~= true then
+				inactiveRecord = record
+				break
+			end
+		end
+
+		if inactiveRecord ~= nil then
+			activateBotRecord(inactiveRecord)
+			table.insert(activeRecords, inactiveRecord)
+		else
+			table.insert(activeRecords, createBotRecord())
+		end
+	end
+
+	for index = #activeRecords, desiredCount + 1, -1 do
+		deactivateBotRecord(activeRecords[index])
+	end
+end
+
+local function updateRespawn(record)
+	local participant = record.Participant
+
+	if participant == nil or not isParticipantDead(participant) then
+		return false
+	end
+
+	local battleArenaConfig = BotConfig.BattleArena or {}
+	local now = os.clock()
+
+	if record.RespawnAt == nil then
+		record.RespawnAt = now + math.max(0, tonumber(battleArenaConfig.RespawnDelay) or 3)
+		debugLog("died:" .. tostring(record.TankId), "[BOT] died id=" .. tostring(record.TankId))
+		return true
+	end
+
+	if now < record.RespawnAt then
+		return true
+	end
+
+	if record.Controller ~= nil then
+		record.Controller:Destroy()
+	end
+
+	activateBotRecord(record)
+	debugLog("respawn:" .. tostring(record.TankId), "[BOT] respawned id=" .. tostring(record.TankId))
+
+	return true
+end
+
+function BotService.init(options)
+	options = options or {}
+
+	tankFactory = options.TankFactory
+	tankParticipantRegistry = options.TankParticipantRegistry
+	tankSpawnResetService = options.TankSpawnResetService
+	tankMovementService = options.TankMovementService
+	projectileService = options.ProjectileService
+	arenaCombatService = options.ArenaCombatService
+	addMovementIgnoredParticipant = options.AddMovementIgnoredParticipant
+	spawnPlanner = options.SpawnPlanner or BotSpawnPlanner.new(options.Root)
+	initialized = true
+end
+
+function BotService.update(deltaTime)
+	if not initialized then
+		return
+	end
+
+	local desiredCount = getDesiredBotCount()
+	ensureBotCount(desiredCount)
+
+	if desiredCount <= 0 and (BotConfig.Safety or {}).CleanupOnPlayerLeave ~= false then
+		return
+	end
+
+	for _, record in ipairs(getActiveBotRecords()) do
+		if updateRespawn(record) then
+			continue
+		end
+
+		if record.Controller ~= nil then
+			record.Controller:Update(deltaTime)
+		end
+	end
+end
+
+function BotService.cleanupAll()
+	for _, record in ipairs(botRecords) do
+		deactivateBotRecord(record)
+	end
+end
+
+return BotService

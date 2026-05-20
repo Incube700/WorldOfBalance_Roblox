@@ -39,7 +39,9 @@ local function isVisualTankModel(model)
 		return false
 	end
 
-	return model:GetAttribute("IsPlayerTank") == true or model.Name == "DummyTank"
+	return model:GetAttribute("IsPlayerTank") == true
+		or model:GetAttribute("TankRole") == "Dummy"
+		or model:GetAttribute("IsBot") == true
 end
 
 local function getTankColors(model)

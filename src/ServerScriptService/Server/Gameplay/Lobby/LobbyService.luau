@@ -377,7 +377,7 @@ local function startTraining(player, participant, source)
 	end
 
 	if dummyParticipant == nil then
-		warn("[LOBBY] Training start ignored: DummyTank participant missing")
+		warn("[LOBBY] Training start ignored: training dummy participant missing")
 		return
 	end
 

@@ -103,11 +103,7 @@ local function debugDamageDetected(model, serial)
 end
 
 local function isTankName(name)
-	return name == "DummyTank"
-		or name == "Player2TankPrototype"
-		or name == "PlayerTankPrototype"
-		or string.match(name, "^PlayerTank_") ~= nil
-		or string.find(name, "Tank") ~= nil
+	return string.find(name, "Tank") ~= nil
 end
 
 local function hasParticipantIdentity(model)

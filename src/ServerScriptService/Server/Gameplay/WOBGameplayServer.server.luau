@@ -11,6 +11,7 @@ Players.CharacterAutoLoads = false
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local TankConfig = require(configs:WaitForChild("TankConfig"))
+local TankFactoryConfig = require(configs:WaitForChild("TankFactoryConfig"))
 local WeaponConfig = require(configs:WaitForChild("WeaponConfig"))
 local ProjectileCatalog = require(configs:WaitForChild("ProjectileCatalog"))
 local MatchConfig = require(configs:WaitForChild("MatchConfig"))
@@ -18,7 +19,6 @@ local BattleArenaConfig = require(configs:WaitForChild("BattleArenaConfig"))
 local DebugBotConfig = require(configs:WaitForChild("DebugBotConfig"))
 
 -- Services
-local PlayerTankSpawner = require(script.Parent:WaitForChild("PlayerTankSpawner"))
 local MatchStatsService = require(script.Parent:WaitForChild("Stats"):WaitForChild("MatchStatsService"))
 local PlayerWalletService = require(script.Parent:WaitForChild("Economy"):WaitForChild("PlayerWalletService"))
 local KillRewardService = require(script.Parent:WaitForChild("Economy"):WaitForChild("KillRewardService"))
@@ -32,9 +32,14 @@ local RoundMatchService = require(script.Parent:WaitForChild("Round"):WaitForChi
 local ProjectileService = require(script.Parent:WaitForChild("Projectiles"):WaitForChild("ProjectileService"))
 local TankSpawnResetService = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankSpawnResetService"))
 local TankFactory = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankFactory"))
+local TankRole = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankRole"))
+local TankStatsProfile = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankStatsProfile"))
+local TankTemplateProvider = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankTemplateProvider"))
+local TankStatsProvider = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankStatsProvider"))
 local PlayerPossessionService = require(script.Parent:WaitForChild("Players"):WaitForChild("PlayerPossessionService"))
 local LobbyService = require(script.Parent:WaitForChild("Lobby"):WaitForChild("LobbyService"))
 local ArenaCombatService = require(script.Parent:WaitForChild("Arena"):WaitForChild("ArenaCombatService"))
+local BotService = require(script.Parent:WaitForChild("Bots"):WaitForChild("BotService"))
 local TrainingBotService = require(script.Parent:WaitForChild("Bots"):WaitForChild("TrainingBotService"))
 
 local primaryWeaponConfig = WeaponConfig.PrimaryWeapon
@@ -98,37 +103,51 @@ vfxFolder.Name = "VFX"
 vfxFolder.Parent = wobRuntime
 vfxFolder:ClearAllChildren()
 
--- Tank Prototypes
-local playerTank = PlayerTankSpawner.ensurePhysicalTankModel(testObjects:WaitForChild("PlayerTankPrototype"))
-local dummyTank = PlayerTankSpawner.ensurePhysicalTankModel(testObjects:WaitForChild("DummyTank"))
-local player2TankParts = PlayerTankSpawner.getOrCreateRuntimePlayerTank(playerTank, testObjects, "Player2TankPrototype")
-local player2Tank = player2TankParts.Model
-local tankMovementIgnoredModels = { playerTank, player2Tank, dummyTank }
+-- Tank factory
+local tankTemplateProvider = TankTemplateProvider.new(testObjects)
+local tankStatsProvider = TankStatsProvider.new()
 local tankFactory = TankFactory.new({
-	PlayerTankSpawner = PlayerTankSpawner,
 	TankParticipantRegistry = TankParticipantRegistry,
+	TemplateProvider = tankTemplateProvider,
+	TankStatsProvider = tankStatsProvider,
 	DefaultWeaponConfig = primaryWeaponConfig,
+	SpawnParent = testObjects,
 })
+local tankMovementIgnoredModels = {}
 
 -- Helpers
-local function registerTankParticipant(config)
-	return tankFactory:SpawnTank({
-		TankId = config.TankId,
-		ExistingModel = config.Model,
-		Role = config.Role,
-		TeamId = config.TeamId,
-		IsBot = config.IsBot,
-		IsPlayerTank = config.IsPlayerTank,
-		ControllerType = config.ControllerType,
-		SpawnName = config.SpawnName,
-		IsActive = config.IsActive ~= false,
-		Loadout = {
-			SkinId = config.SkinId or "Default",
-			WeaponId = primaryWeaponConfig.Id,
-			UpgradeLevels = {},
-		},
-		StatsProfileId = config.StatsProfileId,
-	})
+local function addTankMovementIgnoredModel(model)
+	if model == nil then
+		return
+	end
+
+	for _, ignoredModel in ipairs(tankMovementIgnoredModels) do
+		if ignoredModel == model then
+			return
+		end
+	end
+
+	table.insert(tankMovementIgnoredModels, model)
+end
+
+local function addParticipantToMovementIgnore(participant)
+	if participant == nil then
+		return
+	end
+
+	addTankMovementIgnoredModel(TankParticipantRegistry.getParticipantPhysicalModel(participant) or participant.Model)
+end
+
+local function spawnTankParticipant(request)
+	local result = tankFactory:SpawnTank(request)
+
+	if result == nil or result.Participant == nil then
+		error("[TANK] failed to spawn participant role=" .. tostring(request ~= nil and request.Role), 2)
+	end
+
+	addParticipantToMovementIgnore(result.Participant)
+
+	return result.Participant, result
 end
 
 -- Initialize Registry
@@ -138,9 +157,36 @@ TankParticipantRegistry.init({
 	ARMOR_HITBOX_TRANSPARENCY = TankConfig.Armor.ArmorHitboxTransparency or 0.4,
 })
 
-local playerParticipant = registerTankParticipant({ TankId = "PlayerTankPrototype", Model = playerTank, Role = "Player", TeamId = "Player", IsBot = false, IsPlayerTank = true, SpawnName = "PlayerSpawn", IsActive = false, StatsProfileId = "DuelNormalized" })
-local dummyParticipant = registerTankParticipant({ TankId = "DummyTank", Model = dummyTank, Role = "Dummy", TeamId = "Dummy", IsBot = true, IsPlayerTank = false, SpawnName = "DummySpawn", IsActive = false, StatsProfileId = "TrainingDummy" })
-local player2Participant = registerTankParticipant({ TankId = "Player2TankPrototype", Model = player2Tank, Role = "DuelOpponent", TeamId = "Player2", IsBot = false, IsPlayerTank = true, SpawnName = "Player2Spawn", IsActive = false, StatsProfileId = "DuelNormalized" })
+local playerParticipant = spawnTankParticipant({
+	TankId = TankFactoryConfig.LegacyTankIds.Player,
+	Role = TankRole.Player,
+	TeamId = "Player",
+	IsBot = false,
+	IsPlayerTank = true,
+	SpawnName = "PlayerSpawn",
+	IsActive = false,
+	StatsProfileId = TankStatsProfile.DuelNormalized,
+})
+local dummyParticipant = spawnTankParticipant({
+	TankId = TankFactoryConfig.LegacyTankIds.Dummy,
+	Role = TankRole.Dummy,
+	TeamId = "Dummy",
+	IsBot = true,
+	IsPlayerTank = false,
+	SpawnName = "DummySpawn",
+	IsActive = false,
+	StatsProfileId = TankStatsProfile.TrainingDummy,
+})
+local player2Participant = spawnTankParticipant({
+	TankId = TankFactoryConfig.LegacyTankIds.DuelOpponent,
+	Role = TankRole.DuelOpponent,
+	TeamId = "Player2",
+	IsBot = false,
+	IsPlayerTank = true,
+	SpawnName = "Player2Spawn",
+	IsActive = false,
+	StatsProfileId = TankStatsProfile.DuelNormalized,
+})
 
 -- Setup Raycast Params
 local tankMovementRaycastParams = RaycastParams.new()
@@ -185,32 +231,32 @@ TankMovementService.init({
 TankSpawnResetService.init(map)
 
 local function getOrCreatePlayerParticipantForPlayer(player)
-	local tankName = PlayerTankSpawner.getDynamicPlayerTankName(player)
+	local tankName = TankFactoryConfig.GetDynamicPlayerTankId(player)
 	local existingParticipant = TankParticipantRegistry.getParticipantById(tankName)
 
 	if existingParticipant ~= nil then
+		addParticipantToMovementIgnore(existingParticipant)
+		refreshTankMovementRaycastFilter()
 		return existingParticipant
 	end
 
-	local tankParts, created = PlayerTankSpawner.getOrCreatePlayerTankForPlayer(playerTank, testObjects, player)
-	local participant = registerTankParticipant({
+	local participant, spawnResult = spawnTankParticipant({
 		TankId = tankName,
-		Model = tankParts.Model,
-		Role = "Player",
+		Role = TankRole.Player,
 		TeamId = "Player_" .. tostring(player.UserId),
+		OwnerPlayer = player,
 		IsBot = false,
 		IsPlayerTank = true,
 		SpawnName = "LobbySpawn",
 		IsActive = true,
-		StatsProfileId = "DuelNormalized",
+		StatsProfileId = TankStatsProfile.DuelNormalized,
 	})
 
-	table.insert(tankMovementIgnoredModels, participant.Model)
 	refreshTankMovementRaycastFilter()
 	TankSpawnResetService.captureTankColors(participant.TankId, participant.Model)
 	TankParticipantRegistry.setParticipantModelVisible(participant, true)
 
-	if created then
+	if spawnResult.Created then
 		print("[TANK] created player tank " .. player.Name .. " -> " .. participant.TankId)
 	else
 		print("[TANK] reused player tank " .. player.Name .. " -> " .. participant.TankId)
@@ -525,6 +571,15 @@ RoundMatchService.init(root, {
 	onMatchEnded = function(activeMatch)
 		LobbyService.onMatchEnded(activeMatch)
 	end,
+	getDefaultPlayerParticipant = function()
+		return playerParticipant
+	end,
+	getDefaultDuelOpponentParticipant = function()
+		return player2Participant
+	end,
+	getDefaultTrainingOpponentParticipant = function()
+		return dummyParticipant
+	end,
 })
 
 ArenaCombatService.init({
@@ -540,6 +595,20 @@ ArenaCombatService.init({
 		if participant ~= nil then
 			TankSpawnResetService.restoreTankColors(participant.TankId)
 		end
+	end,
+})
+
+BotService.init({
+	Root = root,
+	TankFactory = tankFactory,
+	TankParticipantRegistry = TankParticipantRegistry,
+	TankSpawnResetService = TankSpawnResetService,
+	TankMovementService = TankMovementService,
+	ProjectileService = ProjectileService,
+	ArenaCombatService = ArenaCombatService,
+	AddMovementIgnoredParticipant = function(participant)
+		addParticipantToMovementIgnore(participant)
+		refreshTankMovementRaycastFilter()
 	end,
 })
 
@@ -668,7 +737,7 @@ local function handleDebugSpawnBotRequest(player)
 	end
 
 	if isParticipantInList(dummyParticipant, activeMatch.Participants) then
-		print("[DEBUG BOT] DummyTank already active in Training; no extra bot spawned.")
+		print("[DEBUG BOT] Training dummy already active; no extra bot spawned.")
 		return
 	end
 
@@ -823,6 +892,7 @@ RunService.Heartbeat:Connect(function(deltaTime)
 	end
 
 	TrainingBotService.update(deltaTime)
+	BotService.update(deltaTime)
 	ProjectileService.updateProjectiles(deltaTime)
 end)
 

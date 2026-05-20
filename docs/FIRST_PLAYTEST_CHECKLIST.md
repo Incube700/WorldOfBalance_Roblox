@@ -40,6 +40,12 @@
 - Player mode becomes `InBattleArena`.
 - Tank spawns at one of 8 arena spawns.
 - Tank can drive and shoot in BattleArena.
+- If `BotConfig.Enabled` and `BotConfig.BattleArena.Enabled` are true, one `ArenaBot_*` tank spawns for solo BattleArena.
+- Bot tank moves, turns, aims, and shoots without taking over the player camera.
+- Player shots can damage/no-pen/ricochet against bot armor.
+- Bot shots can damage the player.
+- Killing the bot gives existing BattleArena kill/score credit if attribution resolves through `ArenaCombatService`.
+- Bot respawns after `BotConfig.BattleArena.RespawnDelay`.
 - Desktop Arena HUD shows `Arena Score`, `Kills`, `Deaths`, `Streak`, and compact upgrades; tank HP/reload is readable above the active tank.
 - Mobile Arena HUD shows compact score/status, a small `Menu`, and tank HP/reload above the active tank without crowding controls.
 - Mobile `Menu` opens `Resume` and `Return to Lobby`; `Resume` closes the popup.
@@ -49,6 +55,7 @@
 - Death overlay shows `Destroyed`, `Respawn in N...`, and `Return to Lobby`.
 - Tank respawns after `BattleArenaConfig.RespawnDelay`.
 - Return to Lobby returns to lobby spawn and resets arena score/upgrades.
+- Return to Lobby deactivates/hides BattleArena bots when no players remain in the arena.
 - DuelPad and Training still work after returning.
 
 ## Combat Readability Check
@@ -109,6 +116,8 @@
 
 ## Regression Checks
 
+- Tank spawn path uses `TankFactory`: lobby player tanks, Training dummy, and Duel-compatible participants spawn/register without direct prototype clone warnings.
+- BattleArena bots spawn through `TankFactory` as `ArenaBot` participants; no bot appears in Duel or Lobby free drive.
 - Lobby shooting remains no-damage.
 - TrainingPad/StartPad starts Training and logs `[TRAINING PAD] player entered ...`.
 - Main Menu Play still starts quick Training.

@@ -6,7 +6,6 @@ local MatchStatsService = {}
 
 local DEBUG_STATS = false
 local STATS_LOG_INTERVAL = 5
-local LEGACY_ROOT_TANK_ID = "PlayerTankPrototype"
 
 local matchStatDefaults = {
 	{ Name = "StatsShotsFired", Value = 0 },
@@ -76,6 +75,20 @@ local function participantHasPlayerOwner(participant)
 	return participant ~= nil and participant.OwnerPlayer ~= nil and participant.IsPlayerTank == true
 end
 
+local function shouldMirrorRootStats(participant)
+	if root == nil or participant == nil then
+		return false
+	end
+
+	local playerSideTankId = root:GetAttribute("PlayerSideTankId")
+
+	if typeof(playerSideTankId) == "string" and playerSideTankId ~= "" then
+		return participant.TankId == playerSideTankId
+	end
+
+	return participantHasPlayerOwner(participant)
+end
+
 local function mirrorParticipantStats(participant)
 	local stats = getParticipantStats(participant)
 
@@ -87,7 +100,7 @@ local function mirrorParticipantStats(participant)
 		setStatsAttributes(participant.OwnerPlayer, stats)
 	end
 
-	if root ~= nil and participant.TankId == LEGACY_ROOT_TANK_ID then
+	if shouldMirrorRootStats(participant) then
 		setStatsAttributes(root, stats)
 	end
 end

@@ -56,6 +56,19 @@
 - Publish checklist additions: confirm Rojo VFX guard, no infinite fire sound, Duel +1 Crystal, readable lobby signs/showcases, mobile controls/HUD, BattleArena/Training/Duel regressions.
 - Recommended commit message: `Polish playtest UX rewards and lobby showcases`.
 
+## Current Feature Add-on — BattleArena Bot v0.1
+
+- Статус: simple BattleArena-only bot filler through `TankFactory`.
+- Docs: `docs/BOT_V01.md`, `docs/BATTLE_ARENA_BOTS.md`.
+- Config: `src/ReplicatedStorage/Shared/Configs/BotConfig.luau`.
+- Runtime owner: `BotService.luau`; one `BotController` per bot.
+- Spawn path: `TankFactory:SpawnTank` with `Role = ArenaBot`, `StatsProfileId = BotDefault`, and `TeamId = "Bots"`.
+- BattleArena integration: bots register as arena participants through `ArenaCombatService.RegisterBotParticipant`.
+- Movement/shooting: server-side, using `TankMovementService.resolveTankPose`, `TankSpawnResetService.layoutTank`, and `ProjectileService.tryShoot`.
+- Scope guard: no bots in Duel, Lobby free drive, or Training quick flow; no pathfinding, no new weapons, no shop/upgrades/camera changes.
+- Manual checks: solo BattleArena spawns bot, bot moves/aims/shoots, player and bot can damage each other, bot death/respawn works, returning to Lobby hides bots, DuelPad remains normal 1v1.
+- Recommended commit message: `Add BattleArena bot v0.1 through TankFactory`.
+
 ## Current Add-on Sprint — Tank World HP/Reload Bars and Hit Flash
 
 - Статус: combat readability pass поверх существующего damage/combat logic.

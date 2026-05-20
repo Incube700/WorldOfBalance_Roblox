@@ -1,52 +1,48 @@
 # Tank Factory And Upgrades Plan
 
-Current prototypes are temporary and should not be deleted in this architecture pass:
+Current prototypes are temporary template sources and should not be deleted:
 
 - `PlayerTankPrototype`
 - `Player2TankPrototype`
 - `DummyTank`
 
-They exist because the current playtest loop depends on known scene objects and attributes.
+They exist because the current saved scene still stores the physical tank template sources there.
 
-## Current Foundation
+## Current Migration State
 
-`src/ServerScriptService/Server/Gameplay/Tanks/TankFactory.luau` now exists as an adapter layer over the current prototype flow.
+`TankFactory` is now the main server spawn path for player/dummy/duel-compatible tank creation.
 
 Current behavior:
 
-- legacy prototypes remain the source models;
-- `ExistingModel` can register an already-created tank;
-- `TemplateModel` can be cloned into a provided parent;
-- factory applies role, team, owner, loadout, stats profile, health, and weapon attributes;
-- factory registers participants through `TankParticipantRegistry`;
-- `WOBGameplayServer.server.luau` uses the factory wrapper for current participant creation.
-
-This is not a full migration to one template yet.
+- `TankTemplateProvider` is the only code layer that resolves legacy template names.
+- `TankSpawnRequest` normalizes role/profile/loadout requests.
+- `TankStatsProvider` owns initial health/profile defaults.
+- `TankFactory` reuses existing participants/models when present, clones templates when needed, applies attributes, and registers with `TankParticipantRegistry`.
+- `WOBGameplayServer.server.luau` requests tanks by role/profile instead of cloning or selecting prototypes directly.
+- Per-player lobby tanks use dynamic ids like `PlayerTank_<UserId>` through `TankFactoryConfig`.
+- BattleArena currently reuses the already assigned factory-created player participant and does not spawn separate arena-only tanks yet.
+- BattleArena Bot v0.1 spawns `ArenaBot_*` participants through `TankFactory` with `Role = ArenaBot` and `StatsProfileId = BotDefault`.
 
 ## Staged Migration
 
 Stage 0:
 
-- `TankFactory` adapter exists.
-- Legacy prototypes remain active:
-  - `PlayerTankPrototype`
-  - `Player2TankPrototype`
-  - `DummyTank`
+- `TankFactory` adapter exists. Complete.
 
 Stage 1:
 
-- All new Bot/Dummy spawns go through `TankFactory`.
-- Bots are participants, not special-case scene objects.
+- Player/dummy/duel-compatible tank creation goes through `TankFactory`. Complete.
+- Legacy prototypes remain template sources only.
 
 Stage 2:
 
-- Player Duel spawns go through `TankFactory` requests.
-- Duel stats use `DuelNormalized`.
+- Bot v0.1 requests `Role = ArenaBot` with `BotDefault`. Complete for BattleArena filler bots.
+- Bots are participants, not special-case scene objects.
 
 Stage 3:
 
 - Replace duplicated prototype sources with `BaseTankTemplate`.
-- Keep old prototypes archived/backed up until no live flow references them.
+- Keep old prototypes archived/backed up until Studio scene and Rojo source-of-truth are reviewed.
 
 Stage 4:
 
@@ -55,7 +51,7 @@ Stage 4:
 
 Stage 5:
 
-- Bot participants and session-based spawning use the same factory path as players.
+- More bot participants and session-based spawning use the same factory path as players.
 
 Rule: do not delete legacy prototypes until all active spawn flows use `TankFactory`.
 
@@ -69,6 +65,7 @@ TankFactory
 TankRole
 TankLoadout
 TankStatsProvider
+TankTemplateProvider
 UpgradeConfig
 ```
 
@@ -80,7 +77,16 @@ UpgradeConfig
 - `DuelOpponent`
 - `Dummy`
 - `Bot`
-- `Enemy`
+- `ArenaPlayer`
+- `ArenaBot`
+
+`TankStatsProfile` examples:
+
+- `DuelNormalized`
+- `ArenaDefault`
+- `TrainingPlayer`
+- `TrainingDummy`
+- `BotDefault`
 
 `TankLoadout` examples:
 
@@ -114,4 +120,4 @@ BattleArena and future Extraction can use progression because they are not pure 
 
 ## Not In This Pass
 
-Do not delete prototypes, migrate the scene, create `ServerStorage.TankTemplates`, add a shop UI, add bots, or make permanent upgrades active in Duel in this pass.
+Do not delete prototypes, migrate the scene, create `ServerStorage.TankTemplates`, add a shop UI, add advanced bot AI, or make permanent upgrades active in Duel in the current factory/bot passes.
