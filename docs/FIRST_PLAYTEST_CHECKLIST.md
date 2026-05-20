@@ -65,7 +65,7 @@
 - Round reset creates fresh bars without duplicate old BillboardGui clones.
 - BattleArena respawn replaces stale bars/highlights cleanly.
 - BattleArena/mobile hides large top HP and Reload panels while score/result HUD remains usable.
-- Desktop Training/Duel may still show legacy top HP panels unless `HudConfig.WorldHealthBars.HideTopHpPanelsInTraining` or `HideTopHpPanelsInDuel` is enabled.
+- Desktop Training/Duel should hide legacy top HP/reload panels when world HP/reload bars are enabled.
 
 ## Crystals Reward Check
 
@@ -96,6 +96,16 @@
 - DoubleShot/TripleSpread projectiles still damage the correct victim.
 - Leaving arena resets upgrades.
 - Duel mode remains separate: DuelPad queue/countdown, round end, match result, rematch, and return still work.
+
+## Projectile Collision Checklist
+
+- Projectile server simulation uses swept raycast from previous position to next position.
+- Active tank armor hitboxes have `CanQuery=true`.
+- Enemy tank hitboxes are included in projectile raycast targets.
+- Owner tank is ignored only before ricochet/self-hit is allowed.
+- Direct front hit resolves to `NoPen` or penetration, not silent pass-through.
+- Angled hit resolves to armor ricochet when threshold is met.
+- Wall ricochet still works after the collision service split.
 
 ## Regression Checks
 

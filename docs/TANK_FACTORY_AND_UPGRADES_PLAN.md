@@ -23,6 +23,42 @@ Current behavior:
 
 This is not a full migration to one template yet.
 
+## Staged Migration
+
+Stage 0:
+
+- `TankFactory` adapter exists.
+- Legacy prototypes remain active:
+  - `PlayerTankPrototype`
+  - `Player2TankPrototype`
+  - `DummyTank`
+
+Stage 1:
+
+- All new Bot/Dummy spawns go through `TankFactory`.
+- Bots are participants, not special-case scene objects.
+
+Stage 2:
+
+- Player Duel spawns go through `TankFactory` requests.
+- Duel stats use `DuelNormalized`.
+
+Stage 3:
+
+- Replace duplicated prototype sources with `BaseTankTemplate`.
+- Keep old prototypes archived/backed up until no live flow references them.
+
+Stage 4:
+
+- Add loadout/stats/skin/upgrade application through factory dependencies.
+- Duel ignores permanent stat upgrades by default.
+
+Stage 5:
+
+- Bot participants and session-based spawning use the same factory path as players.
+
+Rule: do not delete legacy prototypes until all active spawn flows use `TankFactory`.
+
 ## Future Direction
 
 Move toward a server-owned factory:

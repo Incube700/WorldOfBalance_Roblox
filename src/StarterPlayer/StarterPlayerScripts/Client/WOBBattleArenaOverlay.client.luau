@@ -1,7 +1,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local shared = ReplicatedStorage:WaitForChild("Shared")
@@ -9,8 +8,11 @@ local configs = shared:WaitForChild("Configs")
 local utils = shared:WaitForChild("Utils")
 local BattleArenaConfig = require(configs:WaitForChild("BattleArenaConfig"))
 local HudConfig = require(configs:WaitForChild("HudConfig"))
-local MobileControlsConfig = require(configs:WaitForChild("MobileControlsConfig"))
 local TankModelResolver = require(utils:WaitForChild("TankModelResolver"))
+local hudModules = script.Parent:WaitForChild("Hud")
+local HudDeviceUtils = require(hudModules:WaitForChild("HudDeviceUtils"))
+local HudVisibilityRules = require(hudModules:WaitForChild("HudVisibilityRules"))
+local CompactStatsFormatter = require(hudModules:WaitForChild("CompactStatsFormatter"))
 
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local returnToMenuRequestEvent = remotes:WaitForChild("ReturnToMenuRequestEvent")
@@ -349,7 +351,9 @@ styleButton(deathReturnButton)
 local function isArenaMode()
 	local mode = localPlayer:GetAttribute("PlayerMode")
 
-	return mode == MODE_IN_BATTLE_ARENA or mode == MODE_ARENA_RESPAWNING
+	return HudVisibilityRules.ShouldShowBattleArenaStats({
+		PlayerMode = mode,
+	})
 end
 
 local function getServerTimeNow()
@@ -369,21 +373,15 @@ local function getOwnedTank()
 end
 
 local function isMobileLayout()
-	return UserInputService.TouchEnabled == true or MobileControlsConfig.ForceEnabledInStudio == true
+	return HudDeviceUtils.IsMobileLayout()
 end
 
 local function shouldHideTopHealthPanel(mobileLayout)
-	local worldHealthBarsConfig = HudConfig.WorldHealthBars or {}
-
-	if worldHealthBarsConfig.Enabled ~= true then
-		return false
-	end
-
-	if worldHealthBarsConfig.HideTopHpPanelsInBattleArena == true then
-		return true
-	end
-
-	return mobileLayout and worldHealthBarsConfig.HideTopHpPanelsOnMobile == true
+	return not HudVisibilityRules.ShouldShowLegacyHpPanels({
+		PlayerMode = localPlayer:GetAttribute("PlayerMode"),
+		IsMobile = mobileLayout,
+		HudConfig = HudConfig,
+	})
 end
 
 local function setTextLayout(label, position, size, textSize)
@@ -627,18 +625,23 @@ local function updateOverlay()
 	local upgrades = localPlayer:GetAttribute("ArenaUpgradeIds") or ""
 	local ownedTank = getOwnedTank()
 
-	if mobileLayout then
+	if HudVisibilityRules.ShouldUseCompactMobileStats({ IsMobile = mobileLayout }) then
 		local camera = Workspace.CurrentCamera
 		local viewportSize = camera ~= nil and camera.ViewportSize or Vector2.new(1024, 768)
 		local useShortLabels = viewportSize.X < 390
-		local scorePrefix = useShortLabels and "S" or "Score"
-		local crystalsPrefix = useShortLabels and "C" or "Crystals"
-		local boltsPrefix = useShortLabels and "B" or "Bolts"
+		local statText = CompactStatsFormatter.FormatArenaStats({
+			Score = score,
+			Kills = kills,
+			Deaths = deaths,
+			Crystals = getVisibleCrystals(),
+			Bolts = getVisibleBolts(),
+			UseShortLabels = useShortLabels,
+		})
 
-		scoreLabel.Text = scorePrefix .. ": " .. tostring(math.floor(score))
-		killsDeathsLabel.Text = "K/D: " .. tostring(math.floor(kills)) .. "/" .. tostring(math.floor(deaths))
-		streakLabel.Text = crystalsPrefix .. ": " .. tostring(getVisibleCrystals())
-		upgradesLabel.Text = boltsPrefix .. ": " .. tostring(getVisibleBolts())
+		scoreLabel.Text = statText.Score
+		killsDeathsLabel.Text = statText.KillsDeaths
+		streakLabel.Text = statText.Crystals
+		upgradesLabel.Text = statText.Bolts
 	else
 		scoreLabel.Text = "Arena Score: " .. tostring(math.floor(score))
 		killsDeathsLabel.Text = "Kills: " .. tostring(math.floor(kills)) .. " Deaths: " .. tostring(math.floor(deaths))

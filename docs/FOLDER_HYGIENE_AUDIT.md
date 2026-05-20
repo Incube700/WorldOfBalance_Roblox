@@ -28,6 +28,15 @@ Date: 2026-05-20
 | `WOBProjectileReadabilityOverlay.client.luau` | `Workspace.WOB_Runtime.Client.Visuals.ProjectileReadabilityGlows` | Previously used `Client.LocalVisuals`. | `Client.Visuals`. | Updated. | Yes |
 | `docs/patches/*CREATE*`, `*REPAIR*`, `*MOVE*`, `*CLEAN*`, `*INSTALL*`, `*RECOVER*`, `*ORGANIZE*` | Scene/assets/runtime folders | Can mutate Studio scene or assets. | Manual only after audit. | Disabled by default with `ENABLE_MUTATION=false`. | Safer |
 
+## Runtime Folder Service Candidate
+
+Multiple scripts still create or resolve `Workspace.WOB_Runtime` directly. A future low-risk cleanup can add:
+
+- `src/ServerScriptService/Server/Gameplay/Runtime/ServerRuntimeFolders.luau`
+- `src/StarterPlayer/StarterPlayerScripts/Client/Runtime/ClientRuntimeFolders.luau`
+
+Do not do this in the same pass as gameplay/session changes. Touching all visual scripts at once is broad even if behavior is simple.
+
 ## Known Legacy Paths To Audit
 
 These should not be created by new code:

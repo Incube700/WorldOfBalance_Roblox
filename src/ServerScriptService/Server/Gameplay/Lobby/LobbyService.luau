@@ -8,6 +8,7 @@ local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local BattleArenaConfig = require(configs:WaitForChild("BattleArenaConfig"))
 local TankParticipantRegistry = require(script.Parent.Parent:WaitForChild("TankParticipantRegistry"))
+local LobbyPadResolver = require(script.Parent:WaitForChild("LobbyPadResolver"))
 
 LobbyService.MODE_LOBBY = "Lobby"
 LobbyService.MODE_QUEUED_FOR_DUEL = "QueuedForDuel"
@@ -59,89 +60,15 @@ local function getParticipantMode(participant)
 end
 
 local function getLobby()
-	return root ~= nil and root:FindFirstChild("Lobby") or nil
-end
-
-local function getTopLobbyChild(lobby, instance)
-	local current = instance
-	local last = instance
-
-	while current ~= nil and current ~= lobby do
-		last = current
-		current = current.Parent
-	end
-
-	if current == lobby then
-		return last
-	end
-
-	return nil
-end
-
-local function findPadTriggerInRoot(padRoot)
-	if padRoot == nil then
-		return nil
-	end
-
-	local directTrigger = padRoot:FindFirstChild("Trigger")
-
-	if directTrigger ~= nil and directTrigger:IsA("BasePart") then
-		return directTrigger
-	end
-
-	for _, descendant in ipairs(padRoot:GetDescendants()) do
-		if descendant:IsA("BasePart") and descendant:GetAttribute("WOBPadTrigger") == true then
-			return descendant
-		end
-	end
-
-	if padRoot:IsA("BasePart") then
-		return padRoot
-	end
-
-	return nil
-end
-
-local function isUsablePadRoot(padRoot)
-	return padRoot ~= nil
-		and padRoot:GetAttribute("WOBPadEnabled") ~= false
-		and findPadTriggerInRoot(padRoot) ~= nil
+	return LobbyPadResolver.GetLobby(root)
 end
 
 local function findPadRootByTypeOrName(padType, padNames)
-	local lobby = getLobby()
-
-	if lobby == nil then
-		return nil
-	end
-
-	for _, padName in ipairs(padNames or {}) do
-		local namedPad = lobby:FindFirstChild(padName)
-
-		if isUsablePadRoot(namedPad) then
-			return namedPad
-		end
-	end
-
-	for _, descendant in ipairs(lobby:GetDescendants()) do
-		if descendant:GetAttribute("WOBPadType") == padType then
-			local padRoot = getTopLobbyChild(lobby, descendant)
-
-			if isUsablePadRoot(padRoot) then
-				return padRoot
-			end
-		end
-	end
-
-	return nil
+	return LobbyPadResolver.FindPadRootByTypeOrName(root, padType, padNames)
 end
 
 local function getPadTrigger(padRoot)
-	if padRoot == nil or padRoot:GetAttribute("WOBPadEnabled") == false then
-		return nil
-	end
-
-	return findPadTriggerInRoot(padRoot)
+	return LobbyPadResolver.GetPadTrigger(padRoot)
 end
 
 local function getDuelPadRoot()
@@ -169,17 +96,7 @@ local function getTrainingPad()
 end
 
 local function applyPadContractAttributes(padRoot, pad, padType, requiredPlayers)
-	for _, instance in ipairs({ padRoot, pad }) do
-		if instance ~= nil then
-			instance:SetAttribute("WOBPadType", padType)
-			instance:SetAttribute("RequiredPlayers", requiredPlayers)
-			instance:SetAttribute("WOBPadEnabled", true)
-		end
-	end
-
-	if pad ~= nil then
-		pad:SetAttribute("WOBPadTrigger", true)
-	end
+	LobbyPadResolver.ApplyPadContractAttributes(padRoot, pad, padType, requiredPlayers)
 end
 
 local function setDuelPadAttributes(queueCount, duelState, countdown)
@@ -502,53 +419,22 @@ local function debugPadOverlap(padName, player, participant, pad, localPosition,
 	)
 end
 
-local function getParticipantPadProbePosition(participant)
-	if participant == nil then
-		return nil
-	end
-
-	if participant.Body ~= nil and participant.Body.Parent ~= nil then
-		return participant.Body.Position
-	end
-
-	local physicalModel = TankParticipantRegistry.getParticipantPhysicalModel(participant)
-
-	if physicalModel ~= nil then
-		if physicalModel.PrimaryPart ~= nil then
-			return physicalModel.PrimaryPart.Position
-		end
-
-		for _, descendant in ipairs(physicalModel:GetDescendants()) do
-			if descendant:IsA("BasePart") then
-				return descendant.Position
-			end
-		end
-	end
-
-	return nil
-end
-
 local function participantIsOnPad(participant, pad, padName)
 	if participant == nil or pad == nil then
 		return false
 	end
 
 	local player = getPlayerFromParticipant(participant)
-	local probePosition = getParticipantPadProbePosition(participant)
+	local overlap = LobbyPadResolver.GetParticipantPadOverlap(participant, pad, TankParticipantRegistry)
+	local localPosition = overlap.LocalPosition
 
-	if probePosition == nil then
+	if localPosition == nil then
 		return false
 	end
 
-	local localPosition = pad.CFrame:PointToObjectSpace(probePosition)
-	local halfSize = pad.Size * 0.5
-	local isInside = math.abs(localPosition.X) <= halfSize.X
-		and math.abs(localPosition.Z) <= halfSize.Z
-		and math.abs(localPosition.Y) <= math.max(halfSize.Y, 6)
+	debugPadOverlap(padName or pad.Name, player, participant, pad, localPosition, overlap.IsInside)
 
-	debugPadOverlap(padName or pad.Name, player, participant, pad, localPosition, isInside)
-
-	return isInside
+	return overlap.IsInside
 end
 
 local function participantIsOnDuelPad(participant, duelPad)

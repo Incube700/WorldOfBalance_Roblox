@@ -12,6 +12,8 @@ local WeaponSafetyConfig = require(configs:WaitForChild("WeaponSafetyConfig"))
 local VfxConfig = require(configs:WaitForChild("VfxConfig"))
 
 local TankParticipantRegistry = require(script.Parent.Parent:WaitForChild("TankParticipantRegistry"))
+local ProjectileCollisionService = require(script.Parent:WaitForChild("ProjectileCollisionService"))
+local ProjectileHitResult = require(script.Parent:WaitForChild("ProjectileHitResult"))
 local ProjectileCombatService = require(script.Parent.Parent:WaitForChild("Combat"):WaitForChild("ProjectileCombatService"))
 local MatchStatsService = require(script.Parent.Parent:WaitForChild("Stats"):WaitForChild("MatchStatsService"))
 local CombatVfxService = require(script.Parent.Parent:WaitForChild("VFX"):WaitForChild("CombatVfxService"))
@@ -27,7 +29,7 @@ local burningTankConfig = VfxConfig.BurningTank
 local ricochetConfig = VfxConfig.Ricochet
 
 local PROJECTILE_SPEED = projectileConfig.Speed
-local PROJECTILE_DAMAGE = projectileConfig.Damage or projectileConfig.MaxDamage
+local PROJECTILE_DAMAGE = projectileConfig.Damage or projectileConfig.BaseDamage or projectileConfig.MaxDamage
 local PROJECTILE_PENETRATION_POWER = projectileConfig.PenetrationPower
 	or projectileConfig.Penetration
 	or TankArmorConfig.Projectile.DefaultPenetrationPower
@@ -854,6 +856,8 @@ function ProjectileService.createProjectile(ownerParticipant, origin, direction,
 		WeaponTypeId = ownerParticipant.WeaponTypeId,
 		WeaponConfig = ownerParticipant.WeaponConfig,
 		Position = origin,
+		PreviousPosition = origin,
+		NextPosition = origin,
 		Direction = flatDirection,
 		Speed = PROJECTILE_SPEED,
 		BaseDamage = PROJECTILE_DAMAGE,
@@ -867,6 +871,7 @@ function ProjectileService.createProjectile(ownerParticipant, origin, direction,
 		MinSpeed = PROJECTILE_MIN_SPEED,
 		LifeTime = 0,
 		MaxLifeTime = PROJECTILE_LIFETIME,
+		LastHitResult = ProjectileHitResult.NoHit,
 		Part = projectilePart,
 		Destroyed = false,
 		CanHitOwner = false,
@@ -931,81 +936,76 @@ function ProjectileService.tryShoot(participant, direction)
 	return true
 end
 
-local function getProjectileRaycastTargets(projectile)
-	local targets = table.clone(projectileMapRaycastTargets)
-	for _, participant in ipairs(TankParticipantRegistry.getParticipants()) do
-		local physicalModel = TankParticipantRegistry.getParticipantPhysicalModel(participant)
-		local hitboxes = participant.Hitboxes
-		if (hitboxes == nil or hitboxes.Parent == nil) and physicalModel ~= nil then
-			hitboxes = physicalModel:FindFirstChild("Hitboxes", true)
-			participant.Hitboxes = hitboxes
+function ProjectileService.updateProjectiles(deltaTime)
+	if callbacks.areProjectilesEnabled ~= nil and callbacks.areProjectilesEnabled() ~= true then return end
+
+	for i = #projectiles, 1, -1 do
+		local projectile = projectiles[i]
+
+		if projectile.Destroyed then
+			table.remove(projectiles, i)
+			continue
 		end
-		if participant.IsActive ~= false and hitboxes ~= nil and (participant ~= projectile.OwnerParticipant or projectile.CanHitOwner) then
-			table.insert(targets, hitboxes)
+
+		projectile.LifeTime += deltaTime
+
+		if projectile.LifeTime >= projectile.MaxLifeTime then
+			projectile.LastHitResult = ProjectileHitResult.Expired
+			ProjectileService.destroyProjectile(projectile)
+			table.remove(projectiles, i)
+			continue
+		end
+
+		local result, nextPosition = ProjectileCollisionService.CastSweptRay(
+			Workspace,
+			projectile,
+			deltaTime,
+			projectileRaycastParams,
+			ProjectileCollisionService.GetProjectileRaycastTargets(
+				projectile,
+				projectileMapRaycastTargets,
+				TankParticipantRegistry
+			)
+		)
+
+		if result ~= nil then
+			local targetParticipant = TankParticipantRegistry.getParticipantFromArmorHitbox(result.Instance)
+			local armorZone = TankParticipantRegistry.getArmorZoneFromHitbox(result.Instance)
+
+			if targetParticipant ~= nil then
+				local roundState = callbacks.getRoundStateForProjectile ~= nil
+					and callbacks.getRoundStateForProjectile(projectile)
+					or callbacks.getRoundState()
+				local destroyed = ProjectileCombatService.handleProjectileTankHit(
+					projectile,
+					targetParticipant,
+					result.Position,
+					result.Normal,
+					armorZone,
+					{ roundState = roundState }
+				)
+
+				if destroyed then table.remove(projectiles, i) end
+			elseif projectile.BounceCount >= projectile.MaxBounces then
+				projectile.LastHitResult = ProjectileHitResult.WallRicochet
+				createWallImpactVfx(result.Position, result.Normal)
+				ProjectileService.destroyProjectile(projectile)
+				table.remove(projectiles, i)
+			else
+				projectile.LastHitResult = ProjectileHitResult.WallRicochet
+				createRicochetVfx(result.Position, result.Normal)
+				sendProjectileFeedback("Ricochet", result.Position, "", Color3.fromRGB(255, 220, 70), true)
+				ProjectileCombatService.applyProjectileRicochet(projectile, result.Position, result.Normal)
+				ProjectileCombatService.printBounce(projectile)
+			end
+		else
+			projectile.Position = nextPosition
+
+			if projectile.Part then
+				projectile.Part.CFrame = CFrame.lookAt(projectile.Position, projectile.Position + projectile.Direction, Vector3.yAxis)
+			end
 		end
 	end
-	return targets
-end
-
-function ProjectileService.updateProjectiles(deltaTime)
-    if callbacks.areProjectilesEnabled ~= nil and callbacks.areProjectilesEnabled() ~= true then return end
-
-    for i = #projectiles, 1, -1 do
-        local projectile = projectiles[i]
-
-        if projectile.Destroyed then
-            table.remove(projectiles, i)
-            continue
-        end
-
-        projectile.LifeTime += deltaTime
-
-        if projectile.LifeTime >= projectile.MaxLifeTime then
-            ProjectileService.destroyProjectile(projectile)
-            table.remove(projectiles, i)
-            continue
-        end
-
-        local distance = projectile.Speed * deltaTime
-        projectileRaycastParams.FilterDescendantsInstances = getProjectileRaycastTargets(projectile)
-        local result = Workspace:Raycast(projectile.Position, projectile.Direction * distance, projectileRaycastParams)
-
-        if result ~= nil then
-            local targetParticipant = TankParticipantRegistry.getParticipantFromArmorHitbox(result.Instance)
-            local armorZone = TankParticipantRegistry.getArmorZoneFromHitbox(result.Instance)
-
-            if targetParticipant ~= nil then
-                local roundState = callbacks.getRoundStateForProjectile ~= nil
-                    and callbacks.getRoundStateForProjectile(projectile)
-                    or callbacks.getRoundState()
-                local destroyed = ProjectileCombatService.handleProjectileTankHit(
-                    projectile,
-                    targetParticipant,
-                    result.Position,
-                    result.Normal,
-                    armorZone,
-                    { roundState = roundState }
-                )
-
-                if destroyed then table.remove(projectiles, i) end
-            elseif projectile.BounceCount >= projectile.MaxBounces then
-                createWallImpactVfx(result.Position, result.Normal)
-                ProjectileService.destroyProjectile(projectile)
-                table.remove(projectiles, i)
-            else
-                createRicochetVfx(result.Position, result.Normal)
-                sendProjectileFeedback("Ricochet", result.Position, "", Color3.fromRGB(255, 220, 70), true)
-                ProjectileCombatService.applyProjectileRicochet(projectile, result.Position, result.Normal)
-                ProjectileCombatService.printBounce(projectile)
-            end
-        else
-            projectile.Position += projectile.Direction * distance
-
-            if projectile.Part then
-                projectile.Part.CFrame = CFrame.lookAt(projectile.Position, projectile.Position + projectile.Direction, Vector3.yAxis)
-            end
-        end
-    end
 end
 
 function ProjectileService.getVFXHelpers()

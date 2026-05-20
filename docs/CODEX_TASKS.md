@@ -744,3 +744,13 @@
 - Training player spawns facing DummyTank.
 - BattleArena spawn/respawn is unchanged.
 - No VFX/UI template, Rojo mapping, mobile controls, camera, bot, upgrade, or Extraction changes in this pass.
+
+## Duel HUD And Projectile Boundary Checklist
+
+- Duel hides legacy `You HP`, `Opponent HP`, and `Reload` panels when world HP/reload bars are enabled.
+- Duel round/score/first-to-3 UI remains visible.
+- Projectile movement uses previous-to-next swept raycast.
+- Active armor hitboxes are queryable before projectile raycast.
+- `ProjectileCatalog` owns damage/penetration/speed/lifetime values.
+- `WeaponConfig` chooses the projectile id and weapon cooldown.
+- VFX/audio configs remain visual/audio only.

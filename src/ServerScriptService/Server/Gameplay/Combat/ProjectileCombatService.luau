@@ -5,6 +5,7 @@ local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local DebugCombatConfig = require(configs:WaitForChild("DebugCombatConfig"))
 local ArmorHitResolver = require(script.Parent:WaitForChild("ArmorHitResolver"))
+local ProjectileHitResult = require(script.Parent.Parent:WaitForChild("Projectiles"):WaitForChild("ProjectileHitResult"))
 local MatchStatsService = require(script.Parent.Parent:WaitForChild("Stats"):WaitForChild("MatchStatsService"))
 
 local PROJECTILE_RICOCHET_OFFSET = 0.45
@@ -123,6 +124,7 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 
 	if not canDamageTarget then
 		if projectile.BounceCount >= projectile.MaxBounces then
+			projectile.LastHitResult = ProjectileHitResult.TankNoPen
 			if createNoPenVfx ~= nil then
 				createNoPenVfx(hitPosition, hitNormal)
 			end
@@ -133,6 +135,7 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 		if createRicochetVfx ~= nil then
 			createRicochetVfx(hitPosition, hitNormal)
 		end
+		projectile.LastHitResult = ProjectileHitResult.TankRicochet
 		applyProjectileRicochet(projectile, hitPosition, hitNormal, { NoStats = true })
 		printBounce(projectile)
 		return false
@@ -154,6 +157,7 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 	local armorNormal = armorHit.NormalWorld or hitNormal
 
 	if armorHit.Result == "Penetration" then
+		projectile.LastHitResult = ProjectileHitResult.TankPenetration
 		printArmorResult("[PEN]", targetParticipant.TankId, armorHit, projectile)
 
 		local damageText = "-" .. math.floor(armorHit.FinalDamage)
@@ -188,6 +192,7 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 	end
 
 	if armorHit.Result == "Ricochet" then
+		projectile.LastHitResult = ProjectileHitResult.TankRicochet
 		printArmorResult("[ARMOR-RICOCHET]", targetParticipant.TankId, armorHit, projectile)
 
 		if createRicochetVfx ~= nil then
@@ -215,6 +220,7 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 	end
 
 	printArmorResult("[NO-PEN]", targetParticipant.TankId, armorHit, projectile)
+	projectile.LastHitResult = ProjectileHitResult.TankNoPen
 
 	if createNoPenVfx ~= nil then
 		createNoPenVfx(hitPosition, armorNormal)

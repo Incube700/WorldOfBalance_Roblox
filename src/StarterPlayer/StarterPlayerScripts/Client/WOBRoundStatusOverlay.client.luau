@@ -10,8 +10,9 @@ local utils = shared:WaitForChild("Utils")
 local WeaponConfig = require(configs:WaitForChild("WeaponConfig"))
 local HudConfig = require(configs:WaitForChild("HudConfig"))
 local MatchConfig = require(configs:WaitForChild("MatchConfig"))
-local MobileControlsConfig = require(configs:WaitForChild("MobileControlsConfig"))
 local TankModelResolver = require(utils:WaitForChild("TankModelResolver"))
+local HudDeviceUtils = require(script.Parent:WaitForChild("Hud"):WaitForChild("HudDeviceUtils"))
+local HudVisibilityRules = require(script.Parent:WaitForChild("Hud"):WaitForChild("HudVisibilityRules"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local resetDummyRequestEvent = remotes:WaitForChild("ResetDummyRequestEvent")
 
@@ -439,60 +440,24 @@ local function isCombatHudVisible()
 end
 
 local function isMobileLayout()
-	return UserInputService.TouchEnabled == true or MobileControlsConfig.ForceEnabledInStudio == true
+	return HudDeviceUtils.IsMobileLayout()
+end
+
+local function getHudVisibilityContext()
+	return {
+		PlayerMode = localPlayer:GetAttribute("PlayerMode"),
+		MatchMode = root:GetAttribute("MatchMode"),
+		IsMobile = isMobileLayout(),
+		HudConfig = HudConfig,
+	}
 end
 
 local function shouldHideTopHpPanels()
-	local worldHealthBarsConfig = HudConfig.WorldHealthBars or {}
-
-	if worldHealthBarsConfig.Enabled ~= true then
-		return false
-	end
-
-	local mode = localPlayer:GetAttribute("PlayerMode")
-
-	if mode == "InBattleArena" or mode == "ArenaRespawning" then
-		return worldHealthBarsConfig.HideTopHpPanelsInBattleArena == true
-	end
-
-	if isMobileLayout() and worldHealthBarsConfig.HideTopHpPanelsOnMobile == true then
-		return true
-	end
-
-	local matchMode = root:GetAttribute("MatchMode")
-
-	if matchMode == "Training" then
-		return worldHealthBarsConfig.HideTopHpPanelsInTraining == true
-	elseif matchMode == "PvP" then
-		return worldHealthBarsConfig.HideTopHpPanelsInDuel == true
-	end
-
-	return false
+	return not HudVisibilityRules.ShouldShowLegacyHpPanels(getHudVisibilityContext())
 end
 
 local function shouldHideLargeReloadPanel()
-	local combatHudConfig = HudConfig.CombatHud or {}
-	local worldHealthBarsConfig = HudConfig.WorldHealthBars or {}
-
-	if worldHealthBarsConfig.Enabled ~= true then
-		return false
-	end
-
-	if combatHudConfig.CompactReload ~= true then
-		return false
-	end
-
-	local mode = localPlayer:GetAttribute("PlayerMode")
-
-	if mode == "InBattleArena" or mode == "ArenaRespawning" then
-		return true
-	end
-
-	if isMobileLayout() then
-		return true
-	end
-
-	return false
+	return not HudVisibilityRules.ShouldShowLegacyReloadPanel(getHudVisibilityContext())
 end
 
 local function setLabelLayout(label, position, size, textSize, wrapped)

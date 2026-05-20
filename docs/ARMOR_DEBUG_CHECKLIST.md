@@ -7,6 +7,8 @@ Config:
 ```text
 src/ReplicatedStorage/Shared/Configs/DebugCombatConfig.luau
 ArmorDebug = false
+ProjectileDebug = false
+ProjectileRaycastDebug = false
 ```
 
 When temporarily enabled in Studio, expected logs look like:
@@ -28,6 +30,19 @@ When temporarily enabled in Studio, expected logs look like:
 7. Self-hit after wall ricochet still works.
 8. Wall ricochet behavior is unchanged.
 9. No normal-mode output spam after `ArmorDebug=false`.
+
+## Projectile Tunneling Checklist
+
+1. Shoot a stationary tank directly from medium range and verify the hit resolves.
+2. Shoot at the tank while driving fast and verify the shell does not obviously pass through.
+3. Confirm projectile simulation uses previous-position to next-position swept raycast.
+4. Confirm active armor hitboxes have `CanQuery=true`.
+5. Confirm owner ignore is limited to spawn/initial travel and self-hit becomes possible after ricochet.
+6. Confirm enemy tanks are included in projectile raycast targets.
+7. Confirm `ArmorHitResolver` logs appear when `ArmorDebug=true`.
+8. Confirm `NoPen` stops the shell.
+9. Confirm `Ricochet` continues the shell.
+10. Confirm `Penetration` applies damage and triggers damage flash.
 
 ## Safety
 
