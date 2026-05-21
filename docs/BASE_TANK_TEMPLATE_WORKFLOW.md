@@ -76,6 +76,39 @@ BaseTankTemplate  (Model)
 
 **BaseTankTemplate is never created by code.** The user places it in Studio.
 
+### Startup Participants
+
+Three static participants (`Startup_Player`, `Startup_Dummy`, `Startup_Player2`) are created at server start with `IsActive = false`. They use `TankFactoryConfig.StartupParticipantIds` keys whose names do not match any legacy prototype model, so `TankFactory` always resolves them through `GetTemplateForRole` — picking `BaseTankTemplate` when available.
+
+**Startup tanks must not appear as visible active tanks in the lobby.**
+`TankSpawnResetService.configureActiveParticipants` controls visibility. The rule is:
+- Player-role tanks are visible only when `participant.OwnerPlayer ~= nil` (i.e., a real player was assigned).
+- DuelOpponent-role tanks are visible only when `matchMode == "PvP"` and a second player has joined.
+- Dummy-role tanks are visible only during Training mode.
+
+`Startup_Player` has no owner at server start and must stay hidden. If you see an extra visible large tank in the lobby that you did not expect, check `configureActiveParticipants` — it must not call `setParticipantModelVisible(participant, true)` for unowned player-role tanks.
+
+### Hitbox Folder Contract
+
+`participant.Hitboxes` must always point to the armor hitbox folder — either `ArmorZones` (BaseTankTemplate) or `Hitboxes` (legacy prototypes).
+
+`PlayerTankSpawner.ensurePhysicalTankModel` skips creating a `Hitboxes` folder when the model already has an `ArmorZones` folder. This prevents creating unwelded ghost armor parts at the initial spawn position that would stay in place while the tank moves.
+
+**Do not rename `ArmorZones` to `Hitboxes` in BaseTankTemplate.** The runtime systems prefer `ArmorZones` and the hitbox folder lookup is order-sensitive: ArmorZones wins.
+
+---
+
+## Runtime Attributes (set by TankFactory on each spawned model)
+
+| Attribute           | Type   | Meaning                                                    |
+|---------------------|--------|------------------------------------------------------------|
+| `TemplateSourceName`| string | Name of the cloned template (`"BaseTankTemplate"`, `"PlayerTankPrototype"`, …) or `"reused"` when an existing model was returned without cloning. |
+| `TemplateSourcePath`| string | Full Roblox path of the source template at spawn time. |
+| `TankRole`          | string | Role string (Player, Dummy, ArenaBot, …). |
+| `SkinId`            | string | Active skin identifier. |
+
+To verify which template a runtime tank used, select the model in Studio Explorer (during Play Mode) → Properties → Attributes.
+
 ---
 
 ## Skin / Visual Contract
@@ -127,10 +160,23 @@ Future skins add new SkinIds without changing gameplay parts.
 
 ---
 
+## Debugging Projectile Pass-Through
+
+If shells pass through a tank, check in this order:
+
+1. **IsActive** — is the tank `IsActive=true`? Inactive tanks are excluded from projectile targets.
+2. **Hitbox folder** — does the tank have `ArmorZones` (preferred) or `Hitboxes`? Run `AUDIT_TANK_TEMPLATE_RIG_COMMAND.lua` to verify.
+3. **CanQuery** — are all four armor zone parts (`FrontArmor`, `RearArmor`, `LeftArmor`, `RightArmor`) `CanQuery=true`?
+4. **Welding** — are armor zone parts welded to Body via `WOBArmorBodyWeld`? Unwelded parts fall to the ground.
+5. **TemplateSourceName** — is it `"BaseTankTemplate"`? Legacy fallback tanks use `"Hitboxes"`, not `"ArmorZones"`.
+6. **Enable debug**: set `DebugCombatConfig.ProjectileDebug = true` in Studio and watch the Output panel for `[PROJECTILE COLLISION]` and `[PROJECTILE HIT]` logs.
+
+**Root cause that was fixed (2025)**: `PlayerTankSpawner.ensurePhysicalTankModel` was creating a `Hitboxes` folder with unanchored, unwelded armor parts when `BaseTankTemplate` already had an `ArmorZones` folder. The unwelded parts fell to the ground; projectile raycasts targeted them instead of the welded ArmorZones parts, causing shells to hit the ground instead of the tank. Fixed by skipping Hitboxes creation when ArmorZones already exists.
+
 ## Known Limitations (this pass)
 
 - `BaseTankTemplate` must be placed manually in Studio; it is not auto-created.
 - Only `SkinId = "Default"` is implemented in `TankSkinApplier`.
-- The legacy `PlayerTankPrototype` / `Player2TankPrototype` / `DummyTank` prototypes remain in scene as fallbacks and are not deleted.
+- The legacy `PlayerTankPrototype` / `Player2TankPrototype` / `DummyTank` prototypes remain in scene as fallbacks and are not deleted until BaseTankTemplate is verified across Player/Duel/Bot/Dummy modes.
 - `Visuals` folder parts must be manually created and welded in Studio; TankSkinApplier only configures them, does not create them.
 - Skin shop / cosmetic unlock system is out of scope for this pass.

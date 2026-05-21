@@ -107,6 +107,14 @@
 - Leaving arena resets upgrades.
 - Duel mode remains separate: DuelPad queue/countdown, round end, match result, rematch, and return still work.
 
+## BaseTankTemplate Lobby Checks
+
+- In Play Mode, lobby does **not** show extra large visible tanks named `Startup_Player`, `Startup_Dummy`, or `Startup_Player2`.
+- `PlayerTank_<UserId>` is visible and moves when the player drives.
+- Select `PlayerTank_<UserId>` in Explorer → Attributes → `TemplateSourceName = "BaseTankTemplate"` (or legacy name if BaseTankTemplate is absent).
+- `ArenaBot_*` uses `BaseTankTemplate` when present; verify `TemplateSourceName` attribute.
+- Run `docs/patches/AUDIT_TANK_TEMPLATE_RIG_COMMAND.lua` in Play Mode and confirm no warnings about visible startup tanks or missing CanQuery parts.
+
 ## Projectile Collision Checklist
 
 - Projectile server simulation uses swept raycast from previous position to next position.
@@ -117,10 +125,11 @@
 - Direct front hit resolves to `NoPen` or penetration, not silent pass-through.
 - Angled hit resolves to armor ricochet when threshold is met.
 - Wall ricochet still works after the collision service split.
+- If shells pass through: enable `DebugCombatConfig.ProjectileDebug = true` and check Output for `[PROJECTILE COLLISION]` and `[PROJECTILE HIT]` logs. Verify `participant.Hitboxes` resolves to `ArmorZones` (not `nil` or a stale `Hitboxes` folder).
 
 ## BaseTankTemplate Workflow Checklist
 
-- If `BaseTankTemplate` exists in `Workspace.WOB_Generated.TestObjects`, TankFactory uses it for all roles.
+- If `BaseTankTemplate` exists in `Workspace.WOB_Generated.TestObjects`, TankFactory uses it for all roles (Player, Dummy, DuelOpponent, Bot, ArenaBot, ArenaPlayer, and the 3 startup static participants).
 - If `BaseTankTemplate` does not exist, legacy prototypes (`PlayerTankPrototype` / `Player2TankPrototype` / `DummyTank`) are used as fallbacks — this is the expected state before the Studio workflow is run.
 - Tank spawns correctly with either template source.
 - Armor zones are visible with correct front/side/rear colors after spawn.
@@ -129,6 +138,16 @@
 - Bot v0.1 still works regardless of which template source is active.
 - Duel, BattleArena, and Training still function.
 - No extra `Assets` / `UI` / `VFX` runtime folders created by template changes.
+
+### Verifying the active template source
+
+1. Enter Play Mode.
+2. Run `docs/patches/AUDIT_TANK_TEMPLATE_RIG_COMMAND.lua` in the Studio Command Bar.
+3. Each model in `TestObjects` reports `TemplateSourceName`.
+   - `BaseTankTemplate` → editable template active ✓
+   - `PlayerTankPrototype` (or other legacy name) → legacy fallback active
+   - `reused` → factory returned an already-registered model (expected for dynamic player tanks on reconnect)
+4. Alternatively: select any runtime tank model in Explorer → Properties → Attributes → check `TemplateSourceName` and `TemplateSourcePath`.
 
 ## Regression Checks
 

@@ -61,15 +61,39 @@
 - Статус: editable template workflow добавлен поверх существующего TankFactory; gameplay loop не изменён.
 - Docs: `docs/BASE_TANK_TEMPLATE_WORKFLOW.md`.
 - `TankFactoryConfig.BaseTankTemplateName = "BaseTankTemplate"` добавлен как единственный source-of-truth имени шаблона.
+- `TankFactoryConfig.StartupParticipantIds` добавлен (`Startup_Player`, `Startup_Dummy`, `Startup_Player2`) — startup-участники получают имена, не совпадающие с legacy-прототипами, поэтому `TankFactory` всегда проходит через `GetTemplateForRole` и выбирает `BaseTankTemplate` при его наличии.
 - `TankTemplateProvider:GetTemplateForRole` теперь проверяет `BaseTankTemplate` в `TestObjectsRoot` как приоритет 1 для всех ролей; при отсутствии — role-specific legacy fallback chain без изменений.
 - `TankTemplateProvider:GetBaseTankTemplate()` — вспомогательный метод для явного lookup.
 - `TankArmorPartsService.Configure` теперь ищет `ArmorZones` (новый контракт) или `Hitboxes` (legacy) — оба поддерживаются.
 - `TankSkinApplier.luau` создан: применяет `Default` скин к `Visuals` folder, устанавливает `CanQuery=false/CanCollide=false/Massless=true` на visual parts.
 - `TankFactory:SpawnTank` вызывает `TankSkinApplier.Apply(model, loadout)` после `TankArmorPartsService.Configure`.
+- `TankFactory._getRequestModel` захватывает `templateName` из `GetTemplateForRole`; `SpawnTank` устанавливает атрибуты `TemplateSourceName` и `TemplateSourcePath` на runtime-модели танка.
+- `TankFactory` выводит throttled debug-лог: `[TANK FACTORY] spawn role=<role> template=<name> name=<tankId>` (не чаще 1 раза в 10 с на пару role+template).
 - `docs/patches/CREATE_BASE_TANK_TEMPLATE_PREVIEW_COMMAND.lua` — отключённый по умолчанию Studio command script для создания BaseTankTemplate из PlayerTankPrototype.
-- Правила: `BaseTankTemplate` не создаётся кодом — только пользователем в Studio. Legacy prototypes не удаляются. Bot v0.1 / Duel / BattleArena / Training не затронуты.
+- `docs/patches/AUDIT_TANK_TEMPLATE_RIG_COMMAND.lua` — read-only Studio command для проверки `TemplateSourceName`, структурных частей, ArmorZones и Visuals на всех моделях в TestObjects (запускать в Play Mode). **Обновлён**: теперь проверяет Startup_* видимость, CanQuery/CanCollide, PlayerTank_*/ArenaBot_* hitbox contract.
+- Правила: `BaseTankTemplate` не создаётся кодом — только пользователем в Studio. Legacy prototypes не удаляются до верификации BaseTankTemplate в Player/Duel/Bot/Dummy режимах. Bot v0.1 / Duel / BattleArena / Training не затронуты.
 - Manual Studio workflow: описан в `docs/BASE_TANK_TEMPLATE_WORKFLOW.md`.
-- Recommended commit message: `Add editable base tank template workflow`.
+
+### Fixes applied (BaseTankTemplate startup visibility + collision)
+
+**Проблема**: после перехода на BaseTankTemplate появились два бага:
+1. `Startup_Player` был виден как большой танк в лобби.
+2. Снаряды проходили сквозь танки, спавненные из BaseTankTemplate.
+
+**Корень проблемы 1** (`TankSpawnResetService.configureActiveParticipants`):
+`local isVisible = not isDuelOpponent` давало `true` для Player-role участников без owner. `Startup_Player` не имеет owner при старте, но всё равно делался видимым при присоединении реального игрока.
+**Исправление**: сменить на `isVisible = participant.OwnerPlayer ~= nil` для non-DuelOpponent случая.
+
+**Корень проблемы 2** (`PlayerTankSpawner.ensurePhysicalTankModel`):
+`ensureHitboxes` создавал папку `Hitboxes` с частями брони, когда BaseTankTemplate уже имеет `ArmorZones`. Созданные части **не приварены** к Body (нет WeldConstraint) → они падали на землю и оставались на месте спауна. `participant.Hitboxes` указывал на эту папку с неверными позициями → raycast снарядов бил в пол.
+**Исправление**:
+- `PlayerTankSpawner.ensureHitboxes`: пропускать создание `Hitboxes` если `ArmorZones` уже существует.
+- `PlayerTankSpawner.getTankParts`: искать `ArmorZones` первым, затем `Hitboxes`.
+- `TankSpawnResetService.applySpawnToParticipant`: использовать `findArmorHitboxFolder` (ArmorZones > Hitboxes).
+- `ProjectileCollisionService.GetProjectileRaycastTargets`: defensive fallback — при stale participant.Hitboxes искать ArmorZones, затем Hitboxes.
+- `ProjectileCollisionService` + `ProjectileService`: debug-логи под `DebugCombatConfig.ProjectileDebug=true`.
+
+Recommended commit message: `Fix BaseTankTemplate startup visibility and collision`.
 
 ## Current Feature Add-on — BattleArena Bot v0.1
 

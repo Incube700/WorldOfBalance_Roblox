@@ -10,6 +10,7 @@ local TankArmorConfig = require(configs:WaitForChild("TankArmorConfig"))
 local WeaponConfig = require(configs:WaitForChild("WeaponConfig"))
 local WeaponSafetyConfig = require(configs:WaitForChild("WeaponSafetyConfig"))
 local VfxConfig = require(configs:WaitForChild("VfxConfig"))
+local DebugCombatConfig = require(configs:WaitForChild("DebugCombatConfig"))
 
 local TankParticipantRegistry = require(script.Parent.Parent:WaitForChild("TankParticipantRegistry"))
 local ProjectileCollisionService = require(script.Parent:WaitForChild("ProjectileCollisionService"))
@@ -972,6 +973,15 @@ function ProjectileService.updateProjectiles(deltaTime)
 		if result ~= nil then
 			local targetParticipant = TankParticipantRegistry.getParticipantFromArmorHitbox(result.Instance)
 			local armorZone = TankParticipantRegistry.getArmorZoneFromHitbox(result.Instance)
+
+			if DebugCombatConfig.ProjectileDebug == true then
+				local partName = result.Instance ~= nil and result.Instance.Name or "nil"
+				local tankId = targetParticipant ~= nil and targetParticipant.TankId or "nil"
+				local active = targetParticipant ~= nil and tostring(targetParticipant.IsActive) or "nil"
+				print(("[PROJECTILE HIT] part=%s tank=%s active=%s zone=%s"):format(
+					partName, tankId, active, tostring(armorZone)
+				))
+			end
 
 			if targetParticipant ~= nil then
 				local roundState = callbacks.getRoundStateForProjectile ~= nil

@@ -221,6 +221,22 @@ local function findTankFolder(model, folderName)
 	return nil
 end
 
+-- Returns the armor hitbox folder used for projectile collision.
+-- Prefers "ArmorZones" (BaseTankTemplate) over legacy "Hitboxes".
+local function findArmorHitboxFolder(model)
+	if model == nil then
+		return nil
+	end
+
+	local armorZones = findTankFolder(model, "ArmorZones")
+
+	if armorZones ~= nil then
+		return armorZones
+	end
+
+	return findTankFolder(model, "Hitboxes")
+end
+
 local function assignPrimaryPart(model)
 	local primaryPart = findBasePart(model, "Body") or findBasePart(model, "Hull")
 
@@ -312,7 +328,7 @@ function TankSpawnResetService.applySpawnToParticipant(participant, spawnState)
 	participant.Turret = findBasePart(participant.Model, "Turret")
 	participant.Barrel = findBasePart(participant.Model, "Barrel")
 	participant.ShootPoint = findBasePart(participant.Model, "ShootPoint")
-	participant.Hitboxes = findTankFolder(participant.Model, "Hitboxes")
+	participant.Hitboxes = findArmorHitboxFolder(participant.Model)
 
 	if participant.ControlState == nil then
 		participant.ControlState = {}
@@ -358,12 +374,14 @@ function TankSpawnResetService.configureActiveParticipants(matchMode, player2Has
 	for _, participant in ipairs(TankParticipantRegistry.getParticipants()) do
 		if participant.IsPlayerTank == true then
 			local isDuelOpponent = participant.Role == TankRole.DuelOpponent
-			local isVisible = not isDuelOpponent
-
+			-- DuelOpponent slots are visible only in PvP with a second player present.
+			-- All other player-role tanks (including Startup_Player) are visible only
+			-- when they have an assigned owner. Unowned startup tanks stay hidden.
+			local isVisible
 			if isDuelOpponent then
 				isVisible = matchMode == "PvP" and player2HasOwner
-			elseif participant.OwnerPlayer ~= nil then
-				isVisible = true
+			else
+				isVisible = participant.OwnerPlayer ~= nil
 			end
 
 			TankParticipantRegistry.setParticipantModelVisible(participant, isVisible)

@@ -51,6 +51,30 @@ When temporarily enabled in Studio, expected logs look like:
 10. Confirm `Ricochet` continues the shell.
 11. Confirm `Penetration` applies damage and triggers damage flash.
 
+## BaseTankTemplate-Specific Tunneling Checklist
+
+If a tank spawned from `BaseTankTemplate` has projectile pass-through issues:
+
+1. **Hitbox folder**: Run `AUDIT_TANK_TEMPLATE_RIG_COMMAND.lua`. Verify the tank shows `ArmorZones` folder, not `Hitboxes`.
+2. **participant.Hitboxes**: After server start, `participant.Hitboxes` must point to the `ArmorZones` folder (verified by the audit or `[PROJECTILE COLLISION]` debug logs).
+3. **Weld**: Each armor part in `ArmorZones` must have a `WOBArmorBodyWeld` WeldConstraint to Body.
+4. **Transparency / active**: Inactive `Startup_*` tanks must NOT appear in projectile targets (`IsActive=false`).
+5. **Debug**: Enable `DebugCombatConfig.ProjectileDebug = true`. Look for:
+   - `[PROJECTILE COLLISION] targets=...` — should list active tank hitbox folders.
+   - `[PROJECTILE HIT] part=FrontArmor tank=PlayerTank_... active=true` — confirms armor zone was hit.
+   - If you see `skip=... active=false hitboxes=nil` — the participant is inactive or has no hitbox folder.
+
+## Legacy vs BaseTankTemplate Folder Names
+
+| Template            | Hitbox folder | participant.Hitboxes |
+|---------------------|---------------|----------------------|
+| `BaseTankTemplate`  | `ArmorZones`  | ArmorZones folder    |
+| `PlayerTankPrototype` | `Hitboxes`  | Hitboxes folder      |
+| `Player2TankPrototype` | `Hitboxes` | Hitboxes folder      |
+| `DummyTank`         | `Hitboxes`    | Hitboxes folder      |
+
+`PlayerTankSpawner.ensurePhysicalTankModel` skips creating a `Hitboxes` folder if `ArmorZones` already exists, preventing duplicate / mispositioned hitboxes.
+
 ## Safety
 
 Do not edit `.rbxl` directly while testing armor. Do not mutate VFX/UI templates for armor tests. Keep Duel/BattleArena/Training entry flows intact.
