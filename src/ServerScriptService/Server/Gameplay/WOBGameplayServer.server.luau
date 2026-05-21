@@ -166,8 +166,12 @@ TankParticipantRegistry.init({
 	},
 })
 
+-- Startup static participants (IsActive=false, invisible until assigned).
+-- TankIds use StartupParticipantIds so TankFactory runs GetTemplateForRole
+-- (choosing BaseTankTemplate when present) instead of reusing the legacy
+-- prototype model directly by name.
 local playerParticipant = spawnTankParticipant({
-	TankId = TankFactoryConfig.LegacyTankIds.Player,
+	TankId = TankFactoryConfig.StartupParticipantIds.Player,
 	Role = TankRole.Player,
 	TeamId = "Player",
 	IsBot = false,
@@ -177,7 +181,7 @@ local playerParticipant = spawnTankParticipant({
 	StatsProfileId = TankStatsProfile.DuelNormalized,
 })
 local dummyParticipant = spawnTankParticipant({
-	TankId = TankFactoryConfig.LegacyTankIds.Dummy,
+	TankId = TankFactoryConfig.StartupParticipantIds.Dummy,
 	Role = TankRole.Dummy,
 	TeamId = "Dummy",
 	IsBot = true,
@@ -187,7 +191,7 @@ local dummyParticipant = spawnTankParticipant({
 	StatsProfileId = TankStatsProfile.TrainingDummy,
 })
 local player2Participant = spawnTankParticipant({
-	TankId = TankFactoryConfig.LegacyTankIds.DuelOpponent,
+	TankId = TankFactoryConfig.StartupParticipantIds.Player2,
 	Role = TankRole.DuelOpponent,
 	TeamId = "Player2",
 	IsBot = false,

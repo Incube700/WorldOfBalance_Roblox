@@ -107,27 +107,27 @@
 		<Item class="Camera" referent="RBXc1464cbc5d44410fbc4ee16ffc5ee710">
 			<Properties>
 				<CoordinateFrame name="CFrame">
-					<X>-58.0477905</X>
-					<Y>14.1536427</Y>
-					<Z>26.5636063</Z>
-					<R00>0.121254191</R00>
-					<R01>0.616564095</R01>
-					<R02>-0.777911544</R02>
+					<X>-26.9774036</X>
+					<Y>100.632751</Y>
+					<Z>35.4319229</Z>
+					<R00>0.999950826</R00>
+					<R01>-0.00952604786</R01>
+					<R02>0.00276756589</R02>
 					<R10>-0</R10>
-					<R11>0.783694029</R11>
-					<R12>0.621147215</R12>
-					<R20>0.992621541</R20>
-					<R21>-0.0753167048</R21>
-					<R22>0.0950261727</R22>
+					<R11>0.278990477</R11>
+					<R12>0.960293829</R12>
+					<R20>-0.00991993025</R20>
+					<R21>-0.960246623</R21>
+					<R22>0.278976738</R22>
 				</CoordinateFrame>
 				<Ref name="CameraSubject">null</Ref>
 				<token name="CameraType">0</token>
 				<float name="FieldOfView">70</float>
 				<token name="FieldOfViewMode">0</token>
 				<CoordinateFrame name="Focus">
-					<X>-56.4919701</X>
-					<Y>12.9113503</Y>
-					<Z>26.3735542</Z>
+					<X>-26.9829388</X>
+					<Y>98.7121658</Y>
+					<Z>34.87397</Z>
 					<R00>1</R00>
 					<R01>0</R01>
 					<R02>0</R02>
@@ -2809,7 +2809,7 @@ AgkAAABEdW1teVRhbmsGAAAAVGVhbUlkAgUAAABEdW1teQ==]]></BinaryString>
 						<CoordinateFrame name="ModelMeshCFrame">
 							<X>-34.9805183</X>
 							<Y>0.829746962</Y>
-							<Z>43.7579918</Z>
+							<Z>46.195488</Z>
 							<R00>0.707176745</R00>
 							<R01>0</R01>
 							<R02>-0.707176745</R02>
@@ -2829,14 +2829,14 @@ AgkAAABEdW1teVRhbmsGAAAAVGVhbUlkAgUAAABEdW1teQ==]]></BinaryString>
 						<token name="ModelStreamingMode">0</token>
 						<bool name="NeedsPivotMigration">false</bool>
 						<Ref name="PrimaryPart">RBX7b76de3e69cc4412a542b1cc2a4518be</Ref>
-						<float name="ScaleFactor">0.851773381</float>
+						<float name="ScaleFactor">0.584678173</float>
 						<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 						<OptionalCoordinateFrame name="WorldPivotData">
 							<CFrame>
 								<X>-36.3947868</X>
 								<Y>2.22974706</Y>
-								<Z>-3.61579895</Z>
-								<R00>-1.00000095</R00>
+								<Z>-1.1783061</Z>
+								<R00>-1</R00>
 								<R01>0</R01>
 								<R02>0</R02>
 								<R10>0</R10>
@@ -2844,7 +2844,7 @@ AgkAAABEdW1teVRhbmsGAAAAVGVhbUlkAgUAAABEdW1teQ==]]></BinaryString>
 								<R12>0</R12>
 								<R20>0</R20>
 								<R21>0</R21>
-								<R22>-0.999999523</R22>
+								<R22>-1</R22>
 							</CFrame>
 						</OptionalCoordinateFrame>
 						<BinaryString name="AttributesSerialize"><![CDATA[CgAAAA4AAABDb250cm9sbGVyVHlwZQIGAAAAUGxheWVyCwAAAEdhbWVwbGF5VGFnAgQAAABU
@@ -2876,7 +2876,7 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 							<CoordinateFrame name="CFrame">
 								<X>-36.3947868</X>
 								<Y>2.22974706</Y>
-								<Z>-3.61579895</Z>
+								<Z>-1.1783061</Z>
 								<R00>-1</R00>
 								<R01>0</R01>
 								<R02>0</R02>
@@ -2946,9 +2946,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<Z>0</Z>
 							</Vector3>
 							<Vector3 name="size">
-								<X>6.81418705</X>
-								<Y>2.55532026</Y>
-								<Z>9.36950684</Z>
+								<X>4.67742538</X>
+								<Y>1.75403464</Y>
+								<Z>6.4314599</Z>
 							</Vector3>
 							<BinaryString name="AttributesSerialize"></BinaryString>
 							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -2976,8 +2976,8 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
 								<X>-36.3947868</X>
-								<Y>4.23141479</Y>
-								<Z>-3.61579895</Z>
+								<Y>3.60374093</Y>
+								<Z>-1.1783061</Z>
 								<R00>-1</R00>
 								<R01>0</R01>
 								<R02>0</R02>
@@ -3047,9 +3047,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<Z>0</Z>
 							</Vector3>
 							<Vector3 name="size">
-								<X>4.68475342</X>
-								<Y>1.44801426</Y>
-								<Z>4.68475342</Z>
+								<X>3.21572995</X>
+								<Y>0.993952572</Y>
+								<Z>3.21572995</Z>
 							</Vector3>
 							<BinaryString name="AttributesSerialize"></BinaryString>
 							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -3077,8 +3077,8 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
 								<X>-36.3947868</X>
-								<Y>4.44435787</Y>
-								<Z>1.32446194</Z>
+								<Y>3.74991035</Y>
+								<Z>2.21281052</Z>
 								<R00>-1</R00>
 								<R01>0</R01>
 								<R02>0</R02>
@@ -3148,9 +3148,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<Z>0</Z>
 							</Vector3>
 							<Vector3 name="size">
-								<X>1.02212811</X>
-								<Y>1.02212811</Y>
-								<Z>5.11064053</Z>
+								<X>0.701613903</X>
+								<Y>0.701613903</Y>
+								<Z>3.50806928</Z>
 							</Vector3>
 							<BinaryString name="AttributesSerialize"></BinaryString>
 							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -3178,8 +3178,8 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
 								<X>-36.3947868</X>
-								<Y>4.44435787</Y>
-								<Z>4.90189552</Z>
+								<Y>3.74991035</Y>
+								<Z>3.98202467</Z>
 								<R00>-1</R00>
 								<R01>0</R01>
 								<R02>0</R02>
@@ -3249,9 +3249,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<Z>0</Z>
 							</Vector3>
 							<Vector3 name="size">
-								<X>0.511064053</X>
-								<Y>0.511064053</Y>
-								<Z>0.511064053</Z>
+								<X>0.350806952</X>
+								<Y>0.350806952</Y>
+								<Z>0.350806952</Z>
 							</Vector3>
 							<BinaryString name="AttributesSerialize"></BinaryString>
 							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -3290,8 +3290,8 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<token name="BottomSurfaceInput">0</token>
 								<CoordinateFrame name="CFrame">
 									<X>-36.3947868</X>
-									<Y>3.42222977</Y>
-									<Z>1.2392869</Z>
+									<Y>3.04829645</Y>
+									<Z>2.15434432</Z>
 									<R00>-1</R00>
 									<R01>0</R01>
 									<R02>0</R02>
@@ -3361,9 +3361,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 									<Z>0</Z>
 								</Vector3>
 								<Vector3 name="size">
-									<X>7.41042805</X>
-									<Y>4.59957647</Y>
-									<Z>0.212943345</Z>
+									<X>5.08669996</X>
+									<Y>3.15726256</Y>
+									<Z>0.146169543</Z>
 								</Vector3>
 								<BinaryString name="AttributesSerialize">AQAAAAsAAABHYW1lcGxheVRhZwIKAAAAVGFua0hpdGJveA==</BinaryString>
 								<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -3391,8 +3391,8 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<token name="BottomSurfaceInput">0</token>
 								<CoordinateFrame name="CFrame">
 									<X>-36.3947868</X>
-									<Y>3.42222977</Y>
-									<Z>-8.47088623</Z>
+									<Y>3.04829645</Y>
+									<Z>-4.51095724</Z>
 									<R00>-1</R00>
 									<R01>0</R01>
 									<R02>0</R02>
@@ -3462,9 +3462,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 									<Z>0</Z>
 								</Vector3>
 								<Vector3 name="size">
-									<X>7.41042805</X>
-									<Y>4.59957647</Y>
-									<Z>0.212943345</Z>
+									<X>5.08669996</X>
+									<Y>3.15726256</Y>
+									<Z>0.146169543</Z>
 								</Vector3>
 								<BinaryString name="AttributesSerialize">AQAAAAsAAABHYW1lcGxheVRhZwIKAAAAVGFua0hpdGJveA==</BinaryString>
 								<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -3491,9 +3491,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<token name="BottomSurface">0</token>
 								<token name="BottomSurfaceInput">0</token>
 								<CoordinateFrame name="CFrame">
-									<X>-32.8173065</X>
-									<Y>3.42222977</Y>
-									<Z>-3.61579895</Z>
+									<X>-33.9391174</X>
+									<Y>3.04829645</Y>
+									<Z>-1.1783061</Z>
 									<R00>-1</R00>
 									<R01>0</R01>
 									<R02>0</R02>
@@ -3563,9 +3563,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 									<Z>0</Z>
 								</Vector3>
 								<Vector3 name="size">
-									<X>0.212943345</X>
-									<Y>4.59957647</Y>
-									<Z>9.96574879</Z>
+									<X>0.146169543</X>
+									<Y>3.15726256</Y>
+									<Z>6.84073496</Z>
 								</Vector3>
 								<BinaryString name="AttributesSerialize">AQAAAAsAAABHYW1lcGxheVRhZwIKAAAAVGFua0hpdGJveA==</BinaryString>
 								<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -3592,9 +3592,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<token name="BottomSurface">0</token>
 								<token name="BottomSurfaceInput">0</token>
 								<CoordinateFrame name="CFrame">
-									<X>-39.9722672</X>
-									<Y>3.42222977</Y>
-									<Z>-3.61579895</Z>
+									<X>-38.8504562</X>
+									<Y>3.04829645</Y>
+									<Z>-1.1783061</Z>
 									<R00>-1</R00>
 									<R01>0</R01>
 									<R02>0</R02>
@@ -3664,9 +3664,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 									<Z>0</Z>
 								</Vector3>
 								<Vector3 name="size">
-									<X>0.212943345</X>
-									<Y>4.59957647</Y>
-									<Z>9.96574879</Z>
+									<X>0.146169543</X>
+									<Y>3.15726256</Y>
+									<Z>6.84073496</Z>
 								</Vector3>
 								<BinaryString name="AttributesSerialize">AQAAAAsAAABHYW1lcGxheVRhZwIKAAAAVGFua0hpdGJveA==</BinaryString>
 								<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -4561,7 +4561,7 @@ cGUGAAAAVGVhbUlkAgcAAABQbGF5ZXIy]]></BinaryString>
 					<Properties>
 						<token name="LevelOfDetail">0</token>
 						<CoordinateFrame name="ModelMeshCFrame">
-							<X>-48.9805183</X>
+							<X>-45.9805222</X>
 							<Y>0.829746962</Y>
 							<Z>66.7579956</Z>
 							<R00>0.707176745</R00>
@@ -4583,11 +4583,11 @@ cGUGAAAAVGVhbUlkAgcAAABQbGF5ZXIy]]></BinaryString>
 						<token name="ModelStreamingMode">0</token>
 						<bool name="NeedsPivotMigration">false</bool>
 						<Ref name="PrimaryPart">RBX5c2e5566528d417fa27e5e2b96b2fb27</Ref>
-						<float name="ScaleFactor">0.851773381</float>
+						<float name="ScaleFactor">1.54143131</float>
 						<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 						<OptionalCoordinateFrame name="WorldPivotData">
 							<CFrame>
-								<X>-50.3947868</X>
+								<X>-47.3947906</X>
 								<Y>2.22974706</Y>
 								<Z>19.384201</Z>
 								<R00>-1</R00>
@@ -4628,7 +4628,7 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 							<token name="BottomSurface">0</token>
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
-								<X>-50.3947868</X>
+								<X>-47.3947906</X>
 								<Y>2.22974706</Y>
 								<Z>19.384201</Z>
 								<R00>-1</R00>
@@ -4700,9 +4700,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<Z>0</Z>
 							</Vector3>
 							<Vector3 name="size">
-								<X>6.81418705</X>
-								<Y>2.55532026</Y>
-								<Z>9.36950684</Z>
+								<X>12.3314505</X>
+								<Y>4.62429428</Y>
+								<Z>16.9557438</Z>
 							</Vector3>
 							<BinaryString name="AttributesSerialize"></BinaryString>
 							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -4729,8 +4729,8 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 							<token name="BottomSurface">0</token>
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
-								<X>-50.3947868</X>
-								<Y>4.23141479</Y>
+								<X>-47.3947906</X>
+								<Y>5.85211086</Y>
 								<Z>19.384201</Z>
 								<R00>-1</R00>
 								<R01>0</R01>
@@ -4801,9 +4801,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<Z>0</Z>
 							</Vector3>
 							<Vector3 name="size">
-								<X>4.68475342</X>
-								<Y>1.44801474</Y>
-								<Z>4.68475342</Z>
+								<X>8.47787189</X>
+								<Y>2.62043333</Y>
+								<Z>8.47787189</Z>
 							</Vector3>
 							<BinaryString name="AttributesSerialize"></BinaryString>
 							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -4830,9 +4830,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 							<token name="BottomSurface">0</token>
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
-								<X>-50.3947868</X>
-								<Y>4.44435787</Y>
-								<Z>24.3244629</Z>
+								<X>-47.3947906</X>
+								<Y>6.23746872</Y>
+								<Z>28.3244591</Z>
 								<R00>-1</R00>
 								<R01>0</R01>
 								<R02>0</R02>
@@ -4902,9 +4902,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<Z>0</Z>
 							</Vector3>
 							<Vector3 name="size">
-								<X>1.02212811</X>
-								<Y>1.02212811</Y>
-								<Z>5.11064053</Z>
+								<X>1.84971786</X>
+								<Y>1.84971786</Y>
+								<Z>9.24858856</Z>
 							</Vector3>
 							<BinaryString name="AttributesSerialize"></BinaryString>
 							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -4931,9 +4931,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 							<token name="BottomSurface">0</token>
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
-								<X>-50.3947868</X>
-								<Y>4.44435787</Y>
-								<Z>26.9018955</Z>
+								<X>-47.3947906</X>
+								<Y>6.23746872</Y>
+								<Z>32.9887695</Z>
 								<R00>-1</R00>
 								<R01>0</R01>
 								<R02>0</R02>
@@ -5003,9 +5003,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<Z>0</Z>
 							</Vector3>
 							<Vector3 name="size">
-								<X>0.511064053</X>
-								<Y>0.511064053</Y>
-								<Z>0.511064053</Z>
+								<X>0.924858928</X>
+								<Y>0.924858928</Y>
+								<Z>0.924858928</Z>
 							</Vector3>
 							<BinaryString name="AttributesSerialize"></BinaryString>
 							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -5043,9 +5043,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<token name="BottomSurface">0</token>
 								<token name="BottomSurfaceInput">0</token>
 								<CoordinateFrame name="CFrame">
-									<X>-50.394783</X>
-									<Y>3.42223072</Y>
-									<Z>24.2392693</Z>
+									<X>-47.394783</X>
+									<Y>4.38775253</Y>
+									<Z>28.1702843</Z>
 									<R00>-1</R00>
 									<R01>0</R01>
 									<R02>0</R02>
@@ -5115,9 +5115,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 									<Z>0</Z>
 								</Vector3>
 								<Vector3 name="size">
-									<X>7.41039896</X>
-									<Y>4.59955835</Y>
-									<Z>0.212942511</Z>
+									<X>13.4103994</X>
+									<Y>8.32369709</Y>
+									<Z>0.385356337</Z>
 								</Vector3>
 								<BinaryString name="AttributesSerialize">AQAAAAsAAABHYW1lcGxheVRhZwIKAAAAVGFua0hpdGJveA==</BinaryString>
 								<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -5144,9 +5144,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<token name="BottomSurface">0</token>
 								<token name="BottomSurfaceInput">0</token>
 								<CoordinateFrame name="CFrame">
-									<X>-50.394783</X>
-									<Y>3.42223072</Y>
-									<Z>14.5291328</Z>
+									<X>-47.394783</X>
+									<Y>4.38775253</Y>
+									<Z>10.5981159</Z>
 									<R00>-1</R00>
 									<R01>0</R01>
 									<R02>0</R02>
@@ -5216,9 +5216,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 									<Z>0</Z>
 								</Vector3>
 								<Vector3 name="size">
-									<X>7.41039896</X>
-									<Y>4.59955835</Y>
-									<Z>0.212942511</Z>
+									<X>13.4103994</X>
+									<Y>8.32369709</Y>
+									<Z>0.385356337</Z>
 								</Vector3>
 								<BinaryString name="AttributesSerialize">AQAAAAsAAABHYW1lcGxheVRhZwIKAAAAVGFua0hpdGJveA==</BinaryString>
 								<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -5245,8 +5245,8 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<token name="BottomSurface">0</token>
 								<token name="BottomSurfaceInput">0</token>
 								<CoordinateFrame name="CFrame">
-									<X>-46.817318</X>
-									<Y>3.42223072</Y>
+									<X>-40.920742</X>
+									<Y>4.38775253</Y>
 									<Z>19.384201</Z>
 									<R00>-1</R00>
 									<R01>0</R01>
@@ -5317,9 +5317,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 									<Z>0</Z>
 								</Vector3>
 								<Vector3 name="size">
-									<X>0.212942511</X>
-									<Y>4.59955835</Y>
-									<Z>9.96571064</Z>
+									<X>0.385356337</X>
+									<Y>8.32369709</Y>
+									<Z>18.0346775</Z>
 								</Vector3>
 								<BinaryString name="AttributesSerialize">AQAAAAsAAABHYW1lcGxheVRhZwIKAAAAVGFua0hpdGJveA==</BinaryString>
 								<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -5346,8 +5346,8 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<token name="BottomSurface">0</token>
 								<token name="BottomSurfaceInput">0</token>
 								<CoordinateFrame name="CFrame">
-									<X>-53.9722481</X>
-									<Y>3.42223072</Y>
+									<X>-53.8688278</X>
+									<Y>4.38775253</Y>
 									<Z>19.384201</Z>
 									<R00>-1</R00>
 									<R01>0</R01>
@@ -5418,9 +5418,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 									<Z>0</Z>
 								</Vector3>
 								<Vector3 name="size">
-									<X>0.212942511</X>
-									<Y>4.59955835</Y>
-									<Z>9.96571064</Z>
+									<X>0.385356337</X>
+									<Y>8.32369709</Y>
+									<Z>18.0346775</Z>
 								</Vector3>
 								<BinaryString name="AttributesSerialize">AQAAAAsAAABHYW1lcGxheVRhZwIKAAAAVGFua0hpdGJveA==</BinaryString>
 								<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>

@@ -40,6 +40,10 @@ local primaryWeaponConfig = WeaponConfig.PrimaryWeapon or {}
 local stickRadius = tonumber(leftStickConfig.Radius) or 72
 local stickMaxDistance = tonumber(leftStickConfig.MaxDistance) or stickRadius
 local stickDeadZone = math.clamp(tonumber(leftStickConfig.DeadZone) or 0.12, 0, 0.95)
+local manualAngleMaxMagnitude = math.clamp(tonumber(leftStickConfig.ManualAngleMaxMagnitude) or 0.5, 0, 1)
+local autoTurnMinMagnitude = math.clamp(tonumber(leftStickConfig.AutoTurnMinMagnitude) or 0.5, 0, 1)
+local autoTurnLerpAlpha = math.clamp(tonumber(leftStickConfig.AutoTurnLerpAlpha) or 0.08, 0, 1)
+local reverseStickThreshold = math.clamp(tonumber(leftStickConfig.ReverseStickThreshold) or -0.1, -1, 1)
 local leftStickLabel = tostring(leftStickConfig.Label or "MOVE")
 local rightAimRadius = tonumber(rightAimStickConfig.Radius) or 82
 local rightAimMaxDistance = tonumber(rightAimStickConfig.MaxDistance) or rightAimRadius
@@ -47,6 +51,8 @@ local rightAimDeadZone = math.clamp(tonumber(rightAimStickConfig.DeadZone) or 0.
 local rightAimEnabled = rightAimStickConfig.Enabled ~= false
 local rightAimVisible = rightAimEnabled and rightAimStickConfig.Visible ~= false
 local rightAimLabel = tostring(rightAimStickConfig.Label or "AIM")
+local aimTapMaxDuration = math.max(0.01, tonumber(rightAimStickConfig.TapMaxDuration) or 0.15)
+local aimTapMoveTolerancePixels = math.max(0, tonumber(rightAimStickConfig.TapMoveTolerancePixels) or 6)
 local aimPlaneY = tonumber(aimAreaConfig.AimPlaneY) or CameraConfig.Input.AimPlaneY or 0
 local aimMinXScale = math.clamp(tonumber(aimAreaConfig.MinXScale) or 0.45, 0, 1)
 local fireButtonLabel = tostring(fireButtonConfig.Label or "FIRE")
@@ -230,12 +236,17 @@ if MobileControlsConfig.Debug == true then
 end
 
 local activeMovementTouch = nil
+local activeMovementPoint = nil
 local activeAimTouch = nil
+local activeAimTouchStartPoint = nil
+local activeAimTouchStartTime = 0
+local activeAimTouchMoved = false
 local ownedTank = nil
 local controlsVisible = false
 local controlsEnabled = false
 local shootEnabled = false
 local localCooldownUntil = 0
+local smoothedAutoSteer = 0
 
 local function getCamera()
 	local camera = Workspace.CurrentCamera
@@ -336,12 +347,17 @@ end
 
 local function resetMovementTouch()
 	activeMovementTouch = nil
+	activeMovementPoint = nil
+	smoothedAutoSteer = 0
 	WOBClientInputState.resetMobileMovement()
 	resetMoveStickVisual()
 end
 
 local function resetAimTouch()
 	activeAimTouch = nil
+	activeAimTouchStartPoint = nil
+	activeAimTouchStartTime = 0
+	activeAimTouchMoved = false
 	resetAimStickVisual()
 end
 
@@ -420,7 +436,50 @@ local function getFlatUnit(vector, fallback)
 	return fallback
 end
 
-local function getAimDirectionFromStick(normalized)
+local function normalizeAngle(angle)
+	local fullTurn = math.pi * 2
+
+	return ((angle + math.pi) % fullTurn) - math.pi
+end
+
+local function getYawFromFlatDirection(direction)
+	local flat = Vector3.new(direction.X, 0, direction.Z)
+
+	if flat.Magnitude < 0.001 then
+		return nil
+	end
+
+	local unit = flat.Unit
+	return math.atan2(-unit.X, -unit.Z)
+end
+
+local function getOwnedTankBodyYaw()
+	if ownedTank == nil or ownedTank.Parent == nil then
+		refreshOwnedTank()
+	end
+
+	if ownedTank == nil or ownedTank.Parent == nil then
+		return nil
+	end
+
+	local body = ownedTank:FindFirstChild("Body", true)
+		or ownedTank:FindFirstChild("Hull", true)
+		or (ownedTank:IsA("Model") and ownedTank.PrimaryPart or nil)
+
+	if body ~= nil and body:IsA("BasePart") then
+		return getYawFromFlatDirection(body.CFrame.LookVector)
+	end
+
+	if ownedTank:IsA("Model") then
+		return getYawFromFlatDirection(ownedTank:GetPivot().LookVector)
+	elseif ownedTank:IsA("BasePart") then
+		return getYawFromFlatDirection(ownedTank.CFrame.LookVector)
+	end
+
+	return nil
+end
+
+local function getWorldDirectionFromStick(normalized)
 	local camera = getCamera()
 	local worldRight = Vector3.new(1, 0, 0)
 	local worldUp = Vector3.new(0, 0, -1)
@@ -442,6 +501,10 @@ local function getAimDirectionFromStick(normalized)
 	end
 
 	return direction.Unit
+end
+
+local function getAimDirectionFromStick(normalized)
+	return getWorldDirectionFromStick(normalized)
 end
 
 local function updateAimFromPoint(point)
@@ -483,6 +546,7 @@ local function updateAimFromPoint(point)
 end
 
 local function updateMovementFromPoint(point)
+	activeMovementPoint = point
 	local center = leftStickBase.AbsolutePosition + leftStickBase.AbsoluteSize * 0.5
 	local delta = point - center
 	local distance = delta.Magnitude
@@ -501,9 +565,41 @@ local function updateMovementFromPoint(point)
 		normalized = Vector2.zero
 	end
 
-	local moveInput = math.clamp(-normalized.Y, -1, 1)
-	local turnInput = math.clamp(normalized.X, -1, 1)
-	local isActive = normalized.Magnitude > 0
+	local magnitude = normalized.Magnitude
+	local localStickY = math.clamp(-normalized.Y, -1, 1)
+	local localStickX = math.clamp(normalized.X, -1, 1)
+	local moveInput = 0
+	local turnInput = 0
+	local isActive = magnitude > 0
+
+	if magnitude < stickDeadZone then
+		smoothedAutoSteer = 0
+	elseif localStickY < reverseStickThreshold then
+		moveInput = localStickY
+		turnInput = localStickX
+		smoothedAutoSteer = 0
+	elseif magnitude > autoTurnMinMagnitude then
+		moveInput = math.clamp(magnitude, 0, 1)
+
+		local desiredDirection = getWorldDirectionFromStick(normalized)
+		local currentBodyYaw = getOwnedTankBodyYaw()
+		local desiredYaw = desiredDirection ~= nil and getYawFromFlatDirection(desiredDirection) or nil
+
+		if currentBodyYaw ~= nil and desiredYaw ~= nil then
+			local yawDelta = normalizeAngle(desiredYaw - currentBodyYaw)
+			local desiredSteer = -math.clamp(yawDelta / (math.pi * 0.5), -1, 1)
+			smoothedAutoSteer += (desiredSteer - smoothedAutoSteer) * autoTurnLerpAlpha
+			turnInput = math.clamp(smoothedAutoSteer, -1, 1)
+		else
+			smoothedAutoSteer = 0
+		end
+	elseif magnitude > 0 and magnitude <= manualAngleMaxMagnitude then
+		moveInput = localStickY
+		turnInput = 0
+		smoothedAutoSteer = 0
+	else
+		smoothedAutoSteer = 0
+	end
 
 	leftStickKnob.Position = UDim2.fromOffset(stickRadius + clamped.X, stickRadius + clamped.Y)
 	WOBClientInputState.setMobileMovement(moveInput, turnInput, isActive)
@@ -562,7 +658,9 @@ UserInputService.InputBegan:Connect(function(input, _gameProcessedEvent)
 		and isPointInsideGui(rightAimBase, point)
 	then
 		activeAimTouch = input
-		updateAimFromPoint(point)
+		activeAimTouchStartPoint = point
+		activeAimTouchStartTime = os.clock()
+		activeAimTouchMoved = false
 	end
 end)
 
@@ -575,7 +673,13 @@ UserInputService.InputChanged:Connect(function(input)
 		end
 	elseif input == activeAimTouch then
 		if controlsEnabled then
-			updateAimFromPoint(screenPointFromInput(input))
+			local point = screenPointFromInput(input)
+			local movedDistance = activeAimTouchStartPoint ~= nil and (point - activeAimTouchStartPoint).Magnitude or 0
+
+			if activeAimTouchMoved or movedDistance > aimTapMoveTolerancePixels then
+				activeAimTouchMoved = true
+				updateAimFromPoint(point)
+			end
 		else
 			resetAimTouch()
 		end
@@ -586,12 +690,26 @@ UserInputService.InputEnded:Connect(function(input)
 	if input == activeMovementTouch then
 		resetMovementTouch()
 	elseif input == activeAimTouch then
+		local duration = os.clock() - activeAimTouchStartTime
+
+		if controlsVisible
+			and shootEnabled
+			and not activeAimTouchMoved
+			and duration <= aimTapMaxDuration
+		then
+			WOBClientInputState.enqueueMobileShootRequest(WOBClientInputState.getMobileAimWorldPoint())
+		end
+
 		resetAimTouch()
 	end
 end)
 
 RunService.RenderStepped:Connect(function()
 	updateVisibility()
+
+	if activeMovementTouch ~= nil and controlsEnabled and activeMovementPoint ~= nil then
+		updateMovementFromPoint(activeMovementPoint)
+	end
 
 	if fireButtonConfig.CooldownVisual ~= false and os.clock() < localCooldownUntil then
 		local remaining = math.max(0, localCooldownUntil - os.clock())

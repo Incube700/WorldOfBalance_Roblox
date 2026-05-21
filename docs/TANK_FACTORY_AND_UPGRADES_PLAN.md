@@ -46,8 +46,12 @@ Stage 3: **Editable BaseTankTemplate workflow — complete.**
 - `TankArmorPartsService` supports both `ArmorZones` folder (new contract) and `Hitboxes` folder (legacy).
 - `TankSkinApplier` module created: applies visual skin to the `Visuals` folder without touching armor or stats.
 - `TankFactory` calls `TankSkinApplier.Apply` after clone.
-- `docs/BASE_TANK_TEMPLATE_WORKFLOW.md` documents the structure, rules, and manual Studio workflow.
+- `TankFactory._getRequestModel` captures `templateName` from `GetTemplateForRole` and sets `TemplateSourceName` / `TemplateSourcePath` attributes on runtime tank models.
+- `TankFactory` emits a throttled debug log: `[TANK FACTORY] spawn role=<role> template=<name> name=<tankId>`.
+- Startup participants use `TankFactoryConfig.StartupParticipantIds` (`Startup_Player`, `Startup_Dummy`, `Startup_Player2`) so `TankFactory` resolves them via `GetTemplateForRole` (not via direct legacy-model reuse by name), ensuring `BaseTankTemplate` is used for all roles when present.
+- `docs/BASE_TANK_TEMPLATE_WORKFLOW.md` documents the structure, rules, manual Studio workflow, startup participant IDs, and runtime attributes.
 - `docs/patches/CREATE_BASE_TANK_TEMPLATE_PREVIEW_COMMAND.lua` provides a disabled-by-default Studio command to create the template from `PlayerTankPrototype`.
+- `docs/patches/AUDIT_TANK_TEMPLATE_RIG_COMMAND.lua` is a read-only Studio command to verify `TemplateSourceName`, structural parts, armor zones, and Visuals on all models in TestObjects.
 - Legacy prototypes (`PlayerTankPrototype` / `Player2TankPrototype` / `DummyTank`) remain as fallback sources and are not deleted.
 
 Stage 4:
