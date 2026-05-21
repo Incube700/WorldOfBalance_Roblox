@@ -39,10 +39,20 @@ Stage 2:
 - Bot v0.1 requests `Role = ArenaBot` with `BotDefault`. Complete for BattleArena filler bots.
 - Bots are participants, not special-case scene objects.
 
-Stage 3:
+Stage 3: **Editable BaseTankTemplate workflow — complete.**
 
-- Replace duplicated prototype sources with `BaseTankTemplate`.
-- Keep old prototypes archived/backed up until Studio scene and Rojo source-of-truth are reviewed.
+- `TankTemplateProvider` now checks for `BaseTankTemplate` (priority 1) before role-specific legacy fallbacks.
+- `BaseTankTemplateName = "BaseTankTemplate"` is defined in `TankFactoryConfig`.
+- `TankArmorPartsService` supports both `ArmorZones` folder (new contract) and `Hitboxes` folder (legacy).
+- `TankSkinApplier` module created: applies visual skin to the `Visuals` folder without touching armor or stats.
+- `TankFactory` calls `TankSkinApplier.Apply` after clone.
+- `TankFactory._getRequestModel` captures `templateName` from `GetTemplateForRole` and sets `TemplateSourceName` / `TemplateSourcePath` attributes on runtime tank models.
+- `TankFactory` emits a throttled debug log: `[TANK FACTORY] spawn role=<role> template=<name> name=<tankId>`.
+- Startup participants use `TankFactoryConfig.StartupParticipantIds` (`Startup_Player`, `Startup_Dummy`, `Startup_Player2`) so `TankFactory` resolves them via `GetTemplateForRole` (not via direct legacy-model reuse by name), ensuring `BaseTankTemplate` is used for all roles when present.
+- `docs/BASE_TANK_TEMPLATE_WORKFLOW.md` documents the structure, rules, manual Studio workflow, startup participant IDs, and runtime attributes.
+- `docs/patches/CREATE_BASE_TANK_TEMPLATE_PREVIEW_COMMAND.lua` provides a disabled-by-default Studio command to create the template from `PlayerTankPrototype`.
+- `docs/patches/AUDIT_TANK_TEMPLATE_RIG_COMMAND.lua` is a read-only Studio command to verify `TemplateSourceName`, structural parts, armor zones, and Visuals on all models in TestObjects.
+- Legacy prototypes (`PlayerTankPrototype` / `Player2TankPrototype` / `DummyTank`) remain as fallback sources and are not deleted.
 
 Stage 4:
 

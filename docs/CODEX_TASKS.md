@@ -56,6 +56,45 @@
 - Publish checklist additions: confirm Rojo VFX guard, no infinite fire sound, Duel +1 Crystal, readable lobby signs/showcases, mobile controls/HUD, BattleArena/Training/Duel regressions.
 - Recommended commit message: `Polish playtest UX rewards and lobby showcases`.
 
+## Current Add-on — Editable BaseTankTemplate Workflow
+
+- Статус: editable template workflow добавлен поверх существующего TankFactory; gameplay loop не изменён.
+- Docs: `docs/BASE_TANK_TEMPLATE_WORKFLOW.md`.
+- `TankFactoryConfig.BaseTankTemplateName = "BaseTankTemplate"` добавлен как единственный source-of-truth имени шаблона.
+- `TankFactoryConfig.StartupParticipantIds` добавлен (`Startup_Player`, `Startup_Dummy`, `Startup_Player2`) — startup-участники получают имена, не совпадающие с legacy-прототипами, поэтому `TankFactory` всегда проходит через `GetTemplateForRole` и выбирает `BaseTankTemplate` при его наличии.
+- `TankTemplateProvider:GetTemplateForRole` теперь проверяет `BaseTankTemplate` в `TestObjectsRoot` как приоритет 1 для всех ролей; при отсутствии — role-specific legacy fallback chain без изменений.
+- `TankTemplateProvider:GetBaseTankTemplate()` — вспомогательный метод для явного lookup.
+- `TankArmorPartsService.Configure` теперь ищет `ArmorZones` (новый контракт) или `Hitboxes` (legacy) — оба поддерживаются.
+- `TankSkinApplier.luau` создан: применяет `Default` скин к `Visuals` folder, устанавливает `CanQuery=false/CanCollide=false/Massless=true` на visual parts.
+- `TankFactory:SpawnTank` вызывает `TankSkinApplier.Apply(model, loadout)` после `TankArmorPartsService.Configure`.
+- `TankFactory._getRequestModel` захватывает `templateName` из `GetTemplateForRole`; `SpawnTank` устанавливает атрибуты `TemplateSourceName` и `TemplateSourcePath` на runtime-модели танка.
+- `TankFactory` выводит throttled debug-лог: `[TANK FACTORY] spawn role=<role> template=<name> name=<tankId>` (не чаще 1 раза в 10 с на пару role+template).
+- `docs/patches/CREATE_BASE_TANK_TEMPLATE_PREVIEW_COMMAND.lua` — отключённый по умолчанию Studio command script для создания BaseTankTemplate из PlayerTankPrototype.
+- `docs/patches/AUDIT_TANK_TEMPLATE_RIG_COMMAND.lua` — read-only Studio command для проверки `TemplateSourceName`, структурных частей, ArmorZones и Visuals на всех моделях в TestObjects (запускать в Play Mode). **Обновлён**: теперь проверяет Startup_* видимость, CanQuery/CanCollide, PlayerTank_*/ArenaBot_* hitbox contract.
+- Правила: `BaseTankTemplate` не создаётся кодом — только пользователем в Studio. Legacy prototypes не удаляются до верификации BaseTankTemplate в Player/Duel/Bot/Dummy режимах. Bot v0.1 / Duel / BattleArena / Training не затронуты.
+- Manual Studio workflow: описан в `docs/BASE_TANK_TEMPLATE_WORKFLOW.md`.
+
+### Fixes applied (BaseTankTemplate startup visibility + collision)
+
+**Проблема**: после перехода на BaseTankTemplate появились два бага:
+1. `Startup_Player` был виден как большой танк в лобби.
+2. Снаряды проходили сквозь танки, спавненные из BaseTankTemplate.
+
+**Корень проблемы 1** (`TankSpawnResetService.configureActiveParticipants`):
+`local isVisible = not isDuelOpponent` давало `true` для Player-role участников без owner. `Startup_Player` не имеет owner при старте, но всё равно делался видимым при присоединении реального игрока.
+**Исправление**: сменить на `isVisible = participant.OwnerPlayer ~= nil` для non-DuelOpponent случая.
+
+**Корень проблемы 2** (`PlayerTankSpawner.ensurePhysicalTankModel`):
+`ensureHitboxes` создавал папку `Hitboxes` с частями брони, когда BaseTankTemplate уже имеет `ArmorZones`. Созданные части **не приварены** к Body (нет WeldConstraint) → они падали на землю и оставались на месте спауна. `participant.Hitboxes` указывал на эту папку с неверными позициями → raycast снарядов бил в пол.
+**Исправление**:
+- `PlayerTankSpawner.ensureHitboxes`: пропускать создание `Hitboxes` если `ArmorZones` уже существует.
+- `PlayerTankSpawner.getTankParts`: искать `ArmorZones` первым, затем `Hitboxes`.
+- `TankSpawnResetService.applySpawnToParticipant`: использовать `findArmorHitboxFolder` (ArmorZones > Hitboxes).
+- `ProjectileCollisionService.GetProjectileRaycastTargets`: defensive fallback — при stale participant.Hitboxes искать ArmorZones, затем Hitboxes.
+- `ProjectileCollisionService` + `ProjectileService`: debug-логи под `DebugCombatConfig.ProjectileDebug=true`.
+
+Recommended commit message: `Fix BaseTankTemplate startup visibility and collision`.
+
 ## Current Feature Add-on — BattleArena Bot v0.1
 
 - Статус: simple BattleArena-only bot filler through `TankFactory`.
@@ -68,6 +107,18 @@
 - Scope guard: no bots in Duel, Lobby free drive, or Training quick flow; no pathfinding, no new weapons, no shop/upgrades/camera changes.
 - Manual checks: solo BattleArena spawns bot, bot moves/aims/shoots, player and bot can damage each other, bot death/respawn works, returning to Lobby hides bots, DuelPad remains normal 1v1.
 - Recommended commit message: `Add BattleArena bot v0.1 through TankFactory`.
+
+## Current Feature Add-on — BattleArena V2 Foundation
+
+- Статус: run-based Arena V2 foundation implemented without scene/template changes.
+- `ArenaCombatService` now tracks `ArenaXP`, `ArenaLevel`, pending upgrade offers, and run-scoped temporary upgrades separately from persistent session score/kills/deaths.
+- Kills grant `BattleArenaConfig.XPPerKill`; survival ticks and Supply Crates also have small XP config hooks; level thresholds live in `BattleArenaConfig.LevelThresholds`.
+- Level-up and Supply Crates use `UpgradeChoiceEvent` with server-authoritative validation.
+- Death resets current-run XP/level/upgrades/modifiers/streak and keeps `ArenaScore`, kills/deaths, and already granted currencies.
+- Optional scene hooks are supported if Studio adds them later: `BattleArena.ControlZone`, `BattleArena.Medkits`, and `BattleArena.SupplyCrates`.
+- `WOBBattleArenaOverlay` displays Arena Level/XP and a compact 3-choice upgrade panel.
+- Survival XP is intentionally small by default so it supports the run loop without replacing kills and Control Zone risk.
+- Recommended commit message: `Implement BattleArena V2 run progression`.
 
 ## Current Add-on Sprint — Tank World HP/Reload Bars and Hit Flash
 
@@ -121,7 +172,7 @@
 - Score attributes are session-only: `ArenaScore`, `ArenaKills`, `ArenaDeaths`, `ArenaStreak`, `ArenaUpgradeIds`.
 - Temporary upgrades are arena-only and reset on leave: `DamageUp`, `FireRateUp`, `DoubleShot`, `MoveSpeedUp`, `TripleSpread`.
 - Projectile/movement modifiers are read only while participant state is `InBattleArena`; Duel still uses default weapon and movement stats.
-- Arena overlay: `WOBBattleArenaOverlay.client.luau` shows HP, score, kills, deaths, streak, upgrades, death, respawn, and return. Desktop keeps the fuller layout. Mobile uses compact top-corner HP/score and hides `Return to Lobby` behind `Menu -> Return to Lobby`; details in `docs/MOBILE_HUD_LAYOUT_PASS.md`. Duel HUD remains owned by `WOBRoundStatusOverlay.client.luau`.
+- Arena overlay: `WOBBattleArenaOverlay.client.luau` shows HP, Arena Level/XP, score, kills, deaths, streak, upgrades, death, respawn, upgrade choices, and return. Desktop keeps the fuller layout. Mobile uses compact top-corner HP/score and hides `Return to Lobby` behind `Menu -> Return to Lobby`; details in `docs/MOBILE_HUD_LAYOUT_PASS.md`. Duel HUD remains owned by `WOBRoundStatusOverlay.client.luau`.
 - Verification required before commit: `git diff --check`; conflict marker scan; `rojo build default.project.json --output /private/tmp/wob-battle-arena-v01-check.rbxm`; Luau/StyLua/Selene only if installed.
 - Manual checks: use `docs/FIRST_PLAYTEST_CHECKLIST.md`.
 - Recommended commit message: `Add battle arena mode v0.1`.
@@ -418,7 +469,7 @@
 ## Current Sprint — Combat Feedback Cleanup + Armor Zone Visibility
 
 - Статус: code-first cleanup. Wall ricochets keep `[BOUNCE]` Output debug but no longer show floating `BOUNCE` text.
-- Изменения: tank feedback is one screen text per armor hit: damage, `NO PEN`, `RICOCHET`, or `SELF HIT -X`; armor hitboxes are visible again through `TankConfig.Armor.ArmorHitboxesVisible`.
+- Изменения: tank feedback is one screen text per armor hit: damage, `NO PEN`, `RICOCHET`, or `SELF HIT -X`; armor zone visibility is owned by `TankArmorConfig.Visuals`.
 - Какой коммит сделать: `Polish combat feedback and restore armor zone visuals`.
 
 ## Current Sprint — Remove Direction Arrow + Thin Armor Panels + Match Series
@@ -750,7 +801,7 @@
 - Main Menu Play still starts quick Training.
 - DuelPad still queues two players for PvP Duel.
 - ArenaPad still starts BattleArena.
-- Mobile BattleArena stats fit the screen width with Score, K/D, Crystals, and optional Bolts.
+- Mobile BattleArena stats fit the screen width with Arena Level/XP, K/D, Crystals, and optional Bolts.
 - Mobile Duel/Training match stats fit the screen width.
 - World HP/reload bars stay anchored to the tank body/hull while turret and barrel rotate.
 - Duel tanks spawn facing each other.
@@ -762,8 +813,10 @@
 
 - Duel hides legacy `You HP`, `Opponent HP`, and `Reload` panels when world HP/reload bars are enabled.
 - Duel round/score/first-to-3 UI remains visible.
+- Mobile Duel round/score panel uses a compact top-center layout and keeps old HP/reload panels hidden.
 - Projectile movement uses previous-to-next swept raycast.
 - Active armor hitboxes are queryable before projectile raycast.
+- Armor zones are welded to the stable tank body/hull, visible by default, and not treated as separate smoothed visuals.
 - `ProjectileCatalog` owns damage/penetration/speed/lifetime values.
 - `WeaponConfig` chooses the projectile id and weapon cooldown.
 - VFX/audio configs remain visual/audio only.

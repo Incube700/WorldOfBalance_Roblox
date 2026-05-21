@@ -45,11 +45,37 @@ function TankTemplateProvider:GetLegacyTankIdForRole(role)
 	return TankFactoryConfig.LegacyTankIds.Player
 end
 
+-- Returns the BaseTankTemplate if the user has placed one in TestObjects.
+-- This is priority 1 for all roles. Not created by code.
+function TankTemplateProvider:GetBaseTankTemplate()
+	if self.TestObjectsRoot == nil then
+		return nil
+	end
+
+	local baseName = TankFactoryConfig.BaseTankTemplateName
+	local base = self.TestObjectsRoot:FindFirstChild(baseName)
+
+	if base ~= nil and base:IsA("Model") then
+		return base, baseName
+	end
+
+	return nil
+end
+
 function TankTemplateProvider:GetTemplateForRole(role)
 	if self.TestObjectsRoot == nil then
 		error("[TANK TEMPLATE] Missing TestObjects root for role=" .. tostring(role), 2)
 	end
 
+	-- Priority 1: BaseTankTemplate (user-placed, editable in Studio).
+	-- Used for all roles when present.
+	local base, baseName = self:GetBaseTankTemplate()
+
+	if base ~= nil then
+		return base, baseName
+	end
+
+	-- Priority 2+: role-specific legacy fallback chain.
 	local templateNames = TEMPLATE_NAMES_BY_ROLE[role] or TEMPLATE_NAMES_BY_ROLE[TankRole.Player]
 
 	for _, templateName in ipairs(templateNames) do

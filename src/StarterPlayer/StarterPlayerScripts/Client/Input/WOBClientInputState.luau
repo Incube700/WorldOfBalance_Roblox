@@ -61,6 +61,10 @@ function WOBClientInputState.requestMobileShoot(aimWorldPoint)
 	mobileShootPending = true
 end
 
+function WOBClientInputState.enqueueMobileShootRequest(aimWorldPoint)
+	WOBClientInputState.requestMobileShoot(aimWorldPoint)
+end
+
 function WOBClientInputState.consumeMobileShootRequest()
 	if not mobileShootPending then
 		return false, nil

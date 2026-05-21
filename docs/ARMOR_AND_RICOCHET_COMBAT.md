@@ -69,6 +69,10 @@ Initial zones:
 
 Corner detection uses the hit position in stable hull local space and upgrades the zone when the hit is near both width and length edges.
 
+Armor zone parts are visible gameplay readability surfaces by default. `FrontArmor` should read as the strongest armor, side zones should read as weaker, and `RearArmor` should read as the vulnerable rear. They are also query parts for projectile raycasts, so they must stay welded to the stable body/hull with `CanQuery=true`, `CanCollide=false`, `CanTouch=false`, and `Massless=true`.
+
+Visual tuning lives in `TankArmorConfig.Visuals`. If armor zones are invisible during a playtest, check `TankArmorConfig.Visuals.ArmorZonesVisible`.
+
 ## Projectile Outcomes
 
 `Penetration`:

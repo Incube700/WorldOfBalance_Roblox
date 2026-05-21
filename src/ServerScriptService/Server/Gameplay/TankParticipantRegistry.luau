@@ -247,7 +247,10 @@ function TankParticipantRegistry.setParticipantModelVisible(participant, isVisib
 			if participant.IsActive then
 				if config.armorHitboxNames[descendant.Name] == true then
 					descendant.CanQuery = true
-					descendant.Transparency = config.ARMOR_HITBOXES_VISIBLE and config.ARMOR_HITBOX_TRANSPARENCY or 1
+					local transparencyByName = config.armorHitboxTransparencyByName or {}
+					descendant.Transparency = config.ARMOR_HITBOXES_VISIBLE
+						and (transparencyByName[descendant.Name] or config.ARMOR_HITBOX_TRANSPARENCY)
+						or 1
 				else
 					descendant.CanQuery = false
 					descendant.Transparency = 0

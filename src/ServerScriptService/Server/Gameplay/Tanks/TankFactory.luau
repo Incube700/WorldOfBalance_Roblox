@@ -5,6 +5,7 @@ local PlayerTankSpawner = require(script.Parent.Parent:WaitForChild("PlayerTankS
 local TankParticipantRegistry = require(script.Parent.Parent:WaitForChild("TankParticipantRegistry"))
 local TankCustomizationService = require(script.Parent:WaitForChild("TankCustomizationService"))
 local TankArmorPartsService = require(script.Parent:WaitForChild("TankArmorPartsService"))
+local TankSkinApplier = require(script.Parent:WaitForChild("TankSkinApplier"))
 local TankRole = require(script.Parent:WaitForChild("TankRole"))
 local TankSpawnRequest = require(script.Parent:WaitForChild("TankSpawnRequest"))
 local TankStatsProvider = require(script.Parent:WaitForChild("TankStatsProvider"))
@@ -27,6 +28,24 @@ local function getRoleDefaults(role)
 	end
 
 	return false, true, "Player"
+end
+
+-- Throttled spawn log: at most one log per (role, templateName) per window.
+local _spawnLogLastTime = {}
+local SPAWN_LOG_THROTTLE_SEC = 10
+
+local function throttledSpawnLog(role, templateName, tankName)
+	local key = tostring(role) .. ":" .. tostring(templateName)
+	local now = os.clock()
+
+	if _spawnLogLastTime[key] == nil or (now - _spawnLogLastTime[key]) >= SPAWN_LOG_THROTTLE_SEC then
+		_spawnLogLastTime[key] = now
+		print(("[TANK FACTORY] spawn role=%s template=%s name=%s"):format(
+			tostring(role),
+			tostring(templateName),
+			tostring(tankName)
+		))
+	end
 end
 
 local function setModelAttribute(model, attributeName, value)
@@ -159,9 +178,13 @@ function TankFactory:_getRequestModel(request)
 	end
 
 	local templateModel = request.TemplateModel
+	local templateName = nil
 
 	if templateModel == nil and self.TemplateProvider ~= nil then
-		templateModel = self.TemplateProvider:GetTemplateForRole(request.Role)
+		-- GetTemplateForRole returns (model, name) — capture both.
+		templateModel, templateName = self.TemplateProvider:GetTemplateForRole(request.Role)
+	elseif templateModel ~= nil then
+		templateName = templateModel.Name
 	end
 
 	if templateModel == nil or not templateModel:IsA("Model") then
@@ -172,7 +195,7 @@ function TankFactory:_getRequestModel(request)
 	clone.Name = request.TankId or request.Name or templateModel.Name
 	clone.Parent = parent or templateModel.Parent
 
-	return clone, true, templateModel
+	return clone, true, templateModel, templateName
 end
 
 function TankFactory:_applyRegisteredStats(participant, stats)
@@ -202,7 +225,7 @@ function TankFactory:SpawnTank(request)
 	end
 
 	local role = request.Role
-	local model, created, templateModel = self:_getRequestModel(request)
+	local model, created, templateModel, templateName = self:_getRequestModel(request)
 
 	if model == nil or not model:IsA("Model") then
 		error("[TANK FACTORY] SpawnTank failed: missing model for role=" .. tostring(role), 2)
@@ -219,6 +242,7 @@ function TankFactory:SpawnTank(request)
 	self.PlayerTankSpawner.ensurePhysicalTankModel(model)
 	self.TankCustomizationService.applySkin(model, loadout.SkinId)
 	TankArmorPartsService.Configure(model)
+	TankSkinApplier.Apply(model, loadout)
 
 	local tankParts = self.PlayerTankSpawner.getTankParts(model)
 	local stats = self.TankStatsProvider:GetStats(statsProfileId, request, model)
@@ -260,6 +284,20 @@ function TankFactory:SpawnTank(request)
 	}
 
 	applyFactoryAttributes(model, participant, request, loadout, statsProfileId)
+
+	-- TemplateSource attributes — visible in Studio Properties panel on the runtime tank model.
+	-- TemplateSourceName: name of the template that was cloned ("BaseTankTemplate", "PlayerTankPrototype", etc.)
+	--                     or "reused" when an existing model was returned without cloning.
+	-- TemplateSourcePath: full Roblox path of the source template at the time of spawn.
+	if created and templateModel ~= nil then
+		local sourceName = templateName or templateModel.Name
+		setModelAttribute(model, "TemplateSourceName", sourceName)
+		setModelAttribute(model, "TemplateSourcePath", templateModel:GetFullName())
+		throttledSpawnLog(role, sourceName, model.Name)
+	else
+		setModelAttribute(model, "TemplateSourceName", "reused")
+		setModelAttribute(model, "TemplateSourcePath", model:GetFullName())
+	end
 
 	local registeredParticipant = self.TankParticipantRegistry.registerTankParticipant(participant)
 	self:_applyRegisteredStats(registeredParticipant, stats)

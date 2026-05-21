@@ -124,6 +124,16 @@ Client overlays/trails are visual only:
 - no armor authority;
 - no hit result authority.
 
+Future Shell Research / Ricochet Research can extend this layer without changing projectile damage:
+
+- clearer or longer aim laser;
+- aim laser preview for 1 wall ricochet;
+- aim laser preview for 2 wall ricochets;
+- impact point marker after ricochet;
+- armor interaction hint for likely `Penetration`, `NoPen`, or `Ricochet`.
+
+BattleArena and future Extraction may use this as progression. Normalized Duel should either disable these helpers, equalize them for both players, or reserve them for a future casual/unranked mode.
+
 ## Tunneling Contract
 
 Server projectile simulation must use swept collision:
@@ -143,3 +153,4 @@ The projectile may render as a small ball, but hit detection must use the whole 
 - Keep wall ricochet separate from tank armor ricochet.
 - Do not make VFX/audio configs own damage or penetration numbers.
 - Do not change Duel balance through permanent upgrades by default.
+- Prefer readability progression over permanent Duel power progression.

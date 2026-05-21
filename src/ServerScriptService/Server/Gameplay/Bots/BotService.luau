@@ -157,6 +157,13 @@ local function makeController(participant)
 
 			return {}
 		end,
+		GetControlZonePosition = function()
+			if arenaCombatService ~= nil and arenaCombatService.GetControlZonePosition ~= nil then
+				return arenaCombatService.GetControlZonePosition()
+			end
+
+			return nil
+		end,
 	})
 end
 

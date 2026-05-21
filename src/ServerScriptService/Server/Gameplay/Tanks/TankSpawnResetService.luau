@@ -5,33 +5,18 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local TankConfig = require(configs:WaitForChild("TankConfig"))
-local WeaponConfig = require(configs:WaitForChild("WeaponConfig"))
 
 local TankParticipantRegistry = require(script.Parent.Parent:WaitForChild("TankParticipantRegistry"))
+local TankArmorPartsService = require(script.Parent:WaitForChild("TankArmorPartsService"))
 local TankRole = require(script.Parent:WaitForChild("TankRole"))
-
-local primaryWeaponConfig = WeaponConfig.PrimaryWeapon
 
 local PLAYER_INITIAL_POSITION = TankConfig.PlayerInitialState.Position
 local DUMMY_INITIAL_POSITION = TankConfig.DummyInitialState.Position
 local PLAYER2_INITIAL_POSITION = DUMMY_INITIAL_POSITION
 local DEFAULT_LOBBY_SPAWN_Y = 46.35
 
-local TANK_ARMOR = TankConfig.Armor
-local ARMOR_HITBOX_PADDING = TANK_ARMOR.ArmorHitboxPadding or 0.75
-local ARMOR_HITBOX_THICKNESS = TANK_ARMOR.ArmorHitboxThickness or 1.2
-local ARMOR_HITBOX_HEIGHT = TANK_ARMOR.ArmorHitboxHeight or 5.4
-local ARMOR_HITBOX_Y_OFFSET = TANK_ARMOR.ArmorHitboxYOffset or 1.4
-local ARMOR_HITBOXES_VISIBLE = TANK_ARMOR.ArmorHitboxesVisible == true
-local ARMOR_HITBOX_TRANSPARENCY = TANK_ARMOR.ArmorHitboxTransparency or 0.4
-local ARMOR_HITBOX_MATERIAL = TANK_ARMOR.ArmorHitboxMaterial or Enum.Material.SmoothPlastic
-local FRONT_ARMOR_COLOR = TANK_ARMOR.FrontArmorColor or Color3.fromRGB(80, 255, 120)
-local REAR_ARMOR_COLOR = TANK_ARMOR.RearArmorColor or Color3.fromRGB(255, 90, 90)
-local SIDE_ARMOR_COLOR = TANK_ARMOR.SideArmorColor or Color3.fromRGB(255, 220, 80)
-
 local map = nil
 local tankColors = {}
-local resolvedArmorHitboxMaterial = nil
 local missingLayoutWarningByModel = {}
 local DEBUG_SPAWN = false
 
@@ -204,55 +189,6 @@ function TankSpawnResetService.getAllSpawnTransforms()
 	}
 end
 
-local function getArmorHitboxMaterial()
-	if resolvedArmorHitboxMaterial ~= nil then
-		return resolvedArmorHitboxMaterial
-	end
-
-	if typeof(ARMOR_HITBOX_MATERIAL) == "EnumItem"
-		and ARMOR_HITBOX_MATERIAL.EnumType == Enum.Material
-	then
-		resolvedArmorHitboxMaterial = ARMOR_HITBOX_MATERIAL
-		return resolvedArmorHitboxMaterial
-	end
-
-	if typeof(ARMOR_HITBOX_MATERIAL) == "string" then
-		local success, material = pcall(function()
-			return Enum.Material[ARMOR_HITBOX_MATERIAL]
-		end)
-
-		if success and material ~= nil then
-			resolvedArmorHitboxMaterial = material
-			return resolvedArmorHitboxMaterial
-		end
-
-		warn(
-			"[ARMOR] Unknown ArmorHitboxMaterial "
-				.. tostring(ARMOR_HITBOX_MATERIAL)
-				.. "; using SmoothPlastic"
-		)
-	end
-
-	resolvedArmorHitboxMaterial = Enum.Material.SmoothPlastic
-	return resolvedArmorHitboxMaterial
-end
-
-local function configureArmorHitbox(part, size, color)
-	if part == nil or not part:IsA("BasePart") then
-		return
-	end
-
-	part.Size = size
-	part.Anchored = true
-	part.CanCollide = false
-	part.CanTouch = false
-	part.CanQuery = true
-	part.CastShadow = false
-	part.Transparency = ARMOR_HITBOXES_VISIBLE and ARMOR_HITBOX_TRANSPARENCY or 1
-	part.Color = color
-	part.Material = getArmorHitboxMaterial()
-end
-
 local function findBasePart(model, partName)
 	local directChild = model:FindFirstChild(partName)
 
@@ -285,6 +221,22 @@ local function findTankFolder(model, folderName)
 	return nil
 end
 
+-- Returns the armor hitbox folder used for projectile collision.
+-- Prefers "ArmorZones" (BaseTankTemplate) over legacy "Hitboxes".
+local function findArmorHitboxFolder(model)
+	if model == nil then
+		return nil
+	end
+
+	local armorZones = findTankFolder(model, "ArmorZones")
+
+	if armorZones ~= nil then
+		return armorZones
+	end
+
+	return findTankFolder(model, "Hitboxes")
+end
+
 local function assignPrimaryPart(model)
 	local primaryPart = findBasePart(model, "Body") or findBasePart(model, "Hull")
 
@@ -309,7 +261,6 @@ function TankSpawnResetService.layoutTank(tank, position, bodyYaw, turretYaw)
 	local tankTurret = findBasePart(tank, "Turret")
 	local tankBarrel = findBasePart(tank, "Barrel")
 	local tankShootPoint = findBasePart(tank, "ShootPoint")
-	local tankHitboxes = findTankFolder(tank, "Hitboxes")
 
 	if tankBody == nil or tankTurret == nil or tankBarrel == nil or tankShootPoint == nil then
 		if missingLayoutWarningByModel[tank] ~= true then
@@ -328,48 +279,7 @@ function TankSpawnResetService.layoutTank(tank, position, bodyYaw, turretYaw)
 	tankTurret.CFrame = turretCFrame
 	tankBarrel.CFrame = turretCFrame * CFrame.new(0, 0, -5.8)
 	tankShootPoint.CFrame = turretCFrame * CFrame.new(0, 0, -10)
-
-	if tankHitboxes ~= nil then
-		local frontArmor = tankHitboxes:FindFirstChild("FrontArmor")
-		local rearArmor = tankHitboxes:FindFirstChild("RearArmor")
-		local leftArmor = tankHitboxes:FindFirstChild("LeftArmor")
-		local rightArmor = tankHitboxes:FindFirstChild("RightArmor")
-		local frontRearSize = Vector3.new(
-			tankBody.Size.X + ARMOR_HITBOX_PADDING * 2,
-			ARMOR_HITBOX_HEIGHT,
-			ARMOR_HITBOX_THICKNESS
-		)
-		local sideSize = Vector3.new(
-			ARMOR_HITBOX_THICKNESS,
-			ARMOR_HITBOX_HEIGHT,
-			tankBody.Size.Z + ARMOR_HITBOX_PADDING * 2
-		)
-		local frontZ = -(tankBody.Size.Z * 0.5 + ARMOR_HITBOX_THICKNESS * 0.5)
-		local rearZ = tankBody.Size.Z * 0.5 + ARMOR_HITBOX_THICKNESS * 0.5
-		local leftX = -(tankBody.Size.X * 0.5 + ARMOR_HITBOX_THICKNESS * 0.5)
-		local rightX = tankBody.Size.X * 0.5 + ARMOR_HITBOX_THICKNESS * 0.5
-		local hitboxYOffset = ARMOR_HITBOX_Y_OFFSET
-
-		if frontArmor ~= nil then
-			configureArmorHitbox(frontArmor, frontRearSize, FRONT_ARMOR_COLOR)
-			frontArmor.CFrame = bodyCFrame * CFrame.new(0, hitboxYOffset, frontZ)
-		end
-
-		if rearArmor ~= nil then
-			configureArmorHitbox(rearArmor, frontRearSize, REAR_ARMOR_COLOR)
-			rearArmor.CFrame = bodyCFrame * CFrame.new(0, hitboxYOffset, rearZ)
-		end
-
-		if leftArmor ~= nil then
-			configureArmorHitbox(leftArmor, sideSize, SIDE_ARMOR_COLOR)
-			leftArmor.CFrame = bodyCFrame * CFrame.new(leftX, hitboxYOffset, 0)
-		end
-
-		if rightArmor ~= nil then
-			configureArmorHitbox(rightArmor, sideSize, SIDE_ARMOR_COLOR)
-			rightArmor.CFrame = bodyCFrame * CFrame.new(rightX, hitboxYOffset, 0)
-		end
-	end
+	TankArmorPartsService.Configure(tank)
 end
 
 function TankSpawnResetService.captureTankColors(participantId, model)
@@ -418,7 +328,7 @@ function TankSpawnResetService.applySpawnToParticipant(participant, spawnState)
 	participant.Turret = findBasePart(participant.Model, "Turret")
 	participant.Barrel = findBasePart(participant.Model, "Barrel")
 	participant.ShootPoint = findBasePart(participant.Model, "ShootPoint")
-	participant.Hitboxes = findTankFolder(participant.Model, "Hitboxes")
+	participant.Hitboxes = findArmorHitboxFolder(participant.Model)
 
 	if participant.ControlState == nil then
 		participant.ControlState = {}
@@ -464,12 +374,14 @@ function TankSpawnResetService.configureActiveParticipants(matchMode, player2Has
 	for _, participant in ipairs(TankParticipantRegistry.getParticipants()) do
 		if participant.IsPlayerTank == true then
 			local isDuelOpponent = participant.Role == TankRole.DuelOpponent
-			local isVisible = not isDuelOpponent
-
+			-- DuelOpponent slots are visible only in PvP with a second player present.
+			-- All other player-role tanks (including Startup_Player) are visible only
+			-- when they have an assigned owner. Unowned startup tanks stay hidden.
+			local isVisible
 			if isDuelOpponent then
 				isVisible = matchMode == "PvP" and player2HasOwner
-			elseif participant.OwnerPlayer ~= nil then
-				isVisible = true
+			else
+				isVisible = participant.OwnerPlayer ~= nil
 			end
 
 			TankParticipantRegistry.setParticipantModelVisible(participant, isVisible)

@@ -8,6 +8,7 @@ This document records direction only. Do not implement bots, upgrades, third-per
 - The main hook is ricochet skill: armor angle, hull positioning, wall reads, and trajectory prediction.
 - Players should come back for short duels, funny self-hits, wall shots, and clear skill moments.
 - Duel should stay a clean top-down mode with strong projectile readability.
+- Visible armor zones are part of the game language, not debug-only visuals.
 
 ## Core Combat
 
@@ -19,6 +20,21 @@ This document records direction only. Do not implement bots, upgrades, third-per
 - Sharp angle hits ricochet.
 - Corners strongly ricochet.
 - Hull angle is skill expression.
+- Armor visuals must preserve meaning: front is strong, side is medium, rear is weak.
+
+## Ricochet Readability Progression
+
+Shell Research / Ricochet Research is a preferred progression family because it improves mastery instead of replacing skill with stats.
+
+Future levels:
+
+- Level 1: clearer or longer aim laser.
+- Level 2: aim laser previews 1 wall ricochet.
+- Level 3: aim laser previews 2 wall ricochets.
+- Level 4: impact point marker after ricochet.
+- Level 5: armor interaction hint with likely `Penetration`, `NoPen`, or `Ricochet` feedback.
+
+These upgrades are appropriate for BattleArena and future Extraction. In normalized Duel, they should be disabled, equalized for both players, or reserved for a future casual/unranked ruleset.
 
 ## Competitive Balance
 
@@ -26,6 +42,7 @@ This document records direction only. Do not implement bots, upgrades, third-per
 - Permanent stat upgrades should not affect Duel by default.
 - Bolts and Crystals should mostly unlock cosmetics, sidegrades, arena/extraction run content, and long-term collection goals.
 - Arena and Extraction can allow progression because they are not pure competitive Duel.
+- Permanent `+Damage` or `+HP` should not be the core Duel progression path. Readability, cosmetics, and sidegrades are healthier long-term rewards.
 
 ## Multiplayer Direction
 
@@ -51,6 +68,8 @@ This document records direction only. Do not implement bots, upgrades, third-per
 - Lobby can later become third-person / Roblox-style.
 - BattleArena can later become third-person or a more open combat arena.
 - Extraction can later be third-person.
+- Future camera ownership should be explicit through `CameraModeService` and `CameraModeConfig`.
+- Mapping target: `Duel -> TopDown`, `Training -> TopDown`, `Lobby -> ThirdPerson later`, `BattleArena -> TopDown now / ThirdPerson later`, `Extraction -> ThirdPerson later`.
 
 ## Future Modes
 

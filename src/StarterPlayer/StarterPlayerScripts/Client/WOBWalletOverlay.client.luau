@@ -13,7 +13,6 @@ local CRYSTALS_ATTRIBUTE = "Crystals"
 local PERSISTENT_CRYSTALS_ATTRIBUTE = "PersistentCrystals"
 local UNSAVED_CRYSTALS_ATTRIBUTE = "UnsavedCrystals"
 local LAST_CRYSTALS_REWARD_AMOUNT_ATTRIBUTE = "LastCrystalsRewardAmount"
-local LAST_CRYSTALS_REWARD_REASON_ATTRIBUTE = "LastCrystalsRewardReason"
 local LAST_CRYSTALS_REWARD_SEQUENCE_ATTRIBUTE = "LastCrystalsRewardSequence"
 
 local gui = Instance.new("ScreenGui")

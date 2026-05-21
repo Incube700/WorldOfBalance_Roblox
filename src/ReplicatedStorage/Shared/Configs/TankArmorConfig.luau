@@ -37,6 +37,19 @@ local TankArmorConfig = table.freeze({
 	Projectile = table.freeze({
 		DefaultPenetrationPower = 70,
 	}),
+
+	Visuals = table.freeze({
+		ArmorZonesVisible = true,
+		Material = "SmoothPlastic",
+		FrontColor = Color3.fromRGB(70, 235, 190),
+		SideColor = Color3.fromRGB(255, 205, 70),
+		RearColor = Color3.fromRGB(255, 85, 85),
+		CornerColor = Color3.fromRGB(135, 210, 255),
+		FrontTransparency = 0.35,
+		SideTransparency = 0.45,
+		RearTransparency = 0.45,
+		CornerTransparency = 0.45,
+	}),
 })
 
 return TankArmorConfig

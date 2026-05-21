@@ -4,6 +4,7 @@ local DebugCombatConfig = table.freeze({
 	ArmorDebugThrottleSeconds = 0.25,
 	ProjectileDebug = false,
 	ProjectileRaycastDebug = false,
+	DamageLog = false,
 })
 
 return DebugCombatConfig

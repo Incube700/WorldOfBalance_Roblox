@@ -41,22 +41,26 @@ local HITBOX_SPECS = {
 	FrontArmor = {
 		Size = Vector3.new(8.7, 5.4, 0.25),
 		Offset = CFrame.new(0, 3.4, -5.7),
-		Color = Color3.fromRGB(80, 255, 120),
+		Color = Color3.fromRGB(70, 235, 190),
+		Transparency = 0.35,
 	},
 	RearArmor = {
 		Size = Vector3.new(8.7, 5.4, 0.25),
 		Offset = CFrame.new(0, 3.4, 5.7),
-		Color = Color3.fromRGB(255, 90, 90),
+		Color = Color3.fromRGB(255, 85, 85),
+		Transparency = 0.45,
 	},
 	LeftArmor = {
 		Size = Vector3.new(0.25, 5.4, 11.7),
 		Offset = CFrame.new(-4.2, 3.4, 0),
-		Color = Color3.fromRGB(255, 220, 80),
+		Color = Color3.fromRGB(255, 205, 70),
+		Transparency = 0.45,
 	},
 	RightArmor = {
 		Size = Vector3.new(0.25, 5.4, 11.7),
 		Offset = CFrame.new(4.2, 3.4, 0),
-		Color = Color3.fromRGB(255, 220, 80),
+		Color = Color3.fromRGB(255, 205, 70),
+		Transparency = 0.45,
 	},
 }
 
@@ -142,14 +146,15 @@ end
 local function configureHitboxPart(part, spec, pivot)
 	part.Size = spec.Size
 	part.CFrame = pivot * spec.Offset
-	part.Anchored = true
+	part.Anchored = false
+	part.Massless = true
 	part.CanCollide = false
 	part.CanTouch = false
 	part.CanQuery = true
 	part.CastShadow = false
 	part.Material = Enum.Material.SmoothPlastic
 	part.Color = spec.Color
-	part.Transparency = 1
+	part.Transparency = spec.Transparency or 0.45
 end
 
 local function ensurePart(model, partName)
@@ -170,38 +175,61 @@ local function ensurePart(model, partName)
 	return part, true
 end
 
-local function ensureHitboxes(model)
+-- Returns the hitbox folder for the model.
+-- Prefers "ArmorZones" (BaseTankTemplate contract) over "Hitboxes" (legacy).
+-- Deep-searches in case the folder is nested inside a sub-model.
+local function findHitboxFolder(model)
+	if model == nil then
+		return nil
+	end
+
+	local armorZones = model:FindFirstChild("ArmorZones")
+	if armorZones ~= nil and armorZones:IsA("Folder") then
+		return armorZones
+	end
+
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant.Name == "ArmorZones" and descendant:IsA("Folder") then
+			return descendant
+		end
+	end
+
 	local hitboxes = model:FindFirstChild("Hitboxes")
-
-	if hitboxes ~= nil and not hitboxes:IsA("Folder") then
-		warn("[TANK] " .. hitboxes:GetFullName() .. " is " .. hitboxes.ClassName .. ", expected Folder")
-		hitboxes = nil
+	if hitboxes ~= nil and hitboxes:IsA("Folder") then
+		return hitboxes
 	end
 
-	if hitboxes == nil then
-		hitboxes = Instance.new("Folder")
-		hitboxes.Name = "Hitboxes"
-		hitboxes.Parent = model
-		warn("[TANK] created missing " .. model:GetFullName() .. ".Hitboxes")
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant.Name == "Hitboxes" and descendant:IsA("Folder") then
+			return descendant
+		end
 	end
+
+	return nil
+end
+
+local function ensureHitboxes(model)
+	-- If the model already has an ArmorZones folder (BaseTankTemplate contract),
+	-- skip creating a Hitboxes folder. ArmorZones is the authoritative hitbox source
+	-- and its parts are welded to Body by TankArmorPartsService.
+	local existingHitboxFolder = findHitboxFolder(model)
+	if existingHitboxFolder ~= nil then
+		return existingHitboxFolder
+	end
+
+	local hitboxes = Instance.new("Folder")
+	hitboxes.Name = "Hitboxes"
+	hitboxes.Parent = model
+	warn("[TANK] created missing " .. model:GetFullName() .. ".Hitboxes")
 
 	local pivot = getModelPivot(model)
 
 	for _, hitboxName in ipairs(ARMOR_HITBOX_NAMES) do
-		local hitbox = hitboxes:FindFirstChild(hitboxName)
-
-		if hitbox ~= nil and not hitbox:IsA("BasePart") then
-			warn("[TANK] " .. hitbox:GetFullName() .. " is " .. hitbox.ClassName .. ", expected BasePart")
-			hitbox = nil
-		end
-
-		if hitbox == nil then
-			hitbox = Instance.new("Part")
-			hitbox.Name = hitboxName
-			hitbox.Parent = hitboxes
-			configureHitboxPart(hitbox, HITBOX_SPECS[hitboxName], pivot)
-			warn("[TANK] created missing " .. model:GetFullName() .. ".Hitboxes." .. hitboxName)
-		end
+		local hitbox = Instance.new("Part")
+		hitbox.Name = hitboxName
+		hitbox.Parent = hitboxes
+		configureHitboxPart(hitbox, HITBOX_SPECS[hitboxName], pivot)
+		warn("[TANK] created missing " .. model:GetFullName() .. ".Hitboxes." .. hitboxName)
 	end
 
 	return hitboxes
@@ -218,6 +246,7 @@ function PlayerTankSpawner.ensurePrimaryPart(model)
 end
 
 function PlayerTankSpawner.getTankParts(model)
+	-- findHitboxFolder prefers "ArmorZones" (BaseTankTemplate) over legacy "Hitboxes".
 	local parts = {
 		Model = model,
 		Body = findBasePart(model, "Body"),
@@ -225,14 +254,10 @@ function PlayerTankSpawner.getTankParts(model)
 		Turret = findBasePart(model, "Turret"),
 		Barrel = findBasePart(model, "Barrel"),
 		ShootPoint = findBasePart(model, "ShootPoint"),
-		Hitboxes = model:FindFirstChild("Hitboxes"),
+		Hitboxes = findHitboxFolder(model),
 		BasePartCount = countBaseParts(model),
 		PrimaryPart = PlayerTankSpawner.ensurePrimaryPart(model),
 	}
-
-	if parts.Hitboxes ~= nil and not parts.Hitboxes:IsA("Folder") then
-		parts.Hitboxes = nil
-	end
 
 	return parts
 end
