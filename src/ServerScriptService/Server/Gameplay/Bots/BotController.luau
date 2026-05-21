@@ -108,6 +108,7 @@ function BotController.new(options)
 		TankSpawnResetService = options.TankSpawnResetService,
 		ProjectileService = options.ProjectileService,
 		GetArenaParticipants = options.GetArenaParticipants,
+		GetControlZonePosition = options.GetControlZonePosition,
 		Random = Random.new(options.Seed or math.floor(os.clock() * 1000000)),
 		BrainState = {},
 		ThinkElapsed = 0,
@@ -148,6 +149,10 @@ function BotController:_refreshDecision(deltaTime)
 	local botPosition = state ~= nil and state.Position or BotTargeting.GetParticipantPosition(self.TankParticipantRegistry, participant)
 	local target = self:_getTarget()
 	local targetPosition = BotTargeting.GetParticipantPosition(self.TankParticipantRegistry, target)
+
+	if target == nil and self.GetControlZonePosition ~= nil then
+		targetPosition = self.GetControlZonePosition()
+	end
 
 	self.Decision = BotBrain.Decide({
 		BrainConfig = brainConfig,

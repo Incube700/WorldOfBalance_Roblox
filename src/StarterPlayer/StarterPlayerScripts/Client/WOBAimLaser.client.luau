@@ -229,22 +229,6 @@ local function refreshMuzzleParts()
 	end
 end
 
-local function waitForMuzzlePart(timeoutSeconds)
-	local startedAt = os.clock()
-
-	while os.clock() - startedAt < timeoutSeconds do
-		refreshMuzzleParts()
-
-		if shootPoint ~= nil or barrel ~= nil then
-			return true
-		end
-
-		task.wait(0.1)
-	end
-
-	return false
-end
-
 local function getMuzzlePart()
 	refreshMuzzleParts()
 

@@ -65,7 +65,7 @@ function BotBrain.Decide(params)
 		return nil
 	end
 
-	if targetParticipant == nil or typeof(targetPosition) ~= "Vector3" then
+	if typeof(targetPosition) ~= "Vector3" then
 		return makeIdleDecision(botPosition, bodyYaw, brainState, brainConfig, rng, now)
 	end
 
@@ -105,7 +105,8 @@ function BotBrain.Decide(params)
 		throttle = moveThrottle * 0.5
 	end
 
-	local wantsShoot = rng:NextNumber() <= (tonumber(brainConfig.FireChance) or 0.55)
+	local wantsShoot = targetParticipant ~= nil
+		and rng:NextNumber() <= (tonumber(brainConfig.FireChance) or 0.55)
 
 	return {
 		TargetParticipant = targetParticipant,

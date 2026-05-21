@@ -494,7 +494,7 @@ local function applyMobileSeriesLayout(matchEnded)
 		220,
 		math.max(220, viewportSize.X - 24)
 	)
-	local panelHeight = matchEnded and 72 or math.max(48, typeof(configuredSize) == "UDim2" and configuredSize.Y.Offset or 56)
+	local panelHeight = matchEnded and 66 or math.max(42, typeof(configuredSize) == "UDim2" and configuredSize.Y.Offset or 46)
 	local anchorPoint = typeof(panelConfig.AnchorPoint) == "Vector2" and panelConfig.AnchorPoint or Vector2.new(0.5, 0)
 	local position = typeof(panelConfig.Position) == "UDim2" and panelConfig.Position or UDim2.new(0.5, 0, 0, 44)
 	local textSize = math.max(10, tonumber(panelConfig.TextSize) or 12)
@@ -519,9 +519,9 @@ local function applyMobileSeriesLayout(matchEnded)
 	corner.CornerRadius = UDim.new(0, tonumber(panelConfig.CornerRadius) or 6)
 
 	setLabelLayout(roundUi.RoundLabel, UDim2.new(0, 10, 0, 4), UDim2.new(1, -20, 0, 16), textSize, false)
-	setLabelLayout(roundUi.ScoreLabel, UDim2.new(0, 10, 0, 20), UDim2.new(1, -20, 0, 17), textSize + 1, false)
-	setLabelLayout(roundUi.TargetWinsLabel, UDim2.new(0, 10, 0, 38), UDim2.new(1, -20, 0, 14), textSize, false)
-	setLabelLayout(roundUi.MatchResultLabel, UDim2.new(0, 10, 0, 52), UDim2.new(1, -20, 0, 18), 15, false)
+	setLabelLayout(roundUi.ScoreLabel, UDim2.new(0, 10, 0, 22), UDim2.new(1, -20, 0, 18), textSize + 1, false)
+	setLabelLayout(roundUi.TargetWinsLabel, UDim2.new(0, 10, 0, 40), UDim2.new(1, -20, 0, 1), textSize, false)
+	setLabelLayout(roundUi.MatchResultLabel, UDim2.new(0, 10, 0, 44), UDim2.new(1, -20, 0, 18), 14, false)
 	setLabelAlignment(roundUi.RoundLabel, Enum.TextXAlignment.Center, Enum.TextYAlignment.Center)
 	setLabelAlignment(roundUi.ScoreLabel, Enum.TextXAlignment.Center, Enum.TextYAlignment.Center)
 	setLabelAlignment(roundUi.TargetWinsLabel, Enum.TextXAlignment.Center, Enum.TextYAlignment.Center)
@@ -857,8 +857,8 @@ local function updateSeriesStatus()
 
 	if mobileLayout then
 		roundUi.RoundLabel.Text = "Round " .. roundNumber
-		roundUi.ScoreLabel.Text = "You " .. youWins .. " : " .. opponentWins .. " Opp"
-		roundUi.TargetWinsLabel.Text = "First to " .. targetWins
+		roundUi.ScoreLabel.Text = "You " .. youWins .. " : " .. opponentWins .. " Opp | First " .. targetWins
+		roundUi.TargetWinsLabel.Text = ""
 	else
 		roundUi.RoundLabel.Text = "Round: " .. roundNumber
 		roundUi.ScoreLabel.Text = "Score: You " .. youWins .. " / Opponent " .. opponentWins
@@ -867,7 +867,7 @@ local function updateSeriesStatus()
 
 	roundUi.RoundLabel.Visible = true
 	roundUi.ScoreLabel.Visible = true
-	roundUi.TargetWinsLabel.Visible = true
+	roundUi.TargetWinsLabel.Visible = not mobileLayout
 
 	if matchEnded then
 		if localMatchResult == "Win" then

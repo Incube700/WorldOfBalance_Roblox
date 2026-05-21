@@ -15,10 +15,12 @@ Current cleanup pass rule: do not implement third-person camera yet.
 
 ## Future Controller
 
-Future camera ownership should move into a client controller:
+Future camera ownership should move into a client controller/service pair:
 
 ```text
 WOBTankCameraController
+CameraModeService
+CameraModeConfig
 ```
 
 Responsibilities:
@@ -28,6 +30,22 @@ Responsibilities:
 - Keep `BattleArena` top-down now.
 - Allow `BattleArena`, `OpenWorld`, and `OpenWorldExtraction` to opt into third-person later.
 - Keep camera behavior separate from combat, reload, health bars, mobile controls, and scene repair scripts.
+
+## Future Mode Mapping
+
+Target camera mapping:
+
+| Player mode | Current camera | Future camera |
+| --- | --- | --- |
+| Duel | Top-down | Top-down |
+| Training / Practice | Top-down | Top-down for now |
+| Lobby | Current top-down/free-drive view | Third-person / Roblox-style hub later |
+| BattleArena | Top-down | Top-down now, third-person/open arena later |
+| Extraction | Not implemented | Third-person later |
+
+`CameraModeConfig` should own the mapping. `CameraModeService` should read player mode state and tell `WOBTankCameraController` which camera behavior to run.
+
+Do not implement third-person camera as part of asset/cosmetic catalog work.
 
 ## Deferred Third-Person Work
 

@@ -831,6 +831,7 @@ function ProjectileService.createProjectile(ownerParticipant, origin, direction,
 	local ownerTankModel = TankParticipantRegistry.getParticipantPhysicalModel(ownerParticipant)
 	local noDamage = callbacks.isNoDamageProjectile ~= nil and callbacks.isNoDamageProjectile(ownerParticipant) == true
 	local noStats = noDamage
+	local ricochetBonus = math.max(0, math.floor(getArenaNumberModifier(ownerParticipant, "ArenaRicochetBonus", 0)))
 
 	if callbacks.shouldRecordShot ~= nil then
 		noStats = callbacks.shouldRecordShot(ownerParticipant) ~= true
@@ -865,7 +866,7 @@ function ProjectileService.createProjectile(ownerParticipant, origin, direction,
 		PenetrationPower = PROJECTILE_PENETRATION_POWER,
 		Penetration = PROJECTILE_LEGACY_PENETRATION,
 		BounceCount = 0,
-		MaxBounces = PROJECTILE_MAX_BOUNCES,
+		MaxBounces = PROJECTILE_MAX_BOUNCES + ricochetBonus,
 		BounceSpeedMultiplier = PROJECTILE_BOUNCE_SPEED_MULTIPLIER,
 		DamageMultiplierPerBounce = PROJECTILE_DAMAGE_MULTIPLIER,
 		MinSpeed = PROJECTILE_MIN_SPEED,

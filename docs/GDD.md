@@ -718,3 +718,36 @@ World of Balance should become a small, sharp Roblox arena game where a player i
 - A clever ricochet feels amazing.
 
 Everything else is secondary until this feeling works.
+
+## 29. Arena — Survival Roguelite Direction (Future Concept)
+
+Core idea:
+- Arena becomes a large open map stretched across the full available space.
+- Survival loop: the longer a tank survives, the stronger it becomes.
+- Upgrades accumulate while alive (same upgrade pool as ARENA_V2_DESIGN.md).
+- On death: upgrades reset. Score/kills/XP from the run may partially persist (TBD).
+- Enemies scale over time: bots appear and increase in difficulty the longer the player survives.
+- This creates a "king of the hill" dynamic — high-level tanks are powerful but targeted.
+
+Map direction:
+- Large arena, scattered cover blocks and walls (not a tight duel arena).
+- Points of interest: medkits, supply crates, control zones (already planned in ARENA_V2_DESIGN.md).
+- Possible minimap (low priority, nice to have).
+- Top-down camera stays.
+
+Progression feel:
+- Early game: weak tank, learning the map.
+- Mid game: upgraded tank, hunting others.
+- Late game: very strong but every player/bot targets you.
+- Death feels meaningful because upgrades are lost.
+
+Relation to Extraction (section 25 future modes):
+- This is a lighter version of Extraction — no loot banking, no leaving the map.
+- Pure survival + upgrade loop within the arena bounds.
+- May evolve into full Extraction later.
+
+Not doing now:
+- Do not implement until Duel Phase A and B are complete.
+- Do not add bots until BotBrain v0 exists.
+- Do not expand map until core combat feel is good.
+- Do not add minimap until the large map exists.

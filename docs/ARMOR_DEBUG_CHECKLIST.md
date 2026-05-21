@@ -7,8 +7,12 @@ Config:
 ```text
 src/ReplicatedStorage/Shared/Configs/DebugCombatConfig.luau
 ArmorDebug = false
+ArmorDebugVisuals = false
 ProjectileDebug = false
 ProjectileRaycastDebug = false
+
+src/ReplicatedStorage/Shared/Configs/TankArmorConfig.luau
+Visuals.ArmorZonesVisible = true
 ```
 
 When temporarily enabled in Studio, expected logs look like:
@@ -30,6 +34,8 @@ When temporarily enabled in Studio, expected logs look like:
 7. Self-hit after wall ricochet still works.
 8. Wall ricochet behavior is unchanged.
 9. No normal-mode output spam after `ArmorDebug=false`.
+10. Armor zones are visible in normal play and welded to `Body`/`Hull`.
+11. If armor zones are unexpectedly invisible, check `TankArmorConfig.Visuals.ArmorZonesVisible`.
 
 ## Projectile Tunneling Checklist
 
@@ -37,12 +43,13 @@ When temporarily enabled in Studio, expected logs look like:
 2. Shoot at the tank while driving fast and verify the shell does not obviously pass through.
 3. Confirm projectile simulation uses previous-position to next-position swept raycast.
 4. Confirm active armor hitboxes have `CanQuery=true`.
-5. Confirm owner ignore is limited to spawn/initial travel and self-hit becomes possible after ricochet.
-6. Confirm enemy tanks are included in projectile raycast targets.
-7. Confirm `ArmorHitResolver` logs appear when `ArmorDebug=true`.
-8. Confirm `NoPen` stops the shell.
-9. Confirm `Ricochet` continues the shell.
-10. Confirm `Penetration` applies damage and triggers damage flash.
+5. Confirm active armor hitboxes have `CanCollide=false`, `CanTouch=false`, and `Massless=true`.
+6. Confirm owner ignore is limited to spawn/initial travel and self-hit becomes possible after ricochet.
+7. Confirm enemy tanks are included in projectile raycast targets.
+8. Confirm `ArmorHitResolver` logs appear when `ArmorDebug=true`.
+9. Confirm `NoPen` stops the shell.
+10. Confirm `Ricochet` continues the shell.
+11. Confirm `Penetration` applies damage and triggers damage flash.
 
 ## Safety
 

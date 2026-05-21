@@ -39,10 +39,16 @@ Stage 2:
 - Bot v0.1 requests `Role = ArenaBot` with `BotDefault`. Complete for BattleArena filler bots.
 - Bots are participants, not special-case scene objects.
 
-Stage 3:
+Stage 3: **Editable BaseTankTemplate workflow — complete.**
 
-- Replace duplicated prototype sources with `BaseTankTemplate`.
-- Keep old prototypes archived/backed up until Studio scene and Rojo source-of-truth are reviewed.
+- `TankTemplateProvider` now checks for `BaseTankTemplate` (priority 1) before role-specific legacy fallbacks.
+- `BaseTankTemplateName = "BaseTankTemplate"` is defined in `TankFactoryConfig`.
+- `TankArmorPartsService` supports both `ArmorZones` folder (new contract) and `Hitboxes` folder (legacy).
+- `TankSkinApplier` module created: applies visual skin to the `Visuals` folder without touching armor or stats.
+- `TankFactory` calls `TankSkinApplier.Apply` after clone.
+- `docs/BASE_TANK_TEMPLATE_WORKFLOW.md` documents the structure, rules, and manual Studio workflow.
+- `docs/patches/CREATE_BASE_TANK_TEMPLATE_PREVIEW_COMMAND.lua` provides a disabled-by-default Studio command to create the template from `PlayerTankPrototype`.
+- Legacy prototypes (`PlayerTankPrototype` / `Player2TankPrototype` / `DummyTank`) remain as fallback sources and are not deleted.
 
 Stage 4:
 

@@ -41,22 +41,26 @@ local HITBOX_SPECS = {
 	FrontArmor = {
 		Size = Vector3.new(8.7, 5.4, 0.25),
 		Offset = CFrame.new(0, 3.4, -5.7),
-		Color = Color3.fromRGB(80, 255, 120),
+		Color = Color3.fromRGB(70, 235, 190),
+		Transparency = 0.35,
 	},
 	RearArmor = {
 		Size = Vector3.new(8.7, 5.4, 0.25),
 		Offset = CFrame.new(0, 3.4, 5.7),
-		Color = Color3.fromRGB(255, 90, 90),
+		Color = Color3.fromRGB(255, 85, 85),
+		Transparency = 0.45,
 	},
 	LeftArmor = {
 		Size = Vector3.new(0.25, 5.4, 11.7),
 		Offset = CFrame.new(-4.2, 3.4, 0),
-		Color = Color3.fromRGB(255, 220, 80),
+		Color = Color3.fromRGB(255, 205, 70),
+		Transparency = 0.45,
 	},
 	RightArmor = {
 		Size = Vector3.new(0.25, 5.4, 11.7),
 		Offset = CFrame.new(4.2, 3.4, 0),
-		Color = Color3.fromRGB(255, 220, 80),
+		Color = Color3.fromRGB(255, 205, 70),
+		Transparency = 0.45,
 	},
 }
 
@@ -142,14 +146,15 @@ end
 local function configureHitboxPart(part, spec, pivot)
 	part.Size = spec.Size
 	part.CFrame = pivot * spec.Offset
-	part.Anchored = true
+	part.Anchored = false
+	part.Massless = true
 	part.CanCollide = false
 	part.CanTouch = false
 	part.CanQuery = true
 	part.CastShadow = false
 	part.Material = Enum.Material.SmoothPlastic
 	part.Color = spec.Color
-	part.Transparency = 1
+	part.Transparency = spec.Transparency or 0.45
 end
 
 local function ensurePart(model, partName)

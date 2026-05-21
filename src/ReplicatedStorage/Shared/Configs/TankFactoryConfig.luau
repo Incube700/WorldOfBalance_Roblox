@@ -7,6 +7,14 @@ TankFactoryConfig.LegacyTankIds = table.freeze({
 })
 
 TankFactoryConfig.DynamicPlayerTankPrefix = "PlayerTank_"
+
+-- BaseTankTemplate: user-created editable template in Studio.
+-- Looked up in Workspace.WOB_Generated.TestObjects by TankTemplateProvider.
+-- If not present, falls back to LegacyTankIds per-role.
+-- Do not create this in code; place it manually in Studio.
+TankFactoryConfig.BaseTankTemplateName = "BaseTankTemplate"
+
+-- Legacy path placeholder — kept for documentation only, not used at runtime.
 TankFactoryConfig.FutureBaseTemplatePath = "ServerStorage.TankTemplates.BaseTankTemplate"
 
 TankFactoryConfig.DefaultLoadout = table.freeze({

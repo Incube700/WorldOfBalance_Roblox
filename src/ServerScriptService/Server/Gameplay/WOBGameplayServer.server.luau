@@ -17,6 +17,8 @@ local ProjectileCatalog = require(configs:WaitForChild("ProjectileCatalog"))
 local MatchConfig = require(configs:WaitForChild("MatchConfig"))
 local BattleArenaConfig = require(configs:WaitForChild("BattleArenaConfig"))
 local DebugBotConfig = require(configs:WaitForChild("DebugBotConfig"))
+local DebugCombatConfig = require(configs:WaitForChild("DebugCombatConfig"))
+local TankArmorConfig = require(configs:WaitForChild("TankArmorConfig"))
 
 -- Services
 local MatchStatsService = require(script.Parent:WaitForChild("Stats"):WaitForChild("MatchStatsService"))
@@ -77,6 +79,7 @@ local returnToMenuRequestEvent = getOrCreateRemoteEvent("ReturnToMenuRequestEven
 local rematchRequestEvent = getOrCreateRemoteEvent("RematchRequestEvent")
 local debugSpawnBotRequestEvent = getOrCreateRemoteEvent("DebugSpawnBotRequestEvent")
 local debugRemoveBotRequestEvent = getOrCreateRemoteEvent("DebugRemoveBotRequestEvent")
+local upgradeChoiceEvent = getOrCreateRemoteEvent("UpgradeChoiceEvent")
 
 -- Folders
 local root = Workspace:WaitForChild("WOB_Generated")
@@ -153,8 +156,14 @@ end
 -- Initialize Registry
 TankParticipantRegistry.init({
 	armorHitboxNames = { FrontArmor = true, RearArmor = true, LeftArmor = true, RightArmor = true },
-	ARMOR_HITBOXES_VISIBLE = TankConfig.Armor.ArmorHitboxesVisible == true,
-	ARMOR_HITBOX_TRANSPARENCY = TankConfig.Armor.ArmorHitboxTransparency or 0.4,
+	ARMOR_HITBOXES_VISIBLE = TankArmorConfig.Visuals.ArmorZonesVisible ~= false,
+	ARMOR_HITBOX_TRANSPARENCY = TankArmorConfig.Visuals.SideTransparency or 0.45,
+	armorHitboxTransparencyByName = {
+		FrontArmor = TankArmorConfig.Visuals.FrontTransparency or 0.35,
+		RearArmor = TankArmorConfig.Visuals.RearTransparency or 0.45,
+		LeftArmor = TankArmorConfig.Visuals.SideTransparency or 0.45,
+		RightArmor = TankArmorConfig.Visuals.SideTransparency or 0.45,
+	},
 })
 
 local playerParticipant = spawnTankParticipant({
@@ -392,7 +401,9 @@ local function damageParticipant(participant, amount, sourceProjectile)
 		TankParticipantRegistry.setParticipantHealth(participant, newHealth)
 		TankParticipantRegistry.recordParticipantDamage(participant, amount, newHealth <= 0)
 
-		print("[ARENA_DAMAGE] " .. participant.TankId .. " -" .. math.floor(amount) .. " HP (" .. math.floor(newHealth) .. ")")
+		if DebugCombatConfig.DamageLog then
+			print("[ARENA_DAMAGE] " .. participant.TankId .. " -" .. math.floor(amount) .. " HP (" .. math.floor(newHealth) .. ")")
+		end
 
 		if newHealth <= 0 then
 			TankParticipantRegistry.setParticipantIsDead(participant, true)
@@ -426,7 +437,9 @@ local function damageParticipant(participant, amount, sourceProjectile)
 	TankParticipantRegistry.setParticipantHealth(participant, newHealth)
 	TankParticipantRegistry.recordParticipantDamage(participant, amount, newHealth <= 0)
 
-	print("[DAMAGE] " .. participant.TankId .. " -" .. math.floor(amount) .. " HP (" .. math.floor(newHealth) .. ")")
+	if DebugCombatConfig.DamageLog then
+		print("[DAMAGE] " .. participant.TankId .. " -" .. math.floor(amount) .. " HP (" .. math.floor(newHealth) .. ")")
+	end
 
 	if newHealth <= 0 then
 		TankParticipantRegistry.setParticipantIsDead(participant, true)
@@ -596,6 +609,7 @@ ArenaCombatService.init({
 			TankSpawnResetService.restoreTankColors(participant.TankId)
 		end
 	end,
+	upgradeChoiceEvent = upgradeChoiceEvent,
 })
 
 BotService.init({
@@ -892,6 +906,7 @@ RunService.Heartbeat:Connect(function(deltaTime)
 	end
 
 	TrainingBotService.update(deltaTime)
+	ArenaCombatService.update(deltaTime)
 	BotService.update(deltaTime)
 	ProjectileService.updateProjectiles(deltaTime)
 end)

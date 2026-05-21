@@ -2,7 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
-local DebugCombatConfig = require(configs:WaitForChild("DebugCombatConfig"))
+local TankArmorConfig = require(configs:WaitForChild("TankArmorConfig"))
 local TankConfig = require(configs:WaitForChild("TankConfig"))
 
 local TankArmorPartsService = {}
@@ -22,15 +22,15 @@ local ARMOR_ZONE_BY_PART = table.freeze({
 })
 
 local TANK_ARMOR = TankConfig.Armor or {}
+local ARMOR_VISUALS = TankArmorConfig.Visuals or {}
 local ARMOR_HITBOX_PADDING = TANK_ARMOR.ArmorHitboxPadding or 0.75
 local ARMOR_HITBOX_THICKNESS = TANK_ARMOR.ArmorHitboxThickness or 1.2
 local ARMOR_HITBOX_HEIGHT = TANK_ARMOR.ArmorHitboxHeight or 5.4
 local ARMOR_HITBOX_Y_OFFSET = TANK_ARMOR.ArmorHitboxYOffset or 1.4
-local ARMOR_HITBOX_TRANSPARENCY = TANK_ARMOR.ArmorHitboxTransparency or 0.4
-local ARMOR_HITBOX_MATERIAL = TANK_ARMOR.ArmorHitboxMaterial or Enum.Material.SmoothPlastic
-local FRONT_ARMOR_COLOR = TANK_ARMOR.FrontArmorColor or Color3.fromRGB(80, 255, 120)
-local REAR_ARMOR_COLOR = TANK_ARMOR.RearArmorColor or Color3.fromRGB(255, 90, 90)
-local SIDE_ARMOR_COLOR = TANK_ARMOR.SideArmorColor or Color3.fromRGB(255, 220, 80)
+local ARMOR_HITBOX_MATERIAL = ARMOR_VISUALS.Material or TANK_ARMOR.ArmorHitboxMaterial or Enum.Material.SmoothPlastic
+local FRONT_ARMOR_COLOR = ARMOR_VISUALS.FrontColor or TANK_ARMOR.FrontArmorColor or Color3.fromRGB(70, 235, 190)
+local REAR_ARMOR_COLOR = ARMOR_VISUALS.RearColor or TANK_ARMOR.RearArmorColor or Color3.fromRGB(255, 85, 85)
+local SIDE_ARMOR_COLOR = ARMOR_VISUALS.SideColor or TANK_ARMOR.SideArmorColor or Color3.fromRGB(255, 205, 70)
 
 local resolvedArmorHitboxMaterial = nil
 
@@ -60,15 +60,34 @@ local function findStableBodyPart(model)
 		or (model ~= nil and model.PrimaryPart or nil)
 end
 
-local function findHitboxesFolder(model)
+-- Finds the folder that contains armor zone parts.
+-- Supports both:
+--   "ArmorZones" — BaseTankTemplate / new workflow (preferred)
+--   "Hitboxes"   — legacy PlayerTankPrototype / Player2TankPrototype / DummyTank
+-- "ArmorZones" takes priority when both exist.
+local function findArmorZonesFolder(model)
 	if model == nil then
 		return nil
 	end
 
-	local directChild = model:FindFirstChild("Hitboxes")
+	-- Priority 1: ArmorZones (BaseTankTemplate contract)
+	local directArmorZones = model:FindFirstChild("ArmorZones")
 
-	if directChild ~= nil and directChild:IsA("Folder") then
-		return directChild
+	if directArmorZones ~= nil and directArmorZones:IsA("Folder") then
+		return directArmorZones
+	end
+
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant.Name == "ArmorZones" and descendant:IsA("Folder") then
+			return descendant
+		end
+	end
+
+	-- Priority 2: Hitboxes (legacy prototype contract)
+	local directHitboxes = model:FindFirstChild("Hitboxes")
+
+	if directHitboxes ~= nil and directHitboxes:IsA("Folder") then
+		return directHitboxes
 	end
 
 	for _, descendant in ipairs(model:GetDescendants()) do
@@ -107,8 +126,24 @@ local function getArmorHitboxMaterial()
 	return resolvedArmorHitboxMaterial
 end
 
-local function shouldShowDebugArmor()
-	return DebugCombatConfig.ArmorDebugVisuals == true or TANK_ARMOR.ArmorHitboxesVisible == true
+local function shouldShowArmorZones()
+	return ARMOR_VISUALS.ArmorZonesVisible ~= false
+end
+
+local function getArmorTransparency(armorPartName)
+	if not shouldShowArmorZones() then
+		return 1
+	end
+
+	if armorPartName == "FrontArmor" then
+		return ARMOR_VISUALS.FrontTransparency or 0.35
+	elseif armorPartName == "RearArmor" then
+		return ARMOR_VISUALS.RearTransparency or 0.45
+	elseif armorPartName == "LeftArmor" or armorPartName == "RightArmor" then
+		return ARMOR_VISUALS.SideTransparency or 0.45
+	end
+
+	return ARMOR_VISUALS.CornerTransparency or 0.45
 end
 
 local function getArmorSpec(body, armorPartName)
@@ -194,9 +229,10 @@ local function configureArmorPart(body, armorPart)
 	armorPart.CastShadow = false
 	armorPart.Material = getArmorHitboxMaterial()
 	armorPart.Color = color
-	armorPart.Transparency = shouldShowDebugArmor() and ARMOR_HITBOX_TRANSPARENCY or 1
+	armorPart.Transparency = getArmorTransparency(armorPart.Name)
 	armorPart:SetAttribute("WOBArmorHitbox", true)
 	armorPart:SetAttribute("ArmorZone", ARMOR_ZONE_BY_PART[armorPart.Name])
+	armorPart:SetAttribute("WOBArmorGameplayVisible", shouldShowArmorZones())
 	armorPart:SetAttribute("WOBArmorConfigured", true)
 	armorPart:SetAttribute("WOBArmorBodyName", body.Name)
 
@@ -207,7 +243,7 @@ end
 
 function TankArmorPartsService.Configure(tankModel)
 	local body = findStableBodyPart(tankModel)
-	local hitboxes = findHitboxesFolder(tankModel)
+	local hitboxes = findArmorZonesFolder(tankModel)
 
 	if body == nil or hitboxes == nil then
 		return false

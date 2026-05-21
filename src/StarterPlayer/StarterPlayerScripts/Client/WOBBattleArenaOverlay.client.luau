@@ -16,13 +16,13 @@ local CompactStatsFormatter = require(hudModules:WaitForChild("CompactStatsForma
 
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local returnToMenuRequestEvent = remotes:WaitForChild("ReturnToMenuRequestEvent")
+local upgradeChoiceEvent = remotes:WaitForChild("UpgradeChoiceEvent")
 
 local localPlayer = Players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
 local root = Workspace:WaitForChild("WOB_Generated")
 
 local GUI_NAME = "WOBBattleArenaOverlay"
-local MODE_IN_BATTLE_ARENA = "InBattleArena"
 local MODE_ARENA_RESPAWNING = "ArenaRespawning"
 local PERSISTENT_BOLTS_ATTRIBUTE = "PersistentBolts"
 local UNSAVED_BOLTS_ATTRIBUTE = "UnsavedBolts"
@@ -306,6 +306,7 @@ styleButton(popupReturnButton)
 popupReturnButton.BackgroundColor3 = Color3.fromRGB(166, 74, 64)
 
 local menuPopupOpen = false
+local currentUpgradeOffer = nil
 
 local function setMenuPopupOpen(isOpen)
 	menuPopupOpen = isOpen == true
@@ -347,6 +348,54 @@ deathReturnButton.Position = UDim2.new(0.18, 0, 1, -52)
 deathReturnButton.Size = UDim2.new(0.64, 0, 0, 38)
 deathReturnButton.Parent = deathPanel
 styleButton(deathReturnButton)
+
+local upgradeOfferPanel = makePanel(
+	"UpgradeOfferPanel",
+	UDim2.new(0.5, -190, 0, 106),
+	UDim2.fromOffset(380, 208)
+)
+upgradeOfferPanel.AnchorPoint = Vector2.new(0.5, 0)
+upgradeOfferPanel.Visible = false
+upgradeOfferPanel.Active = false
+upgradeOfferPanel.ZIndex = POPUP_Z_INDEX
+
+local upgradeOfferTitle = makeLabel(
+	upgradeOfferPanel,
+	"UpgradeOfferTitle",
+	UDim2.new(0, 14, 0, 10),
+	UDim2.new(1, -28, 0, 26),
+	16,
+	Enum.Font.GothamBlack
+)
+upgradeOfferTitle.Text = "Choose Upgrade"
+upgradeOfferTitle.TextXAlignment = Enum.TextXAlignment.Center
+
+local upgradeOfferSubtitle = makeLabel(
+	upgradeOfferPanel,
+	"UpgradeOfferSubtitle",
+	UDim2.new(0, 14, 0, 36),
+	UDim2.new(1, -28, 0, 20),
+	12,
+	Enum.Font.GothamMedium
+)
+upgradeOfferSubtitle.Text = "Run upgrade"
+upgradeOfferSubtitle.TextColor3 = Color3.fromRGB(178, 238, 205)
+upgradeOfferSubtitle.TextXAlignment = Enum.TextXAlignment.Center
+
+local upgradeChoiceButtons = {}
+
+for index = 1, 3 do
+	local button = Instance.new("TextButton")
+	button.Name = "UpgradeChoice" .. tostring(index)
+	button.Position = UDim2.new(0, 14, 0, 62 + (index - 1) * 46)
+	button.Size = UDim2.new(1, -28, 0, 38)
+	button.ZIndex = POPUP_Z_INDEX + 1
+	button.Parent = upgradeOfferPanel
+	styleButton(button, "")
+	button.TextSize = 12
+	button.TextXAlignment = Enum.TextXAlignment.Left
+	table.insert(upgradeChoiceButtons, button)
+end
 
 local function isArenaMode()
 	local mode = localPlayer:GetAttribute("PlayerMode")
@@ -434,6 +483,17 @@ local function applyDesktopLayout()
 	setTextLayout(respawnLabel, UDim2.new(0, 18, 0, 68), UDim2.new(1, -36, 0, 30), 20)
 	deathReturnButton.Position = UDim2.new(0.18, 0, 1, -52)
 	deathReturnButton.Size = UDim2.new(0.64, 0, 0, 38)
+
+	upgradeOfferPanel.Position = UDim2.new(0.5, 0, 0, 106)
+	upgradeOfferPanel.Size = UDim2.fromOffset(380, 208)
+	setTextLayout(upgradeOfferTitle, UDim2.new(0, 14, 0, 10), UDim2.new(1, -28, 0, 26), 16)
+	setTextLayout(upgradeOfferSubtitle, UDim2.new(0, 14, 0, 36), UDim2.new(1, -28, 0, 20), 12)
+
+	for index, button in ipairs(upgradeChoiceButtons) do
+		button.Position = UDim2.new(0, 14, 0, 62 + (index - 1) * 46)
+		button.Size = UDim2.new(1, -28, 0, 38)
+		button.TextSize = 12
+	end
 end
 
 local function applyMobileLayout(viewportSize)
@@ -504,6 +564,17 @@ local function applyMobileLayout(viewportSize)
 	setTextLayout(respawnLabel, UDim2.new(0, 16, 0, 58), UDim2.new(1, -32, 0, 28), 17)
 	deathReturnButton.Position = UDim2.new(0.15, 0, 1, -46)
 	deathReturnButton.Size = UDim2.new(0.7, 0, 0, 34)
+
+	upgradeOfferPanel.Position = UDim2.new(0.5, 0, 0, 138)
+	upgradeOfferPanel.Size = UDim2.fromOffset(math.min(320, viewportSize.X - 24), 194)
+	setTextLayout(upgradeOfferTitle, UDim2.new(0, 12, 0, 8), UDim2.new(1, -24, 0, 24), 14)
+	setTextLayout(upgradeOfferSubtitle, UDim2.new(0, 12, 0, 32), UDim2.new(1, -24, 0, 18), 11)
+
+	for index, button in ipairs(upgradeChoiceButtons) do
+		button.Position = UDim2.new(0, 12, 0, 56 + (index - 1) * 42)
+		button.Size = UDim2.new(1, -24, 0, 34)
+		button.TextSize = 11
+	end
 end
 
 local function updateLayout()
@@ -588,6 +659,47 @@ local function getVisibleCrystals()
 	return math.max(0, math.floor(tonumber(localPlayer:GetAttribute(UNSAVED_CRYSTALS_ATTRIBUTE)) or 0))
 end
 
+local function formatChoiceText(choice)
+	local title = tostring(choice.Title or choice.Id or "Upgrade")
+	local description = tostring(choice.Description or "")
+
+	if description == "" then
+		return title
+	end
+
+	return title .. "  -  " .. description
+end
+
+local function updateUpgradeOfferPanel()
+	local offer = currentUpgradeOffer
+	local choices = offer ~= nil and offer.Choices or {}
+
+	upgradeOfferPanel.Visible = isArenaMode() and offer ~= nil and #choices > 0
+
+	if not upgradeOfferPanel.Visible then
+		return
+	end
+
+	local source = tostring(offer.Source or "LevelUp")
+	local arenaLevel = tonumber(offer.ArenaLevel) or tonumber(localPlayer:GetAttribute("ArenaLevel")) or 1
+	upgradeOfferTitle.Text = source == "SupplyCrate" and "Supply Crate" or "Level Up"
+	upgradeOfferSubtitle.Text = "Arena Level " .. tostring(math.floor(arenaLevel)) .. " upgrade"
+
+	for index, button in ipairs(upgradeChoiceButtons) do
+		local choice = choices[index]
+
+		if choice ~= nil then
+			button.Visible = true
+			button.Text = formatChoiceText(choice)
+			button:SetAttribute("UpgradeId", choice.Id)
+		else
+			button.Visible = false
+			button.Text = ""
+			button:SetAttribute("UpgradeId", nil)
+		end
+	end
+end
+
 local function updateHealth(ownedTank, mobileLayout)
 	local health, maxHealth = getOwnedTankHealth(ownedTank)
 	local normalizedHealth = clamp01(health / math.max(1, maxHealth))
@@ -611,6 +723,7 @@ local function updateOverlay()
 
 	if not visible then
 		setMenuPopupOpen(false)
+		upgradeOfferPanel.Visible = false
 		return
 	end
 
@@ -619,6 +732,9 @@ local function updateOverlay()
 	healthPanel.Visible = not shouldHideTopHealthPanel(mobileLayout)
 
 	local score = localPlayer:GetAttribute("ArenaScore") or 0
+	local arenaXP = localPlayer:GetAttribute("ArenaXP") or 0
+	local arenaLevel = localPlayer:GetAttribute("ArenaLevel") or 1
+	local nextLevelXP = localPlayer:GetAttribute("ArenaNextLevelXP")
 	local kills = localPlayer:GetAttribute("ArenaKills") or 0
 	local deaths = localPlayer:GetAttribute("ArenaDeaths") or 0
 	local streak = localPlayer:GetAttribute("ArenaStreak") or 0
@@ -631,6 +747,9 @@ local function updateOverlay()
 		local useShortLabels = viewportSize.X < 390
 		local statText = CompactStatsFormatter.FormatArenaStats({
 			Score = score,
+			XP = arenaXP,
+			Level = arenaLevel,
+			NextLevelXP = nextLevelXP,
 			Kills = kills,
 			Deaths = deaths,
 			Crystals = getVisibleCrystals(),
@@ -643,13 +762,21 @@ local function updateOverlay()
 		streakLabel.Text = statText.Crystals
 		upgradesLabel.Text = statText.Bolts
 	else
-		scoreLabel.Text = "Arena Score: " .. tostring(math.floor(score))
-		killsDeathsLabel.Text = "Kills: " .. tostring(math.floor(kills)) .. " Deaths: " .. tostring(math.floor(deaths))
+		local xpText = nextLevelXP ~= nil and nextLevelXP > 0
+			and (tostring(math.floor(arenaXP)) .. " / " .. tostring(math.floor(nextLevelXP)))
+			or tostring(math.floor(arenaXP))
+		scoreLabel.Text = "Level " .. tostring(math.floor(arenaLevel)) .. "  XP " .. xpText
+		killsDeathsLabel.Text = "Score: " .. tostring(math.floor(score))
+			.. "  K/D: "
+			.. tostring(math.floor(kills))
+			.. "/"
+			.. tostring(math.floor(deaths))
 		streakLabel.Text = "Streak: " .. tostring(math.floor(streak))
 		upgradesLabel.Text = "Upg: " .. tostring(getUpgradeCount(upgrades))
 	end
 
 	updateHealth(ownedTank, mobileLayout)
+	updateUpgradeOfferPanel()
 
 	local mode = localPlayer:GetAttribute("PlayerMode")
 	local isDead = mode == MODE_ARENA_RESPAWNING
@@ -685,12 +812,52 @@ end)
 popupReturnButton.Activated:Connect(requestReturnToLobby)
 deathReturnButton.Activated:Connect(requestReturnToLobby)
 
+for _, button in ipairs(upgradeChoiceButtons) do
+	button.Activated:Connect(function()
+		if currentUpgradeOffer == nil then
+			return
+		end
+
+		local upgradeId = button:GetAttribute("UpgradeId")
+
+		if typeof(upgradeId) ~= "string" or upgradeId == "" then
+			return
+		end
+
+		upgradeChoiceEvent:FireServer({
+			OfferId = currentUpgradeOffer.OfferId,
+			UpgradeId = upgradeId,
+		})
+		updateUpgradeOfferPanel()
+	end)
+end
+
+upgradeChoiceEvent.OnClientEvent:Connect(function(payload)
+	if typeof(payload) ~= "table" or typeof(payload.OfferId) ~= "string" then
+		return
+	end
+
+	currentUpgradeOffer = payload
+	updateLayout()
+	updateUpgradeOfferPanel()
+end)
+
 localPlayer:GetAttributeChangedSignal("PlayerMode"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("ArenaScore"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaXP"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaLevel"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaNextLevelXP"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("ArenaKills"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("ArenaDeaths"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("ArenaStreak"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("ArenaUpgradeIds"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaPendingUpgradeOfferId"):Connect(function()
+	if tostring(localPlayer:GetAttribute("ArenaPendingUpgradeOfferId") or "") == "" then
+		currentUpgradeOffer = nil
+	end
+
+	updateOverlay()
+end)
 localPlayer:GetAttributeChangedSignal("ArenaRespawnAt"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("CurrentHealth"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("MaxHealth"):Connect(updateOverlay)

@@ -91,15 +91,18 @@
 
 - Both players can enter BattleArena independently.
 - Both players can drive and shoot in the arena.
-- A player kill gives killer `ArenaScore +1`, `ArenaKills +1`.
+- A player kill gives killer `ArenaScore +1`, `ArenaKills +1`, and `ArenaXP +100`.
+- Survival ticks add small `ArenaXP` while the player remains alive in BattleArena.
 - Victim gets `ArenaDeaths +1` and respawns after delay.
 - Self-hit death gives no kill score.
-- Score thresholds unlock temporary upgrades:
-  - 2: `DamageUp`
-  - 4: `FireRateUp`
-  - 6: `DoubleShot`
-  - 8: `MoveSpeedUp`
-  - 10: `TripleSpread`
+- `ArenaXP` reaches level thresholds: level 2 at 100, level 3 at 250, level 4 at 450, level 5 at 700.
+- Level-up shows a 3-choice temporary upgrade offer; selecting one applies it server-side.
+- Death resets current-run `ArenaXP`, `ArenaLevel`, temporary upgrades, temporary modifiers, and streak.
+- Death keeps `ArenaScore`, kills/deaths, and already granted currencies.
+- Optional POIs are safe when present:
+  - `BattleArena.ControlZone` grants Control Zone XP ticks.
+  - `BattleArena.Medkits` heals damaged arena participants and respawns pickups.
+  - `BattleArena.SupplyCrates` grants crate XP, opens the same 3-choice upgrade flow, and respawns crates.
 - DoubleShot/TripleSpread projectiles still damage the correct victim.
 - Leaving arena resets upgrades.
 - Duel mode remains separate: DuelPad queue/countdown, round end, match result, rematch, and return still work.
@@ -108,11 +111,24 @@
 
 - Projectile server simulation uses swept raycast from previous position to next position.
 - Active tank armor hitboxes have `CanQuery=true`.
+- Front/side/rear armor zones are visible and readable.
 - Enemy tank hitboxes are included in projectile raycast targets.
 - Owner tank is ignored only before ricochet/self-hit is allowed.
 - Direct front hit resolves to `NoPen` or penetration, not silent pass-through.
 - Angled hit resolves to armor ricochet when threshold is met.
 - Wall ricochet still works after the collision service split.
+
+## BaseTankTemplate Workflow Checklist
+
+- If `BaseTankTemplate` exists in `Workspace.WOB_Generated.TestObjects`, TankFactory uses it for all roles.
+- If `BaseTankTemplate` does not exist, legacy prototypes (`PlayerTankPrototype` / `Player2TankPrototype` / `DummyTank`) are used as fallbacks — this is the expected state before the Studio workflow is run.
+- Tank spawns correctly with either template source.
+- Armor zones are visible with correct front/side/rear colors after spawn.
+- Projectile raycasts register hits on armor zones.
+- `Visuals` folder parts (if present) have `CanQuery=false` and do not block raycasts.
+- Bot v0.1 still works regardless of which template source is active.
+- Duel, BattleArena, and Training still function.
+- No extra `Assets` / `UI` / `VFX` runtime folders created by template changes.
 
 ## Regression Checks
 
@@ -134,10 +150,14 @@
 - Mobile left `MOVE` and right `AIM` can be used simultaneously.
 - Mobile BattleArena HUD is compact: world HP/reload bar on the tank, score/K-D/Crystals/Bolts fit across the top, Return to Lobby behind Menu, center mostly free.
 - Mobile Duel/Training match stats fit screen width.
+- Mobile Duel score panel is readable: round, score, and first-to target are visible without legacy HP/reload panels.
 - Mobile BattleArena Menu popup Return works and Resume closes the popup.
 - Mobile controls hide/disable during ArenaRespawning.
 - Wallet HUD shows Bolts and Crystals in lobby/result, and does not crowd BattleArena combat HUD.
 - Rotating turret/barrel does not move the world HP/reload bar around the tank.
+- Armor zones are visible, welded to the body/hull, and do not drift behind the body.
+- Armor hitboxes still resolve front `NoPen`, angled ricochet, and side/rear penetration.
+- BattleArena bots still move, shoot, die, and respawn after armor hitbox setup.
 - No VFX/UI/Rojo source-of-truth changes are required for this pass.
 - No constant fire/campfire loop after death VFX.
 - Shot audio still plays.
