@@ -209,30 +209,41 @@ local function findHitboxFolder(model)
 end
 
 local function ensureHitboxes(model)
-	-- If the model already has an ArmorZones folder (BaseTankTemplate contract),
-	-- skip creating a Hitboxes folder. ArmorZones is the authoritative hitbox source
-	-- and its parts are welded to Body by TankArmorPartsService.
-	local existingHitboxFolder = findHitboxFolder(model)
-	if existingHitboxFolder ~= nil then
-		return existingHitboxFolder
+	-- Find existing hitbox folder (ArmorZones preferred). Create "Hitboxes" only
+	-- when neither folder exists at all.
+	local hitboxFolder = findHitboxFolder(model)
+
+	if hitboxFolder == nil then
+		hitboxFolder = Instance.new("Folder")
+		hitboxFolder.Name = "Hitboxes"
+		hitboxFolder.Parent = model
+		warn("[TANK] created missing " .. model:GetFullName() .. ".Hitboxes")
 	end
 
-	local hitboxes = Instance.new("Folder")
-	hitboxes.Name = "Hitboxes"
-	hitboxes.Parent = model
-	warn("[TANK] created missing " .. model:GetFullName() .. ".Hitboxes")
-
+	-- Always ensure the 4 named armor parts exist inside whichever folder we found
+	-- or created. TankArmorPartsService.Configure positions and welds them to Body
+	-- after this function returns, so missing parts created here will be correctly
+	-- placed before the first frame of physics simulation.
 	local pivot = getModelPivot(model)
 
 	for _, hitboxName in ipairs(ARMOR_HITBOX_NAMES) do
-		local hitbox = Instance.new("Part")
-		hitbox.Name = hitboxName
-		hitbox.Parent = hitboxes
-		configureHitboxPart(hitbox, HITBOX_SPECS[hitboxName], pivot)
-		warn("[TANK] created missing " .. model:GetFullName() .. ".Hitboxes." .. hitboxName)
+		local hitbox = hitboxFolder:FindFirstChild(hitboxName)
+
+		if hitbox ~= nil and not hitbox:IsA("BasePart") then
+			warn("[TANK] " .. hitbox:GetFullName() .. " is " .. hitbox.ClassName .. ", expected BasePart")
+			hitbox = nil
+		end
+
+		if hitbox == nil then
+			hitbox = Instance.new("Part")
+			hitbox.Name = hitboxName
+			hitbox.Parent = hitboxFolder
+			configureHitboxPart(hitbox, HITBOX_SPECS[hitboxName], pivot)
+			warn("[TANK] created missing " .. model:GetFullName() .. "." .. hitboxFolder.Name .. "." .. hitboxName)
+		end
 	end
 
-	return hitboxes
+	return hitboxFolder
 end
 
 function PlayerTankSpawner.ensurePrimaryPart(model)

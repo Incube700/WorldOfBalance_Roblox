@@ -386,7 +386,11 @@ function TankSpawnResetService.configureActiveParticipants(matchMode, player2Has
 
 			TankParticipantRegistry.setParticipantModelVisible(participant, isVisible)
 		elseif participant.Role == TankRole.Dummy then
-			TankParticipantRegistry.setParticipantModelVisible(participant, matchMode == "Training")
+			-- Dummy is only visible during an actively running Training match.
+			-- The with-active-match path handles that case; without an active match
+			-- (lobby / free drive / between rounds) the dummy must stay hidden, even
+			-- if matchMode is still "Training" leftover from a previous match.
+			TankParticipantRegistry.setParticipantModelVisible(participant, false)
 		end
 	end
 end
