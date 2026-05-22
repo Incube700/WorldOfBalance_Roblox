@@ -8,6 +8,7 @@ local Workspace = game:GetService("Workspace")
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local BattleArenaConfig = require(configs:WaitForChild("BattleArenaConfig"))
+local BattleArenaLoopConfig = require(configs:WaitForChild("BattleArenaLoopConfig"))
 
 local TankParticipantRegistry = require(script.Parent.Parent:WaitForChild("TankParticipantRegistry"))
 
@@ -16,6 +17,7 @@ ArenaCombatService.MODE_ARENA_RESPAWNING = "ArenaRespawning"
 
 local root = nil
 local tankSpawnResetService = nil
+local playerWalletService = nil
 local upgradeChoiceEvent = nil
 local upgradeChoiceConnection = nil
 
@@ -54,6 +56,44 @@ local function getServerTimeNow()
 	end
 
 	return os.clock()
+end
+
+local function isLoopV02Enabled()
+	return BattleArenaLoopConfig.Enabled == true
+end
+
+local function getLoopSection(sectionName)
+	if not isLoopV02Enabled() then
+		return {}
+	end
+
+	return BattleArenaLoopConfig[sectionName] or {}
+end
+
+local function getLoopNumber(sectionName, valueName, fallback)
+	local section = getLoopSection(sectionName)
+
+	return tonumber(section[valueName]) or fallback
+end
+
+local function hasProjectileRicochet(sourceProjectile)
+	return sourceProjectile ~= nil and (tonumber(sourceProjectile.BounceCount) or 0) > 0
+end
+
+local function getSessionSoftEndAt(startedAt)
+	local sessionConfig = getLoopSection("Session")
+
+	if sessionConfig.ShowSessionTimer ~= true then
+		return 0
+	end
+
+	local duration = math.max(0, tonumber(sessionConfig.SoftSessionLengthSeconds) or 0)
+
+	if duration <= 0 then
+		return 0
+	end
+
+	return startedAt + duration
 end
 
 local function getArenaFolder()
@@ -230,6 +270,10 @@ local function setPlayerArenaDefaults(player)
 	player:SetAttribute("ArenaUpgradeIds", "")
 	player:SetAttribute("ArenaPendingUpgradeOfferId", "")
 	player:SetAttribute("ArenaPendingUpgradeOfferSource", "")
+	player:SetAttribute("ArenaSessionStartedAt", 0)
+	player:SetAttribute("ArenaSessionSoftEndsAt", 0)
+	player:SetAttribute("ArenaSessionBolts", 0)
+	player:SetAttribute("ArenaLastSummary", "")
 	player:SetAttribute("ArenaDamageMultiplier", 1)
 	player:SetAttribute("ArenaFireRateMultiplier", 1)
 	player:SetAttribute("ArenaMoveSpeedMultiplier", 1)
@@ -254,6 +298,10 @@ local function publishSessionAttributes(session)
 	player:SetAttribute("ArenaUpgradeIds", table.concat(session.UpgradeIds, ","))
 	player:SetAttribute("ArenaPendingUpgradeOfferId", session.PendingUpgradeOfferId or "")
 	player:SetAttribute("ArenaPendingUpgradeOfferSource", session.PendingUpgradeOfferSource or "")
+	player:SetAttribute("ArenaSessionStartedAt", session.StartedAt or 0)
+	player:SetAttribute("ArenaSessionSoftEndsAt", session.SoftEndsAt or 0)
+	player:SetAttribute("ArenaSessionBolts", session.EarnedBolts or 0)
+	player:SetAttribute("ArenaLastSummary", session.LastSummary or "")
 	player:SetAttribute("ArenaDamageMultiplier", session.DamageMultiplier)
 	player:SetAttribute("ArenaFireRateMultiplier", session.FireRateMultiplier)
 	player:SetAttribute("ArenaMoveSpeedMultiplier", session.MoveSpeedMultiplier)
@@ -580,11 +628,15 @@ local function resetArenaRun(session)
 end
 
 local function makeSession(player, participant)
+	local startedAt = getServerTimeNow()
+
 	return {
 		Player = player,
 		Participant = participant,
 		SessionId = "Arena_" .. tostring(player.UserId) .. "_" .. tostring(math.floor(os.clock() * 1000)),
 		RespawnToken = 0,
+		StartedAt = startedAt,
+		SoftEndsAt = getSessionSoftEndAt(startedAt),
 		Score = 0,
 		ArenaXP = 0,
 		ArenaLevel = 1,
@@ -592,6 +644,8 @@ local function makeSession(player, participant)
 		Kills = 0,
 		Deaths = 0,
 		Streak = 0,
+		EarnedBolts = 0,
+		LastSummary = "",
 		UpgradeIds = {},
 		ForcedUpgrades = {},
 		UnclaimedLevelUpOffers = 0,
@@ -614,6 +668,8 @@ local function makeBotSession(participant)
 		Participant = participant,
 		SessionId = "ArenaBot_" .. tostring(participant ~= nil and participant.TankId or "Unknown"),
 		RespawnToken = 0,
+		StartedAt = 0,
+		SoftEndsAt = 0,
 		Score = 0,
 		ArenaXP = 0,
 		ArenaLevel = 1,
@@ -621,6 +677,8 @@ local function makeBotSession(participant)
 		Kills = 0,
 		Deaths = 0,
 		Streak = 0,
+		EarnedBolts = 0,
+		LastSummary = "",
 		UpgradeIds = {},
 		ForcedUpgrades = {},
 		UnclaimedLevelUpOffers = 0,
@@ -642,6 +700,7 @@ function ArenaCombatService.init(options)
 	options = options or {}
 	root = options.root
 	tankSpawnResetService = options.tankSpawnResetService
+	playerWalletService = options.playerWalletService
 	upgradeChoiceEvent = options.upgradeChoiceEvent
 	callbacks.setPlayerMode = options.setPlayerMode
 	callbacks.clearPlayerInput = options.clearPlayerInput
@@ -779,9 +838,14 @@ function ArenaCombatService.ResetArenaSession(player)
 	local session = sessionsByPlayer[player]
 
 	if session ~= nil then
+		local startedAt = getServerTimeNow()
 		session.Score = 0
 		session.Kills = 0
 		session.Deaths = 0
+		session.EarnedBolts = 0
+		session.StartedAt = startedAt
+		session.SoftEndsAt = getSessionSoftEndAt(startedAt)
+		session.LastSummary = ""
 		session.RespawnToken += 1
 		resetArenaRun(session)
 	end
@@ -1167,7 +1231,71 @@ function ArenaCombatService.RespawnPlayer(player)
 	return true
 end
 
-function ArenaCombatService.OnParticipantKilled(killerParticipant, victimParticipant)
+local function updateArenaSummary(session)
+	if session == nil or session.IsBotSession == true then
+		return
+	end
+
+	session.LastSummary = ("Run: %d kills / %d deaths / +%d Bolts"):format(
+		math.floor(session.Kills or 0),
+		math.floor(session.Deaths or 0),
+		math.floor(session.EarnedBolts or 0)
+	)
+end
+
+local function getPlayerKillScore(killerSession, victimSession, sourceProjectile)
+	local defaultKillScore = math.max(0, math.floor(tonumber(BattleArenaConfig.KillScore) or 0))
+
+	if killerSession == nil or killerSession.IsBotSession == true then
+		return 0
+	end
+
+	if victimSession == nil or victimSession.IsBotSession ~= true or not isLoopV02Enabled() then
+		return defaultKillScore
+	end
+
+	local score = math.max(0, math.floor(getLoopNumber("Score", "PlayerKillBot", defaultKillScore)))
+
+	if hasProjectileRicochet(sourceProjectile) then
+		score += math.max(0, math.floor(getLoopNumber("Score", "RicochetKillBonus", 0)))
+	end
+
+	return score
+end
+
+local function awardArenaKillCurrency(killerSession, victimSession, sourceProjectile)
+	if killerSession == nil
+		or killerSession.IsBotSession == true
+		or killerSession.Player == nil
+		or victimSession == nil
+		or victimSession.IsBotSession ~= true
+		or playerWalletService == nil
+		or playerWalletService.addBolts == nil
+		or not isLoopV02Enabled()
+	then
+		return
+	end
+
+	local rewardAmount = math.max(0, math.floor(getLoopNumber("Rewards", "BoltsPerBotKill", 0)))
+	local reason = "BattleArenaBotKill"
+
+	if hasProjectileRicochet(sourceProjectile) then
+		rewardAmount += math.max(0, math.floor(getLoopNumber("Rewards", "BoltsPerRicochetKillBonus", 0)))
+		reason = "BattleArenaRicochetKill"
+	end
+
+	if rewardAmount <= 0 then
+		return
+	end
+
+	local awarded = playerWalletService.addBolts(killerSession.Player, rewardAmount, reason)
+
+	if awarded then
+		killerSession.EarnedBolts += rewardAmount
+	end
+end
+
+function ArenaCombatService.OnParticipantKilled(killerParticipant, victimParticipant, sourceProjectile)
 	local victimSession = sessionsByParticipant[victimParticipant]
 
 	if victimSession == nil then
@@ -1185,13 +1313,16 @@ function ArenaCombatService.OnParticipantKilled(killerParticipant, victimPartici
 	end
 
 	if killerSession ~= nil and killerSession.IsBotSession ~= true then
-		killerSession.Score += BattleArenaConfig.KillScore
+		killerSession.Score += getPlayerKillScore(killerSession, victimSession, sourceProjectile)
+		awardArenaKillCurrency(killerSession, victimSession, sourceProjectile)
 		addArenaXP(killerSession, BattleArenaConfig.XPPerKill, "Kill")
 		killerSession.Kills += 1
 		killerSession.Streak += 1
+		updateArenaSummary(killerSession)
 		applySessionUpgrades(killerSession)
 	end
 
+	updateArenaSummary(victimSession)
 	publishSessionAttributes(victimSession)
 
 	if victimPlayer == nil or victimPlayer.Parent ~= Players then

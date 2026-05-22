@@ -26,6 +26,58 @@ local CosmeticCatalog = table.freeze({
 			Enabled = true,
 		}),
 
+		red_tank_skin = table.freeze({
+			Id = "red_tank_skin",
+			Slot = "TankSkin",
+			DisplayName = "Red Tank",
+			SkinId = "Red",
+			Rarity = "Common",
+			Purchasable = true,
+			Currency = "Bolts",
+			Price = 25,
+			Enabled = true,
+			DuelSafe = true,
+		}),
+
+		blue_tank_skin = table.freeze({
+			Id = "blue_tank_skin",
+			Slot = "TankSkin",
+			DisplayName = "Blue Tank",
+			SkinId = "Blue",
+			Rarity = "Common",
+			Purchasable = true,
+			Currency = "Bolts",
+			Price = 25,
+			Enabled = true,
+			DuelSafe = true,
+		}),
+
+		green_tank_skin = table.freeze({
+			Id = "green_tank_skin",
+			Slot = "TankSkin",
+			DisplayName = "Green Tank",
+			SkinId = "Green",
+			Rarity = "Common",
+			Purchasable = true,
+			Currency = "Bolts",
+			Price = 25,
+			Enabled = true,
+			DuelSafe = true,
+		}),
+
+		black_gold_tank_skin = table.freeze({
+			Id = "black_gold_tank_skin",
+			Slot = "TankSkin",
+			DisplayName = "Black / Gold Tank",
+			SkinId = "BlackGold",
+			Rarity = "Rare",
+			Purchasable = false,
+			Currency = "Crystals",
+			Price = 3,
+			Enabled = true,
+			DuelSafe = true,
+		}),
+
 		default_projectile_trail = table.freeze({
 			Id = "default_projectile_trail",
 			Slot = "ProjectileTrail",

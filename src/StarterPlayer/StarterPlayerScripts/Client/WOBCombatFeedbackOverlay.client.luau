@@ -5,6 +5,8 @@ local Players = game:GetService("Players")
 
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local combatFeedbackEvent = remotes:WaitForChild("CombatFeedbackEvent")
+local configs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
+local TankArmorConfig = require(configs:WaitForChild("TankArmorConfig"))
 
 local root = Workspace:WaitForChild("WOB_Generated")
 local localPlayer = Players.LocalPlayer
@@ -55,9 +57,11 @@ end
 local DEFAULT_LIFETIME = 0.65
 local DEFAULT_RISE_DISTANCE = 2.4
 local FEEDBACK_BILLBOARD_SIZE = UDim2.fromOffset(160, 44)
-local MAX_ACTIVE_FEEDBACK = 8
+local MAX_ACTIVE_FEEDBACK = math.max(1, math.floor(tonumber((TankArmorConfig.Feedback or {}).MaxActiveFeedback) or 8))
+local FEEDBACK_DEDUPE_SECONDS = 0.12
 
 local activeFeedback = {}
+local recentFeedbackByCell = {}
 
 local function createAnchor(position)
 	local part = Instance.new("Part")
@@ -151,6 +155,18 @@ local function trimOldFeedback()
 	end
 end
 
+local function getFeedbackCell(data)
+	local position = data.Position
+
+	return tostring(data.Text)
+		.. ":"
+		.. tostring(math.floor(position.X * 2))
+		.. ":"
+		.. tostring(math.floor(position.Y * 2))
+		.. ":"
+		.. tostring(math.floor(position.Z * 2))
+end
+
 local function showFeedback(payload)
 	if typeof(payload) == "table" and payload.AudioOnly == true then
 		return
@@ -174,6 +190,21 @@ local function showFeedback(payload)
 	if data == nil then
 		return
 	end
+
+	for cachedCell, lastSeenAt in pairs(recentFeedbackByCell) do
+		if data.CreatedAt - lastSeenAt > 2 then
+			recentFeedbackByCell[cachedCell] = nil
+		end
+	end
+
+	local cell = getFeedbackCell(data)
+	local lastSeen = recentFeedbackByCell[cell]
+
+	if lastSeen ~= nil and data.CreatedAt - lastSeen < FEEDBACK_DEDUPE_SECONDS then
+		return
+	end
+
+	recentFeedbackByCell[cell] = data.CreatedAt
 
 	local anchor = createAnchor(data.Position + Vector3.new(0, 3.5, 0))
 	local label = createBillboard(anchor, data.Text, data.Color)

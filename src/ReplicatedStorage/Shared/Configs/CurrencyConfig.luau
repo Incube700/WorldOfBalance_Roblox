@@ -7,6 +7,8 @@ local CurrencyConfig = table.freeze({
 	Rewards = table.freeze({
 		TrainingKill = 1,
 		PvPKill = 1,
+		BattleArenaBotKill = 3,
+		BattleArenaRicochetKillBonus = 2,
 		SelfKill = 0,
 		MatchWin = 0,
 	}),

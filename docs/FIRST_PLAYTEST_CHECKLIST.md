@@ -1,5 +1,33 @@
 # First Playtest Checklist
 
+## Playtest v0.2 Vertical Slice Quick Pass
+
+1. Fresh Studio Play.
+2. Lobby spawn.
+3. Player tank from BaseTankTemplate.
+4. Armor zones visible/synced.
+5. DuelPad works.
+6. Duel clean HUD.
+7. Ricochet/NoPen/Penetration.
+8. ArenaPad works.
+9. Bots spawn.
+10. Bots can kill player.
+11. Player can kill bots.
+12. Bot respawn.
+13. Score/kills/bolts reward.
+14. Return to Lobby.
+15. Mobile join from published link.
+16. No fire loop sound.
+17. No duplicate Assets/UI/VFX.
+18. No Rojo weird template changes.
+19. Performance acceptable.
+20. Feedback questions for testers:
+    - Did you understand what to do?
+    - Did ricochet feel fun?
+    - Did armor angle make sense?
+    - Did mobile controls feel okay?
+    - Did you want another round?
+
 ## Master Polish Setup
 
 - Confirm `default.project.json` still has `$ignoreUnknownInstances = true` under `ReplicatedStorage.Shared.Assets.VFX`.

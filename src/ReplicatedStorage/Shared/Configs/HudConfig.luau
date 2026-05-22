@@ -48,6 +48,7 @@ local HudConfig = table.freeze({
 		HideLargeReloadPanelWhenWorldReloadEnabled = true,
 		HideEnemyHpPanelWhenWorldBarsEnabled = true,
 		HidePlayerHpPanelWhenWorldBarsEnabled = true,
+		UseScriptedDuelHud = true,
 	}),
 
 	DuelMobileScorePanel = table.freeze({

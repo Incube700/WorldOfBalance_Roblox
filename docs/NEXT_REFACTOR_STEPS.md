@@ -8,6 +8,7 @@ This is a prioritized list for future safe work. Do not treat it as permission t
 - Commit the safe refactor once verified.
 - Do not touch VFX/UI templates without source-of-truth review.
 - Do not run repair/organize/clean/move scripts.
+- Playtest v0.2: run the full manual script in `docs/PLAYTEST_V02_TEST_SCRIPT.md` before tuning economy further.
 
 ## P1
 
@@ -23,7 +24,9 @@ This is a prioritized list for future safe work. Do not treat it as permission t
 
 ## P2
 
-- Bot v0.1 polish: difficulty, better aim noise, simple obstacle avoidance, and visible bot kill attribution if needed.
+- Bot next pass: line-of-sight quality, arena cover awareness, and clearer bot kill attribution if playtesters miss it.
+- Cosmetic next pass: persistence-backed inventory and a tiny server-authoritative purchase endpoint; no full shop UI until the first playtest proves the loop.
+- BattleArena next pass: daily/limited Crystal milestones only after anti-farm persistence is in place.
 - Mode/session abstraction for Duel/BattleArena/Training.
 - Upgrade rules by mode.
 - Practice/Training pad polish.

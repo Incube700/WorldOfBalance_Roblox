@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
@@ -23,7 +24,16 @@ local LEFT_STICK_KNOB_NAME = "LeftStickKnob"
 local RIGHT_AIM_BASE_NAME = "RightAimBase"
 local RIGHT_AIM_KNOB_NAME = "RightAimKnob"
 local FIRE_BUTTON_NAME = "FireButton"
+local REVERSE_BUTTON_NAME = "ReverseButton"
 local DEBUG_AIM_AREA_NAME = "AimAreaDebugOverlay"
+local DESKTOP_HINT_TEXT_PATTERNS = {
+	"w/s",
+	"a/d",
+	"wasd",
+	"mouse",
+	"lmb",
+	"keyboard",
+}
 
 local PLAYER_MODE_LOBBY = "Lobby"
 local PLAYER_MODE_QUEUED = "QueuedForDuel"
@@ -35,18 +45,26 @@ local leftStickConfig = MobileControlsConfig.LeftStick or {}
 local aimAreaConfig = MobileControlsConfig.AimArea or {}
 local rightAimStickConfig = MobileControlsConfig.RightAimStick or {}
 local fireButtonConfig = MobileControlsConfig.FireButton or {}
+local reverseButtonConfig = MobileControlsConfig.ReverseButton or {}
 local primaryWeaponConfig = WeaponConfig.PrimaryWeapon or {}
 
-local stickRadius = tonumber(leftStickConfig.Radius) or 72
-local stickMaxDistance = tonumber(leftStickConfig.MaxDistance) or stickRadius
+local STICK_RELEASE_MAGNITUDE = 0.1
+local ARCADE_FULL_STEER_ANGLE = math.rad(90)
+local ARCADE_SLOW_TURN_ANGLE = math.rad(45)
+local ARCADE_HARD_TURN_ANGLE = math.rad(120)
+local ARCADE_SLOW_TURN_THROTTLE_SCALE = 0.45
+local ARCADE_HARD_TURN_THROTTLE_SCALE = 0.15
+local LEFT_STICK_SIZE = 110
+local RIGHT_AIM_SIZE = 116
+local FIRE_BUTTON_SIZE = 78
+local REVERSE_BUTTON_SIZE = 58
+
+local stickRadius = LEFT_STICK_SIZE / 2
+local stickMaxDistance = math.min(tonumber(leftStickConfig.MaxDistance) or stickRadius, stickRadius)
 local stickDeadZone = math.clamp(tonumber(leftStickConfig.DeadZone) or 0.12, 0, 0.95)
-local manualAngleMaxMagnitude = math.clamp(tonumber(leftStickConfig.ManualAngleMaxMagnitude) or 0.5, 0, 1)
-local autoTurnMinMagnitude = math.clamp(tonumber(leftStickConfig.AutoTurnMinMagnitude) or 0.5, 0, 1)
-local autoTurnLerpAlpha = math.clamp(tonumber(leftStickConfig.AutoTurnLerpAlpha) or 0.08, 0, 1)
-local reverseStickThreshold = math.clamp(tonumber(leftStickConfig.ReverseStickThreshold) or -0.1, -1, 1)
 local leftStickLabel = tostring(leftStickConfig.Label or "MOVE")
-local rightAimRadius = tonumber(rightAimStickConfig.Radius) or 82
-local rightAimMaxDistance = tonumber(rightAimStickConfig.MaxDistance) or rightAimRadius
+local rightAimRadius = RIGHT_AIM_SIZE / 2
+local rightAimMaxDistance = math.min(tonumber(rightAimStickConfig.MaxDistance) or rightAimRadius, rightAimRadius)
 local rightAimDeadZone = math.clamp(tonumber(rightAimStickConfig.DeadZone) or 0.08, 0, 0.95)
 local rightAimEnabled = rightAimStickConfig.Enabled ~= false
 local rightAimVisible = rightAimEnabled and rightAimStickConfig.Visible ~= false
@@ -56,6 +74,7 @@ local aimTapMoveTolerancePixels = math.max(0, tonumber(rightAimStickConfig.TapMo
 local aimPlaneY = tonumber(aimAreaConfig.AimPlaneY) or CameraConfig.Input.AimPlaneY or 0
 local aimMinXScale = math.clamp(tonumber(aimAreaConfig.MinXScale) or 0.45, 0, 1)
 local fireButtonLabel = tostring(fireButtonConfig.Label or "FIRE")
+local reverseButtonLabel = tostring(reverseButtonConfig.Label or "REV")
 local shootCooldown = math.max(0.05, tonumber(primaryWeaponConfig.ShootCooldown) or 0.45)
 
 local shouldEnableMobileControls = MobileControlsConfig.Enabled == true
@@ -95,9 +114,9 @@ screenGui.Enabled = true
 
 local leftStickBase = Instance.new("Frame")
 leftStickBase.Name = LEFT_STICK_BASE_NAME
-leftStickBase.AnchorPoint = Vector2.new(0.5, 0.5)
-leftStickBase.Position = leftStickConfig.Position or UDim2.fromScale(0.18, 0.74)
-leftStickBase.Size = UDim2.fromOffset(stickRadius * 2, stickRadius * 2)
+leftStickBase.AnchorPoint = Vector2.new(0, 1)
+leftStickBase.Position = UDim2.new(0, 28, 1, -30)
+leftStickBase.Size = UDim2.fromOffset(LEFT_STICK_SIZE, LEFT_STICK_SIZE)
 leftStickBase.BackgroundColor3 = Color3.fromRGB(18, 24, 28)
 leftStickBase.BackgroundTransparency = 0.42
 leftStickBase.BorderSizePixel = 0
@@ -145,9 +164,9 @@ leftStickLabelText.Parent = leftStickBase
 
 local rightAimBase = Instance.new("Frame")
 rightAimBase.Name = RIGHT_AIM_BASE_NAME
-rightAimBase.AnchorPoint = Vector2.new(0.5, 0.5)
-rightAimBase.Position = rightAimStickConfig.Position or UDim2.fromScale(0.78, 0.72)
-rightAimBase.Size = UDim2.fromOffset(rightAimRadius * 2, rightAimRadius * 2)
+rightAimBase.AnchorPoint = Vector2.new(1, 1)
+rightAimBase.Position = UDim2.new(1, -120, 1, -38)
+rightAimBase.Size = UDim2.fromOffset(RIGHT_AIM_SIZE, RIGHT_AIM_SIZE)
 rightAimBase.BackgroundColor3 = Color3.fromRGB(14, 22, 31)
 rightAimBase.BackgroundTransparency = 0.48
 rightAimBase.BorderSizePixel = 0
@@ -195,9 +214,9 @@ rightAimLabelText.Parent = rightAimBase
 
 local fireButton = Instance.new("TextButton")
 fireButton.Name = FIRE_BUTTON_NAME
-fireButton.AnchorPoint = Vector2.new(0.5, 0.5)
-fireButton.Position = fireButtonConfig.Position or UDim2.fromScale(0.9, 0.56)
-fireButton.Size = fireButtonConfig.Size or UDim2.fromOffset(92, 92)
+fireButton.AnchorPoint = Vector2.new(1, 1)
+fireButton.Position = UDim2.new(1, -24, 1, -28)
+fireButton.Size = UDim2.fromOffset(FIRE_BUTTON_SIZE, FIRE_BUTTON_SIZE)
 fireButton.BackgroundColor3 = Color3.fromRGB(194, 64, 54)
 fireButton.BackgroundTransparency = 0.18
 fireButton.BorderSizePixel = 0
@@ -220,6 +239,37 @@ fireButtonStroke.Transparency = 0.28
 fireButtonStroke.Thickness = 2
 fireButtonStroke.Parent = fireButton
 
+local reverseButton = Instance.new("TextButton")
+reverseButton.Name = REVERSE_BUTTON_NAME
+reverseButton.AnchorPoint = Vector2.new(0, 1)
+reverseButton.Position = UDim2.new(0, 150, 1, -82)
+reverseButton.Size = UDim2.fromOffset(REVERSE_BUTTON_SIZE, REVERSE_BUTTON_SIZE)
+reverseButton.BackgroundColor3 = Color3.fromRGB(13, 17, 23)
+reverseButton.BackgroundTransparency = 0.2
+reverseButton.BorderSizePixel = 0
+reverseButton.Font = Enum.Font.GothamBlack
+reverseButton.Text = reverseButtonLabel
+reverseButton.TextColor3 = Color3.fromRGB(226, 232, 240)
+reverseButton.TextSize = 17
+reverseButton.TextWrapped = true
+reverseButton.AutoButtonColor = false
+reverseButton.Active = true
+reverseButton.Parent = screenGui
+
+local reverseButtonCorner = Instance.new("UICorner")
+reverseButtonCorner.CornerRadius = UDim.new(1, 0)
+reverseButtonCorner.Parent = reverseButton
+
+local reverseButtonStroke = Instance.new("UIStroke")
+reverseButtonStroke.Color = Color3.fromRGB(250, 204, 21)
+reverseButtonStroke.Transparency = 0.34
+reverseButtonStroke.Thickness = 2
+reverseButtonStroke.Parent = reverseButton
+
+local reverseButtonScale = Instance.new("UIScale")
+reverseButtonScale.Scale = 1
+reverseButtonScale.Parent = reverseButton
+
 local aimDebugOverlay = nil
 
 if MobileControlsConfig.Debug == true then
@@ -241,12 +291,40 @@ local activeAimTouch = nil
 local activeAimTouchStartPoint = nil
 local activeAimTouchStartTime = 0
 local activeAimTouchMoved = false
+local activeReverseInput = nil
+local reverseHeld = false
+local lastMovementNormalized = Vector2.zero
 local ownedTank = nil
 local controlsVisible = false
 local controlsEnabled = false
 local shootEnabled = false
 local localCooldownUntil = 0
-local smoothedAutoSteer = 0
+local lastLayoutViewportSize = nil
+local applyCurrentMovementState = nil
+
+local function hideDesktopHintIfNeeded(instance)
+	if not instance:IsA("TextLabel")
+		and not instance:IsA("TextButton")
+		and not instance:IsA("TextBox")
+	then
+		return
+	end
+
+	local hintText = string.lower(tostring(instance.Text or ""))
+
+	for _, pattern in ipairs(DESKTOP_HINT_TEXT_PATTERNS) do
+		if string.find(hintText, pattern, 1, true) ~= nil then
+			instance.Visible = false
+			return
+		end
+	end
+end
+
+local function hideDesktopHintText()
+	for _, descendant in ipairs(playerGui:GetDescendants()) do
+		hideDesktopHintIfNeeded(descendant)
+	end
+end
 
 local function getCamera()
 	local camera = Workspace.CurrentCamera
@@ -256,6 +334,49 @@ local function getCamera()
 	end
 
 	return nil
+end
+
+local function getViewportSize()
+	local camera = getCamera()
+
+	if camera ~= nil then
+		return camera.ViewportSize
+	end
+
+	if screenGui.AbsoluteSize.X > 0 and screenGui.AbsoluteSize.Y > 0 then
+		return screenGui.AbsoluteSize
+	end
+
+	return Vector2.new(1024, 768)
+end
+
+local function applyResponsiveLayout()
+	local viewportSize = getViewportSize()
+
+	if lastLayoutViewportSize ~= nil
+		and math.abs(lastLayoutViewportSize.X - viewportSize.X) < 1
+		and math.abs(lastLayoutViewportSize.Y - viewportSize.Y) < 1
+	then
+		return
+	end
+
+	lastLayoutViewportSize = viewportSize
+
+	leftStickBase.AnchorPoint = Vector2.new(0, 1)
+	leftStickBase.Size = UDim2.fromOffset(LEFT_STICK_SIZE, LEFT_STICK_SIZE)
+	leftStickBase.Position = UDim2.new(0, 28, 1, -30)
+
+	reverseButton.AnchorPoint = Vector2.new(0, 1)
+	reverseButton.Size = UDim2.fromOffset(REVERSE_BUTTON_SIZE, REVERSE_BUTTON_SIZE)
+	reverseButton.Position = UDim2.new(0, 150, 1, -82)
+
+	rightAimBase.AnchorPoint = Vector2.new(1, 1)
+	rightAimBase.Size = UDim2.fromOffset(RIGHT_AIM_SIZE, RIGHT_AIM_SIZE)
+	rightAimBase.Position = UDim2.new(1, -120, 1, -38)
+
+	fireButton.AnchorPoint = Vector2.new(1, 1)
+	fireButton.Size = UDim2.fromOffset(FIRE_BUTTON_SIZE, FIRE_BUTTON_SIZE)
+	fireButton.Position = UDim2.new(1, -24, 1, -28)
 end
 
 local function getOwnedTank()
@@ -320,6 +441,58 @@ local function isTankUsable(requireShoot)
 	return ownedTank:GetAttribute("CanMove") ~= false
 end
 
+local function setReverseButtonPressed(isPressed)
+	if isPressed then
+		TweenService:Create(reverseButton, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			BackgroundTransparency = 0.04,
+		}):Play()
+		TweenService:Create(reverseButtonStroke, TweenInfo.new(0.08), {
+			Color = Color3.fromRGB(249, 115, 22),
+			Transparency = 0.08,
+		}):Play()
+		TweenService:Create(reverseButtonScale, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Scale = 0.95,
+		}):Play()
+	else
+		TweenService:Create(reverseButton, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			BackgroundTransparency = controlsEnabled and 0.2 or 0.68,
+		}):Play()
+		TweenService:Create(reverseButtonStroke, TweenInfo.new(0.12), {
+			Color = Color3.fromRGB(250, 204, 21),
+			Transparency = controlsEnabled and 0.34 or 0.82,
+		}):Play()
+		TweenService:Create(reverseButtonScale, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Scale = 1,
+		}):Play()
+	end
+end
+
+local function setReverseHeld(isHeld, input)
+	local nextHeld = isHeld == true and controlsVisible and controlsEnabled
+
+	if reverseHeld == nextHeld and (nextHeld ~= true or activeReverseInput == input) then
+		return
+	end
+
+	reverseHeld = nextHeld
+	activeReverseInput = nextHeld and input or nil
+	setReverseButtonPressed(nextHeld)
+
+	if applyCurrentMovementState ~= nil then
+		applyCurrentMovementState()
+	end
+end
+
+local function resetReverseControl()
+	if reverseHeld == false and activeReverseInput == nil then
+		return
+	end
+
+	reverseHeld = false
+	activeReverseInput = nil
+	setReverseButtonPressed(false)
+end
+
 local function setControlTransparency(isEnabled)
 	leftStickBase.BackgroundTransparency = isEnabled and 0.42 or 0.72
 	leftStickKnob.BackgroundTransparency = isEnabled and 0.26 or 0.62
@@ -334,6 +507,10 @@ local function setControlTransparency(isEnabled)
 	fireButton.TextTransparency = shootEnabled and 0 or 0.45
 	fireButton.AutoButtonColor = shootEnabled
 	fireButton.Active = shootEnabled
+	reverseButton.BackgroundTransparency = isEnabled and (reverseHeld and 0.04 or 0.2) or 0.68
+	reverseButtonStroke.Transparency = isEnabled and (reverseHeld and 0.08 or 0.34) or 0.82
+	reverseButton.TextTransparency = isEnabled and 0 or 0.45
+	reverseButton.Active = isEnabled
 	rightAimBase.Active = isEnabled and rightAimVisible
 end
 
@@ -348,9 +525,14 @@ end
 local function resetMovementTouch()
 	activeMovementTouch = nil
 	activeMovementPoint = nil
-	smoothedAutoSteer = 0
-	WOBClientInputState.resetMobileMovement()
+	lastMovementNormalized = Vector2.zero
 	resetMoveStickVisual()
+
+	if applyCurrentMovementState ~= nil then
+		applyCurrentMovementState()
+	else
+		WOBClientInputState.resetMobileMovement()
+	end
 end
 
 local function resetAimTouch()
@@ -375,6 +557,7 @@ local function updateVisibility()
 	leftStickBase.Visible = visible
 	rightAimBase.Visible = visible and rightAimVisible
 	fireButton.Visible = visible
+	reverseButton.Visible = visible
 
 	if aimDebugOverlay ~= nil then
 		aimDebugOverlay.Visible = visible and MobileControlsConfig.Debug == true
@@ -383,6 +566,7 @@ local function updateVisibility()
 	setControlTransparency(canMove)
 
 	if not visible or not canMove then
+		resetReverseControl()
 		resetMovementTouch()
 		resetAimTouch()
 	end
@@ -545,6 +729,54 @@ local function updateAimFromPoint(point)
 	return aimWorldPoint
 end
 
+local function getArcadeThrottleScale(absSignedAngle)
+	if absSignedAngle < ARCADE_SLOW_TURN_ANGLE then
+		return 1
+	elseif absSignedAngle < ARCADE_HARD_TURN_ANGLE then
+		return ARCADE_SLOW_TURN_THROTTLE_SCALE
+	end
+
+	return ARCADE_HARD_TURN_THROTTLE_SCALE
+end
+
+applyCurrentMovementState = function()
+	local magnitude = lastMovementNormalized.Magnitude
+	local localStickY = math.clamp(lastMovementNormalized.Y, -1, 1)
+	local localStickX = math.clamp(lastMovementNormalized.X, -1, 1)
+	local isActive = magnitude >= STICK_RELEASE_MAGNITUDE
+
+	if reverseHeld then
+		local throttle = isActive and -math.clamp(magnitude, 0, 1) or -1
+		local steer = isActive and localStickX or 0
+		WOBClientInputState.setMobileMovement(throttle, steer, true)
+		return
+	end
+
+	if not isActive then
+		WOBClientInputState.setMobileMovement(0, 0, false)
+		return
+	end
+
+	-- Mobile arcade movement:
+	-- the left stick chooses a desired world direction, the tank turns toward
+	-- that direction and keeps moving forward. Reverse is explicit on the REV
+	-- button, so joystick direction never flips into reverse by itself.
+	local desiredDirection = getWorldDirectionFromStick(Vector2.new(localStickX, localStickY))
+	local currentBodyYaw = getOwnedTankBodyYaw()
+	local desiredYaw = desiredDirection ~= nil and getYawFromFlatDirection(desiredDirection) or nil
+	local steer = localStickX
+	local throttleScale = 1
+
+	if currentBodyYaw ~= nil and desiredYaw ~= nil then
+		local signedAngle = normalizeAngle(desiredYaw - currentBodyYaw)
+		steer = -math.clamp(signedAngle / ARCADE_FULL_STEER_ANGLE, -1, 1)
+		throttleScale = getArcadeThrottleScale(math.abs(signedAngle))
+	end
+
+	local throttle = math.clamp(magnitude * throttleScale, 0, 1)
+	WOBClientInputState.setMobileMovement(throttle, steer, true)
+end
+
 local function updateMovementFromPoint(point)
 	activeMovementPoint = point
 	local center = leftStickBase.AbsolutePosition + leftStickBase.AbsoluteSize * 0.5
@@ -563,46 +795,12 @@ local function updateMovementFromPoint(point)
 
 	if normalized.Magnitude < stickDeadZone then
 		normalized = Vector2.zero
-	end
-
-	local magnitude = normalized.Magnitude
-	local localStickY = math.clamp(-normalized.Y, -1, 1)
-	local localStickX = math.clamp(normalized.X, -1, 1)
-	local moveInput = 0
-	local turnInput = 0
-	local isActive = magnitude > 0
-
-	if magnitude < stickDeadZone then
-		smoothedAutoSteer = 0
-	elseif localStickY < reverseStickThreshold then
-		moveInput = localStickY
-		turnInput = localStickX
-		smoothedAutoSteer = 0
-	elseif magnitude > autoTurnMinMagnitude then
-		moveInput = math.clamp(magnitude, 0, 1)
-
-		local desiredDirection = getWorldDirectionFromStick(normalized)
-		local currentBodyYaw = getOwnedTankBodyYaw()
-		local desiredYaw = desiredDirection ~= nil and getYawFromFlatDirection(desiredDirection) or nil
-
-		if currentBodyYaw ~= nil and desiredYaw ~= nil then
-			local yawDelta = normalizeAngle(desiredYaw - currentBodyYaw)
-			local desiredSteer = -math.clamp(yawDelta / (math.pi * 0.5), -1, 1)
-			smoothedAutoSteer += (desiredSteer - smoothedAutoSteer) * autoTurnLerpAlpha
-			turnInput = math.clamp(smoothedAutoSteer, -1, 1)
-		else
-			smoothedAutoSteer = 0
-		end
-	elseif magnitude > 0 and magnitude <= manualAngleMaxMagnitude then
-		moveInput = localStickY
-		turnInput = 0
-		smoothedAutoSteer = 0
-	else
-		smoothedAutoSteer = 0
+		clamped = Vector2.zero
 	end
 
 	leftStickKnob.Position = UDim2.fromOffset(stickRadius + clamped.X, stickRadius + clamped.Y)
-	WOBClientInputState.setMobileMovement(moveInput, turnInput, isActive)
+	lastMovementNormalized = normalized
+	applyCurrentMovementState()
 end
 
 local function requestShoot()
@@ -631,6 +829,22 @@ fireButton.InputBegan:Connect(function(input)
 	requestShoot()
 end)
 
+reverseButton.InputBegan:Connect(function(input)
+	if input.UserInputType ~= Enum.UserInputType.Touch
+		and input.UserInputType ~= Enum.UserInputType.MouseButton1
+	then
+		return
+	end
+
+	setReverseHeld(true, input)
+end)
+
+reverseButton.InputEnded:Connect(function(input)
+	if input == activeReverseInput then
+		setReverseHeld(false, nil)
+	end
+end)
+
 UserInputService.InputBegan:Connect(function(input, _gameProcessedEvent)
 	if not controlsVisible then
 		return
@@ -643,6 +857,10 @@ UserInputService.InputBegan:Connect(function(input, _gameProcessedEvent)
 	local point = screenPointFromInput(input)
 
 	if isPointInsideGui(fireButton, point) then
+		return
+	end
+
+	if isPointInsideGui(reverseButton, point) then
 		return
 	end
 
@@ -701,10 +919,13 @@ UserInputService.InputEnded:Connect(function(input)
 		end
 
 		resetAimTouch()
+	elseif input == activeReverseInput then
+		setReverseHeld(false, nil)
 	end
 end)
 
 RunService.RenderStepped:Connect(function()
+	applyResponsiveLayout()
 	updateVisibility()
 
 	if activeMovementTouch ~= nil and controlsEnabled and activeMovementPoint ~= nil then
@@ -726,5 +947,7 @@ localPlayer:GetAttributeChangedSignal("PlayerMode"):Connect(updateVisibility)
 root:GetAttributeChangedSignal("GameState"):Connect(updateVisibility)
 root:GetAttributeChangedSignal("RoundState"):Connect(updateVisibility)
 root:GetAttributeChangedSignal("RoundEnded"):Connect(updateVisibility)
+playerGui.DescendantAdded:Connect(hideDesktopHintIfNeeded)
 
+hideDesktopHintText()
 updateVisibility()

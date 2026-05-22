@@ -60,6 +60,24 @@ local function getDirectionFromYaw(yaw)
 	return flat.Unit
 end
 
+local function getEffectiveBrainConfig()
+	local baseConfig = BotConfig.Brain or {}
+	local profiles = BotConfig.DifficultyProfiles or {}
+	local difficulty = BotConfig.Difficulty or "Easy"
+	local profile = profiles[difficulty] or profiles.Easy or {}
+	local merged = {}
+
+	for key, value in pairs(baseConfig) do
+		merged[key] = value
+	end
+
+	for key, value in pairs(profile) do
+		merged[key] = value
+	end
+
+	return merged
+end
+
 local function getYawFromAimPosition(position, aimPosition, fallbackYaw)
 	if typeof(position) ~= "Vector3" or typeof(aimPosition) ~= "Vector3" then
 		return fallbackYaw or 0
@@ -113,6 +131,8 @@ function BotController.new(options)
 		BrainState = {},
 		ThinkElapsed = 0,
 		Decision = nil,
+		StuckElapsed = 0,
+		LastResolvedPosition = nil,
 		LastDebugTargetLogAt = 0,
 	}, BotController)
 end
@@ -125,7 +145,7 @@ end
 
 function BotController:_getTarget()
 	local battleArenaConfig = BotConfig.BattleArena or {}
-	local brainConfig = BotConfig.Brain or {}
+	local brainConfig = getEffectiveBrainConfig()
 	local participants = self.GetArenaParticipants ~= nil and self.GetArenaParticipants() or {}
 
 	return BotTargeting.FindClosestTarget(self.Participant, participants, self.TankParticipantRegistry, {
@@ -135,7 +155,7 @@ function BotController:_getTarget()
 end
 
 function BotController:_refreshDecision(deltaTime)
-	local brainConfig = BotConfig.Brain or {}
+	local brainConfig = getEffectiveBrainConfig()
 	self.ThinkElapsed += deltaTime
 
 	if self.ThinkElapsed < math.max(0.05, tonumber(brainConfig.TickRate) or 0.15) and self.Decision ~= nil then
@@ -203,6 +223,25 @@ function BotController:_applyMovement(deltaTime, decision)
 		)
 	end
 
+	local movedDistance = self.LastResolvedPosition ~= nil and (resolvedPosition - self.LastResolvedPosition).Magnitude or math.huge
+	local antiStuckSeconds = math.max(0, tonumber((BotConfig.Brain or {}).AntiStuckSeconds) or 0)
+	local antiStuckDistance = math.max(0.01, tonumber((BotConfig.Brain or {}).AntiStuckDistance) or 0.35)
+
+	if math.abs(throttle) > 0.1 and movedDistance < antiStuckDistance * deltaTime then
+		self.StuckElapsed += deltaTime
+	else
+		self.StuckElapsed = 0
+	end
+
+	if antiStuckSeconds > 0 and self.StuckElapsed >= antiStuckSeconds then
+		self.BrainState.NextMoveJitterAt = 0
+		self.BrainState.WanderYaw = (self.BrainState.WanderYaw or resolvedBodyYaw) + self.Random:NextNumber(-1.7, 1.7)
+		self.Decision = nil
+		self.StuckElapsed = 0
+	end
+
+	self.LastResolvedPosition = resolvedPosition
+
 	local currentTurretYaw = state.TurretYaw or resolvedBodyYaw
 	local targetTurretYaw = getYawFromAimPosition(resolvedPosition, decision.AimWorldPoint, currentTurretYaw)
 
@@ -248,7 +287,8 @@ function BotController:_maybeShoot(decision)
 	end
 
 	local turretDirection = getDirectionFromYaw(state.TurretYaw or state.BodyYaw or 0)
-	local minDot = math.cos(math.rad((BotConfig.Brain or {}).AimToleranceDegrees or 10))
+	local brainConfig = getEffectiveBrainConfig()
+	local minDot = math.cos(math.rad(brainConfig.AimToleranceDegrees or 10))
 
 	if turretDirection:Dot(toTarget.Unit) < minDot then
 		return false

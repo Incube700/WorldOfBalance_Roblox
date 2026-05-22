@@ -7,6 +7,7 @@ local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local utils = shared:WaitForChild("Utils")
 local BattleArenaConfig = require(configs:WaitForChild("BattleArenaConfig"))
+local BattleArenaLoopConfig = require(configs:WaitForChild("BattleArenaLoopConfig"))
 local HudConfig = require(configs:WaitForChild("HudConfig"))
 local TankModelResolver = require(utils:WaitForChild("TankModelResolver"))
 local hudModules = script.Parent:WaitForChild("Hud")
@@ -208,6 +209,16 @@ local upgradesLabel = makeLabel(
 )
 upgradesLabel.TextColor3 = Color3.fromRGB(178, 238, 205)
 
+local sessionLabel = makeLabel(
+	scorePanel,
+	"SessionLabel",
+	UDim2.new(0, 14, 0, 120),
+	UDim2.new(1, -28, 0, 22),
+	13,
+	Enum.Font.GothamMedium
+)
+sessionLabel.TextColor3 = Color3.fromRGB(255, 225, 120)
+
 local actionsRoot = Instance.new("Frame")
 actionsRoot.Name = "BattleArenaActionsRoot"
 actionsRoot.Position = UDim2.fromScale(0, 0)
@@ -342,6 +353,17 @@ local respawnLabel = makeLabel(
 )
 respawnLabel.TextXAlignment = Enum.TextXAlignment.Center
 
+local deathSummaryLabel = makeLabel(
+	deathPanel,
+	"DeathSummaryLabel",
+	UDim2.new(0, 18, 0, 100),
+	UDim2.new(1, -36, 0, 24),
+	14,
+	Enum.Font.GothamMedium
+)
+deathSummaryLabel.TextXAlignment = Enum.TextXAlignment.Center
+deathSummaryLabel.TextColor3 = Color3.fromRGB(255, 225, 120)
+
 local deathReturnButton = Instance.new("TextButton")
 deathReturnButton.Name = "DeathReturnToLobbyButton"
 deathReturnButton.Position = UDim2.new(0.18, 0, 1, -52)
@@ -417,6 +439,40 @@ local function getServerTimeNow()
 	return os.clock()
 end
 
+local function formatSeconds(seconds)
+	local safeSeconds = math.max(0, math.floor(tonumber(seconds) or 0))
+	local minutes = math.floor(safeSeconds / 60)
+	local remainder = safeSeconds % 60
+
+	return string.format("%d:%02d", minutes, remainder)
+end
+
+local function getSessionStatusText()
+	if BattleArenaLoopConfig.Enabled ~= true then
+		return "Fight bots, angle armor, earn Bolts"
+	end
+
+	local sessionConfig = BattleArenaLoopConfig.Session or {}
+
+	if sessionConfig.ShowSessionTimer ~= true then
+		return "Fight bots, angle armor, earn Bolts"
+	end
+
+	local softEndsAt = tonumber(localPlayer:GetAttribute("ArenaSessionSoftEndsAt")) or 0
+
+	if softEndsAt <= 0 then
+		return sessionConfig.EndlessMode == false and "Timed arena run" or "Endless arena"
+	end
+
+	local remaining = softEndsAt - getServerTimeNow()
+
+	if remaining <= 0 then
+		return sessionConfig.EndlessMode == false and "Time up" or "Bonus time"
+	end
+
+	return "Timer " .. formatSeconds(remaining) .. "  -  earn Bolts"
+end
+
 local function getOwnedTank()
 	return TankModelResolver.findOwnedTank(root, localPlayer.UserId, true)
 end
@@ -456,17 +512,20 @@ local function applyDesktopLayout()
 
 	scorePanel.AnchorPoint = Vector2.new(0, 0)
 	scorePanel.Position = UDim2.new(1, -272, 0, 18)
-	scorePanel.Size = UDim2.new(0, 250, 0, 128)
+	scorePanel.Size = UDim2.new(0, 250, 0, 154)
 	scorePanel.BackgroundTransparency = 0.1
 	setTextLayout(scoreLabel, UDim2.new(0, 14, 0, 8), UDim2.new(1, -28, 0, 28), 18)
 	setTextLayout(killsDeathsLabel, UDim2.new(0, 14, 0, 36), UDim2.new(1, -28, 0, 24), 16)
 	setTextLayout(streakLabel, UDim2.new(0, 14, 0, 62), UDim2.new(1, -28, 0, 22), 14)
 	setTextLayout(upgradesLabel, UDim2.new(0, 14, 0, 86), UDim2.new(1, -28, 0, 34), 14)
+	setTextLayout(sessionLabel, UDim2.new(0, 14, 0, 120), UDim2.new(1, -28, 0, 22), 13)
 	setCompactText(scoreLabel, false)
 	setCompactText(killsDeathsLabel, false)
 	setCompactText(streakLabel, false)
 	setCompactText(upgradesLabel, false)
+	setCompactText(sessionLabel, true)
 	upgradesLabel.Visible = true
+	sessionLabel.Visible = true
 
 	returnButton.AnchorPoint = Vector2.new(1, 1)
 	returnButton.Position = UDim2.new(1, -22, 1, -22)
@@ -477,10 +536,11 @@ local function applyDesktopLayout()
 	menuButton.Visible = false
 	setMenuPopupOpen(false)
 
-	deathPanel.Position = UDim2.new(0.5, -150, 0.5, -82)
-	deathPanel.Size = UDim2.new(0, 300, 0, 164)
+	deathPanel.Position = UDim2.new(0.5, -150, 0.5, -92)
+	deathPanel.Size = UDim2.new(0, 300, 0, 184)
 	setTextLayout(destroyedLabel, UDim2.new(0, 18, 0, 18), UDim2.new(1, -36, 0, 44), 30)
 	setTextLayout(respawnLabel, UDim2.new(0, 18, 0, 68), UDim2.new(1, -36, 0, 30), 20)
+	setTextLayout(deathSummaryLabel, UDim2.new(0, 18, 0, 100), UDim2.new(1, -36, 0, 24), 14)
 	deathReturnButton.Position = UDim2.new(0.18, 0, 1, -52)
 	deathReturnButton.Size = UDim2.new(0.64, 0, 0, 38)
 
@@ -549,6 +609,7 @@ local function applyMobileLayout(viewportSize)
 	setCompactText(streakLabel, true)
 	setCompactText(upgradesLabel, true)
 	upgradesLabel.Visible = showBolts
+	sessionLabel.Visible = false
 
 	returnButton.Visible = not mobileUseMenuForReturn
 	menuButton.Visible = mobileUseMenuForReturn
@@ -558,12 +619,13 @@ local function applyMobileLayout(viewportSize)
 	menuButton.Text = "Menu"
 	menuButton.TextSize = 13
 
-	deathPanel.Position = UDim2.new(0.5, -130, 0.5, -72)
-	deathPanel.Size = UDim2.new(0, 260, 0, 144)
+	deathPanel.Position = UDim2.new(0.5, -130, 0.5, -78)
+	deathPanel.Size = UDim2.new(0, 260, 0, 156)
 	setTextLayout(destroyedLabel, UDim2.new(0, 16, 0, 14), UDim2.new(1, -32, 0, 38), 24)
 	setTextLayout(respawnLabel, UDim2.new(0, 16, 0, 58), UDim2.new(1, -32, 0, 28), 17)
-	deathReturnButton.Position = UDim2.new(0.15, 0, 1, -46)
-	deathReturnButton.Size = UDim2.new(0.7, 0, 0, 34)
+	setTextLayout(deathSummaryLabel, UDim2.new(0, 16, 0, 86), UDim2.new(1, -32, 0, 22), 12)
+	deathReturnButton.Position = UDim2.new(0.15, 0, 1, -42)
+	deathReturnButton.Size = UDim2.new(0.7, 0, 0, 32)
 
 	upgradeOfferPanel.Position = UDim2.new(0.5, 0, 0, 138)
 	upgradeOfferPanel.Size = UDim2.fromOffset(math.min(320, viewportSize.X - 24), 194)
@@ -765,14 +827,22 @@ local function updateOverlay()
 		local xpText = nextLevelXP ~= nil and nextLevelXP > 0
 			and (tostring(math.floor(arenaXP)) .. " / " .. tostring(math.floor(nextLevelXP)))
 			or tostring(math.floor(arenaXP))
-		scoreLabel.Text = "Level " .. tostring(math.floor(arenaLevel)) .. "  XP " .. xpText
+		scoreLabel.Text = "Arena: fight bots"
 		killsDeathsLabel.Text = "Score: " .. tostring(math.floor(score))
 			.. "  K/D: "
 			.. tostring(math.floor(kills))
 			.. "/"
 			.. tostring(math.floor(deaths))
-		streakLabel.Text = "Streak: " .. tostring(math.floor(streak))
-		upgradesLabel.Text = "Upg: " .. tostring(getUpgradeCount(upgrades))
+		streakLabel.Text = "Lv "
+			.. tostring(math.floor(arenaLevel))
+			.. " XP "
+			.. xpText
+			.. "  Streak "
+			.. tostring(math.floor(streak))
+		upgradesLabel.Text = "Bolts +" .. tostring(math.floor(localPlayer:GetAttribute("ArenaSessionBolts") or 0))
+			.. "  Upg: "
+			.. tostring(getUpgradeCount(upgrades))
+		sessionLabel.Text = getSessionStatusText()
 	end
 
 	updateHealth(ownedTank, mobileLayout)
@@ -794,6 +864,7 @@ local function updateOverlay()
 		end
 
 		respawnLabel.Text = "Respawn in " .. tostring(seconds) .. "..."
+		deathSummaryLabel.Text = tostring(localPlayer:GetAttribute("ArenaLastSummary") or "")
 	end
 end
 
@@ -858,6 +929,9 @@ localPlayer:GetAttributeChangedSignal("ArenaPendingUpgradeOfferId"):Connect(func
 
 	updateOverlay()
 end)
+localPlayer:GetAttributeChangedSignal("ArenaSessionSoftEndsAt"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaSessionBolts"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaLastSummary"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("ArenaRespawnAt"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("CurrentHealth"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("MaxHealth"):Connect(updateOverlay)

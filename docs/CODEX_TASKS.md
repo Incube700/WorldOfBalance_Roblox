@@ -42,6 +42,13 @@
 ## Current Sprint — Playtest Polish, Rewards, and Lobby UX
 
 - Статус: mobile/playtest polish pass поверх Stable Fun Duel + BattleArena, без переписывания loop.
+- Playtest v0.2 vertical slice: `docs/PLAYTEST_V02_SCOPE.md` and `docs/PLAYTEST_V02_TEST_SCRIPT.md`.
+- BattleArena v0.2 loop config: `BattleArenaLoopConfig` owns session timer, bot count foundation, score values, and reward amounts.
+- Arena bot kills now grant small Bolts rewards through `PlayerWalletService`; ricochet kills can grant a small configured bonus. BattleArena Crystal milestones remain disabled by default to avoid farm loops.
+- Bot tuning now has Easy/Normal profiles, reaction delay, aim jitter, fire pacing, and simple anti-stuck jitter. No pathfinding was added.
+- Armor readability now uses config-driven colors/text/lifetime for `NO PEN`, `RICOCHET`, and damage feedback.
+- Skin foundation: `SkinCatalog` has Default/Red/Blue/Green/BlackGold cosmetic-only skins, `CosmeticCatalog` has matching metadata, and `SkinUnlockService` provides validation helpers without a shop UI or Duel power.
+- Lobby onboarding v0.2: disabled command `docs/patches/CREATE_PLAYTEST_V02_LOBBY_GUIDANCE_COMMAND.lua`; do not run automatically.
 - Master doc: `docs/PLAYTEST_POLISH_MASTER_PASS.md`.
 - Mobile performance notes: `docs/MOBILE_PERFORMANCE_PASS.md`.
 - UX/readability rules: `docs/ROBLOX_UX_READABILITY_GUIDE.md`.

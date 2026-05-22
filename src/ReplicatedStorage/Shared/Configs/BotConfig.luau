@@ -1,11 +1,36 @@
 local BotConfig = table.freeze({
 	Enabled = true,
 	Debug = false,
+	Difficulty = "Easy",
+
+	DifficultyProfiles = table.freeze({
+		Easy = table.freeze({
+			AimToleranceDegrees = 14,
+			AimJitterDegrees = 7,
+			FireChance = 0.35,
+			ReactionDelay = 0.35,
+			MoveJitterInterval = 1.8,
+			FireCheckInterval = 0.42,
+			FireCooldownMin = 0.35,
+			FireCooldownMax = 0.75,
+		}),
+
+		Normal = table.freeze({
+			AimToleranceDegrees = 9,
+			AimJitterDegrees = 4,
+			FireChance = 0.55,
+			ReactionDelay = 0.2,
+			MoveJitterInterval = 1.25,
+			FireCheckInterval = 0.3,
+			FireCooldownMin = 0.25,
+			FireCooldownMax = 0.55,
+		}),
+	}),
 
 	BattleArena = table.freeze({
 		Enabled = true,
-		MinBots = 1,
-		MaxBots = 3,
+		MinBots = 2,
+		MaxBots = 4,
 		SpawnWhenPlayerCountLessThan = 2,
 		RespawnDelay = 3,
 		TargetBotsWhenNoPlayers = false,
@@ -16,12 +41,19 @@ local BotConfig = table.freeze({
 		SearchRadius = 180,
 		PreferredDistance = 45,
 		TooCloseDistance = 18,
-		AimToleranceDegrees = 10,
-		FireChance = 0.55,
-		MoveJitterInterval = 1.25,
+		AimToleranceDegrees = 14,
+		AimJitterDegrees = 7,
+		FireChance = 0.35,
+		ReactionDelay = 0.35,
+		MoveJitterInterval = 1.8,
+		FireCheckInterval = 0.42,
+		FireCooldownMin = 0.35,
+		FireCooldownMax = 0.75,
 		ReverseChanceWhenTooClose = 0.35,
 		MoveThrottle = 0.75,
 		ReverseThrottle = -0.55,
+		AntiStuckSeconds = 1.4,
+		AntiStuckDistance = 0.35,
 	}),
 
 	Safety = table.freeze({

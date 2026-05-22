@@ -362,14 +362,21 @@ local function playDeathExplosion(participant)
 	vfxHelpers.createBurningTank(deathPosition)
 end
 
-local function sendCombatFeedbackPayload(feedbackType, pos, text, color, audioOnly)
-	combatFeedbackEvent:FireAllClients({
+local function sendCombatFeedbackPayload(feedbackType, pos, text, color, audioOnly, options)
+	local payload = {
 		Type = feedbackType,
 		Position = pos,
 		Text = text,
 		Color = color,
 		AudioOnly = audioOnly == true,
-	})
+	}
+
+	if typeof(options) == "table" then
+		payload.Lifetime = options.Lifetime
+		payload.RiseDistance = options.RiseDistance
+	end
+
+	combatFeedbackEvent:FireAllClients(payload)
 end
 
 local function clearActiveMatchInputs()
@@ -418,7 +425,7 @@ local function damageParticipant(participant, amount, sourceProjectile)
 			print("[ARENA_DEAD] " .. participant.TankId .. " destroyed")
 
 			local killerParticipant = sourceProjectile ~= nil and sourceProjectile.OwnerParticipant or nil
-			ArenaCombatService.OnParticipantKilled(killerParticipant, participant)
+			ArenaCombatService.OnParticipantKilled(killerParticipant, participant, sourceProjectile)
 			clearParticipantInput(participant)
 		end
 
@@ -548,8 +555,8 @@ ProjectileCombatService.init({
 	createSelfHitVfx = function(pos, normal) ProjectileService.getVFXHelpers().createSelfHitVfx(pos, normal) end,
 	createRicochetVfx = function(pos, normal) ProjectileService.getVFXHelpers().createRicochetVfx(pos, normal) end,
 	destroyProjectile = function(proj) ProjectileService.destroyProjectile(proj) end,
-	sendCombatFeedback = function(ftype, pos, text, color)
-		sendCombatFeedbackPayload(ftype, pos, text, color, false)
+	sendCombatFeedback = function(ftype, pos, text, color, options)
+		sendCombatFeedbackPayload(ftype, pos, text, color, false, options)
 	end,
 	damageParticipant = damageParticipant,
 	canDamageParticipant = function(projectile, targetParticipant)
@@ -602,6 +609,7 @@ RoundMatchService.init(root, {
 ArenaCombatService.init({
 	root = root,
 	tankSpawnResetService = TankSpawnResetService,
+	playerWalletService = PlayerWalletService,
 	setPlayerMode = function(player, participant, mode, matchId, opponentTankId)
 		LobbyService.setPlayerMode(player, participant, mode, matchId, opponentTankId)
 	end,

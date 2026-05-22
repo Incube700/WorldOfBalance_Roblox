@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local BotConfig = require(configs:WaitForChild("BotConfig"))
+local BattleArenaLoopConfig = require(configs:WaitForChild("BattleArenaLoopConfig"))
 
 local BotController = require(script.Parent:WaitForChild("BotController"))
 local BotSpawnPlanner = require(script.Parent:WaitForChild("BotSpawnPlanner"))
@@ -53,8 +54,9 @@ end
 
 local function getConfiguredBotLimit()
 	local battleArenaConfig = BotConfig.BattleArena or {}
+	local loopBotConfig = BattleArenaLoopConfig.Enabled == true and BattleArenaLoopConfig.Bots or {}
 	local safetyConfig = BotConfig.Safety or {}
-	local maxBots = math.max(0, math.floor(tonumber(battleArenaConfig.MaxBots) or 0))
+	local maxBots = math.max(0, math.floor(tonumber(loopBotConfig.MaxBots) or tonumber(battleArenaConfig.MaxBots) or 0))
 	local hardLimit = math.max(0, math.floor(tonumber(safetyConfig.MaxBotsHardLimit) or maxBots))
 
 	if hardLimit <= 0 then
@@ -70,12 +72,21 @@ local function getDesiredBotCount()
 	end
 
 	local battleArenaConfig = BotConfig.BattleArena or {}
+	local loopBotConfig = BattleArenaLoopConfig.Enabled == true and BattleArenaLoopConfig.Bots or {}
 	local playerCount = arenaCombatService.GetActivePlayerCount ~= nil
 		and arenaCombatService.GetActivePlayerCount()
 		or 0
 
 	if playerCount <= 0 then
 		return 0
+	end
+
+	if loopBotConfig.MaintainMinBots == true then
+		local minBots = playerCount <= 1
+			and math.max(0, math.floor(tonumber(loopBotConfig.MinBotsSolo) or 0))
+			or math.max(0, math.floor(tonumber(loopBotConfig.MinBotsWithPlayers) or 0))
+
+		return math.min(minBots, getConfiguredBotLimit())
 	end
 
 	local spawnThreshold = math.max(1, math.floor(tonumber(battleArenaConfig.SpawnWhenPlayerCountLessThan) or 2))
@@ -286,10 +297,11 @@ local function updateRespawn(record)
 	end
 
 	local battleArenaConfig = BotConfig.BattleArena or {}
+	local loopBotConfig = BattleArenaLoopConfig.Enabled == true and BattleArenaLoopConfig.Bots or {}
 	local now = os.clock()
 
 	if record.RespawnAt == nil then
-		record.RespawnAt = now + math.max(0, tonumber(battleArenaConfig.RespawnDelay) or 3)
+		record.RespawnAt = now + math.max(0, tonumber(loopBotConfig.RespawnDelay) or tonumber(battleArenaConfig.RespawnDelay) or 3)
 		debugLog("died:" .. tostring(record.TankId), "[BOT] died id=" .. tostring(record.TankId))
 		return true
 	end

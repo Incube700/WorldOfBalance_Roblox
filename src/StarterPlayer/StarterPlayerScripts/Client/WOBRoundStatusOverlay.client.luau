@@ -437,6 +437,13 @@ local function isCombatHudVisible()
 	return mode == "InMatch" and root:GetAttribute("GameState") == "Playing"
 end
 
+local function isScriptedDuelHudActive()
+	return ((HudConfig.CombatHud or {}).UseScriptedDuelHud == true)
+		and localPlayer:GetAttribute("PlayerMode") == "InMatch"
+		and root:GetAttribute("GameState") == "Playing"
+		and root:GetAttribute("MatchMode") == "PvP"
+end
+
 local function isMobileLayout()
 	return HudDeviceUtils.IsMobileLayout()
 end
@@ -538,6 +545,7 @@ local function applyCombatHudVisibility()
 	applyCombatHudLayout()
 
 	local isVisible = isCombatHudVisible()
+	local scriptedDuelHudActive = isScriptedDuelHudActive()
 	local hideTopHpPanels = isVisible and shouldHideTopHpPanels()
 	local hideLargeReloadPanel = isVisible and shouldHideLargeReloadPanel()
 	local combatHudConfig = HudConfig.CombatHud or {}
@@ -547,7 +555,26 @@ local function applyCombatHudVisibility()
 		and combatHudConfig.HidePlayerHpPanelWhenWorldBarsEnabled ~= false
 
 	if roundUi.ScreenGui ~= nil then
-		roundUi.ScreenGui.Enabled = isVisible
+		roundUi.ScreenGui.Enabled = isVisible and not scriptedDuelHudActive
+	end
+
+	if scriptedDuelHudActive then
+		for _, panel in ipairs({
+			roundUi.EnemyStatusPanel,
+			roundUi.WeaponStatusPanel,
+			roundUi.PlayerStatusPanel,
+			roundUi.RoundStatusPanel,
+			roundUi.MatchSeriesPanel,
+		}) do
+			if panel ~= nil then
+				panel.Visible = false
+			end
+		end
+
+		roundUi.RoundResultLabel.Visible = false
+		roundUi.RestartHintLabel.Visible = false
+		roundUi.MatchResultLabel.Visible = false
+		return
 	end
 
 	if roundUi.EnemyStatusPanel ~= nil then
@@ -763,6 +790,11 @@ local function updateReloadStatus()
 end
 
 local function updateRoundResult()
+	if isScriptedDuelHudActive() then
+		applyCombatHudVisibility()
+		return
+	end
+
 	if not isCombatHudVisible() then
 		applyCombatHudVisibility()
 		return
@@ -838,6 +870,11 @@ local function updateRoundResult()
 end
 
 local function updateSeriesStatus()
+	if isScriptedDuelHudActive() then
+		applyCombatHudVisibility()
+		return
+	end
+
 	if not isCombatHudVisible() then
 		applyCombatHudVisibility()
 		return

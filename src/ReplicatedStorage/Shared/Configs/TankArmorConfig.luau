@@ -41,14 +41,25 @@ local TankArmorConfig = table.freeze({
 	Visuals = table.freeze({
 		ArmorZonesVisible = true,
 		Material = "SmoothPlastic",
-		FrontColor = Color3.fromRGB(70, 235, 190),
-		SideColor = Color3.fromRGB(255, 205, 70),
-		RearColor = Color3.fromRGB(255, 85, 85),
+		FrontColor = Color3.fromRGB(75, 240, 180),
+		SideColor = Color3.fromRGB(255, 210, 70),
+		RearColor = Color3.fromRGB(255, 90, 85),
 		CornerColor = Color3.fromRGB(135, 210, 255),
-		FrontTransparency = 0.35,
-		SideTransparency = 0.45,
-		RearTransparency = 0.45,
+		FrontTransparency = 0.32,
+		SideTransparency = 0.42,
+		RearTransparency = 0.42,
 		CornerTransparency = 0.45,
+	}),
+
+	Feedback = table.freeze({
+		DamageColor = Color3.fromRGB(255, 105, 75),
+		NoPenText = "NO PEN",
+		NoPenColor = Color3.fromRGB(185, 225, 255),
+		RicochetText = "RICOCHET",
+		RicochetColor = Color3.fromRGB(255, 220, 70),
+		Lifetime = 0.6,
+		RiseDistance = 2.1,
+		MaxActiveFeedback = 6,
 	}),
 })
 

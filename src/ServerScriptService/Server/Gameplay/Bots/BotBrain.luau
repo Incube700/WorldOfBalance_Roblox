@@ -37,6 +37,56 @@ local function refreshJitter(brainState, brainConfig, rng, now)
 	brainState.NextMoveJitterAt = now + math.max(0.2, tonumber(brainConfig.MoveJitterInterval) or 1.25)
 end
 
+local function refreshAimJitter(brainState, brainConfig, rng, now, distance)
+	if brainState.NextAimJitterAt ~= nil and now < brainState.NextAimJitterAt then
+		return
+	end
+
+	local jitterDegrees = math.max(0, tonumber(brainConfig.AimJitterDegrees) or 0)
+	local jitterRadius = math.tan(math.rad(jitterDegrees)) * math.max(8, tonumber(distance) or 30)
+	local angle = rng:NextNumber() * math.pi * 2
+	local radius = jitterRadius * math.sqrt(rng:NextNumber())
+
+	brainState.AimJitter = Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
+	brainState.NextAimJitterAt = now + math.max(0.15, tonumber(brainConfig.ReactionDelay) or 0.25)
+end
+
+local function getTargetKey(targetParticipant)
+	if targetParticipant == nil then
+		return ""
+	end
+
+	return tostring(targetParticipant.TankId or targetParticipant)
+end
+
+local function updateTargetReaction(brainState, brainConfig, targetParticipant, now)
+	local targetKey = getTargetKey(targetParticipant)
+
+	if brainState.TargetKey ~= targetKey then
+		brainState.TargetKey = targetKey
+		brainState.TargetSeenAt = now
+		brainState.NextFireCheckAt = now + math.max(0, tonumber(brainConfig.ReactionDelay) or 0)
+	end
+end
+
+local function shouldShootNow(brainState, brainConfig, rng, now)
+	local reactionDelay = math.max(0, tonumber(brainConfig.ReactionDelay) or 0)
+
+	if now - (brainState.TargetSeenAt or now) < reactionDelay then
+		return false
+	end
+
+	if brainState.NextFireCheckAt ~= nil and now < brainState.NextFireCheckAt then
+		return false
+	end
+
+	local minCooldown = math.max(0.05, tonumber(brainConfig.FireCooldownMin) or tonumber(brainConfig.FireCheckInterval) or 0.3)
+	local maxCooldown = math.max(minCooldown, tonumber(brainConfig.FireCooldownMax) or minCooldown)
+	brainState.NextFireCheckAt = now + randomRange(rng, minCooldown, maxCooldown)
+
+	return rng:NextNumber() <= (tonumber(brainConfig.FireChance) or 0.55)
+end
+
 local function makeIdleDecision(botPosition, bodyYaw, brainState, brainConfig, rng, now)
 	refreshJitter(brainState, brainConfig, rng, now)
 
@@ -70,6 +120,7 @@ function BotBrain.Decide(params)
 	end
 
 	refreshJitter(brainState, brainConfig, rng, now)
+	updateTargetReaction(brainState, brainConfig, targetParticipant, now)
 
 	local directionToTarget, distance = getFlatDirection(botPosition, targetPosition)
 
@@ -105,13 +156,19 @@ function BotBrain.Decide(params)
 		throttle = moveThrottle * 0.5
 	end
 
-	local wantsShoot = targetParticipant ~= nil
-		and rng:NextNumber() <= (tonumber(brainConfig.FireChance) or 0.55)
+	refreshAimJitter(brainState, brainConfig, rng, now, distance)
+
+	local aimJitter = brainState.AimJitter
+	if typeof(aimJitter) ~= "Vector3" then
+		aimJitter = Vector3.zero
+	end
+
+	local wantsShoot = targetParticipant ~= nil and shouldShootNow(brainState, brainConfig, rng, now)
 
 	return {
 		TargetParticipant = targetParticipant,
 		MoveDirection = moveDirection,
-		AimWorldPoint = targetPosition,
+		AimWorldPoint = targetPosition + aimJitter,
 		Throttle = throttle,
 		WantsShoot = wantsShoot,
 		TargetDistance = distance,

@@ -107,27 +107,27 @@
 		<Item class="Camera" referent="RBXc1464cbc5d44410fbc4ee16ffc5ee710">
 			<Properties>
 				<CoordinateFrame name="CFrame">
-					<X>-26.9774036</X>
-					<Y>100.632751</Y>
-					<Z>35.4319229</Z>
-					<R00>0.999950826</R00>
-					<R01>-0.00952604786</R01>
-					<R02>0.00276756589</R02>
-					<R10>-0</R10>
-					<R11>0.278990477</R11>
-					<R12>0.960293829</R12>
-					<R20>-0.00991993025</R20>
-					<R21>-0.960246623</R21>
-					<R22>0.278976738</R22>
+					<X>127.492134</X>
+					<Y>315.457092</Y>
+					<Z>68.0783234</Z>
+					<R00>0.0999026597</R00>
+					<R01>-0.908400834</R01>
+					<R02>0.405989528</R02>
+					<R10>3.7252903e-09</R10>
+					<R11>0.408030838</R11>
+					<R12>0.912968159</R12>
+					<R20>-0.994997263</R20>
+					<R21>-0.0912079439</R21>
+					<R22>0.0407633632</R22>
 				</CoordinateFrame>
 				<Ref name="CameraSubject">null</Ref>
 				<token name="CameraType">0</token>
 				<float name="FieldOfView">70</float>
 				<token name="FieldOfViewMode">0</token>
 				<CoordinateFrame name="Focus">
-					<X>-26.9829388</X>
-					<Y>98.7121658</Y>
-					<Z>34.87397</Z>
+					<X>126.680145</X>
+					<Y>313.631134</Y>
+					<Z>67.9967957</Z>
 					<R00>1</R00>
 					<R01>0</R01>
 					<R02>0</R02>
@@ -1932,7 +1932,7 @@ AABSaWNvY2hldBMAAABXT0JNb3ZlbWVudE9ic3RhY2xlAwE=]]></BinaryString>
 						<CoordinateFrame name="ModelMeshCFrame">
 							<X>-56.1346436</X>
 							<Y>1.25562274</Y>
-							<Z>26.9840622</Z>
+							<Z>-16.0159378</Z>
 							<R00>0.706935763</R00>
 							<R01>0</R01>
 							<R02>0.706935763</R02>
@@ -1958,13 +1958,13 @@ AABSaWNvY2hldBMAAABXT0JNb3ZlbWVudE9ic3RhY2xlAwE=]]></BinaryString>
 							<CFrame>
 								<X>-5.51799965</X>
 								<Y>2.65563059</Y>
-								<Z>28.9645348</Z>
+								<Z>-14.0354652</Z>
 								<R00>0</R00>
 								<R01>0</R01>
 								<R02>1</R02>
 								<R10>0</R10>
 								<R11>1</R11>
-								<R12>-0</R12>
+								<R12>0</R12>
 								<R20>-1</R20>
 								<R21>0</R21>
 								<R22>0</R22>
@@ -1999,13 +1999,13 @@ AgkAAABEdW1teVRhbmsGAAAAVGVhbUlkAgUAAABEdW1teQ==]]></BinaryString>
 							<CoordinateFrame name="CFrame">
 								<X>-5.51799965</X>
 								<Y>2.65563059</Y>
-								<Z>28.9645348</Z>
+								<Z>-14.0354652</Z>
 								<R00>0</R00>
 								<R01>0</R01>
 								<R02>1</R02>
 								<R10>0</R10>
 								<R11>1</R11>
-								<R12>-0</R12>
+								<R12>0</R12>
 								<R20>-1</R20>
 								<R21>0</R21>
 								<R22>0</R22>
@@ -2100,13 +2100,13 @@ AgkAAABEdW1teVRhbmsGAAAAVGVhbUlkAgUAAABEdW1teQ==]]></BinaryString>
 							<CoordinateFrame name="CFrame">
 								<X>-5.51799965</X>
 								<Y>4.87024164</Y>
-								<Z>28.9645348</Z>
+								<Z>-14.0354652</Z>
 								<R00>0</R00>
 								<R01>0</R01>
 								<R02>1</R02>
 								<R10>0</R10>
 								<R11>1</R11>
-								<R12>-0</R12>
+								<R12>0</R12>
 								<R20>-1</R20>
 								<R21>0</R21>
 								<R22>0</R22>
@@ -2199,15 +2199,15 @@ AgkAAABEdW1teVRhbmsGAAAAVGVhbUlkAgUAAABEdW1teQ==]]></BinaryString>
 							<token name="BottomSurface">0</token>
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
-								<X>-10.4582567</X>
+								<X>-10.4582577</X>
 								<Y>4.87024164</Y>
-								<Z>28.9645348</Z>
+								<Z>-14.0354652</Z>
 								<R00>0</R00>
 								<R01>0</R01>
 								<R02>1</R02>
 								<R10>0</R10>
 								<R11>1</R11>
-								<R12>-0</R12>
+								<R12>0</R12>
 								<R20>-1</R20>
 								<R21>0</R21>
 								<R22>0</R22>
@@ -2300,15 +2300,15 @@ AgkAAABEdW1teVRhbmsGAAAAVGVhbUlkAgUAAABEdW1teQ==]]></BinaryString>
 							<token name="BottomSurface">0</token>
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
-								<X>-14.0356865</X>
+								<X>-14.0356874</X>
 								<Y>4.87024164</Y>
-								<Z>28.9645348</Z>
+								<Z>-14.0354652</Z>
 								<R00>0</R00>
 								<R01>0</R01>
 								<R02>1</R02>
 								<R10>0</R10>
 								<R11>1</R11>
-								<R12>-0</R12>
+								<R12>0</R12>
 								<R20>-1</R20>
 								<R21>0</R21>
 								<R22>0</R22>
@@ -2414,13 +2414,13 @@ AgkAAABEdW1teVRhbmsGAAAAVGVhbUlkAgUAAABEdW1teQ==]]></BinaryString>
 								<CoordinateFrame name="CFrame">
 									<X>-10.3730812</X>
 									<Y>3.84811306</Y>
-									<Z>28.9645348</Z>
+									<Z>-14.0354652</Z>
 									<R00>0</R00>
 									<R01>0</R01>
 									<R02>1</R02>
 									<R10>0</R10>
 									<R11>1</R11>
-									<R12>-0</R12>
+									<R12>0</R12>
 									<R20>-1</R20>
 									<R21>0</R21>
 									<R22>0</R22>
@@ -2515,13 +2515,13 @@ AgkAAABEdW1teVRhbmsGAAAAVGVhbUlkAgUAAABEdW1teQ==]]></BinaryString>
 								<CoordinateFrame name="CFrame">
 									<X>-0.662918091</X>
 									<Y>3.84811306</Y>
-									<Z>28.9645348</Z>
+									<Z>-14.0354652</Z>
 									<R00>0</R00>
 									<R01>0</R01>
 									<R02>1</R02>
 									<R10>0</R10>
 									<R11>1</R11>
-									<R12>-0</R12>
+									<R12>0</R12>
 									<R20>-1</R20>
 									<R21>0</R21>
 									<R22>0</R22>
@@ -2616,13 +2616,13 @@ AgkAAABEdW1teVRhbmsGAAAAVGVhbUlkAgUAAABEdW1teQ==]]></BinaryString>
 								<CoordinateFrame name="CFrame">
 									<X>-5.51799965</X>
 									<Y>3.84811306</Y>
-									<Z>32.5420113</Z>
+									<Z>-10.4579887</Z>
 									<R00>0</R00>
 									<R01>0</R01>
 									<R02>1</R02>
 									<R10>0</R10>
 									<R11>1</R11>
-									<R12>-0</R12>
+									<R12>0</R12>
 									<R20>-1</R20>
 									<R21>0</R21>
 									<R22>0</R22>
@@ -2717,13 +2717,13 @@ AgkAAABEdW1teVRhbmsGAAAAVGVhbUlkAgUAAABEdW1teQ==]]></BinaryString>
 								<CoordinateFrame name="CFrame">
 									<X>-5.51799965</X>
 									<Y>3.84811306</Y>
-									<Z>25.387064</Z>
+									<Z>-17.612936</Z>
 									<R00>0</R00>
 									<R01>0</R01>
 									<R02>1</R02>
 									<R10>0</R10>
 									<R11>1</R11>
-									<R12>-0</R12>
+									<R12>0</R12>
 									<R20>-1</R20>
 									<R21>0</R21>
 									<R22>0</R22>
@@ -4561,7 +4561,7 @@ cGUGAAAAVGVhbUlkAgcAAABQbGF5ZXIy]]></BinaryString>
 					<Properties>
 						<token name="LevelOfDetail">0</token>
 						<CoordinateFrame name="ModelMeshCFrame">
-							<X>-45.9805222</X>
+							<X>-48.4805183</X>
 							<Y>0.829746962</Y>
 							<Z>66.7579956</Z>
 							<R00>0.707176745</R00>
@@ -4583,11 +4583,11 @@ cGUGAAAAVGVhbUlkAgcAAABQbGF5ZXIy]]></BinaryString>
 						<token name="ModelStreamingMode">0</token>
 						<bool name="NeedsPivotMigration">false</bool>
 						<Ref name="PrimaryPart">RBX5c2e5566528d417fa27e5e2b96b2fb27</Ref>
-						<float name="ScaleFactor">1.54143131</float>
+						<float name="ScaleFactor">0.966716409</float>
 						<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 						<OptionalCoordinateFrame name="WorldPivotData">
 							<CFrame>
-								<X>-47.3947906</X>
+								<X>-49.8947868</X>
 								<Y>2.22974706</Y>
 								<Z>19.384201</Z>
 								<R00>-1</R00>
@@ -4628,7 +4628,7 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 							<token name="BottomSurface">0</token>
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
-								<X>-47.3947906</X>
+								<X>-49.8947868</X>
 								<Y>2.22974706</Y>
 								<Z>19.384201</Z>
 								<R00>-1</R00>
@@ -4700,9 +4700,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<Z>0</Z>
 							</Vector3>
 							<Vector3 name="size">
-								<X>12.3314505</X>
-								<Y>4.62429428</Y>
-								<Z>16.9557438</Z>
+								<X>7.73373127</X>
+								<Y>2.90014935</Y>
+								<Z>10.6338797</Z>
 							</Vector3>
 							<BinaryString name="AttributesSerialize"></BinaryString>
 							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -4729,8 +4729,8 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 							<token name="BottomSurface">0</token>
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
-								<X>-47.3947906</X>
-								<Y>5.85211086</Y>
+								<X>-49.8947868</X>
+								<Y>4.50153065</Y>
 								<Z>19.384201</Z>
 								<R00>-1</R00>
 								<R01>0</R01>
@@ -4801,9 +4801,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<Z>0</Z>
 							</Vector3>
 							<Vector3 name="size">
-								<X>8.47787189</X>
-								<Y>2.62043333</Y>
-								<Z>8.47787189</Z>
+								<X>5.31693983</X>
+								<Y>1.64341795</Y>
+								<Z>5.31693983</Z>
 							</Vector3>
 							<BinaryString name="AttributesSerialize"></BinaryString>
 							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -4830,9 +4830,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 							<token name="BottomSurface">0</token>
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
-								<X>-47.3947906</X>
-								<Y>6.23746872</Y>
-								<Z>28.3244591</Z>
+								<X>-49.8947868</X>
+								<Y>4.74320984</Y>
+								<Z>24.9911289</Z>
 								<R00>-1</R00>
 								<R01>0</R01>
 								<R02>0</R02>
@@ -4902,9 +4902,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<Z>0</Z>
 							</Vector3>
 							<Vector3 name="size">
-								<X>1.84971786</X>
-								<Y>1.84971786</Y>
-								<Z>9.24858856</Z>
+								<X>1.16005981</X>
+								<Y>1.16005981</Y>
+								<Z>5.80029869</Z>
 							</Vector3>
 							<BinaryString name="AttributesSerialize"></BinaryString>
 							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -4931,9 +4931,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 							<token name="BottomSurface">0</token>
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
-								<X>-47.3947906</X>
-								<Y>6.23746872</Y>
-								<Z>32.9887695</Z>
+								<X>-49.8947868</X>
+								<Y>4.74320984</Y>
+								<Z>27.9163742</Z>
 								<R00>-1</R00>
 								<R01>0</R01>
 								<R02>0</R02>
@@ -5003,9 +5003,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<Z>0</Z>
 							</Vector3>
 							<Vector3 name="size">
-								<X>0.924858928</X>
-								<Y>0.924858928</Y>
-								<Z>0.924858928</Z>
+								<X>0.580029905</X>
+								<Y>0.580029905</Y>
+								<Z>0.580029905</Z>
 							</Vector3>
 							<BinaryString name="AttributesSerialize"></BinaryString>
 							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -5043,9 +5043,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<token name="BottomSurface">0</token>
 								<token name="BottomSurfaceInput">0</token>
 								<CoordinateFrame name="CFrame">
-									<X>-47.394783</X>
-									<Y>4.38775253</Y>
-									<Z>28.1702843</Z>
+									<X>-49.894783</X>
+									<Y>3.5831511</Y>
+									<Z>24.8944378</Z>
 									<R00>-1</R00>
 									<R01>0</R01>
 									<R02>0</R02>
@@ -5115,9 +5115,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 									<Z>0</Z>
 								</Vector3>
 								<Vector3 name="size">
-									<X>13.4103994</X>
-									<Y>8.32369709</Y>
-									<Z>0.385356337</Z>
+									<X>8.41039944</X>
+									<Y>5.22024822</Y>
+									<Z>0.241678163</Z>
 								</Vector3>
 								<BinaryString name="AttributesSerialize">AQAAAAsAAABHYW1lcGxheVRhZwIKAAAAVGFua0hpdGJveA==</BinaryString>
 								<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -5144,9 +5144,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<token name="BottomSurface">0</token>
 								<token name="BottomSurfaceInput">0</token>
 								<CoordinateFrame name="CFrame">
-									<X>-47.394783</X>
-									<Y>4.38775253</Y>
-									<Z>10.5981159</Z>
+									<X>-49.894783</X>
+									<Y>3.5831511</Y>
+									<Z>13.8739634</Z>
 									<R00>-1</R00>
 									<R01>0</R01>
 									<R02>0</R02>
@@ -5216,9 +5216,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 									<Z>0</Z>
 								</Vector3>
 								<Vector3 name="size">
-									<X>13.4103994</X>
-									<Y>8.32369709</Y>
-									<Z>0.385356337</Z>
+									<X>8.41039944</X>
+									<Y>5.22024822</Y>
+									<Z>0.241678163</Z>
 								</Vector3>
 								<BinaryString name="AttributesSerialize">AQAAAAsAAABHYW1lcGxheVRhZwIKAAAAVGFua0hpdGJveA==</BinaryString>
 								<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -5245,8 +5245,8 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<token name="BottomSurface">0</token>
 								<token name="BottomSurfaceInput">0</token>
 								<CoordinateFrame name="CFrame">
-									<X>-40.920742</X>
-									<Y>4.38775253</Y>
+									<X>-45.8345566</X>
+									<Y>3.5831511</Y>
 									<Z>19.384201</Z>
 									<R00>-1</R00>
 									<R01>0</R01>
@@ -5317,9 +5317,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 									<Z>0</Z>
 								</Vector3>
 								<Vector3 name="size">
-									<X>0.385356337</X>
-									<Y>8.32369709</Y>
-									<Z>18.0346775</Z>
+									<X>0.241678163</X>
+									<Y>5.22024822</Y>
+									<Z>11.3105383</Z>
 								</Vector3>
 								<BinaryString name="AttributesSerialize">AQAAAAsAAABHYW1lcGxheVRhZwIKAAAAVGFua0hpdGJveA==</BinaryString>
 								<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -5346,8 +5346,8 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 								<token name="BottomSurface">0</token>
 								<token name="BottomSurfaceInput">0</token>
 								<CoordinateFrame name="CFrame">
-									<X>-53.8688278</X>
-									<Y>4.38775253</Y>
+									<X>-53.9550133</X>
+									<Y>3.5831511</Y>
 									<Z>19.384201</Z>
 									<R00>-1</R00>
 									<R01>0</R01>
@@ -5418,9 +5418,9 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 									<Z>0</Z>
 								</Vector3>
 								<Vector3 name="size">
-									<X>0.385356337</X>
-									<Y>8.32369709</Y>
-									<Z>18.0346775</Z>
+									<X>0.241678163</X>
+									<Y>5.22024822</Y>
+									<Z>11.3105383</Z>
 								</Vector3>
 								<BinaryString name="AttributesSerialize">AQAAAAsAAABHYW1lcGxheVRhZwIKAAAAVGFua0hpdGJveA==</BinaryString>
 								<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -17912,6 +17912,8 @@ local Players = game:GetService("Players")
 
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local combatFeedbackEvent = remotes:WaitForChild("CombatFeedbackEvent")
+local configs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
+local TankArmorConfig = require(configs:WaitForChild("TankArmorConfig"))
 
 local root = Workspace:WaitForChild("WOB_Generated")
 local localPlayer = Players.LocalPlayer
@@ -17962,9 +17964,11 @@ end
 local DEFAULT_LIFETIME = 0.65
 local DEFAULT_RISE_DISTANCE = 2.4
 local FEEDBACK_BILLBOARD_SIZE = UDim2.fromOffset(160, 44)
-local MAX_ACTIVE_FEEDBACK = 8
+local MAX_ACTIVE_FEEDBACK = math.max(1, math.floor(tonumber((TankArmorConfig.Feedback or {}).MaxActiveFeedback) or 8))
+local FEEDBACK_DEDUPE_SECONDS = 0.12
 
 local activeFeedback = {}
+local recentFeedbackByCell = {}
 
 local function createAnchor(position)
 	local part = Instance.new("Part")
@@ -18058,6 +18062,18 @@ local function trimOldFeedback()
 	end
 end
 
+local function getFeedbackCell(data)
+	local position = data.Position
+
+	return tostring(data.Text)
+		.. ":"
+		.. tostring(math.floor(position.X * 2))
+		.. ":"
+		.. tostring(math.floor(position.Y * 2))
+		.. ":"
+		.. tostring(math.floor(position.Z * 2))
+end
+
 local function showFeedback(payload)
 	if typeof(payload) == "table" and payload.AudioOnly == true then
 		return
@@ -18081,6 +18097,21 @@ local function showFeedback(payload)
 	if data == nil then
 		return
 	end
+
+	for cachedCell, lastSeenAt in pairs(recentFeedbackByCell) do
+		if data.CreatedAt - lastSeenAt > 2 then
+			recentFeedbackByCell[cachedCell] = nil
+		end
+	end
+
+	local cell = getFeedbackCell(data)
+	local lastSeen = recentFeedbackByCell[cell]
+
+	if lastSeen ~= nil and data.CreatedAt - lastSeen < FEEDBACK_DEDUPE_SECONDS then
+		return
+	end
+
+	recentFeedbackByCell[cell] = data.CreatedAt
 
 	local anchor = createAnchor(data.Position + Vector3.new(0, 3.5, 0))
 	local label = createBillboard(anchor, data.Text, data.Color)
@@ -18611,6 +18642,13 @@ local function isCombatHudVisible()
 	return mode == "InMatch" and root:GetAttribute("GameState") == "Playing"
 end
 
+local function isScriptedDuelHudActive()
+	return ((HudConfig.CombatHud or {}).UseScriptedDuelHud == true)
+		and localPlayer:GetAttribute("PlayerMode") == "InMatch"
+		and root:GetAttribute("GameState") == "Playing"
+		and root:GetAttribute("MatchMode") == "PvP"
+end
+
 local function isMobileLayout()
 	return HudDeviceUtils.IsMobileLayout()
 end
@@ -18712,6 +18750,7 @@ local function applyCombatHudVisibility()
 	applyCombatHudLayout()
 
 	local isVisible = isCombatHudVisible()
+	local scriptedDuelHudActive = isScriptedDuelHudActive()
 	local hideTopHpPanels = isVisible and shouldHideTopHpPanels()
 	local hideLargeReloadPanel = isVisible and shouldHideLargeReloadPanel()
 	local combatHudConfig = HudConfig.CombatHud or {}
@@ -18721,7 +18760,26 @@ local function applyCombatHudVisibility()
 		and combatHudConfig.HidePlayerHpPanelWhenWorldBarsEnabled ~= false
 
 	if roundUi.ScreenGui ~= nil then
-		roundUi.ScreenGui.Enabled = isVisible
+		roundUi.ScreenGui.Enabled = isVisible and not scriptedDuelHudActive
+	end
+
+	if scriptedDuelHudActive then
+		for _, panel in ipairs({
+			roundUi.EnemyStatusPanel,
+			roundUi.WeaponStatusPanel,
+			roundUi.PlayerStatusPanel,
+			roundUi.RoundStatusPanel,
+			roundUi.MatchSeriesPanel,
+		}) do
+			if panel ~= nil then
+				panel.Visible = false
+			end
+		end
+
+		roundUi.RoundResultLabel.Visible = false
+		roundUi.RestartHintLabel.Visible = false
+		roundUi.MatchResultLabel.Visible = false
+		return
 	end
 
 	if roundUi.EnemyStatusPanel ~= nil then
@@ -18937,6 +18995,11 @@ local function updateReloadStatus()
 end
 
 local function updateRoundResult()
+	if isScriptedDuelHudActive() then
+		applyCombatHudVisibility()
+		return
+	end
+
 	if not isCombatHudVisible() then
 		applyCombatHudVisibility()
 		return
@@ -19012,6 +19075,11 @@ local function updateRoundResult()
 end
 
 local function updateSeriesStatus()
+	if isScriptedDuelHudActive() then
+		applyCombatHudVisibility()
+		return
+	end
+
 	if not isCombatHudVisible() then
 		applyCombatHudVisibility()
 		return
@@ -19201,6 +19269,7 @@ print("[WOB] Round status overlay bound to " .. roundUi.Source)
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
 local localPlayer = Players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
@@ -19317,6 +19386,7 @@ local statValueLabels = {}
 local totalStatValueLabels = {}
 local connectedButtons = {}
 local activeShellPanel = SHELL_PANEL_HIDDEN
+local resultPanelWasVisible = false
 local DEBUG_SHELL = false
 
 local function findDescendant(parent, name)
@@ -19876,6 +19946,13 @@ local function getLocalPlayerMode()
 	return PLAYER_MODE_LOBBY
 end
 
+local function isScriptedDuelHudActive()
+	return ((HudConfig.CombatHud or {}).UseScriptedDuelHud == true)
+		and getLocalPlayerMode() == PLAYER_MODE_IN_MATCH
+		and root:GetAttribute("GameState") == GAME_STATE_PLAYING
+		and root:GetAttribute("MatchMode") == "PvP"
+end
+
 local function isLobbyMode(mode)
 	return mode == PLAYER_MODE_LOBBY or mode == PLAYER_MODE_QUEUED
 end
@@ -20081,6 +20158,75 @@ local function updateStatsPanel()
 	end
 end
 
+local function animateResultPanel(resultPanel)
+	if resultPanel == nil or not resultPanel:IsA("GuiObject") then
+		return
+	end
+
+	local content = findDescendant(resultPanel, "ResultContent")
+	local title = findDescendant(resultPanel, "ResultTitleLabel")
+	local statsList = findDescendant(resultPanel, "StatsList")
+	local playAgainButton = findDescendant(resultPanel, "PlayAgainButton")
+	local backToMenuButton = findDescendant(resultPanel, "BackToMenuButton") or findDescendant(resultPanel, "MenuButton")
+
+	resultPanel.BackgroundTransparency = 1
+	TweenService:Create(resultPanel, TweenInfo.new(0.24, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		BackgroundTransparency = 0.08,
+	}):Play()
+
+	if content ~= nil and content:IsA("GuiObject") then
+		local scale = content:FindFirstChild("ResultEntranceScale")
+
+		if scale == nil then
+			scale = Instance.new("UIScale")
+			scale.Name = "ResultEntranceScale"
+			scale.Parent = content
+		end
+
+		scale.Scale = 0.9
+		content.BackgroundTransparency = 1
+		TweenService:Create(scale, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Scale = 1,
+		}):Play()
+		TweenService:Create(content, TweenInfo.new(0.22), {
+			BackgroundTransparency = 0.08,
+		}):Play()
+	end
+
+	if title ~= nil and title:IsA("TextLabel") then
+		title.TextTransparency = 1
+		TweenService:Create(title, TweenInfo.new(0.2), {
+			TextTransparency = 0,
+		}):Play()
+	end
+
+	if statsList ~= nil and statsList:IsA("GuiObject") then
+		statsList.Visible = false
+		task.delay(0.12, function()
+			if resultPanel.Visible then
+				statsList.Visible = true
+			end
+		end)
+	end
+
+	for _, button in ipairs({ playAgainButton, backToMenuButton }) do
+		if button ~= nil and button:IsA("TextButton") then
+			button.BackgroundTransparency = 1
+			button.TextTransparency = 1
+			task.delay(0.22, function()
+				if not resultPanel.Visible then
+					return
+				end
+
+				TweenService:Create(button, TweenInfo.new(0.18), {
+					BackgroundTransparency = 0,
+					TextTransparency = 0,
+				}):Play()
+			end)
+		end
+	end
+end
+
 local function isMobileLayout()
 	return UserInputService.TouchEnabled == true or MobileControlsConfig.ForceEnabledInStudio == true
 end
@@ -20158,11 +20304,13 @@ local function shouldShowGameplayHudPanel(panelName, isVisible)
 end
 
 local function setGameplayHudVisible(isVisible)
+	local legacyHudVisible = isVisible and not isScriptedDuelHudActive()
+
 	for _, guiName in ipairs(HUD_GUI_NAMES) do
 		local gui = playerGui:FindFirstChild(guiName)
 
 		if gui ~= nil and gui:IsA("ScreenGui") then
-			gui.Enabled = isVisible
+			gui.Enabled = legacyHudVisible
 		end
 	end
 
@@ -20173,13 +20321,13 @@ local function setGameplayHudVisible(isVisible)
 		return
 	end
 
-	local panelNames = isVisible and PERSISTENT_HUD_PANEL_NAMES or ALL_HUD_PANEL_NAMES
+	local panelNames = legacyHudVisible and PERSISTENT_HUD_PANEL_NAMES or ALL_HUD_PANEL_NAMES
 
 	for _, panelName in ipairs(panelNames) do
 		local panel = rootFrame:FindFirstChild(panelName)
 
 		if panel ~= nil and panel:IsA("GuiObject") then
-			panel.Visible = shouldShowGameplayHudPanel(panelName, isVisible)
+			panel.Visible = shouldShowGameplayHudPanel(panelName, legacyHudVisible)
 		end
 	end
 end
@@ -20192,6 +20340,7 @@ local function applyShellState(state)
 	local isResult = mode == PLAYER_MODE_RESULT
 	local isStatsOpen = isLobby and activeShellPanel == SHELL_PANEL_STATS
 	local showLobbyControls = isLobby and not isMenuOpen and not isStatsOpen
+	local shouldAnimateResultPanel = isResult and not resultPanelWasVisible
 
 	for _, screenGui in ipairs(getShellScreenGuis()) do
 		screenGui.Enabled = true
@@ -20208,6 +20357,10 @@ local function applyShellState(state)
 
 		if resultPanel ~= nil and resultPanel:IsA("GuiObject") then
 			resultPanel.Visible = isResult
+
+			if shouldAnimateResultPanel then
+				animateResultPanel(resultPanel)
+			end
 		end
 
 		if statsPanel ~= nil and statsPanel:IsA("GuiObject") then
@@ -20232,6 +20385,8 @@ local function applyShellState(state)
 	if isStatsOpen then
 		updateStatsPanel()
 	end
+
+	resultPanelWasVisible = isResult
 end
 
 local function updateShell()
@@ -21468,6 +21623,10 @@ function WOBClientInputState.requestMobileShoot(aimWorldPoint)
 	mobileShootPending = true
 end
 
+function WOBClientInputState.enqueueMobileShootRequest(aimWorldPoint)
+	WOBClientInputState.requestMobileShoot(aimWorldPoint)
+end
+
 function WOBClientInputState.consumeMobileShootRequest()
 	if not mobileShootPending then
 		return false, nil
@@ -21512,6 +21671,7 @@ return table.freeze(WOBClientInputState)
 						<ProtectedString name="Source"><![CDATA[local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
@@ -21534,6 +21694,7 @@ local LEFT_STICK_KNOB_NAME = "LeftStickKnob"
 local RIGHT_AIM_BASE_NAME = "RightAimBase"
 local RIGHT_AIM_KNOB_NAME = "RightAimKnob"
 local FIRE_BUTTON_NAME = "FireButton"
+local REVERSE_BUTTON_NAME = "ReverseButton"
 local DEBUG_AIM_AREA_NAME = "AimAreaDebugOverlay"
 
 local PLAYER_MODE_LOBBY = "Lobby"
@@ -21546,7 +21707,15 @@ local leftStickConfig = MobileControlsConfig.LeftStick or {}
 local aimAreaConfig = MobileControlsConfig.AimArea or {}
 local rightAimStickConfig = MobileControlsConfig.RightAimStick or {}
 local fireButtonConfig = MobileControlsConfig.FireButton or {}
+local reverseButtonConfig = MobileControlsConfig.ReverseButton or {}
 local primaryWeaponConfig = WeaponConfig.PrimaryWeapon or {}
+
+local STICK_RELEASE_MAGNITUDE = 0.1
+local ARCADE_FULL_STEER_ANGLE = math.rad(90)
+local ARCADE_SLOW_TURN_ANGLE = math.rad(45)
+local ARCADE_HARD_TURN_ANGLE = math.rad(120)
+local ARCADE_SLOW_TURN_THROTTLE_SCALE = 0.45
+local ARCADE_HARD_TURN_THROTTLE_SCALE = 0.15
 
 local stickRadius = tonumber(leftStickConfig.Radius) or 72
 local stickMaxDistance = tonumber(leftStickConfig.MaxDistance) or stickRadius
@@ -21558,9 +21727,12 @@ local rightAimDeadZone = math.clamp(tonumber(rightAimStickConfig.DeadZone) or 0.
 local rightAimEnabled = rightAimStickConfig.Enabled ~= false
 local rightAimVisible = rightAimEnabled and rightAimStickConfig.Visible ~= false
 local rightAimLabel = tostring(rightAimStickConfig.Label or "AIM")
+local aimTapMaxDuration = math.max(0.01, tonumber(rightAimStickConfig.TapMaxDuration) or 0.15)
+local aimTapMoveTolerancePixels = math.max(0, tonumber(rightAimStickConfig.TapMoveTolerancePixels) or 6)
 local aimPlaneY = tonumber(aimAreaConfig.AimPlaneY) or CameraConfig.Input.AimPlaneY or 0
 local aimMinXScale = math.clamp(tonumber(aimAreaConfig.MinXScale) or 0.45, 0, 1)
 local fireButtonLabel = tostring(fireButtonConfig.Label or "FIRE")
+local reverseButtonLabel = tostring(reverseButtonConfig.Label or "REV")
 local shootCooldown = math.max(0.05, tonumber(primaryWeaponConfig.ShootCooldown) or 0.45)
 
 local shouldEnableMobileControls = MobileControlsConfig.Enabled == true
@@ -21700,9 +21872,9 @@ rightAimLabelText.Parent = rightAimBase
 
 local fireButton = Instance.new("TextButton")
 fireButton.Name = FIRE_BUTTON_NAME
-fireButton.AnchorPoint = Vector2.new(0.5, 0.5)
-fireButton.Position = fireButtonConfig.Position or UDim2.fromScale(0.9, 0.56)
-fireButton.Size = fireButtonConfig.Size or UDim2.fromOffset(92, 92)
+fireButton.AnchorPoint = Vector2.new(1, 1)
+fireButton.Position = UDim2.new(1, -28, 1, -34)
+fireButton.Size = UDim2.fromOffset(84, 84)
 fireButton.BackgroundColor3 = Color3.fromRGB(194, 64, 54)
 fireButton.BackgroundTransparency = 0.18
 fireButton.BorderSizePixel = 0
@@ -21725,6 +21897,37 @@ fireButtonStroke.Transparency = 0.28
 fireButtonStroke.Thickness = 2
 fireButtonStroke.Parent = fireButton
 
+local reverseButton = Instance.new("TextButton")
+reverseButton.Name = REVERSE_BUTTON_NAME
+reverseButton.AnchorPoint = Vector2.new(0, 1)
+reverseButton.Position = UDim2.new(0, 244, 1, -34)
+reverseButton.Size = UDim2.fromOffset(64, 64)
+reverseButton.BackgroundColor3 = Color3.fromRGB(13, 17, 23)
+reverseButton.BackgroundTransparency = 0.2
+reverseButton.BorderSizePixel = 0
+reverseButton.Font = Enum.Font.GothamBlack
+reverseButton.Text = reverseButtonLabel
+reverseButton.TextColor3 = Color3.fromRGB(226, 232, 240)
+reverseButton.TextSize = 17
+reverseButton.TextWrapped = true
+reverseButton.AutoButtonColor = false
+reverseButton.Active = true
+reverseButton.Parent = screenGui
+
+local reverseButtonCorner = Instance.new("UICorner")
+reverseButtonCorner.CornerRadius = UDim.new(1, 0)
+reverseButtonCorner.Parent = reverseButton
+
+local reverseButtonStroke = Instance.new("UIStroke")
+reverseButtonStroke.Color = Color3.fromRGB(250, 204, 21)
+reverseButtonStroke.Transparency = 0.34
+reverseButtonStroke.Thickness = 2
+reverseButtonStroke.Parent = reverseButton
+
+local reverseButtonScale = Instance.new("UIScale")
+reverseButtonScale.Scale = 1
+reverseButtonScale.Parent = reverseButton
+
 local aimDebugOverlay = nil
 
 if MobileControlsConfig.Debug == true then
@@ -21741,12 +21944,22 @@ if MobileControlsConfig.Debug == true then
 end
 
 local activeMovementTouch = nil
+local activeMovementPoint = nil
 local activeAimTouch = nil
+local activeAimTouchStartPoint = nil
+local activeAimTouchStartTime = 0
+local activeAimTouchMoved = false
+local activeReverseInput = nil
+local reverseHeld = false
+local lastMovementNormalized = Vector2.zero
 local ownedTank = nil
 local controlsVisible = false
 local controlsEnabled = false
 local shootEnabled = false
 local localCooldownUntil = 0
+local lastLayoutViewportSize = nil
+local lastLayoutLeftCenter = nil
+local applyCurrentMovementState = nil
 
 local function getCamera()
 	local camera = Workspace.CurrentCamera
@@ -21756,6 +21969,66 @@ local function getCamera()
 	end
 
 	return nil
+end
+
+local function getViewportSize()
+	local camera = getCamera()
+
+	if camera ~= nil then
+		return camera.ViewportSize
+	end
+
+	if screenGui.AbsoluteSize.X > 0 and screenGui.AbsoluteSize.Y > 0 then
+		return screenGui.AbsoluteSize
+	end
+
+	return Vector2.new(1024, 768)
+end
+
+local function setGuiOffset(guiObject, x, y)
+	guiObject.Position = UDim2.fromOffset(math.floor(x + 0.5), math.floor(y + 0.5))
+end
+
+local function applyResponsiveLayout()
+	local viewportSize = getViewportSize()
+	local leftCenter = leftStickBase.AbsolutePosition + leftStickBase.AbsoluteSize * 0.5
+
+	if leftStickBase.AbsoluteSize.X <= 0 or leftStickBase.AbsoluteSize.Y <= 0 then
+		leftCenter = Vector2.new(viewportSize.X * 0.18, viewportSize.Y * 0.74)
+	end
+
+	if lastLayoutViewportSize ~= nil
+		and math.abs(lastLayoutViewportSize.X - viewportSize.X) < 1
+		and math.abs(lastLayoutViewportSize.Y - viewportSize.Y) < 1
+		and lastLayoutLeftCenter ~= nil
+		and math.abs(lastLayoutLeftCenter.X - leftCenter.X) < 1
+		and math.abs(lastLayoutLeftCenter.Y - leftCenter.Y) < 1
+	then
+		return
+	end
+
+	lastLayoutViewportSize = viewportSize
+	lastLayoutLeftCenter = leftCenter
+
+	local shorterSide = math.min(viewportSize.X, viewportSize.Y)
+	local fireSize = math.clamp(shorterSide * 0.22, 76, 88)
+	fireButton.Size = UDim2.fromOffset(fireSize, fireSize)
+	fireButton.Position = UDim2.new(1, -28, 1, -34)
+
+	local aimCenterX = math.min(viewportSize.X * 0.74, viewportSize.X - fireSize - rightAimRadius - 56)
+	local aimCenterY = math.max(viewportSize.Y * 0.62, viewportSize.Y - fireSize - rightAimRadius - 70)
+	aimCenterX = math.clamp(aimCenterX, rightAimRadius + 12, viewportSize.X - rightAimRadius - 12)
+	aimCenterY = math.clamp(aimCenterY, rightAimRadius + 12, viewportSize.Y - rightAimRadius - 12)
+	rightAimBase.Position = UDim2.fromOffset(aimCenterX, aimCenterY)
+
+	local reverseSize = math.clamp(shorterSide * 0.16, 58, 70)
+	reverseButton.Size = UDim2.fromOffset(reverseSize, reverseSize)
+
+	local reverseX = leftCenter.X + stickRadius + 20
+	local reverseBottomY = leftCenter.Y + stickRadius
+	reverseX = math.clamp(reverseX, 12, viewportSize.X - reverseSize - 12)
+	reverseBottomY = math.clamp(reverseBottomY, reverseSize + 12, viewportSize.Y - 20)
+	setGuiOffset(reverseButton, reverseX, reverseBottomY)
 end
 
 local function getOwnedTank()
@@ -21820,6 +22093,58 @@ local function isTankUsable(requireShoot)
 	return ownedTank:GetAttribute("CanMove") ~= false
 end
 
+local function setReverseButtonPressed(isPressed)
+	if isPressed then
+		TweenService:Create(reverseButton, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			BackgroundTransparency = 0.04,
+		}):Play()
+		TweenService:Create(reverseButtonStroke, TweenInfo.new(0.08), {
+			Color = Color3.fromRGB(249, 115, 22),
+			Transparency = 0.08,
+		}):Play()
+		TweenService:Create(reverseButtonScale, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Scale = 0.95,
+		}):Play()
+	else
+		TweenService:Create(reverseButton, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			BackgroundTransparency = controlsEnabled and 0.2 or 0.68,
+		}):Play()
+		TweenService:Create(reverseButtonStroke, TweenInfo.new(0.12), {
+			Color = Color3.fromRGB(250, 204, 21),
+			Transparency = controlsEnabled and 0.34 or 0.82,
+		}):Play()
+		TweenService:Create(reverseButtonScale, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Scale = 1,
+		}):Play()
+	end
+end
+
+local function setReverseHeld(isHeld, input)
+	local nextHeld = isHeld == true and controlsVisible and controlsEnabled
+
+	if reverseHeld == nextHeld and (nextHeld ~= true or activeReverseInput == input) then
+		return
+	end
+
+	reverseHeld = nextHeld
+	activeReverseInput = nextHeld and input or nil
+	setReverseButtonPressed(nextHeld)
+
+	if applyCurrentMovementState ~= nil then
+		applyCurrentMovementState()
+	end
+end
+
+local function resetReverseControl()
+	if reverseHeld == false and activeReverseInput == nil then
+		return
+	end
+
+	reverseHeld = false
+	activeReverseInput = nil
+	setReverseButtonPressed(false)
+end
+
 local function setControlTransparency(isEnabled)
 	leftStickBase.BackgroundTransparency = isEnabled and 0.42 or 0.72
 	leftStickKnob.BackgroundTransparency = isEnabled and 0.26 or 0.62
@@ -21834,6 +22159,10 @@ local function setControlTransparency(isEnabled)
 	fireButton.TextTransparency = shootEnabled and 0 or 0.45
 	fireButton.AutoButtonColor = shootEnabled
 	fireButton.Active = shootEnabled
+	reverseButton.BackgroundTransparency = isEnabled and (reverseHeld and 0.04 or 0.2) or 0.68
+	reverseButtonStroke.Transparency = isEnabled and (reverseHeld and 0.08 or 0.34) or 0.82
+	reverseButton.TextTransparency = isEnabled and 0 or 0.45
+	reverseButton.Active = isEnabled
 	rightAimBase.Active = isEnabled and rightAimVisible
 end
 
@@ -21847,12 +22176,22 @@ end
 
 local function resetMovementTouch()
 	activeMovementTouch = nil
-	WOBClientInputState.resetMobileMovement()
+	activeMovementPoint = nil
+	lastMovementNormalized = Vector2.zero
 	resetMoveStickVisual()
+
+	if applyCurrentMovementState ~= nil then
+		applyCurrentMovementState()
+	else
+		WOBClientInputState.resetMobileMovement()
+	end
 end
 
 local function resetAimTouch()
 	activeAimTouch = nil
+	activeAimTouchStartPoint = nil
+	activeAimTouchStartTime = 0
+	activeAimTouchMoved = false
 	resetAimStickVisual()
 end
 
@@ -21870,6 +22209,7 @@ local function updateVisibility()
 	leftStickBase.Visible = visible
 	rightAimBase.Visible = visible and rightAimVisible
 	fireButton.Visible = visible
+	reverseButton.Visible = visible
 
 	if aimDebugOverlay ~= nil then
 		aimDebugOverlay.Visible = visible and MobileControlsConfig.Debug == true
@@ -21878,6 +22218,7 @@ local function updateVisibility()
 	setControlTransparency(canMove)
 
 	if not visible or not canMove then
+		resetReverseControl()
 		resetMovementTouch()
 		resetAimTouch()
 	end
@@ -21931,7 +22272,50 @@ local function getFlatUnit(vector, fallback)
 	return fallback
 end
 
-local function getAimDirectionFromStick(normalized)
+local function normalizeAngle(angle)
+	local fullTurn = math.pi * 2
+
+	return ((angle + math.pi) % fullTurn) - math.pi
+end
+
+local function getYawFromFlatDirection(direction)
+	local flat = Vector3.new(direction.X, 0, direction.Z)
+
+	if flat.Magnitude < 0.001 then
+		return nil
+	end
+
+	local unit = flat.Unit
+	return math.atan2(-unit.X, -unit.Z)
+end
+
+local function getOwnedTankBodyYaw()
+	if ownedTank == nil or ownedTank.Parent == nil then
+		refreshOwnedTank()
+	end
+
+	if ownedTank == nil or ownedTank.Parent == nil then
+		return nil
+	end
+
+	local body = ownedTank:FindFirstChild("Body", true)
+		or ownedTank:FindFirstChild("Hull", true)
+		or (ownedTank:IsA("Model") and ownedTank.PrimaryPart or nil)
+
+	if body ~= nil and body:IsA("BasePart") then
+		return getYawFromFlatDirection(body.CFrame.LookVector)
+	end
+
+	if ownedTank:IsA("Model") then
+		return getYawFromFlatDirection(ownedTank:GetPivot().LookVector)
+	elseif ownedTank:IsA("BasePart") then
+		return getYawFromFlatDirection(ownedTank.CFrame.LookVector)
+	end
+
+	return nil
+end
+
+local function getWorldDirectionFromStick(normalized)
 	local camera = getCamera()
 	local worldRight = Vector3.new(1, 0, 0)
 	local worldUp = Vector3.new(0, 0, -1)
@@ -21953,6 +22337,10 @@ local function getAimDirectionFromStick(normalized)
 	end
 
 	return direction.Unit
+end
+
+local function getAimDirectionFromStick(normalized)
+	return getWorldDirectionFromStick(normalized)
 end
 
 local function updateAimFromPoint(point)
@@ -21993,7 +22381,56 @@ local function updateAimFromPoint(point)
 	return aimWorldPoint
 end
 
+local function getArcadeThrottleScale(absSignedAngle)
+	if absSignedAngle < ARCADE_SLOW_TURN_ANGLE then
+		return 1
+	elseif absSignedAngle < ARCADE_HARD_TURN_ANGLE then
+		return ARCADE_SLOW_TURN_THROTTLE_SCALE
+	end
+
+	return ARCADE_HARD_TURN_THROTTLE_SCALE
+end
+
+applyCurrentMovementState = function()
+	local magnitude = lastMovementNormalized.Magnitude
+	local localStickY = math.clamp(lastMovementNormalized.Y, -1, 1)
+	local localStickX = math.clamp(lastMovementNormalized.X, -1, 1)
+	local isActive = magnitude >= STICK_RELEASE_MAGNITUDE
+
+	if reverseHeld then
+		local throttle = isActive and -math.clamp(magnitude, 0, 1) or -1
+		local steer = isActive and localStickX or 0
+		WOBClientInputState.setMobileMovement(throttle, steer, true)
+		return
+	end
+
+	if not isActive then
+		WOBClientInputState.setMobileMovement(0, 0, false)
+		return
+	end
+
+	-- Mobile arcade movement:
+	-- the left stick chooses a desired world direction, the tank turns toward
+	-- that direction and keeps moving forward. Reverse is explicit on the REV
+	-- button, so joystick direction never flips into reverse by itself.
+	local desiredDirection = getWorldDirectionFromStick(Vector2.new(localStickX, localStickY))
+	local currentBodyYaw = getOwnedTankBodyYaw()
+	local desiredYaw = desiredDirection ~= nil and getYawFromFlatDirection(desiredDirection) or nil
+	local steer = localStickX
+	local throttleScale = 1
+
+	if currentBodyYaw ~= nil and desiredYaw ~= nil then
+		local signedAngle = normalizeAngle(desiredYaw - currentBodyYaw)
+		steer = -math.clamp(signedAngle / ARCADE_FULL_STEER_ANGLE, -1, 1)
+		throttleScale = getArcadeThrottleScale(math.abs(signedAngle))
+	end
+
+	local throttle = math.clamp(magnitude * throttleScale, 0, 1)
+	WOBClientInputState.setMobileMovement(throttle, steer, true)
+end
+
 local function updateMovementFromPoint(point)
+	activeMovementPoint = point
 	local center = leftStickBase.AbsolutePosition + leftStickBase.AbsoluteSize * 0.5
 	local delta = point - center
 	local distance = delta.Magnitude
@@ -22010,14 +22447,12 @@ local function updateMovementFromPoint(point)
 
 	if normalized.Magnitude < stickDeadZone then
 		normalized = Vector2.zero
+		clamped = Vector2.zero
 	end
 
-	local moveInput = math.clamp(-normalized.Y, -1, 1)
-	local turnInput = math.clamp(normalized.X, -1, 1)
-	local isActive = normalized.Magnitude > 0
-
 	leftStickKnob.Position = UDim2.fromOffset(stickRadius + clamped.X, stickRadius + clamped.Y)
-	WOBClientInputState.setMobileMovement(moveInput, turnInput, isActive)
+	lastMovementNormalized = normalized
+	applyCurrentMovementState()
 end
 
 local function requestShoot()
@@ -22046,6 +22481,22 @@ fireButton.InputBegan:Connect(function(input)
 	requestShoot()
 end)
 
+reverseButton.InputBegan:Connect(function(input)
+	if input.UserInputType ~= Enum.UserInputType.Touch
+		and input.UserInputType ~= Enum.UserInputType.MouseButton1
+	then
+		return
+	end
+
+	setReverseHeld(true, input)
+end)
+
+reverseButton.InputEnded:Connect(function(input)
+	if input == activeReverseInput then
+		setReverseHeld(false, nil)
+	end
+end)
+
 UserInputService.InputBegan:Connect(function(input, _gameProcessedEvent)
 	if not controlsVisible then
 		return
@@ -22061,6 +22512,10 @@ UserInputService.InputBegan:Connect(function(input, _gameProcessedEvent)
 		return
 	end
 
+	if isPointInsideGui(reverseButton, point) then
+		return
+	end
+
 	if controlsEnabled and activeMovementTouch == nil and isPointInsideGui(leftStickBase, point) then
 		activeMovementTouch = input
 		updateMovementFromPoint(point)
@@ -22073,7 +22528,9 @@ UserInputService.InputBegan:Connect(function(input, _gameProcessedEvent)
 		and isPointInsideGui(rightAimBase, point)
 	then
 		activeAimTouch = input
-		updateAimFromPoint(point)
+		activeAimTouchStartPoint = point
+		activeAimTouchStartTime = os.clock()
+		activeAimTouchMoved = false
 	end
 end)
 
@@ -22086,7 +22543,13 @@ UserInputService.InputChanged:Connect(function(input)
 		end
 	elseif input == activeAimTouch then
 		if controlsEnabled then
-			updateAimFromPoint(screenPointFromInput(input))
+			local point = screenPointFromInput(input)
+			local movedDistance = activeAimTouchStartPoint ~= nil and (point - activeAimTouchStartPoint).Magnitude or 0
+
+			if activeAimTouchMoved or movedDistance > aimTapMoveTolerancePixels then
+				activeAimTouchMoved = true
+				updateAimFromPoint(point)
+			end
 		else
 			resetAimTouch()
 		end
@@ -22097,12 +22560,29 @@ UserInputService.InputEnded:Connect(function(input)
 	if input == activeMovementTouch then
 		resetMovementTouch()
 	elseif input == activeAimTouch then
+		local duration = os.clock() - activeAimTouchStartTime
+
+		if controlsVisible
+			and shootEnabled
+			and not activeAimTouchMoved
+			and duration <= aimTapMaxDuration
+		then
+			WOBClientInputState.enqueueMobileShootRequest(WOBClientInputState.getMobileAimWorldPoint())
+		end
+
 		resetAimTouch()
+	elseif input == activeReverseInput then
+		setReverseHeld(false, nil)
 	end
 end)
 
 RunService.RenderStepped:Connect(function()
+	applyResponsiveLayout()
 	updateVisibility()
+
+	if activeMovementTouch ~= nil and controlsEnabled and activeMovementPoint ~= nil then
+		updateMovementFromPoint(activeMovementPoint)
+	end
 
 	if fireButtonConfig.CooldownVisual ~= false and os.clock() < localCooldownUntil then
 		local remaining = math.max(0, localCooldownUntil - os.clock())
@@ -22147,6 +22627,7 @@ local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local utils = shared:WaitForChild("Utils")
 local BattleArenaConfig = require(configs:WaitForChild("BattleArenaConfig"))
+local BattleArenaLoopConfig = require(configs:WaitForChild("BattleArenaLoopConfig"))
 local HudConfig = require(configs:WaitForChild("HudConfig"))
 local TankModelResolver = require(utils:WaitForChild("TankModelResolver"))
 local hudModules = script.Parent:WaitForChild("Hud")
@@ -22348,6 +22829,16 @@ local upgradesLabel = makeLabel(
 )
 upgradesLabel.TextColor3 = Color3.fromRGB(178, 238, 205)
 
+local sessionLabel = makeLabel(
+	scorePanel,
+	"SessionLabel",
+	UDim2.new(0, 14, 0, 120),
+	UDim2.new(1, -28, 0, 22),
+	13,
+	Enum.Font.GothamMedium
+)
+sessionLabel.TextColor3 = Color3.fromRGB(255, 225, 120)
+
 local actionsRoot = Instance.new("Frame")
 actionsRoot.Name = "BattleArenaActionsRoot"
 actionsRoot.Position = UDim2.fromScale(0, 0)
@@ -22482,6 +22973,17 @@ local respawnLabel = makeLabel(
 )
 respawnLabel.TextXAlignment = Enum.TextXAlignment.Center
 
+local deathSummaryLabel = makeLabel(
+	deathPanel,
+	"DeathSummaryLabel",
+	UDim2.new(0, 18, 0, 100),
+	UDim2.new(1, -36, 0, 24),
+	14,
+	Enum.Font.GothamMedium
+)
+deathSummaryLabel.TextXAlignment = Enum.TextXAlignment.Center
+deathSummaryLabel.TextColor3 = Color3.fromRGB(255, 225, 120)
+
 local deathReturnButton = Instance.new("TextButton")
 deathReturnButton.Name = "DeathReturnToLobbyButton"
 deathReturnButton.Position = UDim2.new(0.18, 0, 1, -52)
@@ -22557,6 +23059,40 @@ local function getServerTimeNow()
 	return os.clock()
 end
 
+local function formatSeconds(seconds)
+	local safeSeconds = math.max(0, math.floor(tonumber(seconds) or 0))
+	local minutes = math.floor(safeSeconds / 60)
+	local remainder = safeSeconds % 60
+
+	return string.format("%d:%02d", minutes, remainder)
+end
+
+local function getSessionStatusText()
+	if BattleArenaLoopConfig.Enabled ~= true then
+		return "Fight bots, angle armor, earn Bolts"
+	end
+
+	local sessionConfig = BattleArenaLoopConfig.Session or {}
+
+	if sessionConfig.ShowSessionTimer ~= true then
+		return "Fight bots, angle armor, earn Bolts"
+	end
+
+	local softEndsAt = tonumber(localPlayer:GetAttribute("ArenaSessionSoftEndsAt")) or 0
+
+	if softEndsAt <= 0 then
+		return sessionConfig.EndlessMode == false and "Timed arena run" or "Endless arena"
+	end
+
+	local remaining = softEndsAt - getServerTimeNow()
+
+	if remaining <= 0 then
+		return sessionConfig.EndlessMode == false and "Time up" or "Bonus time"
+	end
+
+	return "Timer " .. formatSeconds(remaining) .. "  -  earn Bolts"
+end
+
 local function getOwnedTank()
 	return TankModelResolver.findOwnedTank(root, localPlayer.UserId, true)
 end
@@ -22596,17 +23132,20 @@ local function applyDesktopLayout()
 
 	scorePanel.AnchorPoint = Vector2.new(0, 0)
 	scorePanel.Position = UDim2.new(1, -272, 0, 18)
-	scorePanel.Size = UDim2.new(0, 250, 0, 128)
+	scorePanel.Size = UDim2.new(0, 250, 0, 154)
 	scorePanel.BackgroundTransparency = 0.1
 	setTextLayout(scoreLabel, UDim2.new(0, 14, 0, 8), UDim2.new(1, -28, 0, 28), 18)
 	setTextLayout(killsDeathsLabel, UDim2.new(0, 14, 0, 36), UDim2.new(1, -28, 0, 24), 16)
 	setTextLayout(streakLabel, UDim2.new(0, 14, 0, 62), UDim2.new(1, -28, 0, 22), 14)
 	setTextLayout(upgradesLabel, UDim2.new(0, 14, 0, 86), UDim2.new(1, -28, 0, 34), 14)
+	setTextLayout(sessionLabel, UDim2.new(0, 14, 0, 120), UDim2.new(1, -28, 0, 22), 13)
 	setCompactText(scoreLabel, false)
 	setCompactText(killsDeathsLabel, false)
 	setCompactText(streakLabel, false)
 	setCompactText(upgradesLabel, false)
+	setCompactText(sessionLabel, true)
 	upgradesLabel.Visible = true
+	sessionLabel.Visible = true
 
 	returnButton.AnchorPoint = Vector2.new(1, 1)
 	returnButton.Position = UDim2.new(1, -22, 1, -22)
@@ -22617,10 +23156,11 @@ local function applyDesktopLayout()
 	menuButton.Visible = false
 	setMenuPopupOpen(false)
 
-	deathPanel.Position = UDim2.new(0.5, -150, 0.5, -82)
-	deathPanel.Size = UDim2.new(0, 300, 0, 164)
+	deathPanel.Position = UDim2.new(0.5, -150, 0.5, -92)
+	deathPanel.Size = UDim2.new(0, 300, 0, 184)
 	setTextLayout(destroyedLabel, UDim2.new(0, 18, 0, 18), UDim2.new(1, -36, 0, 44), 30)
 	setTextLayout(respawnLabel, UDim2.new(0, 18, 0, 68), UDim2.new(1, -36, 0, 30), 20)
+	setTextLayout(deathSummaryLabel, UDim2.new(0, 18, 0, 100), UDim2.new(1, -36, 0, 24), 14)
 	deathReturnButton.Position = UDim2.new(0.18, 0, 1, -52)
 	deathReturnButton.Size = UDim2.new(0.64, 0, 0, 38)
 
@@ -22689,6 +23229,7 @@ local function applyMobileLayout(viewportSize)
 	setCompactText(streakLabel, true)
 	setCompactText(upgradesLabel, true)
 	upgradesLabel.Visible = showBolts
+	sessionLabel.Visible = false
 
 	returnButton.Visible = not mobileUseMenuForReturn
 	menuButton.Visible = mobileUseMenuForReturn
@@ -22698,12 +23239,13 @@ local function applyMobileLayout(viewportSize)
 	menuButton.Text = "Menu"
 	menuButton.TextSize = 13
 
-	deathPanel.Position = UDim2.new(0.5, -130, 0.5, -72)
-	deathPanel.Size = UDim2.new(0, 260, 0, 144)
+	deathPanel.Position = UDim2.new(0.5, -130, 0.5, -78)
+	deathPanel.Size = UDim2.new(0, 260, 0, 156)
 	setTextLayout(destroyedLabel, UDim2.new(0, 16, 0, 14), UDim2.new(1, -32, 0, 38), 24)
 	setTextLayout(respawnLabel, UDim2.new(0, 16, 0, 58), UDim2.new(1, -32, 0, 28), 17)
-	deathReturnButton.Position = UDim2.new(0.15, 0, 1, -46)
-	deathReturnButton.Size = UDim2.new(0.7, 0, 0, 34)
+	setTextLayout(deathSummaryLabel, UDim2.new(0, 16, 0, 86), UDim2.new(1, -32, 0, 22), 12)
+	deathReturnButton.Position = UDim2.new(0.15, 0, 1, -42)
+	deathReturnButton.Size = UDim2.new(0.7, 0, 0, 32)
 
 	upgradeOfferPanel.Position = UDim2.new(0.5, 0, 0, 138)
 	upgradeOfferPanel.Size = UDim2.fromOffset(math.min(320, viewportSize.X - 24), 194)
@@ -22905,14 +23447,22 @@ local function updateOverlay()
 		local xpText = nextLevelXP ~= nil and nextLevelXP > 0
 			and (tostring(math.floor(arenaXP)) .. " / " .. tostring(math.floor(nextLevelXP)))
 			or tostring(math.floor(arenaXP))
-		scoreLabel.Text = "Level " .. tostring(math.floor(arenaLevel)) .. "  XP " .. xpText
+		scoreLabel.Text = "Arena: fight bots"
 		killsDeathsLabel.Text = "Score: " .. tostring(math.floor(score))
 			.. "  K/D: "
 			.. tostring(math.floor(kills))
 			.. "/"
 			.. tostring(math.floor(deaths))
-		streakLabel.Text = "Streak: " .. tostring(math.floor(streak))
-		upgradesLabel.Text = "Upg: " .. tostring(getUpgradeCount(upgrades))
+		streakLabel.Text = "Lv "
+			.. tostring(math.floor(arenaLevel))
+			.. " XP "
+			.. xpText
+			.. "  Streak "
+			.. tostring(math.floor(streak))
+		upgradesLabel.Text = "Bolts +" .. tostring(math.floor(localPlayer:GetAttribute("ArenaSessionBolts") or 0))
+			.. "  Upg: "
+			.. tostring(getUpgradeCount(upgrades))
+		sessionLabel.Text = getSessionStatusText()
 	end
 
 	updateHealth(ownedTank, mobileLayout)
@@ -22934,6 +23484,7 @@ local function updateOverlay()
 		end
 
 		respawnLabel.Text = "Respawn in " .. tostring(seconds) .. "..."
+		deathSummaryLabel.Text = tostring(localPlayer:GetAttribute("ArenaLastSummary") or "")
 	end
 end
 
@@ -22998,6 +23549,9 @@ localPlayer:GetAttributeChangedSignal("ArenaPendingUpgradeOfferId"):Connect(func
 
 	updateOverlay()
 end)
+localPlayer:GetAttributeChangedSignal("ArenaSessionSoftEndsAt"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaSessionBolts"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaLastSummary"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("ArenaRespawnAt"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("CurrentHealth"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("MaxHealth"):Connect(updateOverlay)
@@ -25466,6 +26020,1374 @@ return HudVisibilityRules
 						</Properties>
 					</Item>
 				</Item>
+				<Item class="LocalScript" referent="RBX34d17b22576040b1b9fd157c44788fc2">
+					<Properties>
+						<ProtectedString name="Source"><![CDATA[-- Scripted, animated duel HUD that replaces the legacy on-screen duel panels.
+-- Built entirely in Lua (no Studio HUD template dependency) and wired to real
+-- gameplay data: tank Health/MaxHealth, server reload attributes, series score,
+-- and the player's Bolts wallet. Visual language follows the "Ricochet Tanks"
+-- UI concept (dark sci-fi panels, blue/red sides, yellow accents).
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local GuiService = game:GetService("GuiService")
+
+local shared = ReplicatedStorage:WaitForChild("Shared")
+local configs = shared:WaitForChild("Configs")
+local utils = shared:WaitForChild("Utils")
+local WeaponConfig = require(configs:WaitForChild("WeaponConfig"))
+local HudConfig = require(configs:WaitForChild("HudConfig"))
+local TankModelResolver = require(utils:WaitForChild("TankModelResolver"))
+
+local clientFolder = script.Parent
+local HudDeviceUtils = require(clientFolder:WaitForChild("Hud"):WaitForChild("HudDeviceUtils"))
+
+local remotes = ReplicatedStorage:WaitForChild("Remotes")
+local combatFeedbackEvent = remotes:WaitForChild("CombatFeedbackEvent")
+
+local localPlayer = Players.LocalPlayer
+local playerGui = localPlayer:WaitForChild("PlayerGui")
+local root = Workspace:WaitForChild("WOB_Generated")
+
+------------------------------------------------------------------------
+-- Palette (from the UI concept)
+------------------------------------------------------------------------
+local COLORS = {
+	Panel = Color3.fromRGB(13, 17, 23),
+	Border = Color3.fromRGB(31, 41, 55),
+	BarTrack = Color3.fromRGB(31, 41, 55),
+	Blue = Color3.fromRGB(59, 130, 246),
+	BlueLight = Color3.fromRGB(96, 165, 250),
+	BlueDark = Color3.fromRGB(29, 78, 216),
+	Red = Color3.fromRGB(239, 68, 68),
+	RedLight = Color3.fromRGB(248, 113, 113),
+	RedDark = Color3.fromRGB(185, 28, 28),
+	Yellow = Color3.fromRGB(250, 204, 21),
+	Green = Color3.fromRGB(34, 197, 94),
+	GreenLight = Color3.fromRGB(74, 222, 128),
+	GreenDark = Color3.fromRGB(22, 163, 74),
+	Orange = Color3.fromRGB(249, 115, 22),
+	Text = Color3.fromRGB(226, 232, 240),
+	Muted = Color3.fromRGB(100, 116, 139),
+}
+
+local PANEL_TRANSPARENCY = 0.1
+local TITLE_FONT = Enum.Font.GothamBlack
+local LABEL_FONT = Enum.Font.GothamBold
+local MONO_FONT = Enum.Font.Code
+
+local RELOAD_FALLBACK_DURATION = math.max(0.05, (WeaponConfig.PrimaryWeapon or {}).ShootCooldown or 0.45)
+local SCRIPTED_DUEL_HUD_ENABLED = ((HudConfig.CombatHud or {}).UseScriptedDuelHud == true)
+local MAX_FEEDBACK = 4
+
+------------------------------------------------------------------------
+-- Small UI builders
+------------------------------------------------------------------------
+local function lock(guiObject)
+	guiObject.Active = false
+	pcall(function()
+		guiObject.Selectable = false
+	end)
+end
+
+local function addCorner(parent, radius)
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, radius)
+	corner.Parent = parent
+	return corner
+end
+
+local function addStroke(parent, color, transparency, thickness)
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = color
+	stroke.Transparency = transparency or 0
+	stroke.Thickness = thickness or 1
+	stroke.Parent = parent
+	return stroke
+end
+
+local function makePanel(name, parent)
+	local panel = Instance.new("Frame")
+	panel.Name = name
+	panel.BackgroundColor3 = COLORS.Panel
+	panel.BackgroundTransparency = PANEL_TRANSPARENCY
+	panel.BorderSizePixel = 0
+	panel.Parent = parent
+	addCorner(panel, 8)
+	addStroke(panel, COLORS.Border, 0.25, 1)
+	lock(panel)
+	return panel
+end
+
+local function makeAccent(parent, color, side)
+	local accent = Instance.new("Frame")
+	accent.Name = "Accent"
+	accent.BorderSizePixel = 0
+	accent.BackgroundColor3 = color
+	accent.Size = UDim2.new(0, 2, 1, -10)
+	accent.Position = UDim2.new(0, 0, 0, 5)
+	accent.AnchorPoint = Vector2.new(0, 0)
+
+	if side == "right" then
+		accent.AnchorPoint = Vector2.new(1, 0)
+		accent.Position = UDim2.new(1, 0, 0, 5)
+	end
+
+	addCorner(accent, 2)
+	accent.Parent = parent
+	lock(accent)
+	return accent
+end
+
+local function makeLabel(name, parent, font, size, color, xAlign)
+	local label = Instance.new("TextLabel")
+	label.Name = name
+	label.BackgroundTransparency = 1
+	label.Font = font
+	label.TextSize = size
+	label.TextColor3 = color
+	label.TextXAlignment = xAlign or Enum.TextXAlignment.Left
+	label.TextYAlignment = Enum.TextYAlignment.Center
+	label.Text = ""
+	label.Parent = parent
+	lock(label)
+	return label
+end
+
+-- A track + fill bar. Returns the fill frame.
+local function makeBar(parent, position, size, fillColor)
+	local track = Instance.new("Frame")
+	track.Name = "Track"
+	track.BackgroundColor3 = COLORS.BarTrack
+	track.BorderSizePixel = 0
+	track.Position = position
+	track.Size = size
+	track.Parent = parent
+	addCorner(track, 99)
+	lock(track)
+
+	local fill = Instance.new("Frame")
+	fill.Name = "Fill"
+	fill.BackgroundColor3 = fillColor
+	fill.BorderSizePixel = 0
+	fill.Size = UDim2.fromScale(1, 1)
+	fill.Parent = track
+	addCorner(fill, 99)
+	lock(fill)
+
+	return fill, track
+end
+
+------------------------------------------------------------------------
+-- Build the HUD tree
+------------------------------------------------------------------------
+local gui = Instance.new("ScreenGui")
+gui.Name = "WOBDuelHud"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.DisplayOrder = 60
+gui.Enabled = false
+gui.Parent = playerGui
+
+local rootFrame = Instance.new("Frame")
+rootFrame.Name = "Root"
+rootFrame.Size = UDim2.fromScale(1, 1)
+rootFrame.BackgroundTransparency = 1
+rootFrame.Parent = gui
+lock(rootFrame)
+
+local function makeGradientShade(name, position, size, rotation)
+	local shade = Instance.new("Frame")
+	shade.Name = name
+	shade.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	shade.BackgroundTransparency = 0
+	shade.BorderSizePixel = 0
+	shade.Position = position
+	shade.Size = size
+	shade.ZIndex = 0
+	shade.Parent = rootFrame
+	lock(shade)
+
+	local gradient = Instance.new("UIGradient")
+	gradient.Rotation = rotation
+	gradient.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.15),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	gradient.Parent = shade
+
+	return shade
+end
+
+local topShade = makeGradientShade("TopShade", UDim2.fromScale(0, 0), UDim2.new(1, 0, 0, 110), 90)
+local bottomShade = makeGradientShade("BottomShade", UDim2.new(0, 0, 1, -96), UDim2.new(1, 0, 0, 96), -90)
+
+-- ---- Top bar -------------------------------------------------------
+local topBar = Instance.new("Frame")
+topBar.Name = "TopBar"
+topBar.Size = UDim2.new(1, 0, 0, 72)
+topBar.Position = UDim2.new(0, 0, 0, 0)
+topBar.BackgroundTransparency = 1
+topBar.Parent = rootFrame
+lock(topBar)
+
+-- Player panel (top-left)
+local playerPanel = makePanel("PlayerPanel", topBar)
+playerPanel.AnchorPoint = Vector2.new(0, 0)
+playerPanel.Position = UDim2.new(0, 16, 0, 12)
+playerPanel.Size = UDim2.fromOffset(208, 56)
+makeAccent(playerPanel, COLORS.Blue, "left")
+local playerStroke = playerPanel:FindFirstChildOfClass("UIStroke")
+
+local playerName = makeLabel("Name", playerPanel, MONO_FONT, 11, COLORS.BlueLight, Enum.TextXAlignment.Left)
+playerName.Position = UDim2.new(0, 12, 0, 5)
+playerName.Size = UDim2.new(1, -24, 0, 12)
+playerName.Text = "ВЫ"
+
+local playerHpFill = makeBar(
+	playerPanel,
+	UDim2.new(0, 12, 0, 22),
+	UDim2.new(1, -64, 0, 8),
+	COLORS.GreenLight
+)
+local playerHpValue = makeLabel("HpValue", playerPanel, MONO_FONT, 12, COLORS.GreenLight, Enum.TextXAlignment.Right)
+playerHpValue.Position = UDim2.new(1, -50, 0, 20)
+playerHpValue.Size = UDim2.fromOffset(40, 12)
+playerHpValue.Text = "--"
+
+local playerReloadFill, playerReloadTrack = makeBar(
+	playerPanel,
+	UDim2.new(0, 12, 0, 38),
+	UDim2.new(1, -64, 0, 5),
+	COLORS.BlueLight
+)
+local playerReloadLabel = makeLabel("ReloadTag", playerPanel, LABEL_FONT, 9, COLORS.Muted, Enum.TextXAlignment.Right)
+playerReloadLabel.Position = UDim2.new(1, -50, 0, 35)
+playerReloadLabel.Size = UDim2.fromOffset(40, 11)
+playerReloadLabel.Text = "RELOAD"
+
+-- Enemy panel (top-right)
+local enemyPanel = makePanel("EnemyPanel", topBar)
+enemyPanel.AnchorPoint = Vector2.new(1, 0)
+enemyPanel.Position = UDim2.new(1, -16, 0, 12)
+enemyPanel.Size = UDim2.fromOffset(208, 56)
+makeAccent(enemyPanel, COLORS.Red, "right")
+
+local enemyName = makeLabel("Name", enemyPanel, MONO_FONT, 11, COLORS.RedLight, Enum.TextXAlignment.Right)
+enemyName.Position = UDim2.new(0, 12, 0, 5)
+enemyName.Size = UDim2.new(1, -24, 0, 12)
+enemyName.Text = "ВРАГ"
+
+local enemyHpValue = makeLabel("HpValue", enemyPanel, MONO_FONT, 12, COLORS.RedLight, Enum.TextXAlignment.Left)
+enemyHpValue.Position = UDim2.new(0, 12, 0, 24)
+enemyHpValue.Size = UDim2.fromOffset(40, 12)
+enemyHpValue.Text = "--"
+
+local enemyHpFill = makeBar(
+	enemyPanel,
+	UDim2.new(0, 56, 0, 26),
+	UDim2.new(1, -68, 0, 8),
+	COLORS.RedLight
+)
+
+-- Score box (top-center)
+local scoreBox = makePanel("ScoreBox", topBar)
+scoreBox.AnchorPoint = Vector2.new(0.5, 0)
+scoreBox.Position = UDim2.new(0.5, 0, 0, 10)
+scoreBox.Size = UDim2.fromOffset(168, 50)
+
+local scoreBoxScale = Instance.new("UIScale")
+scoreBoxScale.Parent = scoreBox
+
+local youNum = makeLabel("You", scoreBox, TITLE_FONT, 24, COLORS.Blue, Enum.TextXAlignment.Center)
+youNum.Position = UDim2.new(0, 12, 0, 4)
+youNum.Size = UDim2.fromOffset(50, 28)
+youNum.Text = "0"
+local youNumScale = Instance.new("UIScale")
+youNumScale.Parent = youNum
+
+local youSub = makeLabel("YouSub", scoreBox, LABEL_FONT, 9, COLORS.Muted, Enum.TextXAlignment.Center)
+youSub.Position = UDim2.new(0, 12, 0, 33)
+youSub.Size = UDim2.fromOffset(50, 12)
+youSub.Text = "ВЫ"
+
+local divider = makeLabel("Divider", scoreBox, TITLE_FONT, 16, COLORS.Border, Enum.TextXAlignment.Center)
+divider.Position = UDim2.new(0.5, -10, 0, 8)
+divider.Size = UDim2.fromOffset(20, 24)
+divider.Text = "—"
+
+local oppNum = makeLabel("Opp", scoreBox, TITLE_FONT, 24, COLORS.Red, Enum.TextXAlignment.Center)
+oppNum.Position = UDim2.new(1, -62, 0, 4)
+oppNum.Size = UDim2.fromOffset(50, 28)
+oppNum.Text = "0"
+local oppNumScale = Instance.new("UIScale")
+oppNumScale.Parent = oppNum
+
+local oppSub = makeLabel("OppSub", scoreBox, LABEL_FONT, 9, COLORS.Muted, Enum.TextXAlignment.Center)
+oppSub.Position = UDim2.new(1, -62, 0, 33)
+oppSub.Size = UDim2.fromOffset(50, 12)
+oppSub.Text = "ВРАГ"
+
+-- ---- Bottom bar ----------------------------------------------------
+local bottomBar = Instance.new("Frame")
+bottomBar.Name = "BottomBar"
+bottomBar.AnchorPoint = Vector2.new(0, 1)
+bottomBar.Size = UDim2.new(1, 0, 0, 60)
+bottomBar.Position = UDim2.new(0, 0, 1, 0)
+bottomBar.BackgroundTransparency = 1
+bottomBar.Parent = rootFrame
+lock(bottomBar)
+
+local reloadPanel = makePanel("ReloadPanel", bottomBar)
+reloadPanel.AnchorPoint = Vector2.new(0, 1)
+reloadPanel.Position = UDim2.new(0, 16, 1, -12)
+reloadPanel.Size = UDim2.fromOffset(210, 44)
+
+local reloadIcon = makeLabel("Icon", reloadPanel, LABEL_FONT, 16, COLORS.BlueLight, Enum.TextXAlignment.Center)
+reloadIcon.Position = UDim2.new(0, 8, 0, 0)
+reloadIcon.Size = UDim2.new(0, 22, 1, 0)
+reloadIcon.Text = "⟳"
+
+local reloadTitle = makeLabel("Title", reloadPanel, LABEL_FONT, 9, COLORS.Muted, Enum.TextXAlignment.Left)
+reloadTitle.Position = UDim2.new(0, 36, 0, 7)
+reloadTitle.Size = UDim2.new(1, -46, 0, 12)
+reloadTitle.Text = "ПЕРЕЗАРЯДКА"
+
+local reloadBarFill = makeBar(
+	reloadPanel,
+	UDim2.new(0, 36, 0, 24),
+	UDim2.new(1, -48, 0, 6),
+	COLORS.BlueLight
+)
+
+local boltsPanel = makePanel("BoltsPanel", bottomBar)
+boltsPanel.AnchorPoint = Vector2.new(0, 1)
+boltsPanel.Position = UDim2.new(0, 236, 1, -12)
+boltsPanel.Size = UDim2.fromOffset(104, 44)
+
+local boltIcon = Instance.new("Frame")
+boltIcon.Name = "BoltIcon"
+boltIcon.BackgroundColor3 = COLORS.Orange
+boltIcon.Size = UDim2.fromOffset(18, 18)
+boltIcon.Position = UDim2.new(0, 10, 0.5, -9)
+boltIcon.BorderSizePixel = 0
+boltIcon.Parent = boltsPanel
+addCorner(boltIcon, 99)
+lock(boltIcon)
+local boltGlyph = makeLabel("B", boltIcon, TITLE_FONT, 10, COLORS.Panel, Enum.TextXAlignment.Center)
+boltGlyph.Size = UDim2.fromScale(1, 1)
+boltGlyph.Text = "B"
+
+local boltsValue = makeLabel("Value", boltsPanel, MONO_FONT, 14, COLORS.Orange, Enum.TextXAlignment.Left)
+boltsValue.Position = UDim2.new(0, 34, 0, 0)
+boltsValue.Size = UDim2.new(1, -40, 1, 0)
+boltsValue.Text = "0"
+
+local boltsReward = makeLabel("Reward", boltsPanel, LABEL_FONT, 11, COLORS.Green, Enum.TextXAlignment.Center)
+boltsReward.AnchorPoint = Vector2.new(0.5, 1)
+boltsReward.Position = UDim2.new(0.5, 0, 0, 0)
+boltsReward.Size = UDim2.fromOffset(96, 16)
+boltsReward.TextTransparency = 1
+boltsReward.Text = ""
+
+-- ---- Feedback layer (RICOCHET / NO PEN / HIT) ----------------------
+local feedbackLayer = Instance.new("Frame")
+feedbackLayer.Name = "FeedbackLayer"
+feedbackLayer.Size = UDim2.fromScale(1, 1)
+feedbackLayer.BackgroundTransparency = 1
+feedbackLayer.Parent = rootFrame
+lock(feedbackLayer)
+
+local feedbackPool = {}
+
+for index = 1, MAX_FEEDBACK do
+	local label = Instance.new("TextLabel")
+	label.Name = "FeedbackLabel" .. tostring(index)
+	label.BackgroundTransparency = 1
+	label.Font = TITLE_FONT
+	label.TextSize = 22
+	label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	label.TextStrokeTransparency = 1
+	label.TextTransparency = 1
+	label.AnchorPoint = Vector2.new(0.5, 0.5)
+	label.Size = UDim2.fromOffset(260, 40)
+	label.Visible = false
+	label.Parent = feedbackLayer
+	lock(label)
+
+	local scale = Instance.new("UIScale")
+	scale.Scale = 0.7
+	scale.Parent = label
+
+	feedbackPool[index] = {
+		Label = label,
+		Scale = scale,
+		InUse = false,
+		Token = 0,
+	}
+end
+
+-- ---- Round/match result overlay -----------------------------------
+local resultOverlay = Instance.new("Frame")
+resultOverlay.Name = "ResultOverlay"
+resultOverlay.Size = UDim2.fromScale(1, 1)
+resultOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+resultOverlay.BackgroundTransparency = 1
+resultOverlay.Visible = false
+resultOverlay.Parent = rootFrame
+lock(resultOverlay)
+
+local resultContent = Instance.new("Frame")
+resultContent.Name = "ResultContent"
+resultContent.AnchorPoint = Vector2.new(0.5, 0.5)
+resultContent.Position = UDim2.fromScale(0.5, 0.5)
+resultContent.Size = UDim2.fromOffset(420, 170)
+resultContent.BackgroundTransparency = 1
+resultContent.Parent = resultOverlay
+lock(resultContent)
+
+local resultTitle = makeLabel("Title", resultContent, TITLE_FONT, 34, COLORS.Yellow, Enum.TextXAlignment.Center)
+resultTitle.Position = UDim2.new(0, 0, 0, 0)
+resultTitle.Size = UDim2.new(1, 0, 0, 52)
+resultTitle.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+resultTitle.TextStrokeTransparency = 0.28
+
+local resultTitleScale = Instance.new("UIScale")
+resultTitleScale.Scale = 0.78
+resultTitleScale.Parent = resultTitle
+
+local resultSubtitle = makeLabel("Subtitle", resultContent, LABEL_FONT, 13, COLORS.Muted, Enum.TextXAlignment.Center)
+resultSubtitle.Position = UDim2.new(0, 0, 0, 58)
+resultSubtitle.Size = UDim2.new(1, 0, 0, 24)
+
+local resultButtonLike = makeLabel("ButtonLike", resultContent, TITLE_FONT, 12, COLORS.Panel, Enum.TextXAlignment.Center)
+resultButtonLike.AnchorPoint = Vector2.new(0.5, 0)
+resultButtonLike.Position = UDim2.new(0.5, 0, 0, 98)
+resultButtonLike.Size = UDim2.fromOffset(170, 34)
+resultButtonLike.BackgroundColor3 = COLORS.Yellow
+resultButtonLike.BackgroundTransparency = 0
+resultButtonLike.BorderSizePixel = 0
+resultButtonLike.Text = ""
+addCorner(resultButtonLike, 6)
+addStroke(resultButtonLike, COLORS.Orange, 0.35, 1)
+
+------------------------------------------------------------------------
+-- State helpers
+------------------------------------------------------------------------
+local currentPlayerTank = nil
+local currentEnemyTank = nil
+local elapsedSinceRefresh = 0
+local displayedBolts = nil
+local lastRewardSequence = tonumber(localPlayer:GetAttribute("LastBoltsRewardSequence")) or 0
+local rewardToken = 0
+local lowHpPulseActive = false
+local lowHpTween = nil
+local fillTweenState = {}
+local resultVisible = false
+
+local function clamp01(value)
+	return math.clamp(value, 0, 1)
+end
+
+local function isMobile()
+	return HudDeviceUtils.IsMobileLayout()
+end
+
+local function getSafeTopOffset()
+	local ok, topLeftInset = pcall(function()
+		local topLeft = GuiService:GetGuiInset()
+		return topLeft
+	end)
+
+	if ok and typeof(topLeftInset) == "Vector2" then
+		return math.clamp(topLeftInset.Y, 0, 44)
+	end
+
+	return 0
+end
+
+local function getTopBarTargetPosition()
+	return UDim2.new(0, 0, 0, getSafeTopOffset())
+end
+
+local function isHudVisible()
+	if not SCRIPTED_DUEL_HUD_ENABLED then
+		return false
+	end
+
+	local mode = localPlayer:GetAttribute("PlayerMode")
+	return mode == "InMatch"
+		and root:GetAttribute("GameState") == "Playing"
+		and root:GetAttribute("MatchMode") == "PvP"
+end
+
+local function getServerTimeNow()
+	local ok, value = pcall(function()
+		return Workspace:GetServerTimeNow()
+	end)
+
+	if ok and typeof(value) == "number" then
+		return value
+	end
+
+	return os.clock()
+end
+
+local function refreshTanks()
+	currentPlayerTank = TankModelResolver.findOwnedTank(root, localPlayer.UserId, true)
+	currentEnemyTank = TankModelResolver.findEnemyTank(root, localPlayer.UserId)
+end
+
+local function getTankId(model)
+	if model == nil or model.Parent == nil then
+		return nil
+	end
+
+	return model:GetAttribute("TankId") or model.Name
+end
+
+local function getTankHealth(model, fallbackMax)
+	if model == nil or model.Parent == nil then
+		return nil, fallbackMax
+	end
+
+	local maxHealth = tonumber(model:GetAttribute("MaxHealth"))
+	local health = tonumber(model:GetAttribute("Health"))
+
+	if maxHealth == nil and health == nil then
+		return nil, fallbackMax
+	end
+
+	if maxHealth == nil then
+		maxHealth = math.max(1, health or fallbackMax)
+	end
+
+	if health == nil then
+		health = maxHealth
+	end
+
+	return health, maxHealth
+end
+
+------------------------------------------------------------------------
+-- Health bars
+------------------------------------------------------------------------
+local function hpColor(ratio, friendly)
+	if ratio <= 0.3 then
+		return COLORS.Red
+	elseif ratio <= 0.6 then
+		return COLORS.Yellow
+	end
+
+	return friendly and COLORS.GreenLight or COLORS.RedLight
+end
+
+local function tweenFill(fill, ratio, color)
+	local clampedRatio = clamp01(ratio)
+	local state = fillTweenState[fill]
+
+	if state ~= nil
+		and math.abs((state.Ratio or 0) - clampedRatio) < 0.005
+		and state.Color == color
+	then
+		return
+	end
+
+	if state == nil then
+		state = {}
+		fillTweenState[fill] = state
+	end
+
+	if state.SizeTween ~= nil then
+		state.SizeTween:Cancel()
+	end
+
+	if state.ColorTween ~= nil then
+		state.ColorTween:Cancel()
+	end
+
+	state.Ratio = clampedRatio
+	state.Color = color
+	state.SizeTween = TweenService:Create(fill, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = UDim2.new(clampedRatio, 0, 1, 0),
+	})
+	state.ColorTween = TweenService:Create(fill, TweenInfo.new(0.28), {
+		BackgroundColor3 = color,
+	})
+	state.SizeTween:Play()
+	state.ColorTween:Play()
+end
+
+local function setFillImmediate(fill, ratio, color)
+	local clampedRatio = clamp01(ratio)
+	local state = fillTweenState[fill]
+
+	if state ~= nil then
+		if state.SizeTween ~= nil then
+			state.SizeTween:Cancel()
+		end
+
+		if state.ColorTween ~= nil then
+			state.ColorTween:Cancel()
+		end
+
+		state.Ratio = clampedRatio
+		state.Color = color
+	end
+
+	fill.Size = UDim2.new(clampedRatio, 0, 1, 0)
+	fill.BackgroundColor3 = color
+end
+
+local function setLowHpPulse(active)
+	if active == lowHpPulseActive then
+		return
+	end
+
+	lowHpPulseActive = active
+
+	if playerStroke == nil then
+		return
+	end
+
+	if lowHpTween ~= nil then
+		lowHpTween:Cancel()
+		lowHpTween = nil
+	end
+
+	if active then
+		playerStroke.Color = COLORS.Red
+		lowHpTween = TweenService:Create(playerStroke, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+			Transparency = 0,
+		})
+		lowHpTween:Play()
+	else
+		playerStroke.Color = COLORS.Border
+		TweenService:Create(playerStroke, TweenInfo.new(0.25), { Transparency = 0.25 }):Play()
+	end
+end
+
+local function updatePlayerHealth()
+	local health, maxHealth = getTankHealth(currentPlayerTank, 100)
+
+	if health == nil then
+		playerHpValue.Text = "--"
+		tweenFill(playerHpFill, 0, COLORS.Muted)
+		setLowHpPulse(false)
+		return
+	end
+
+	local ratio = clamp01(health / math.max(1, maxHealth))
+	playerHpValue.Text = tostring(math.floor(health + 0.5))
+	playerHpValue.TextColor3 = hpColor(ratio, true)
+	tweenFill(playerHpFill, ratio, hpColor(ratio, true))
+	setLowHpPulse(ratio > 0 and ratio <= 0.3)
+end
+
+local function updateEnemyHealth()
+	local health, maxHealth = getTankHealth(currentEnemyTank, 100)
+
+	if health == nil then
+		enemyHpValue.Text = "--"
+		tweenFill(enemyHpFill, 0, COLORS.Muted)
+		return
+	end
+
+	local ratio = clamp01(health / math.max(1, maxHealth))
+	enemyHpValue.Text = tostring(math.floor(health + 0.5))
+	enemyHpValue.TextColor3 = hpColor(ratio, false)
+	tweenFill(enemyHpFill, ratio, hpColor(ratio, false))
+end
+
+------------------------------------------------------------------------
+-- Reload (driven by server attributes on the player's tank)
+------------------------------------------------------------------------
+local reloadWasReady = true
+
+local function getReloadState()
+	local model = currentPlayerTank
+
+	if model == nil or model.Parent == nil then
+		return {
+			Progress = 0,
+			Ready = false,
+			HasTank = false,
+			HasPresentationData = false,
+		}
+	end
+
+	if model:GetAttribute("ReloadReady") == true then
+		return {
+			Progress = 1,
+			Ready = true,
+			HasTank = true,
+			HasPresentationData = true,
+		}
+	end
+
+	local lastShot = model:GetAttribute("LastShotAtServerTime")
+	local duration = model:GetAttribute("ReloadDuration") or RELOAD_FALLBACK_DURATION
+
+	if typeof(lastShot) ~= "number" or duration <= 0 then
+		local ready = model:GetAttribute("CanShoot") ~= false
+
+		return {
+			Progress = ready and 1 or 0,
+			Ready = ready,
+			HasTank = true,
+			HasPresentationData = false,
+		}
+	end
+
+	local progress = clamp01((getServerTimeNow() - lastShot) / duration)
+
+	return {
+		Progress = progress,
+		Ready = progress >= 1,
+		HasTank = true,
+		HasPresentationData = true,
+	}
+end
+
+local function updateReload()
+	local reloadState = getReloadState()
+	local progress = reloadState.Progress
+	reloadBarFill.Size = UDim2.new(progress, 0, 1, 0)
+
+	local ready = reloadState.Ready
+
+	if reloadState.HasTank == false then
+		reloadBarFill.BackgroundColor3 = COLORS.Muted
+		reloadTitle.Text = "ОЖИДАНИЕ"
+		reloadTitle.TextColor3 = COLORS.Muted
+		playerReloadLabel.Visible = false
+		playerReloadTrack.Visible = false
+		setFillImmediate(playerReloadFill, 0, COLORS.Muted)
+	elseif ready then
+		reloadBarFill.BackgroundColor3 = COLORS.GreenLight
+		reloadTitle.Text = "ГОТОВ"
+		reloadTitle.TextColor3 = COLORS.GreenLight
+		playerReloadLabel.Text = "READY"
+		playerReloadLabel.TextColor3 = COLORS.GreenLight
+		setFillImmediate(playerReloadFill, 1, COLORS.GreenLight)
+	else
+		reloadBarFill.BackgroundColor3 = COLORS.BlueLight
+		reloadTitle.Text = "ПЕРЕЗАРЯДКА"
+		reloadTitle.TextColor3 = COLORS.Muted
+		playerReloadLabel.Text = math.floor(progress * 100) .. "%"
+		playerReloadLabel.TextColor3 = COLORS.Muted
+		setFillImmediate(playerReloadFill, progress, COLORS.BlueLight)
+	end
+
+	if reloadState.HasTank ~= false then
+		playerReloadTrack.Visible = reloadState.HasPresentationData
+		playerReloadLabel.Visible = reloadState.HasPresentationData
+	end
+
+	if ready and not reloadWasReady then
+		-- Brief "ready" punch.
+		reloadIcon.TextColor3 = COLORS.GreenLight
+		TweenService:Create(reloadIcon, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Rotation = reloadIcon.Rotation + 180,
+		}):Play()
+		task.delay(0.4, function()
+			reloadIcon.TextColor3 = COLORS.BlueLight
+		end)
+	end
+
+	reloadWasReady = ready
+end
+
+------------------------------------------------------------------------
+-- Series score
+------------------------------------------------------------------------
+local lastYouScore = nil
+local lastOppScore = nil
+
+local function getLocalSeriesScore()
+	local playerSide = root:GetAttribute("PlayerSideScore")
+	local opponentSide = root:GetAttribute("OpponentSideScore")
+	local you = playerSide or root:GetAttribute("PlayerWins") or 0
+	local opp = opponentSide or root:GetAttribute("DummyWins") or 0
+
+	if root:GetAttribute("MatchMode") == "PvP" then
+		local tankId = getTankId(currentPlayerTank)
+		if tankId ~= nil and tankId == root:GetAttribute("OpponentSideTankId") then
+			you, opp = opp, you
+		end
+	end
+
+	return you, opp
+end
+
+local function punchScale(scale)
+	scale.Scale = 1
+	TweenService:Create(scale, TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Scale = 1.4,
+	}):Play()
+	task.delay(0.13, function()
+		TweenService:Create(scale, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Scale = 1,
+		}):Play()
+	end)
+end
+
+local function updateScore()
+	local you, opp = getLocalSeriesScore()
+	you = math.floor(you)
+	opp = math.floor(opp)
+
+	if you ~= lastYouScore then
+		youNum.Text = tostring(you)
+		if lastYouScore ~= nil and you > lastYouScore then
+			punchScale(youNumScale)
+		end
+		lastYouScore = you
+	end
+
+	if opp ~= lastOppScore then
+		oppNum.Text = tostring(opp)
+		if lastOppScore ~= nil and opp > lastOppScore then
+			punchScale(oppNumScale)
+		end
+		lastOppScore = opp
+	end
+end
+
+------------------------------------------------------------------------
+-- Round/match result overlay
+------------------------------------------------------------------------
+local function getLocalRoundResult(globalResult)
+	local tankId = getTankId(currentPlayerTank)
+	local winnerTankId = root:GetAttribute("RoundWinnerTankId")
+	local loserTankId = root:GetAttribute("RoundLoserTankId")
+
+	if tankId ~= nil and winnerTankId == tankId then
+		return "Win"
+	end
+
+	if tankId ~= nil and loserTankId == tankId then
+		return "Lose"
+	end
+
+	return globalResult
+end
+
+local function getLocalMatchResult(matchResult)
+	local tankId = getTankId(currentPlayerTank)
+	local winnerTankId = root:GetAttribute("MatchWinnerTankId")
+	local loserTankId = root:GetAttribute("MatchLoserTankId")
+
+	if tankId ~= nil and winnerTankId == tankId then
+		return "Win"
+	end
+
+	if tankId ~= nil and loserTankId == tankId then
+		return "Loss"
+	end
+
+	if matchResult == "PlayerMatchWin" then
+		return tankId == root:GetAttribute("OpponentSideTankId") and "Loss" or "Win"
+	elseif matchResult == "DummyMatchWin" then
+		return tankId == root:GetAttribute("OpponentSideTankId") and "Win" or "Loss"
+	end
+
+	return ""
+end
+
+local function getCountdownSeconds(deadlineAttributeName, fallbackRemainingAttributeName)
+	local deadline = root:GetAttribute(deadlineAttributeName)
+
+	if typeof(deadline) == "number" and deadline > 0 then
+		return math.max(0, math.ceil(deadline - getServerTimeNow()))
+	end
+
+	local fallbackRemaining = root:GetAttribute(fallbackRemainingAttributeName)
+
+	if typeof(fallbackRemaining) == "number" then
+		return math.max(0, math.ceil(fallbackRemaining))
+	end
+
+	return 0
+end
+
+local function hideResultOverlay()
+	if not resultVisible then
+		return
+	end
+
+	resultVisible = false
+	TweenService:Create(resultOverlay, TweenInfo.new(0.16), {
+		BackgroundTransparency = 1,
+	}):Play()
+
+	task.delay(0.18, function()
+		if not resultVisible then
+			resultOverlay.Visible = false
+		end
+	end)
+end
+
+local function showResultOverlay(title, subtitle, titleColor, buttonText)
+	resultTitle.Text = title
+	resultTitle.TextColor3 = titleColor
+	resultSubtitle.Text = subtitle
+	resultButtonLike.Text = buttonText
+
+	if resultVisible then
+		return
+	end
+
+	resultVisible = true
+	resultOverlay.Visible = true
+	resultOverlay.BackgroundTransparency = 1
+	resultTitle.TextTransparency = 0
+	resultTitle.TextStrokeTransparency = 0.28
+	resultTitleScale.Scale = 0.78
+	resultSubtitle.TextTransparency = 1
+	resultButtonLike.TextTransparency = 1
+	resultButtonLike.BackgroundTransparency = 1
+
+	TweenService:Create(resultOverlay, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		BackgroundTransparency = 0.38,
+	}):Play()
+	TweenService:Create(resultTitleScale, TweenInfo.new(0.26, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Scale = 1,
+	}):Play()
+
+	task.delay(0.16, function()
+		if not resultVisible then
+			return
+		end
+
+		TweenService:Create(resultSubtitle, TweenInfo.new(0.18), {
+			TextTransparency = 0,
+		}):Play()
+	end)
+
+	task.delay(0.28, function()
+		if not resultVisible then
+			return
+		end
+
+		TweenService:Create(resultButtonLike, TweenInfo.new(0.2), {
+			BackgroundTransparency = 0,
+			TextTransparency = 0,
+		}):Play()
+	end)
+end
+
+local function updateResultOverlay()
+	if not isHudVisible() then
+		hideResultOverlay()
+		return
+	end
+
+	local roundResult = getLocalRoundResult(root:GetAttribute("RoundResult") or "Playing")
+	local roundEnded = root:GetAttribute("RoundEnded") == true or roundResult == "Win" or roundResult == "Lose"
+	local matchEnded = root:GetAttribute("MatchEnded") == true
+	local roundState = root:GetAttribute("RoundState")
+	local youWins, oppWins = getLocalSeriesScore()
+
+	if matchEnded and roundState == "MatchEnd" then
+		local localMatchResult = getLocalMatchResult(root:GetAttribute("MatchResult") or "")
+		local title = "MATCH ENDED"
+		local color = COLORS.Yellow
+
+		if localMatchResult == "Win" then
+			title = "VICTORY"
+			color = COLORS.GreenLight
+		elseif localMatchResult == "Loss" then
+			title = "DEFEAT"
+			color = COLORS.RedLight
+		end
+
+		local seconds = getCountdownSeconds("MatchResultAt", "ResultStartsIn")
+		showResultOverlay(
+			title,
+			"FINAL " .. math.floor(youWins) .. " : " .. math.floor(oppWins) .. "  ·  RESULT IN " .. seconds,
+			color,
+			"RESULT"
+		)
+	elseif roundEnded and not matchEnded and roundState == "RoundEnd" then
+		local title = "ROUND ENDED"
+		local color = COLORS.Yellow
+
+		if roundResult == "Win" then
+			title = "ROUND WON"
+			color = COLORS.GreenLight
+		elseif roundResult == "Lose" then
+			title = "ROUND LOST"
+			color = COLORS.RedLight
+		end
+
+		local seconds = getCountdownSeconds("RoundResetAt", "NextRoundStartsIn")
+		showResultOverlay(
+			title,
+			"SCORE " .. math.floor(youWins) .. " : " .. math.floor(oppWins) .. "  ·  NEXT ROUND IN " .. seconds,
+			color,
+			"NEXT ROUND"
+		)
+	else
+		hideResultOverlay()
+	end
+end
+
+------------------------------------------------------------------------
+-- Bolts wallet
+------------------------------------------------------------------------
+local function getVisibleBolts()
+	local persistentAttribute = localPlayer:GetAttribute("PersistentBolts")
+	local unsavedAttribute = localPlayer:GetAttribute("UnsavedBolts")
+
+	if persistentAttribute == nil and unsavedAttribute == nil then
+		return nil
+	end
+
+	local persistent = tonumber(persistentAttribute)
+	if persistent ~= nil then
+		return math.max(0, math.floor(persistent))
+	end
+
+	return math.max(0, math.floor(tonumber(unsavedAttribute) or 0))
+end
+
+local function tweenBoltsCount(target)
+	if target == nil then
+		boltsPanel.Visible = false
+		displayedBolts = nil
+		return
+	end
+
+	boltsPanel.Visible = true
+
+	if displayedBolts == nil then
+		displayedBolts = target
+		boltsValue.Text = tostring(target)
+		return
+	end
+
+	local start = displayedBolts
+	displayedBolts = target
+
+	if start == target then
+		return
+	end
+
+	local startClock = os.clock()
+	local duration = 0.45
+	local connection
+	connection = RunService.RenderStepped:Connect(function()
+		local alpha = clamp01((os.clock() - startClock) / duration)
+		local value = math.floor(start + (target - start) * alpha + 0.5)
+		boltsValue.Text = tostring(value)
+		if alpha >= 1 then
+			connection:Disconnect()
+		end
+	end)
+end
+
+local function updateBolts()
+	tweenBoltsCount(getVisibleBolts())
+end
+
+local function showBoltsReward()
+	if getVisibleBolts() == nil then
+		return
+	end
+
+	local amount = math.max(0, math.floor(tonumber(localPlayer:GetAttribute("LastBoltsRewardAmount")) or 0))
+	if amount <= 0 then
+		return
+	end
+
+	rewardToken += 1
+	local token = rewardToken
+
+	boltsReward.Text = "+" .. amount
+	boltsReward.TextColor3 = COLORS.Green
+	boltsReward.TextTransparency = 0
+	boltsReward.Position = UDim2.new(0.5, 0, 0, 0)
+
+	TweenService:Create(boltsReward, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Position = UDim2.new(0.5, 0, 0, -22),
+		TextTransparency = 1,
+	}):Play()
+
+	task.delay(0.9, function()
+		if token == rewardToken then
+			boltsReward.Text = ""
+		end
+	end)
+end
+
+local function onRewardSequenceChanged()
+	local sequence = tonumber(localPlayer:GetAttribute("LastBoltsRewardSequence")) or 0
+	if sequence == lastRewardSequence then
+		return
+	end
+
+	lastRewardSequence = sequence
+	showBoltsReward()
+	updateBolts()
+end
+
+------------------------------------------------------------------------
+-- Screen-space combat feedback (RICOCHET / NO PEN / HIT)
+------------------------------------------------------------------------
+local function spawnFeedback(text, color)
+	local slot = nil
+
+	for _, candidate in ipairs(feedbackPool) do
+		if candidate.InUse ~= true then
+			slot = candidate
+			break
+		end
+	end
+
+	if slot == nil then
+		return
+	end
+
+	slot.InUse = true
+	slot.Token += 1
+	local token = slot.Token
+
+	local label = slot.Label
+	local scale = slot.Scale
+
+	label.Text = text
+	label.TextColor3 = color
+	label.TextTransparency = 0
+	label.TextStrokeTransparency = 0.4
+	label.Position = UDim2.new(0.5, math.random(-60, 60), 0.45, math.random(-30, 30))
+	label.Visible = true
+
+	scale.Scale = 0.7
+
+	TweenService:Create(scale, TweenInfo.new(0.16, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Scale = 1.1,
+	}):Play()
+	TweenService:Create(label, TweenInfo.new(0.9, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Position = label.Position - UDim2.fromOffset(0, 26),
+		TextTransparency = 1,
+		TextStrokeTransparency = 1,
+	}):Play()
+
+	task.delay(0.95, function()
+		if token ~= slot.Token then
+			return
+		end
+
+		slot.InUse = false
+		label.Visible = false
+		label.Text = ""
+		label.TextTransparency = 1
+		label.TextStrokeTransparency = 1
+	end)
+end
+
+local function onCombatFeedback(payload)
+	if not isHudVisible() then
+		return
+	end
+
+	if typeof(payload) ~= "table" or payload.AudioOnly == true then
+		return
+	end
+
+	local text = tostring(payload.Text or payload.Type or "")
+	if text == "" then
+		return
+	end
+
+	local upper = string.upper(text)
+	-- Only surface the readable "wow" moments on-screen; numeric hits stay as
+	-- world billboards handled by WOBCombatFeedbackOverlay.
+	local color
+	if string.find(upper, "RICOCHET") then
+		color = COLORS.Yellow
+	elseif string.find(upper, "NO PEN") or string.find(upper, "NOPEN") or string.find(upper, "BLOCK") then
+		color = COLORS.Muted
+	else
+		return
+	end
+
+	spawnFeedback(upper, color)
+end
+
+------------------------------------------------------------------------
+-- Visibility + entrance animation
+------------------------------------------------------------------------
+local wasVisible = false
+
+local function applyMobileLayout()
+	-- On phones the bottom-left is occupied by the movement joystick, so the
+	-- reload/bolts bar is hidden there (reload is still shown in the player
+	-- panel mini bar) and the top panels are nudged inward.
+	local mobile = isMobile()
+	bottomBar.Visible = not mobile
+
+	if wasVisible then
+		topBar.Position = getTopBarTargetPosition()
+	end
+end
+
+local function playEntrance()
+	local topTarget = getTopBarTargetPosition()
+	topBar.Position = UDim2.new(0, 0, 0, topTarget.Y.Offset - 80)
+	bottomBar.Position = UDim2.new(0, 0, 1, 80)
+	scoreBoxScale.Scale = 0.88
+	topShade.BackgroundTransparency = 1
+	bottomShade.BackgroundTransparency = 1
+
+	for _, panel in ipairs({ playerPanel, enemyPanel, scoreBox, reloadPanel, boltsPanel }) do
+		panel.BackgroundTransparency = 1
+
+		local stroke = panel:FindFirstChildOfClass("UIStroke")
+		local shouldFadeStroke = stroke ~= nil and not (panel == playerPanel and lowHpPulseActive)
+		if shouldFadeStroke then
+			stroke.Transparency = 1
+		end
+
+		TweenService:Create(panel, TweenInfo.new(0.24), {
+			BackgroundTransparency = PANEL_TRANSPARENCY,
+		}):Play()
+
+		if shouldFadeStroke then
+			TweenService:Create(stroke, TweenInfo.new(0.24), {
+				Transparency = 0.25,
+			}):Play()
+		end
+	end
+
+	TweenService:Create(topBar, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Position = topTarget,
+	}):Play()
+	TweenService:Create(bottomBar, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Position = UDim2.new(0, 0, 1, 0),
+	}):Play()
+	TweenService:Create(scoreBoxScale, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Scale = 1,
+	}):Play()
+	TweenService:Create(topShade, TweenInfo.new(0.25), {
+		BackgroundTransparency = 0,
+	}):Play()
+	TweenService:Create(bottomShade, TweenInfo.new(0.25), {
+		BackgroundTransparency = 0,
+	}):Play()
+end
+
+local function refreshAll()
+	refreshTanks()
+	updatePlayerHealth()
+	updateEnemyHealth()
+	updateScore()
+	updateBolts()
+	updateResultOverlay()
+end
+
+local function applyVisibility()
+	local visible = isHudVisible()
+	applyMobileLayout()
+
+	if visible and not wasVisible then
+		gui.Enabled = true
+		refreshAll()
+		playEntrance()
+	elseif not visible and wasVisible then
+		gui.Enabled = false
+		setLowHpPulse(false)
+		hideResultOverlay()
+	elseif visible then
+		gui.Enabled = true
+	end
+
+	wasVisible = visible
+end
+
+------------------------------------------------------------------------
+-- Wiring
+------------------------------------------------------------------------
+combatFeedbackEvent.OnClientEvent:Connect(onCombatFeedback)
+
+localPlayer:GetAttributeChangedSignal("PlayerMode"):Connect(function()
+	refreshAll()
+	applyVisibility()
+end)
+localPlayer:GetAttributeChangedSignal("PersistentBolts"):Connect(updateBolts)
+localPlayer:GetAttributeChangedSignal("UnsavedBolts"):Connect(updateBolts)
+localPlayer:GetAttributeChangedSignal("LastBoltsRewardSequence"):Connect(onRewardSequenceChanged)
+
+root:GetAttributeChangedSignal("GameState"):Connect(function()
+	refreshAll()
+	applyVisibility()
+end)
+root:GetAttributeChangedSignal("MatchMode"):Connect(refreshAll)
+root:GetAttributeChangedSignal("PlayerWins"):Connect(updateScore)
+root:GetAttributeChangedSignal("DummyWins"):Connect(updateScore)
+root:GetAttributeChangedSignal("PlayerSideScore"):Connect(updateScore)
+root:GetAttributeChangedSignal("OpponentSideScore"):Connect(updateScore)
+root:GetAttributeChangedSignal("RoundResult"):Connect(updateResultOverlay)
+root:GetAttributeChangedSignal("RoundEnded"):Connect(updateResultOverlay)
+root:GetAttributeChangedSignal("RoundState"):Connect(updateResultOverlay)
+root:GetAttributeChangedSignal("RoundWinnerTankId"):Connect(updateResultOverlay)
+root:GetAttributeChangedSignal("RoundLoserTankId"):Connect(updateResultOverlay)
+root:GetAttributeChangedSignal("RoundResetAt"):Connect(updateResultOverlay)
+root:GetAttributeChangedSignal("NextRoundStartsIn"):Connect(updateResultOverlay)
+root:GetAttributeChangedSignal("MatchEnded"):Connect(updateResultOverlay)
+root:GetAttributeChangedSignal("MatchResult"):Connect(updateResultOverlay)
+root:GetAttributeChangedSignal("MatchWinnerTankId"):Connect(updateResultOverlay)
+root:GetAttributeChangedSignal("MatchLoserTankId"):Connect(updateResultOverlay)
+root:GetAttributeChangedSignal("MatchResultAt"):Connect(updateResultOverlay)
+root:GetAttributeChangedSignal("ResultStartsIn"):Connect(updateResultOverlay)
+
+root.DescendantAdded:Connect(function()
+	if isHudVisible() then
+		refreshTanks()
+	end
+end)
+
+RunService.RenderStepped:Connect(function(deltaTime)
+	if not gui.Enabled then
+		return
+	end
+
+	updateReload()
+
+	elapsedSinceRefresh += deltaTime
+	if elapsedSinceRefresh >= 0.15 then
+		elapsedSinceRefresh = 0
+		refreshTanks()
+		updatePlayerHealth()
+		updateEnemyHealth()
+		updateScore()
+		updateResultOverlay()
+	end
+end)
+
+refreshAll()
+applyVisibility()
+
+print("[WOB] Scripted duel HUD initialised")
+]]></ProtectedString>
+						<bool name="Disabled">false</bool>
+						<Content name="LinkedSource"><null></null></Content>
+						<token name="RunContext">0</token>
+						<string name="ScriptGuid">{c40415f1-e1c2-48ef-bdb1-927ed3c102cf}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">WOBDuelHudOverlay</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<BinaryString name="Tags"></BinaryString>
+						<UniqueId name="UniqueId">1a94d8663b8139870a22306200000e2f</UniqueId>
+					</Properties>
+				</Item>
 			</Item>
 		</Item>
 		<Item class="StarterCharacterScripts" referent="RBX7c17c80fc1f64f79aca62f09c3dfa2b4">
@@ -25495,6 +27417,7 @@ return HudVisibilityRules
 	</Item>
 	<Item class="StarterGui" referent="RBXf76daf853b2e41acb7df91ddcb7dadf4">
 		<Properties>
+			<token name="ClipsDescendantsSupportsRotation">0</token>
 			<bool name="ResetPlayerGuiOnSpawn">true</bool>
 			<token name="RtlTextSupport">0</token>
 			<token name="ScreenOrientation">4</token>
@@ -32448,6 +34371,7 @@ local HudConfig = table.freeze({
 		HideLargeReloadPanelWhenWorldReloadEnabled = true,
 		HideEnemyHpPanelWhenWorldBarsEnabled = true,
 		HidePlayerHpPanelWhenWorldBarsEnabled = true,
+		UseScriptedDuelHud = true,
 	}),
 
 	DuelMobileScorePanel = table.freeze({
@@ -32940,6 +34864,9 @@ return VfxConfig
 		Radius = 82,
 		DeadZone = 0.08,
 		MaxDistance = 82,
+		TapMaxDuration = 0.15,
+		TapMoveTolerancePixels = 6,
+		AutoFireInArena = false,
 		Position = UDim2.fromScale(0.78, 0.72),
 		Visible = true,
 		Label = "AIM",
@@ -33088,11 +35015,36 @@ return BattleArenaConfig
 						<ProtectedString name="Source"><![CDATA[local BotConfig = table.freeze({
 	Enabled = true,
 	Debug = false,
+	Difficulty = "Easy",
+
+	DifficultyProfiles = table.freeze({
+		Easy = table.freeze({
+			AimToleranceDegrees = 14,
+			AimJitterDegrees = 7,
+			FireChance = 0.35,
+			ReactionDelay = 0.35,
+			MoveJitterInterval = 1.8,
+			FireCheckInterval = 0.42,
+			FireCooldownMin = 0.35,
+			FireCooldownMax = 0.75,
+		}),
+
+		Normal = table.freeze({
+			AimToleranceDegrees = 9,
+			AimJitterDegrees = 4,
+			FireChance = 0.55,
+			ReactionDelay = 0.2,
+			MoveJitterInterval = 1.25,
+			FireCheckInterval = 0.3,
+			FireCooldownMin = 0.25,
+			FireCooldownMax = 0.55,
+		}),
+	}),
 
 	BattleArena = table.freeze({
 		Enabled = true,
-		MinBots = 1,
-		MaxBots = 3,
+		MinBots = 2,
+		MaxBots = 4,
 		SpawnWhenPlayerCountLessThan = 2,
 		RespawnDelay = 3,
 		TargetBotsWhenNoPlayers = false,
@@ -33103,12 +35055,19 @@ return BattleArenaConfig
 		SearchRadius = 180,
 		PreferredDistance = 45,
 		TooCloseDistance = 18,
-		AimToleranceDegrees = 10,
-		FireChance = 0.55,
-		MoveJitterInterval = 1.25,
+		AimToleranceDegrees = 14,
+		AimJitterDegrees = 7,
+		FireChance = 0.35,
+		ReactionDelay = 0.35,
+		MoveJitterInterval = 1.8,
+		FireCheckInterval = 0.42,
+		FireCooldownMin = 0.35,
+		FireCooldownMax = 0.75,
 		ReverseChanceWhenTooClose = 0.35,
 		MoveThrottle = 0.75,
 		ReverseThrottle = -0.55,
+		AntiStuckSeconds = 1.4,
+		AntiStuckDistance = 0.35,
 	}),
 
 	Safety = table.freeze({
@@ -33241,14 +35200,63 @@ return WeaponSafetyConfig
 			TurretColor = Color3.fromRGB(80, 220, 160),
 			BarrelColor = Color3.fromRGB(35, 40, 42),
 			Material = Enum.Material.SmoothPlastic,
+			UnlockedByDefault = true,
+			DuelSafe = true,
 		}),
 
-		RedTest = table.freeze({
-			DisplayName = "Red Test",
+		Red = table.freeze({
+			DisplayName = "Red",
 			BodyColor = Color3.fromRGB(220, 70, 70),
 			TurretColor = Color3.fromRGB(240, 120, 80),
 			BarrelColor = Color3.fromRGB(45, 45, 50),
 			Material = Enum.Material.SmoothPlastic,
+			Price = 25,
+			Currency = "Bolts",
+			DuelSafe = true,
+		}),
+
+		Blue = table.freeze({
+			DisplayName = "Blue",
+			BodyColor = Color3.fromRGB(45, 110, 245),
+			TurretColor = Color3.fromRGB(85, 185, 255),
+			BarrelColor = Color3.fromRGB(35, 40, 48),
+			Material = Enum.Material.SmoothPlastic,
+			Price = 25,
+			Currency = "Bolts",
+			DuelSafe = true,
+		}),
+
+		Green = table.freeze({
+			DisplayName = "Green",
+			BodyColor = Color3.fromRGB(70, 185, 95),
+			TurretColor = Color3.fromRGB(120, 230, 130),
+			BarrelColor = Color3.fromRGB(35, 45, 38),
+			Material = Enum.Material.SmoothPlastic,
+			Price = 25,
+			Currency = "Bolts",
+			DuelSafe = true,
+		}),
+
+		BlackGold = table.freeze({
+			DisplayName = "Black / Gold",
+			BodyColor = Color3.fromRGB(30, 30, 34),
+			TurretColor = Color3.fromRGB(225, 170, 65),
+			BarrelColor = Color3.fromRGB(15, 16, 18),
+			Material = Enum.Material.SmoothPlastic,
+			Price = 3,
+			Currency = "Crystals",
+			DuelSafe = true,
+			FeaturedLocked = true,
+		}),
+
+		RedTest = table.freeze({
+			DisplayName = "Red Test",
+			AliasOf = "Red",
+			BodyColor = Color3.fromRGB(220, 70, 70),
+			TurretColor = Color3.fromRGB(240, 120, 80),
+			BarrelColor = Color3.fromRGB(45, 45, 50),
+			Material = Enum.Material.SmoothPlastic,
+			DuelSafe = true,
 		}),
 
 		DesertTest = table.freeze({
@@ -33257,6 +35265,7 @@ return WeaponSafetyConfig
 			TurretColor = Color3.fromRGB(215, 180, 110),
 			BarrelColor = Color3.fromRGB(55, 50, 45),
 			Material = Enum.Material.SmoothPlastic,
+			DuelSafe = true,
 		}),
 	}),
 })
@@ -33286,6 +35295,8 @@ return SkinCatalog
 	Rewards = table.freeze({
 		TrainingKill = 1,
 		PvPKill = 1,
+		BattleArenaBotKill = 3,
+		BattleArenaRicochetKillBonus = 2,
 		SelfKill = 0,
 		MatchWin = 0,
 	}),
@@ -33491,6 +35502,9 @@ return AudioCatalog
 	DuelWinCrystals = 1,
 	TrainingWinCrystals = 0,
 	BattleArenaKillCrystals = 0,
+	BattleArenaBotKillBolts = 3,
+	BattleArenaRicochetKillBonusBolts = 2,
+	BattleArenaCrystalMilestonesEnabled = false,
 	DebugRewards = false,
 })
 
@@ -33553,14 +35567,25 @@ return RewardConfig
 	Visuals = table.freeze({
 		ArmorZonesVisible = true,
 		Material = "SmoothPlastic",
-		FrontColor = Color3.fromRGB(70, 235, 190),
-		SideColor = Color3.fromRGB(255, 205, 70),
-		RearColor = Color3.fromRGB(255, 85, 85),
+		FrontColor = Color3.fromRGB(75, 240, 180),
+		SideColor = Color3.fromRGB(255, 210, 70),
+		RearColor = Color3.fromRGB(255, 90, 85),
 		CornerColor = Color3.fromRGB(135, 210, 255),
-		FrontTransparency = 0.35,
-		SideTransparency = 0.45,
-		RearTransparency = 0.45,
+		FrontTransparency = 0.32,
+		SideTransparency = 0.42,
+		RearTransparency = 0.42,
 		CornerTransparency = 0.45,
+	}),
+
+	Feedback = table.freeze({
+		DamageColor = Color3.fromRGB(255, 105, 75),
+		NoPenText = "NO PEN",
+		NoPenColor = Color3.fromRGB(185, 225, 255),
+		RicochetText = "RICOCHET",
+		RicochetColor = Color3.fromRGB(255, 220, 70),
+		Lifetime = 0.6,
+		RiseDistance = 2.1,
+		MaxActiveFeedback = 6,
 	}),
 })
 
@@ -33614,7 +35639,26 @@ TankFactoryConfig.LegacyTankIds = table.freeze({
 })
 
 TankFactoryConfig.DynamicPlayerTankPrefix = "PlayerTank_"
+
+-- BaseTankTemplate: user-created editable template in Studio.
+-- Looked up in Workspace.WOB_Generated.TestObjects by TankTemplateProvider.
+-- If not present, falls back to LegacyTankIds per-role.
+-- Do not create this in code; place it manually in Studio.
+TankFactoryConfig.BaseTankTemplateName = "BaseTankTemplate"
+
+-- Legacy path placeholder — kept for documentation only, not used at runtime.
 TankFactoryConfig.FutureBaseTemplatePath = "ServerStorage.TankTemplates.BaseTankTemplate"
+
+-- Startup static participant IDs.
+-- Used for the 3 scene-level static participants (IsActive=false) created at server start.
+-- Names intentionally do NOT match legacy prototype names so TankFactory
+-- selects BaseTankTemplate (or role-specific legacy fallback) via GetTemplateForRole
+-- instead of finding the raw prototype model by name.
+TankFactoryConfig.StartupParticipantIds = table.freeze({
+	Player  = "Startup_Player",
+	Dummy   = "Startup_Dummy",
+	Player2 = "Startup_Player2",
+})
 
 TankFactoryConfig.DefaultLoadout = table.freeze({
 	SkinId = "Default",
@@ -33679,6 +35723,58 @@ return table.freeze(TankFactoryConfig)
 			Currency = nil,
 			Price = 0,
 			Enabled = true,
+		}),
+
+		red_tank_skin = table.freeze({
+			Id = "red_tank_skin",
+			Slot = "TankSkin",
+			DisplayName = "Red Tank",
+			SkinId = "Red",
+			Rarity = "Common",
+			Purchasable = true,
+			Currency = "Bolts",
+			Price = 25,
+			Enabled = true,
+			DuelSafe = true,
+		}),
+
+		blue_tank_skin = table.freeze({
+			Id = "blue_tank_skin",
+			Slot = "TankSkin",
+			DisplayName = "Blue Tank",
+			SkinId = "Blue",
+			Rarity = "Common",
+			Purchasable = true,
+			Currency = "Bolts",
+			Price = 25,
+			Enabled = true,
+			DuelSafe = true,
+		}),
+
+		green_tank_skin = table.freeze({
+			Id = "green_tank_skin",
+			Slot = "TankSkin",
+			DisplayName = "Green Tank",
+			SkinId = "Green",
+			Rarity = "Common",
+			Purchasable = true,
+			Currency = "Bolts",
+			Price = 25,
+			Enabled = true,
+			DuelSafe = true,
+		}),
+
+		black_gold_tank_skin = table.freeze({
+			Id = "black_gold_tank_skin",
+			Slot = "TankSkin",
+			DisplayName = "Black / Gold Tank",
+			SkinId = "BlackGold",
+			Rarity = "Rare",
+			Purchasable = false,
+			Currency = "Crystals",
+			Price = 3,
+			Enabled = true,
+			DuelSafe = true,
 		}),
 
 		default_projectile_trail = table.freeze({
@@ -33804,6 +35900,58 @@ return CosmeticCatalog
 						<int64 name="SourceAssetId">-1</int64>
 						<BinaryString name="Tags"></BinaryString>
 						<UniqueId name="UniqueId">26a304254af295c10a1efee20000b864</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="ModuleScript" referent="RBXe4004c92eb32452db97d3fb6e7a6451e">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[local BattleArenaLoopConfig = table.freeze({
+	Enabled = true,
+
+	Session = table.freeze({
+		ShowSessionTimer = true,
+		SoftSessionLengthSeconds = 180,
+		EndlessMode = true,
+	}),
+
+	Bots = table.freeze({
+		MaintainMinBots = true,
+		MinBotsSolo = 2,
+		MinBotsWithPlayers = 1,
+		MaxBots = 4,
+		RespawnDelay = 3,
+	}),
+
+	Score = table.freeze({
+		PlayerKillBot = 10,
+		BotKillPlayer = 0,
+		RicochetKillBonus = 5,
+		NoPenBlockedBonus = 1,
+		SurvivalTickSeconds = 30,
+		SurvivalTickReward = 2,
+	}),
+
+	Rewards = table.freeze({
+		BoltsPerBotKill = 3,
+		BoltsPerRicochetKillBonus = 2,
+		CrystalsPerDailyFirstDuelWin = 1,
+		CrystalsPerBattleArenaMilestone = 1,
+		BattleArenaMilestoneKills = 10,
+		EnableBattleArenaCrystalMilestones = false,
+	}),
+})
+
+return BattleArenaLoopConfig
+]]></ProtectedString>
+						<string name="ScriptGuid">{ce907102-bcc1-4feb-a97a-e005c5be99b8}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">BattleArenaLoopConfig</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<BinaryString name="Tags"></BinaryString>
+						<UniqueId name="UniqueId">75d29599423d91c90a211ae100000c5b</UniqueId>
 					</Properties>
 				</Item>
 			</Item>
@@ -41168,6 +43316,42 @@ DgAAAFdPQlZmeFRlbXBsYXRlAwE=]]></BinaryString>
 					</Item>
 				</Item>
 			</Item>
+			<Item class="Folder" referent="RBXe57827309a904760ad64c8c1c36fad0c">
+				<Properties>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+					<string name="Name">Assets</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<BinaryString name="Tags"></BinaryString>
+					<UniqueId name="UniqueId">6f300c301268d59e0a2103fe000010c8</UniqueId>
+				</Properties>
+				<Item class="Folder" referent="RBXd90b72fb4488489983d63356e8634dc8">
+					<Properties>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">UI</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<BinaryString name="Tags"></BinaryString>
+						<UniqueId name="UniqueId">6f300c301268d59e0a2103fe000010c9</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="Folder" referent="RBX2eb03c5e202c4c8d96653792b5fb8492">
+					<Properties>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">VFX</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<BinaryString name="Tags"></BinaryString>
+						<UniqueId name="UniqueId">6f300c301268d59e0a2103fe000010ca</UniqueId>
+					</Properties>
+				</Item>
+			</Item>
 		</Item>
 		<Item class="Folder" referent="RBX9dfd2832467d46a09ea37a884caf6b42">
 			<Properties>
@@ -43361,25 +45545,59 @@ local function ensurePart(model, partName)
 	return part, true
 end
 
-local function ensureHitboxes(model)
-	local hitboxes = model:FindFirstChild("Hitboxes")
-
-	if hitboxes ~= nil and not hitboxes:IsA("Folder") then
-		warn("[TANK] " .. hitboxes:GetFullName() .. " is " .. hitboxes.ClassName .. ", expected Folder")
-		hitboxes = nil
+-- Returns the hitbox folder for the model.
+-- Prefers "ArmorZones" (BaseTankTemplate contract) over "Hitboxes" (legacy).
+-- Deep-searches in case the folder is nested inside a sub-model.
+local function findHitboxFolder(model)
+	if model == nil then
+		return nil
 	end
 
-	if hitboxes == nil then
-		hitboxes = Instance.new("Folder")
-		hitboxes.Name = "Hitboxes"
-		hitboxes.Parent = model
+	local armorZones = model:FindFirstChild("ArmorZones")
+	if armorZones ~= nil and armorZones:IsA("Folder") then
+		return armorZones
+	end
+
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant.Name == "ArmorZones" and descendant:IsA("Folder") then
+			return descendant
+		end
+	end
+
+	local hitboxes = model:FindFirstChild("Hitboxes")
+	if hitboxes ~= nil and hitboxes:IsA("Folder") then
+		return hitboxes
+	end
+
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant.Name == "Hitboxes" and descendant:IsA("Folder") then
+			return descendant
+		end
+	end
+
+	return nil
+end
+
+local function ensureHitboxes(model)
+	-- Find existing hitbox folder (ArmorZones preferred). Create "Hitboxes" only
+	-- when neither folder exists at all.
+	local hitboxFolder = findHitboxFolder(model)
+
+	if hitboxFolder == nil then
+		hitboxFolder = Instance.new("Folder")
+		hitboxFolder.Name = "Hitboxes"
+		hitboxFolder.Parent = model
 		warn("[TANK] created missing " .. model:GetFullName() .. ".Hitboxes")
 	end
 
+	-- Always ensure the 4 named armor parts exist inside whichever folder we found
+	-- or created. TankArmorPartsService.Configure positions and welds them to Body
+	-- after this function returns, so missing parts created here will be correctly
+	-- placed before the first frame of physics simulation.
 	local pivot = getModelPivot(model)
 
 	for _, hitboxName in ipairs(ARMOR_HITBOX_NAMES) do
-		local hitbox = hitboxes:FindFirstChild(hitboxName)
+		local hitbox = hitboxFolder:FindFirstChild(hitboxName)
 
 		if hitbox ~= nil and not hitbox:IsA("BasePart") then
 			warn("[TANK] " .. hitbox:GetFullName() .. " is " .. hitbox.ClassName .. ", expected BasePart")
@@ -43389,13 +45607,13 @@ local function ensureHitboxes(model)
 		if hitbox == nil then
 			hitbox = Instance.new("Part")
 			hitbox.Name = hitboxName
-			hitbox.Parent = hitboxes
+			hitbox.Parent = hitboxFolder
 			configureHitboxPart(hitbox, HITBOX_SPECS[hitboxName], pivot)
-			warn("[TANK] created missing " .. model:GetFullName() .. ".Hitboxes." .. hitboxName)
+			warn("[TANK] created missing " .. model:GetFullName() .. "." .. hitboxFolder.Name .. "." .. hitboxName)
 		end
 	end
 
-	return hitboxes
+	return hitboxFolder
 end
 
 function PlayerTankSpawner.ensurePrimaryPart(model)
@@ -43409,6 +45627,7 @@ function PlayerTankSpawner.ensurePrimaryPart(model)
 end
 
 function PlayerTankSpawner.getTankParts(model)
+	-- findHitboxFolder prefers "ArmorZones" (BaseTankTemplate) over legacy "Hitboxes".
 	local parts = {
 		Model = model,
 		Body = findBasePart(model, "Body"),
@@ -43416,14 +45635,10 @@ function PlayerTankSpawner.getTankParts(model)
 		Turret = findBasePart(model, "Turret"),
 		Barrel = findBasePart(model, "Barrel"),
 		ShootPoint = findBasePart(model, "ShootPoint"),
-		Hitboxes = model:FindFirstChild("Hitboxes"),
+		Hitboxes = findHitboxFolder(model),
 		BasePartCount = countBaseParts(model),
 		PrimaryPart = PlayerTankSpawner.ensurePrimaryPart(model),
 	}
-
-	if parts.Hitboxes ~= nil and not parts.Hitboxes:IsA("Folder") then
-		parts.Hitboxes = nil
-	end
 
 	return parts
 end
@@ -44555,6 +46770,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local DebugCombatConfig = require(configs:WaitForChild("DebugCombatConfig"))
+local TankArmorConfig = require(configs:WaitForChild("TankArmorConfig"))
 local ArmorHitResolver = require(script.Parent:WaitForChild("ArmorHitResolver"))
 local ProjectileHitResult = require(script.Parent.Parent:WaitForChild("Projectiles"):WaitForChild("ProjectileHitResult"))
 local MatchStatsService = require(script.Parent.Parent:WaitForChild("Stats"):WaitForChild("MatchStatsService"))
@@ -44622,6 +46838,19 @@ local function printBounce(projectile)
 			.. " speed="
 			.. math.floor(projectile.Speed)
 	)
+end
+
+local function getFeedbackConfig()
+	return TankArmorConfig.Feedback or {}
+end
+
+local function getFeedbackOptions()
+	local feedbackConfig = getFeedbackConfig()
+
+	return {
+		Lifetime = tonumber(feedbackConfig.Lifetime) or 0.6,
+		RiseDistance = tonumber(feedbackConfig.RiseDistance) or 2.1,
+	}
 end
 
 local function getParticipantModel(participant)
@@ -44731,7 +46960,8 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 			"Damage",
 			hitPosition,
 			damageText,
-			Color3.fromRGB(255, 105, 75)
+			getFeedbackConfig().DamageColor or Color3.fromRGB(255, 105, 75),
+			getFeedbackOptions()
 		)
 
 		if damageParticipant(targetParticipant, armorHit.FinalDamage, projectile) and projectile.NoStats ~= true then
@@ -44753,8 +46983,9 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 		sendCombatFeedback(
 			"ArmorRicochet",
 			hitPosition,
-			"RICOCHET",
-			Color3.fromRGB(255, 220, 70)
+			getFeedbackConfig().RicochetText or "RICOCHET",
+			getFeedbackConfig().RicochetColor or Color3.fromRGB(255, 220, 70),
+			getFeedbackOptions()
 		)
 
 		if projectile.BounceCount >= projectile.MaxBounces then
@@ -44780,8 +47011,9 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 	sendCombatFeedback(
 		"NoPenetration",
 		hitPosition,
-		"NO PEN",
-		Color3.fromRGB(180, 220, 255)
+		getFeedbackConfig().NoPenText or "NO PEN",
+		getFeedbackConfig().NoPenColor or Color3.fromRGB(180, 220, 255),
+		getFeedbackOptions()
 	)
 
 	destroyProjectile(projectile)
@@ -45107,6 +47339,7 @@ local TankArmorConfig = require(configs:WaitForChild("TankArmorConfig"))
 local WeaponConfig = require(configs:WaitForChild("WeaponConfig"))
 local WeaponSafetyConfig = require(configs:WaitForChild("WeaponSafetyConfig"))
 local VfxConfig = require(configs:WaitForChild("VfxConfig"))
+local DebugCombatConfig = require(configs:WaitForChild("DebugCombatConfig"))
 
 local TankParticipantRegistry = require(script.Parent.Parent:WaitForChild("TankParticipantRegistry"))
 local ProjectileCollisionService = require(script.Parent:WaitForChild("ProjectileCollisionService"))
@@ -46070,6 +48303,15 @@ function ProjectileService.updateProjectiles(deltaTime)
 			local targetParticipant = TankParticipantRegistry.getParticipantFromArmorHitbox(result.Instance)
 			local armorZone = TankParticipantRegistry.getArmorZoneFromHitbox(result.Instance)
 
+			if DebugCombatConfig.ProjectileDebug == true then
+				local partName = result.Instance ~= nil and result.Instance.Name or "nil"
+				local tankId = targetParticipant ~= nil and targetParticipant.TankId or "nil"
+				local active = targetParticipant ~= nil and tostring(targetParticipant.IsActive) or "nil"
+				print(("[PROJECTILE HIT] part=%s tank=%s active=%s zone=%s"):format(
+					partName, tankId, active, tostring(armorZone)
+				))
+			end
+
 			if targetParticipant ~= nil then
 				local roundState = callbacks.getRoundStateForProjectile ~= nil
 					and callbacks.getRoundStateForProjectile(projectile)
@@ -46138,6 +48380,11 @@ return ProjectileService
 							<Content name="LinkedSource"><null></null></Content>
 							<ProtectedString name="Source"><![CDATA[local ProjectileCollisionService = {}
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local DebugCombatConfig = require(
+	ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs"):WaitForChild("DebugCombatConfig")
+)
+
 local ARMOR_HITBOX_NAMES = {
 	FrontArmor = true,
 	RearArmor = true,
@@ -46169,17 +48416,49 @@ local function ensureArmorHitboxesQueryable(hitboxes)
 	end
 end
 
+-- Resolves the hitbox folder for a participant.
+-- Prefers "ArmorZones" (BaseTankTemplate) over legacy "Hitboxes".
+-- Falls back to deep search when participant.Hitboxes is stale/nil.
+local function resolveHitboxFolder(participant, physicalModel)
+	local hitboxes = participant.Hitboxes
+
+	if hitboxes ~= nil and hitboxes.Parent ~= nil then
+		return hitboxes
+	end
+
+	if physicalModel == nil then
+		return nil
+	end
+
+	-- ArmorZones first (BaseTankTemplate contract), then Hitboxes (legacy).
+	local armorZones = physicalModel:FindFirstChild("ArmorZones", true)
+	if armorZones ~= nil and armorZones:IsA("Folder") then
+		participant.Hitboxes = armorZones
+		return armorZones
+	end
+
+	local legacyHitboxes = physicalModel:FindFirstChild("Hitboxes", true)
+	if legacyHitboxes ~= nil and legacyHitboxes:IsA("Folder") then
+		participant.Hitboxes = legacyHitboxes
+		return legacyHitboxes
+	end
+
+	return nil
+end
+
 function ProjectileCollisionService.GetProjectileRaycastTargets(projectile, mapRaycastTargets, tankParticipantRegistry)
 	local targets = cloneTargets(mapRaycastTargets)
+	local debugEnabled = DebugCombatConfig.ProjectileDebug == true
+
+	if debugEnabled then
+		print(("[PROJECTILE COLLISION] building targets for projectile owner=%s"):format(
+			tostring(projectile.OwnerParticipant ~= nil and projectile.OwnerParticipant.TankId or "none")
+		))
+	end
 
 	for _, participant in ipairs(tankParticipantRegistry.getParticipants()) do
 		local physicalModel = tankParticipantRegistry.getParticipantPhysicalModel(participant)
-		local hitboxes = participant.Hitboxes
-
-		if (hitboxes == nil or hitboxes.Parent == nil) and physicalModel ~= nil then
-			hitboxes = physicalModel:FindFirstChild("Hitboxes", true)
-			participant.Hitboxes = hitboxes
-		end
+		local hitboxes = resolveHitboxFolder(participant, physicalModel)
 
 		local canHitParticipant = participant.IsActive ~= false
 			and hitboxes ~= nil
@@ -46188,6 +48467,21 @@ function ProjectileCollisionService.GetProjectileRaycastTargets(projectile, mapR
 		if canHitParticipant then
 			ensureArmorHitboxesQueryable(hitboxes)
 			table.insert(targets, hitboxes)
+
+			if debugEnabled then
+				print(("[PROJECTILE COLLISION] target=%s hitboxFolder=%s active=%s"):format(
+					tostring(participant.TankId),
+					tostring(hitboxes.Name),
+					tostring(participant.IsActive)
+				))
+			end
+		elseif debugEnabled then
+			print(("[PROJECTILE COLLISION] skip=%s active=%s hitboxes=%s isOwner=%s"):format(
+				tostring(participant.TankId),
+				tostring(participant.IsActive),
+				tostring(hitboxes ~= nil and hitboxes.Name or "nil"),
+				tostring(participant == projectile.OwnerParticipant)
+			))
 		end
 	end
 
@@ -46484,6 +48778,22 @@ local function findTankFolder(model, folderName)
 	return nil
 end
 
+-- Returns the armor hitbox folder used for projectile collision.
+-- Prefers "ArmorZones" (BaseTankTemplate) over legacy "Hitboxes".
+local function findArmorHitboxFolder(model)
+	if model == nil then
+		return nil
+	end
+
+	local armorZones = findTankFolder(model, "ArmorZones")
+
+	if armorZones ~= nil then
+		return armorZones
+	end
+
+	return findTankFolder(model, "Hitboxes")
+end
+
 local function assignPrimaryPart(model)
 	local primaryPart = findBasePart(model, "Body") or findBasePart(model, "Hull")
 
@@ -46575,7 +48885,7 @@ function TankSpawnResetService.applySpawnToParticipant(participant, spawnState)
 	participant.Turret = findBasePart(participant.Model, "Turret")
 	participant.Barrel = findBasePart(participant.Model, "Barrel")
 	participant.ShootPoint = findBasePart(participant.Model, "ShootPoint")
-	participant.Hitboxes = findTankFolder(participant.Model, "Hitboxes")
+	participant.Hitboxes = findArmorHitboxFolder(participant.Model)
 
 	if participant.ControlState == nil then
 		participant.ControlState = {}
@@ -46621,17 +48931,23 @@ function TankSpawnResetService.configureActiveParticipants(matchMode, player2Has
 	for _, participant in ipairs(TankParticipantRegistry.getParticipants()) do
 		if participant.IsPlayerTank == true then
 			local isDuelOpponent = participant.Role == TankRole.DuelOpponent
-			local isVisible = not isDuelOpponent
-
+			-- DuelOpponent slots are visible only in PvP with a second player present.
+			-- All other player-role tanks (including Startup_Player) are visible only
+			-- when they have an assigned owner. Unowned startup tanks stay hidden.
+			local isVisible
 			if isDuelOpponent then
 				isVisible = matchMode == "PvP" and player2HasOwner
-			elseif participant.OwnerPlayer ~= nil then
-				isVisible = true
+			else
+				isVisible = participant.OwnerPlayer ~= nil
 			end
 
 			TankParticipantRegistry.setParticipantModelVisible(participant, isVisible)
 		elseif participant.Role == TankRole.Dummy then
-			TankParticipantRegistry.setParticipantModelVisible(participant, matchMode == "Training")
+			-- Dummy is only visible during an actively running Training match.
+			-- The with-active-match path handles that case; without an active match
+			-- (lobby / free drive / between rounds) the dummy must stay hidden, even
+			-- if matchMode is still "Training" leftover from a previous match.
+			TankParticipantRegistry.setParticipantModelVisible(participant, false)
 		end
 	end
 end
@@ -46813,6 +49129,7 @@ local PlayerTankSpawner = require(script.Parent.Parent:WaitForChild("PlayerTankS
 local TankParticipantRegistry = require(script.Parent.Parent:WaitForChild("TankParticipantRegistry"))
 local TankCustomizationService = require(script.Parent:WaitForChild("TankCustomizationService"))
 local TankArmorPartsService = require(script.Parent:WaitForChild("TankArmorPartsService"))
+local TankSkinApplier = require(script.Parent:WaitForChild("TankSkinApplier"))
 local TankRole = require(script.Parent:WaitForChild("TankRole"))
 local TankSpawnRequest = require(script.Parent:WaitForChild("TankSpawnRequest"))
 local TankStatsProvider = require(script.Parent:WaitForChild("TankStatsProvider"))
@@ -46835,6 +49152,24 @@ local function getRoleDefaults(role)
 	end
 
 	return false, true, "Player"
+end
+
+-- Throttled spawn log: at most one log per (role, templateName) per window.
+local _spawnLogLastTime = {}
+local SPAWN_LOG_THROTTLE_SEC = 10
+
+local function throttledSpawnLog(role, templateName, tankName)
+	local key = tostring(role) .. ":" .. tostring(templateName)
+	local now = os.clock()
+
+	if _spawnLogLastTime[key] == nil or (now - _spawnLogLastTime[key]) >= SPAWN_LOG_THROTTLE_SEC then
+		_spawnLogLastTime[key] = now
+		print(("[TANK FACTORY] spawn role=%s template=%s name=%s"):format(
+			tostring(role),
+			tostring(templateName),
+			tostring(tankName)
+		))
+	end
 end
 
 local function setModelAttribute(model, attributeName, value)
@@ -46967,9 +49302,13 @@ function TankFactory:_getRequestModel(request)
 	end
 
 	local templateModel = request.TemplateModel
+	local templateName = nil
 
 	if templateModel == nil and self.TemplateProvider ~= nil then
-		templateModel = self.TemplateProvider:GetTemplateForRole(request.Role)
+		-- GetTemplateForRole returns (model, name) — capture both.
+		templateModel, templateName = self.TemplateProvider:GetTemplateForRole(request.Role)
+	elseif templateModel ~= nil then
+		templateName = templateModel.Name
 	end
 
 	if templateModel == nil or not templateModel:IsA("Model") then
@@ -46980,7 +49319,7 @@ function TankFactory:_getRequestModel(request)
 	clone.Name = request.TankId or request.Name or templateModel.Name
 	clone.Parent = parent or templateModel.Parent
 
-	return clone, true, templateModel
+	return clone, true, templateModel, templateName
 end
 
 function TankFactory:_applyRegisteredStats(participant, stats)
@@ -47010,7 +49349,7 @@ function TankFactory:SpawnTank(request)
 	end
 
 	local role = request.Role
-	local model, created, templateModel = self:_getRequestModel(request)
+	local model, created, templateModel, templateName = self:_getRequestModel(request)
 
 	if model == nil or not model:IsA("Model") then
 		error("[TANK FACTORY] SpawnTank failed: missing model for role=" .. tostring(role), 2)
@@ -47027,6 +49366,7 @@ function TankFactory:SpawnTank(request)
 	self.PlayerTankSpawner.ensurePhysicalTankModel(model)
 	self.TankCustomizationService.applySkin(model, loadout.SkinId)
 	TankArmorPartsService.Configure(model)
+	TankSkinApplier.Apply(model, loadout)
 
 	local tankParts = self.PlayerTankSpawner.getTankParts(model)
 	local stats = self.TankStatsProvider:GetStats(statsProfileId, request, model)
@@ -47068,6 +49408,20 @@ function TankFactory:SpawnTank(request)
 	}
 
 	applyFactoryAttributes(model, participant, request, loadout, statsProfileId)
+
+	-- TemplateSource attributes — visible in Studio Properties panel on the runtime tank model.
+	-- TemplateSourceName: name of the template that was cloned ("BaseTankTemplate", "PlayerTankPrototype", etc.)
+	--                     or "reused" when an existing model was returned without cloning.
+	-- TemplateSourcePath: full Roblox path of the source template at the time of spawn.
+	if created and templateModel ~= nil then
+		local sourceName = templateName or templateModel.Name
+		setModelAttribute(model, "TemplateSourceName", sourceName)
+		setModelAttribute(model, "TemplateSourcePath", templateModel:GetFullName())
+		throttledSpawnLog(role, sourceName, model.Name)
+	else
+		setModelAttribute(model, "TemplateSourceName", "reused")
+		setModelAttribute(model, "TemplateSourcePath", model:GetFullName())
+	end
 
 	local registeredParticipant = self.TankParticipantRegistry.registerTankParticipant(participant)
 	self:_applyRegisteredStats(registeredParticipant, stats)
@@ -47292,11 +49646,37 @@ function TankTemplateProvider:GetLegacyTankIdForRole(role)
 	return TankFactoryConfig.LegacyTankIds.Player
 end
 
+-- Returns the BaseTankTemplate if the user has placed one in TestObjects.
+-- This is priority 1 for all roles. Not created by code.
+function TankTemplateProvider:GetBaseTankTemplate()
+	if self.TestObjectsRoot == nil then
+		return nil
+	end
+
+	local baseName = TankFactoryConfig.BaseTankTemplateName
+	local base = self.TestObjectsRoot:FindFirstChild(baseName)
+
+	if base ~= nil and base:IsA("Model") then
+		return base, baseName
+	end
+
+	return nil
+end
+
 function TankTemplateProvider:GetTemplateForRole(role)
 	if self.TestObjectsRoot == nil then
 		error("[TANK TEMPLATE] Missing TestObjects root for role=" .. tostring(role), 2)
 	end
 
+	-- Priority 1: BaseTankTemplate (user-placed, editable in Studio).
+	-- Used for all roles when present.
+	local base, baseName = self:GetBaseTankTemplate()
+
+	if base ~= nil then
+		return base, baseName
+	end
+
+	-- Priority 2+: role-specific legacy fallback chain.
 	local templateNames = TEMPLATE_NAMES_BY_ROLE[role] or TEMPLATE_NAMES_BY_ROLE[TankRole.Player]
 
 	for _, templateName in ipairs(templateNames) do
@@ -47464,15 +49844,34 @@ local function findStableBodyPart(model)
 		or (model ~= nil and model.PrimaryPart or nil)
 end
 
-local function findHitboxesFolder(model)
+-- Finds the folder that contains armor zone parts.
+-- Supports both:
+--   "ArmorZones" — BaseTankTemplate / new workflow (preferred)
+--   "Hitboxes"   — legacy PlayerTankPrototype / Player2TankPrototype / DummyTank
+-- "ArmorZones" takes priority when both exist.
+local function findArmorZonesFolder(model)
 	if model == nil then
 		return nil
 	end
 
-	local directChild = model:FindFirstChild("Hitboxes")
+	-- Priority 1: ArmorZones (BaseTankTemplate contract)
+	local directArmorZones = model:FindFirstChild("ArmorZones")
 
-	if directChild ~= nil and directChild:IsA("Folder") then
-		return directChild
+	if directArmorZones ~= nil and directArmorZones:IsA("Folder") then
+		return directArmorZones
+	end
+
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant.Name == "ArmorZones" and descendant:IsA("Folder") then
+			return descendant
+		end
+	end
+
+	-- Priority 2: Hitboxes (legacy prototype contract)
+	local directHitboxes = model:FindFirstChild("Hitboxes")
+
+	if directHitboxes ~= nil and directHitboxes:IsA("Folder") then
+		return directHitboxes
 	end
 
 	for _, descendant in ipairs(model:GetDescendants()) do
@@ -47628,7 +50027,7 @@ end
 
 function TankArmorPartsService.Configure(tankModel)
 	local body = findStableBodyPart(tankModel)
-	local hitboxes = findHitboxesFolder(tankModel)
+	local hitboxes = findArmorZonesFolder(tankModel)
 
 	if body == nil or hitboxes == nil then
 		return false
@@ -47658,6 +50057,169 @@ return TankArmorPartsService
 							<int64 name="SourceAssetId">-1</int64>
 							<BinaryString name="Tags"></BinaryString>
 							<UniqueId name="UniqueId">26a304254af295c10a1efee200008de1</UniqueId>
+						</Properties>
+					</Item>
+					<Item class="ModuleScript" referent="RBX4e9018ba6ab44c189a038e30e3aa5556">
+						<Properties>
+							<Content name="LinkedSource"><null></null></Content>
+							<ProtectedString name="Source"><![CDATA[-- TankSkinApplier
+-- Applies a visual skin to a tank model after clone/reuse.
+-- Responsibilities:
+--   - Configure parts inside the Visuals folder (CanQuery=false, CanCollide=false, etc.)
+--   - Apply base color/material to visual parts for the requested SkinId.
+--   - Does NOT touch armor stats, armor zone sizes, collision on Body, or gameplay logic.
+--
+-- Called by TankFactory after clone:
+--   TankSkinApplier.Apply(tankModel, loadout)
+--
+-- Future skins: add new SkinId entries to SKIN_CONFIGS below.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local shared = ReplicatedStorage:WaitForChild("Shared")
+local configs = shared:WaitForChild("Configs")
+local TankFactoryConfig = require(configs:WaitForChild("TankFactoryConfig"))
+local SkinCatalog = require(configs:WaitForChild("SkinCatalog"))
+
+local TankSkinApplier = {}
+
+-- Part name → which skin color key to use.
+local VISUAL_PART_COLOR_MAP = {
+	BodyVisual    = "BodyColor",
+	HullVisual    = "BodyColor",
+	TrackLeft     = "BodyColor",
+	TrackRight    = "BodyColor",
+	Tracks        = "BodyColor",
+	TurretVisual  = "TurretColor",
+	TurretMesh    = "TurretColor",
+	BarrelVisual  = "BarrelColor",
+	BarrelMesh    = "BarrelColor",
+}
+
+local function applyVisualsProperties(part)
+	if part == nil or not part:IsA("BasePart") then
+		return
+	end
+
+	-- Visual parts must never block projectile raycasts or physical collision.
+	part.CanCollide  = false
+	part.CanTouch    = false
+	part.CanQuery    = false
+	part.Massless    = true
+	part.Anchored    = false
+	part.CastShadow  = false
+end
+
+local function applyColor(part, skinConfig)
+	if part == nil or not part:IsA("BasePart") then
+		return
+	end
+
+	local colorKey = VISUAL_PART_COLOR_MAP[part.Name]
+
+	if colorKey ~= nil and skinConfig[colorKey] ~= nil then
+		part.Color = skinConfig[colorKey]
+	end
+
+	if skinConfig.Material ~= nil then
+		pcall(function()
+			part.Material = skinConfig.Material
+		end)
+	end
+end
+
+local function processVisualsFolder(visualsFolder, skinConfig)
+	if visualsFolder == nil then
+		return
+	end
+
+	for _, child in ipairs(visualsFolder:GetDescendants()) do
+		if child:IsA("BasePart") then
+			applyVisualsProperties(child)
+			applyColor(child, skinConfig)
+		end
+	end
+end
+
+local function findVisualsFolder(tankModel)
+	if tankModel == nil then
+		return nil
+	end
+
+	local direct = tankModel:FindFirstChild("Visuals")
+
+	if direct ~= nil and direct:IsA("Folder") then
+		return direct
+	end
+
+	for _, descendant in ipairs(tankModel:GetDescendants()) do
+		if descendant.Name == "Visuals" and descendant:IsA("Folder") then
+			return descendant
+		end
+	end
+
+	return nil
+end
+
+local function getSkinConfig(skinId)
+	local skins = SkinCatalog.Skins or {}
+	local defaultSkinId = SkinCatalog.DefaultSkinId or TankFactoryConfig.DefaultLoadout.SkinId or "Default"
+	local requestedSkin = skins[skinId]
+
+	if requestedSkin ~= nil and typeof(requestedSkin.AliasOf) == "string" and skins[requestedSkin.AliasOf] ~= nil then
+		return skins[requestedSkin.AliasOf], requestedSkin.AliasOf
+	end
+
+	if requestedSkin ~= nil then
+		return requestedSkin, skinId
+	end
+
+	return skins[defaultSkinId] or skins.Default, defaultSkinId
+end
+
+-- Apply skin to the tank model.
+-- loadout: table with optional SkinId field.
+-- Falls back to "Default" if SkinId is nil or unknown.
+function TankSkinApplier.Apply(tankModel, loadout)
+	if tankModel == nil then
+		return
+	end
+
+	local skinId = "Default"
+
+	if loadout ~= nil and loadout.SkinId ~= nil then
+		skinId = loadout.SkinId
+	end
+
+	local skinConfig, resolvedSkinId = getSkinConfig(skinId)
+
+	if skinConfig == nil then
+		warn("[TANK SKIN APPLIER] No skin config found for SkinId=" .. tostring(skinId) .. "; skipping.")
+		return
+	end
+
+	tankModel:SetAttribute("SkinId", resolvedSkinId)
+
+	local visualsFolder = findVisualsFolder(tankModel)
+
+	if visualsFolder ~= nil then
+		processVisualsFolder(visualsFolder, skinConfig)
+	end
+	-- Note: if the tank has no Visuals folder (legacy prototypes), this is a no-op.
+	-- TankCustomizationService.applySkin handles legacy visual parts separately.
+end
+
+return TankSkinApplier
+]]></ProtectedString>
+							<string name="ScriptGuid">{97961f1f-f284-4841-a255-1906ff424dca}</string>
+							<BinaryString name="AttributesSerialize"></BinaryString>
+							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+							<bool name="DefinesCapabilities">false</bool>
+							<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+							<string name="Name">TankSkinApplier</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<BinaryString name="Tags"></BinaryString>
+							<UniqueId name="UniqueId">6f300c301268d59e0a2103fe000010cb</UniqueId>
 						</Properties>
 					</Item>
 				</Item>
@@ -48787,8 +51349,12 @@ TankParticipantRegistry.init({
 	},
 })
 
+-- Startup static participants (IsActive=false, invisible until assigned).
+-- TankIds use StartupParticipantIds so TankFactory runs GetTemplateForRole
+-- (choosing BaseTankTemplate when present) instead of reusing the legacy
+-- prototype model directly by name.
 local playerParticipant = spawnTankParticipant({
-	TankId = TankFactoryConfig.LegacyTankIds.Player,
+	TankId = TankFactoryConfig.StartupParticipantIds.Player,
 	Role = TankRole.Player,
 	TeamId = "Player",
 	IsBot = false,
@@ -48798,7 +51364,7 @@ local playerParticipant = spawnTankParticipant({
 	StatsProfileId = TankStatsProfile.DuelNormalized,
 })
 local dummyParticipant = spawnTankParticipant({
-	TankId = TankFactoryConfig.LegacyTankIds.Dummy,
+	TankId = TankFactoryConfig.StartupParticipantIds.Dummy,
 	Role = TankRole.Dummy,
 	TeamId = "Dummy",
 	IsBot = true,
@@ -48808,7 +51374,7 @@ local dummyParticipant = spawnTankParticipant({
 	StatsProfileId = TankStatsProfile.TrainingDummy,
 })
 local player2Participant = spawnTankParticipant({
-	TankId = TankFactoryConfig.LegacyTankIds.DuelOpponent,
+	TankId = TankFactoryConfig.StartupParticipantIds.Player2,
 	Role = TankRole.DuelOpponent,
 	TeamId = "Player2",
 	IsBot = false,
@@ -48979,14 +51545,21 @@ local function playDeathExplosion(participant)
 	vfxHelpers.createBurningTank(deathPosition)
 end
 
-local function sendCombatFeedbackPayload(feedbackType, pos, text, color, audioOnly)
-	combatFeedbackEvent:FireAllClients({
+local function sendCombatFeedbackPayload(feedbackType, pos, text, color, audioOnly, options)
+	local payload = {
 		Type = feedbackType,
 		Position = pos,
 		Text = text,
 		Color = color,
 		AudioOnly = audioOnly == true,
-	})
+	}
+
+	if typeof(options) == "table" then
+		payload.Lifetime = options.Lifetime
+		payload.RiseDistance = options.RiseDistance
+	end
+
+	combatFeedbackEvent:FireAllClients(payload)
 end
 
 local function clearActiveMatchInputs()
@@ -49035,7 +51608,7 @@ local function damageParticipant(participant, amount, sourceProjectile)
 			print("[ARENA_DEAD] " .. participant.TankId .. " destroyed")
 
 			local killerParticipant = sourceProjectile ~= nil and sourceProjectile.OwnerParticipant or nil
-			ArenaCombatService.OnParticipantKilled(killerParticipant, participant)
+			ArenaCombatService.OnParticipantKilled(killerParticipant, participant, sourceProjectile)
 			clearParticipantInput(participant)
 		end
 
@@ -49165,8 +51738,8 @@ ProjectileCombatService.init({
 	createSelfHitVfx = function(pos, normal) ProjectileService.getVFXHelpers().createSelfHitVfx(pos, normal) end,
 	createRicochetVfx = function(pos, normal) ProjectileService.getVFXHelpers().createRicochetVfx(pos, normal) end,
 	destroyProjectile = function(proj) ProjectileService.destroyProjectile(proj) end,
-	sendCombatFeedback = function(ftype, pos, text, color)
-		sendCombatFeedbackPayload(ftype, pos, text, color, false)
+	sendCombatFeedback = function(ftype, pos, text, color, options)
+		sendCombatFeedbackPayload(ftype, pos, text, color, false, options)
 	end,
 	damageParticipant = damageParticipant,
 	canDamageParticipant = function(projectile, targetParticipant)
@@ -49219,6 +51792,7 @@ RoundMatchService.init(root, {
 ArenaCombatService.init({
 	root = root,
 	tankSpawnResetService = TankSpawnResetService,
+	playerWalletService = PlayerWalletService,
 	setPlayerMode = function(player, participant, mode, matchId, opponentTankId)
 		LobbyService.setPlayerMode(player, participant, mode, matchId, opponentTankId)
 	end,
@@ -51211,6 +53785,7 @@ local Workspace = game:GetService("Workspace")
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local BattleArenaConfig = require(configs:WaitForChild("BattleArenaConfig"))
+local BattleArenaLoopConfig = require(configs:WaitForChild("BattleArenaLoopConfig"))
 
 local TankParticipantRegistry = require(script.Parent.Parent:WaitForChild("TankParticipantRegistry"))
 
@@ -51219,6 +53794,7 @@ ArenaCombatService.MODE_ARENA_RESPAWNING = "ArenaRespawning"
 
 local root = nil
 local tankSpawnResetService = nil
+local playerWalletService = nil
 local upgradeChoiceEvent = nil
 local upgradeChoiceConnection = nil
 
@@ -51257,6 +53833,44 @@ local function getServerTimeNow()
 	end
 
 	return os.clock()
+end
+
+local function isLoopV02Enabled()
+	return BattleArenaLoopConfig.Enabled == true
+end
+
+local function getLoopSection(sectionName)
+	if not isLoopV02Enabled() then
+		return {}
+	end
+
+	return BattleArenaLoopConfig[sectionName] or {}
+end
+
+local function getLoopNumber(sectionName, valueName, fallback)
+	local section = getLoopSection(sectionName)
+
+	return tonumber(section[valueName]) or fallback
+end
+
+local function hasProjectileRicochet(sourceProjectile)
+	return sourceProjectile ~= nil and (tonumber(sourceProjectile.BounceCount) or 0) > 0
+end
+
+local function getSessionSoftEndAt(startedAt)
+	local sessionConfig = getLoopSection("Session")
+
+	if sessionConfig.ShowSessionTimer ~= true then
+		return 0
+	end
+
+	local duration = math.max(0, tonumber(sessionConfig.SoftSessionLengthSeconds) or 0)
+
+	if duration <= 0 then
+		return 0
+	end
+
+	return startedAt + duration
 end
 
 local function getArenaFolder()
@@ -51433,6 +54047,10 @@ local function setPlayerArenaDefaults(player)
 	player:SetAttribute("ArenaUpgradeIds", "")
 	player:SetAttribute("ArenaPendingUpgradeOfferId", "")
 	player:SetAttribute("ArenaPendingUpgradeOfferSource", "")
+	player:SetAttribute("ArenaSessionStartedAt", 0)
+	player:SetAttribute("ArenaSessionSoftEndsAt", 0)
+	player:SetAttribute("ArenaSessionBolts", 0)
+	player:SetAttribute("ArenaLastSummary", "")
 	player:SetAttribute("ArenaDamageMultiplier", 1)
 	player:SetAttribute("ArenaFireRateMultiplier", 1)
 	player:SetAttribute("ArenaMoveSpeedMultiplier", 1)
@@ -51457,6 +54075,10 @@ local function publishSessionAttributes(session)
 	player:SetAttribute("ArenaUpgradeIds", table.concat(session.UpgradeIds, ","))
 	player:SetAttribute("ArenaPendingUpgradeOfferId", session.PendingUpgradeOfferId or "")
 	player:SetAttribute("ArenaPendingUpgradeOfferSource", session.PendingUpgradeOfferSource or "")
+	player:SetAttribute("ArenaSessionStartedAt", session.StartedAt or 0)
+	player:SetAttribute("ArenaSessionSoftEndsAt", session.SoftEndsAt or 0)
+	player:SetAttribute("ArenaSessionBolts", session.EarnedBolts or 0)
+	player:SetAttribute("ArenaLastSummary", session.LastSummary or "")
 	player:SetAttribute("ArenaDamageMultiplier", session.DamageMultiplier)
 	player:SetAttribute("ArenaFireRateMultiplier", session.FireRateMultiplier)
 	player:SetAttribute("ArenaMoveSpeedMultiplier", session.MoveSpeedMultiplier)
@@ -51783,11 +54405,15 @@ local function resetArenaRun(session)
 end
 
 local function makeSession(player, participant)
+	local startedAt = getServerTimeNow()
+
 	return {
 		Player = player,
 		Participant = participant,
 		SessionId = "Arena_" .. tostring(player.UserId) .. "_" .. tostring(math.floor(os.clock() * 1000)),
 		RespawnToken = 0,
+		StartedAt = startedAt,
+		SoftEndsAt = getSessionSoftEndAt(startedAt),
 		Score = 0,
 		ArenaXP = 0,
 		ArenaLevel = 1,
@@ -51795,6 +54421,8 @@ local function makeSession(player, participant)
 		Kills = 0,
 		Deaths = 0,
 		Streak = 0,
+		EarnedBolts = 0,
+		LastSummary = "",
 		UpgradeIds = {},
 		ForcedUpgrades = {},
 		UnclaimedLevelUpOffers = 0,
@@ -51817,6 +54445,8 @@ local function makeBotSession(participant)
 		Participant = participant,
 		SessionId = "ArenaBot_" .. tostring(participant ~= nil and participant.TankId or "Unknown"),
 		RespawnToken = 0,
+		StartedAt = 0,
+		SoftEndsAt = 0,
 		Score = 0,
 		ArenaXP = 0,
 		ArenaLevel = 1,
@@ -51824,6 +54454,8 @@ local function makeBotSession(participant)
 		Kills = 0,
 		Deaths = 0,
 		Streak = 0,
+		EarnedBolts = 0,
+		LastSummary = "",
 		UpgradeIds = {},
 		ForcedUpgrades = {},
 		UnclaimedLevelUpOffers = 0,
@@ -51845,6 +54477,7 @@ function ArenaCombatService.init(options)
 	options = options or {}
 	root = options.root
 	tankSpawnResetService = options.tankSpawnResetService
+	playerWalletService = options.playerWalletService
 	upgradeChoiceEvent = options.upgradeChoiceEvent
 	callbacks.setPlayerMode = options.setPlayerMode
 	callbacks.clearPlayerInput = options.clearPlayerInput
@@ -51982,9 +54615,14 @@ function ArenaCombatService.ResetArenaSession(player)
 	local session = sessionsByPlayer[player]
 
 	if session ~= nil then
+		local startedAt = getServerTimeNow()
 		session.Score = 0
 		session.Kills = 0
 		session.Deaths = 0
+		session.EarnedBolts = 0
+		session.StartedAt = startedAt
+		session.SoftEndsAt = getSessionSoftEndAt(startedAt)
+		session.LastSummary = ""
 		session.RespawnToken += 1
 		resetArenaRun(session)
 	end
@@ -52370,7 +55008,71 @@ function ArenaCombatService.RespawnPlayer(player)
 	return true
 end
 
-function ArenaCombatService.OnParticipantKilled(killerParticipant, victimParticipant)
+local function updateArenaSummary(session)
+	if session == nil or session.IsBotSession == true then
+		return
+	end
+
+	session.LastSummary = ("Run: %d kills / %d deaths / +%d Bolts"):format(
+		math.floor(session.Kills or 0),
+		math.floor(session.Deaths or 0),
+		math.floor(session.EarnedBolts or 0)
+	)
+end
+
+local function getPlayerKillScore(killerSession, victimSession, sourceProjectile)
+	local defaultKillScore = math.max(0, math.floor(tonumber(BattleArenaConfig.KillScore) or 0))
+
+	if killerSession == nil or killerSession.IsBotSession == true then
+		return 0
+	end
+
+	if victimSession == nil or victimSession.IsBotSession ~= true or not isLoopV02Enabled() then
+		return defaultKillScore
+	end
+
+	local score = math.max(0, math.floor(getLoopNumber("Score", "PlayerKillBot", defaultKillScore)))
+
+	if hasProjectileRicochet(sourceProjectile) then
+		score += math.max(0, math.floor(getLoopNumber("Score", "RicochetKillBonus", 0)))
+	end
+
+	return score
+end
+
+local function awardArenaKillCurrency(killerSession, victimSession, sourceProjectile)
+	if killerSession == nil
+		or killerSession.IsBotSession == true
+		or killerSession.Player == nil
+		or victimSession == nil
+		or victimSession.IsBotSession ~= true
+		or playerWalletService == nil
+		or playerWalletService.addBolts == nil
+		or not isLoopV02Enabled()
+	then
+		return
+	end
+
+	local rewardAmount = math.max(0, math.floor(getLoopNumber("Rewards", "BoltsPerBotKill", 0)))
+	local reason = "BattleArenaBotKill"
+
+	if hasProjectileRicochet(sourceProjectile) then
+		rewardAmount += math.max(0, math.floor(getLoopNumber("Rewards", "BoltsPerRicochetKillBonus", 0)))
+		reason = "BattleArenaRicochetKill"
+	end
+
+	if rewardAmount <= 0 then
+		return
+	end
+
+	local awarded = playerWalletService.addBolts(killerSession.Player, rewardAmount, reason)
+
+	if awarded then
+		killerSession.EarnedBolts += rewardAmount
+	end
+end
+
+function ArenaCombatService.OnParticipantKilled(killerParticipant, victimParticipant, sourceProjectile)
 	local victimSession = sessionsByParticipant[victimParticipant]
 
 	if victimSession == nil then
@@ -52388,13 +55090,16 @@ function ArenaCombatService.OnParticipantKilled(killerParticipant, victimPartici
 	end
 
 	if killerSession ~= nil and killerSession.IsBotSession ~= true then
-		killerSession.Score += BattleArenaConfig.KillScore
+		killerSession.Score += getPlayerKillScore(killerSession, victimSession, sourceProjectile)
+		awardArenaKillCurrency(killerSession, victimSession, sourceProjectile)
 		addArenaXP(killerSession, BattleArenaConfig.XPPerKill, "Kill")
 		killerSession.Kills += 1
 		killerSession.Streak += 1
+		updateArenaSummary(killerSession)
 		applySessionUpgrades(killerSession)
 	end
 
+	updateArenaSummary(victimSession)
 	publishSessionAttributes(victimSession)
 
 	if victimPlayer == nil or victimPlayer.Parent ~= Players then
@@ -53407,6 +56112,56 @@ local function refreshJitter(brainState, brainConfig, rng, now)
 	brainState.NextMoveJitterAt = now + math.max(0.2, tonumber(brainConfig.MoveJitterInterval) or 1.25)
 end
 
+local function refreshAimJitter(brainState, brainConfig, rng, now, distance)
+	if brainState.NextAimJitterAt ~= nil and now < brainState.NextAimJitterAt then
+		return
+	end
+
+	local jitterDegrees = math.max(0, tonumber(brainConfig.AimJitterDegrees) or 0)
+	local jitterRadius = math.tan(math.rad(jitterDegrees)) * math.max(8, tonumber(distance) or 30)
+	local angle = rng:NextNumber() * math.pi * 2
+	local radius = jitterRadius * math.sqrt(rng:NextNumber())
+
+	brainState.AimJitter = Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
+	brainState.NextAimJitterAt = now + math.max(0.15, tonumber(brainConfig.ReactionDelay) or 0.25)
+end
+
+local function getTargetKey(targetParticipant)
+	if targetParticipant == nil then
+		return ""
+	end
+
+	return tostring(targetParticipant.TankId or targetParticipant)
+end
+
+local function updateTargetReaction(brainState, brainConfig, targetParticipant, now)
+	local targetKey = getTargetKey(targetParticipant)
+
+	if brainState.TargetKey ~= targetKey then
+		brainState.TargetKey = targetKey
+		brainState.TargetSeenAt = now
+		brainState.NextFireCheckAt = now + math.max(0, tonumber(brainConfig.ReactionDelay) or 0)
+	end
+end
+
+local function shouldShootNow(brainState, brainConfig, rng, now)
+	local reactionDelay = math.max(0, tonumber(brainConfig.ReactionDelay) or 0)
+
+	if now - (brainState.TargetSeenAt or now) < reactionDelay then
+		return false
+	end
+
+	if brainState.NextFireCheckAt ~= nil and now < brainState.NextFireCheckAt then
+		return false
+	end
+
+	local minCooldown = math.max(0.05, tonumber(brainConfig.FireCooldownMin) or tonumber(brainConfig.FireCheckInterval) or 0.3)
+	local maxCooldown = math.max(minCooldown, tonumber(brainConfig.FireCooldownMax) or minCooldown)
+	brainState.NextFireCheckAt = now + randomRange(rng, minCooldown, maxCooldown)
+
+	return rng:NextNumber() <= (tonumber(brainConfig.FireChance) or 0.55)
+end
+
 local function makeIdleDecision(botPosition, bodyYaw, brainState, brainConfig, rng, now)
 	refreshJitter(brainState, brainConfig, rng, now)
 
@@ -53440,6 +56195,7 @@ function BotBrain.Decide(params)
 	end
 
 	refreshJitter(brainState, brainConfig, rng, now)
+	updateTargetReaction(brainState, brainConfig, targetParticipant, now)
 
 	local directionToTarget, distance = getFlatDirection(botPosition, targetPosition)
 
@@ -53475,13 +56231,19 @@ function BotBrain.Decide(params)
 		throttle = moveThrottle * 0.5
 	end
 
-	local wantsShoot = targetParticipant ~= nil
-		and rng:NextNumber() <= (tonumber(brainConfig.FireChance) or 0.55)
+	refreshAimJitter(brainState, brainConfig, rng, now, distance)
+
+	local aimJitter = brainState.AimJitter
+	if typeof(aimJitter) ~= "Vector3" then
+		aimJitter = Vector3.zero
+	end
+
+	local wantsShoot = targetParticipant ~= nil and shouldShootNow(brainState, brainConfig, rng, now)
 
 	return {
 		TargetParticipant = targetParticipant,
 		MoveDirection = moveDirection,
-		AimWorldPoint = targetPosition,
+		AimWorldPoint = targetPosition + aimJitter,
 		Throttle = throttle,
 		WantsShoot = wantsShoot,
 		TargetDistance = distance,
@@ -53683,6 +56445,24 @@ local function getDirectionFromYaw(yaw)
 	return flat.Unit
 end
 
+local function getEffectiveBrainConfig()
+	local baseConfig = BotConfig.Brain or {}
+	local profiles = BotConfig.DifficultyProfiles or {}
+	local difficulty = BotConfig.Difficulty or "Easy"
+	local profile = profiles[difficulty] or profiles.Easy or {}
+	local merged = {}
+
+	for key, value in pairs(baseConfig) do
+		merged[key] = value
+	end
+
+	for key, value in pairs(profile) do
+		merged[key] = value
+	end
+
+	return merged
+end
+
 local function getYawFromAimPosition(position, aimPosition, fallbackYaw)
 	if typeof(position) ~= "Vector3" or typeof(aimPosition) ~= "Vector3" then
 		return fallbackYaw or 0
@@ -53736,6 +56516,8 @@ function BotController.new(options)
 		BrainState = {},
 		ThinkElapsed = 0,
 		Decision = nil,
+		StuckElapsed = 0,
+		LastResolvedPosition = nil,
 		LastDebugTargetLogAt = 0,
 	}, BotController)
 end
@@ -53748,7 +56530,7 @@ end
 
 function BotController:_getTarget()
 	local battleArenaConfig = BotConfig.BattleArena or {}
-	local brainConfig = BotConfig.Brain or {}
+	local brainConfig = getEffectiveBrainConfig()
 	local participants = self.GetArenaParticipants ~= nil and self.GetArenaParticipants() or {}
 
 	return BotTargeting.FindClosestTarget(self.Participant, participants, self.TankParticipantRegistry, {
@@ -53758,7 +56540,7 @@ function BotController:_getTarget()
 end
 
 function BotController:_refreshDecision(deltaTime)
-	local brainConfig = BotConfig.Brain or {}
+	local brainConfig = getEffectiveBrainConfig()
 	self.ThinkElapsed += deltaTime
 
 	if self.ThinkElapsed < math.max(0.05, tonumber(brainConfig.TickRate) or 0.15) and self.Decision ~= nil then
@@ -53826,6 +56608,25 @@ function BotController:_applyMovement(deltaTime, decision)
 		)
 	end
 
+	local movedDistance = self.LastResolvedPosition ~= nil and (resolvedPosition - self.LastResolvedPosition).Magnitude or math.huge
+	local antiStuckSeconds = math.max(0, tonumber((BotConfig.Brain or {}).AntiStuckSeconds) or 0)
+	local antiStuckDistance = math.max(0.01, tonumber((BotConfig.Brain or {}).AntiStuckDistance) or 0.35)
+
+	if math.abs(throttle) > 0.1 and movedDistance < antiStuckDistance * deltaTime then
+		self.StuckElapsed += deltaTime
+	else
+		self.StuckElapsed = 0
+	end
+
+	if antiStuckSeconds > 0 and self.StuckElapsed >= antiStuckSeconds then
+		self.BrainState.NextMoveJitterAt = 0
+		self.BrainState.WanderYaw = (self.BrainState.WanderYaw or resolvedBodyYaw) + self.Random:NextNumber(-1.7, 1.7)
+		self.Decision = nil
+		self.StuckElapsed = 0
+	end
+
+	self.LastResolvedPosition = resolvedPosition
+
 	local currentTurretYaw = state.TurretYaw or resolvedBodyYaw
 	local targetTurretYaw = getYawFromAimPosition(resolvedPosition, decision.AimWorldPoint, currentTurretYaw)
 
@@ -53871,7 +56672,8 @@ function BotController:_maybeShoot(decision)
 	end
 
 	local turretDirection = getDirectionFromYaw(state.TurretYaw or state.BodyYaw or 0)
-	local minDot = math.cos(math.rad((BotConfig.Brain or {}).AimToleranceDegrees or 10))
+	local brainConfig = getEffectiveBrainConfig()
+	local minDot = math.cos(math.rad(brainConfig.AimToleranceDegrees or 10))
 
 	if turretDirection:Dot(toTarget.Unit) < minDot then
 		return false
@@ -53930,6 +56732,7 @@ return BotController
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local BotConfig = require(configs:WaitForChild("BotConfig"))
+local BattleArenaLoopConfig = require(configs:WaitForChild("BattleArenaLoopConfig"))
 
 local BotController = require(script.Parent:WaitForChild("BotController"))
 local BotSpawnPlanner = require(script.Parent:WaitForChild("BotSpawnPlanner"))
@@ -53980,8 +56783,9 @@ end
 
 local function getConfiguredBotLimit()
 	local battleArenaConfig = BotConfig.BattleArena or {}
+	local loopBotConfig = BattleArenaLoopConfig.Enabled == true and BattleArenaLoopConfig.Bots or {}
 	local safetyConfig = BotConfig.Safety or {}
-	local maxBots = math.max(0, math.floor(tonumber(battleArenaConfig.MaxBots) or 0))
+	local maxBots = math.max(0, math.floor(tonumber(loopBotConfig.MaxBots) or tonumber(battleArenaConfig.MaxBots) or 0))
 	local hardLimit = math.max(0, math.floor(tonumber(safetyConfig.MaxBotsHardLimit) or maxBots))
 
 	if hardLimit <= 0 then
@@ -53997,12 +56801,21 @@ local function getDesiredBotCount()
 	end
 
 	local battleArenaConfig = BotConfig.BattleArena or {}
+	local loopBotConfig = BattleArenaLoopConfig.Enabled == true and BattleArenaLoopConfig.Bots or {}
 	local playerCount = arenaCombatService.GetActivePlayerCount ~= nil
 		and arenaCombatService.GetActivePlayerCount()
 		or 0
 
 	if playerCount <= 0 then
 		return 0
+	end
+
+	if loopBotConfig.MaintainMinBots == true then
+		local minBots = playerCount <= 1
+			and math.max(0, math.floor(tonumber(loopBotConfig.MinBotsSolo) or 0))
+			or math.max(0, math.floor(tonumber(loopBotConfig.MinBotsWithPlayers) or 0))
+
+		return math.min(minBots, getConfiguredBotLimit())
 	end
 
 	local spawnThreshold = math.max(1, math.floor(tonumber(battleArenaConfig.SpawnWhenPlayerCountLessThan) or 2))
@@ -54213,10 +57026,11 @@ local function updateRespawn(record)
 	end
 
 	local battleArenaConfig = BotConfig.BattleArena or {}
+	local loopBotConfig = BattleArenaLoopConfig.Enabled == true and BattleArenaLoopConfig.Bots or {}
 	local now = os.clock()
 
 	if record.RespawnAt == nil then
-		record.RespawnAt = now + math.max(0, tonumber(battleArenaConfig.RespawnDelay) or 3)
+		record.RespawnAt = now + math.max(0, tonumber(loopBotConfig.RespawnDelay) or tonumber(battleArenaConfig.RespawnDelay) or 3)
 		debugLog("died:" .. tostring(record.TankId), "[BOT] died id=" .. tostring(record.TankId))
 		return true
 	end
@@ -54946,6 +57760,169 @@ return MatchRewardService
 							<int64 name="SourceAssetId">-1</int64>
 							<BinaryString name="Tags"></BinaryString>
 							<UniqueId name="UniqueId">62ac66abb5ca38e80a1d5dd800000ca3</UniqueId>
+						</Properties>
+					</Item>
+				</Item>
+				<Item class="Folder" referent="RBX03f891a52ab34cb69316dc0cb000f67e">
+					<Properties>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">Skins</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<BinaryString name="Tags"></BinaryString>
+						<UniqueId name="UniqueId">75d29599423d91c90a211ae100000c57</UniqueId>
+					</Properties>
+					<Item class="ModuleScript" referent="RBXbc12447af7e641168777355560abfdda">
+						<Properties>
+							<Content name="LinkedSource"><null></null></Content>
+							<ProtectedString name="Source"><![CDATA[local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local configs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
+local SkinCatalog = require(configs:WaitForChild("SkinCatalog"))
+
+local SkinUnlockService = {}
+
+local UNLOCKED_SKINS_ATTRIBUTE = "UnlockedSkinIds"
+
+local function getDefaultSkinId()
+	return SkinCatalog.DefaultSkinId or "Default"
+end
+
+local function splitCsv(value)
+	local results = {}
+
+	if typeof(value) ~= "string" then
+		return results
+	end
+
+	for token in string.gmatch(value, "[^,]+") do
+		results[token] = true
+	end
+
+	return results
+end
+
+local function serializeSkinIds(unlockedById)
+	local skinIds = {}
+
+	for skinId, isUnlocked in pairs(unlockedById) do
+		if isUnlocked == true then
+			table.insert(skinIds, skinId)
+		end
+	end
+
+	table.sort(skinIds)
+
+	return table.concat(skinIds, ",")
+end
+
+local function getSkinDefinition(skinId)
+	local skins = SkinCatalog.Skins or {}
+	local skin = skins[skinId]
+
+	if skin ~= nil and typeof(skin.AliasOf) == "string" then
+		return skins[skin.AliasOf], skin.AliasOf
+	end
+
+	return skin, skinId
+end
+
+function SkinUnlockService.GetDefaultUnlockState()
+	local unlocked = {}
+
+	for skinId, skin in pairs(SkinCatalog.Skins or {}) do
+		if skin.UnlockedByDefault == true or skinId == getDefaultSkinId() then
+			unlocked[skinId] = true
+		end
+	end
+
+	unlocked[getDefaultSkinId()] = true
+
+	return unlocked
+end
+
+function SkinUnlockService.EnsurePlayerDefaults(player)
+	if player == nil then
+		return
+	end
+
+	local existingValue = player:GetAttribute(UNLOCKED_SKINS_ATTRIBUTE)
+
+	if typeof(existingValue) == "string" and existingValue ~= "" then
+		return
+	end
+
+	player:SetAttribute(UNLOCKED_SKINS_ATTRIBUTE, serializeSkinIds(SkinUnlockService.GetDefaultUnlockState()))
+end
+
+function SkinUnlockService.GetUnlockedSkinIds(player)
+	local unlocked = SkinUnlockService.GetDefaultUnlockState()
+
+	if player ~= nil then
+		for skinId, isUnlocked in pairs(splitCsv(player:GetAttribute(UNLOCKED_SKINS_ATTRIBUTE))) do
+			if isUnlocked == true then
+				unlocked[skinId] = true
+			end
+		end
+	end
+
+	return unlocked
+end
+
+function SkinUnlockService.IsSkinUnlocked(player, skinId)
+	local skin, resolvedSkinId = getSkinDefinition(skinId)
+
+	if skin == nil then
+		return false
+	end
+
+	return SkinUnlockService.GetUnlockedSkinIds(player)[resolvedSkinId] == true
+end
+
+function SkinUnlockService.CanUnlock(player, skinId)
+	local skin, resolvedSkinId = getSkinDefinition(skinId)
+
+	if skin == nil then
+		return false, "UnknownSkin"
+	end
+
+	if SkinUnlockService.IsSkinUnlocked(player, resolvedSkinId) then
+		return false, "AlreadyUnlocked"
+	end
+
+	if skin.DuelSafe ~= true then
+		return false, "NotDuelSafe"
+	end
+
+	return true, "CanUnlock"
+end
+
+function SkinUnlockService.GetUnlockCost(skinId)
+	local skin = getSkinDefinition(skinId)
+
+	if skin == nil then
+		return nil
+	end
+
+	return {
+		Currency = skin.Currency or "Bolts",
+		Price = math.max(0, math.floor(tonumber(skin.Price) or 0)),
+	}
+end
+
+return SkinUnlockService
+]]></ProtectedString>
+							<string name="ScriptGuid">{35721740-5107-4c1d-b004-84d9a0754356}</string>
+							<BinaryString name="AttributesSerialize"></BinaryString>
+							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+							<bool name="DefinesCapabilities">false</bool>
+							<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+							<string name="Name">SkinUnlockService</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<BinaryString name="Tags"></BinaryString>
+							<UniqueId name="UniqueId">75d29599423d91c90a211ae100000c58</UniqueId>
 						</Properties>
 					</Item>
 				</Item>

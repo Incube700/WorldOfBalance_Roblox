@@ -9,7 +9,7 @@
 -- HOW TO USE:
 --   1. Make a backup of your .rbxl first (File → Save to File as backup copy).
 --   2. Stop Play Mode if it is running.
---   3. Open this file, set ENABLE_MUTATION = true.
+--   3. Open this file, set the mutation flag to true.
 --   4. Select all text, paste into the Studio Command Bar, and press Enter.
 --   5. Read the output carefully.
 --   6. Manually inspect the created BaseTankTemplate in the Explorer.
@@ -27,10 +27,10 @@
 --   - Does NOT modify any Rojo-managed scripts.
 --   - Does NOT run automatically — you must paste it manually.
 
-local ENABLE_MUTATION = true
+local ENABLE_MUTATION = false
 
 if ENABLE_MUTATION ~= true then
-	warn("[DISABLED PATCH] Set ENABLE_MUTATION = true manually after making a backup if you want to create BaseTankTemplate preview.")
+	warn("[DISABLED PATCH] Set the mutation flag manually after making a backup if you want to create BaseTankTemplate preview.")
 	warn("[DISABLED PATCH] Read the instructions at the top of this file before enabling.")
 	return
 end

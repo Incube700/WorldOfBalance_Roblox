@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
 local localPlayer = Players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
@@ -118,6 +119,7 @@ local statValueLabels = {}
 local totalStatValueLabels = {}
 local connectedButtons = {}
 local activeShellPanel = SHELL_PANEL_HIDDEN
+local resultPanelWasVisible = false
 local DEBUG_SHELL = false
 
 local function findDescendant(parent, name)
@@ -677,6 +679,13 @@ local function getLocalPlayerMode()
 	return PLAYER_MODE_LOBBY
 end
 
+local function isScriptedDuelHudActive()
+	return ((HudConfig.CombatHud or {}).UseScriptedDuelHud == true)
+		and getLocalPlayerMode() == PLAYER_MODE_IN_MATCH
+		and root:GetAttribute("GameState") == GAME_STATE_PLAYING
+		and root:GetAttribute("MatchMode") == "PvP"
+end
+
 local function isLobbyMode(mode)
 	return mode == PLAYER_MODE_LOBBY or mode == PLAYER_MODE_QUEUED
 end
@@ -882,6 +891,75 @@ local function updateStatsPanel()
 	end
 end
 
+local function animateResultPanel(resultPanel)
+	if resultPanel == nil or not resultPanel:IsA("GuiObject") then
+		return
+	end
+
+	local content = findDescendant(resultPanel, "ResultContent")
+	local title = findDescendant(resultPanel, "ResultTitleLabel")
+	local statsList = findDescendant(resultPanel, "StatsList")
+	local playAgainButton = findDescendant(resultPanel, "PlayAgainButton")
+	local backToMenuButton = findDescendant(resultPanel, "BackToMenuButton") or findDescendant(resultPanel, "MenuButton")
+
+	resultPanel.BackgroundTransparency = 1
+	TweenService:Create(resultPanel, TweenInfo.new(0.24, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		BackgroundTransparency = 0.08,
+	}):Play()
+
+	if content ~= nil and content:IsA("GuiObject") then
+		local scale = content:FindFirstChild("ResultEntranceScale")
+
+		if scale == nil then
+			scale = Instance.new("UIScale")
+			scale.Name = "ResultEntranceScale"
+			scale.Parent = content
+		end
+
+		scale.Scale = 0.9
+		content.BackgroundTransparency = 1
+		TweenService:Create(scale, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Scale = 1,
+		}):Play()
+		TweenService:Create(content, TweenInfo.new(0.22), {
+			BackgroundTransparency = 0.08,
+		}):Play()
+	end
+
+	if title ~= nil and title:IsA("TextLabel") then
+		title.TextTransparency = 1
+		TweenService:Create(title, TweenInfo.new(0.2), {
+			TextTransparency = 0,
+		}):Play()
+	end
+
+	if statsList ~= nil and statsList:IsA("GuiObject") then
+		statsList.Visible = false
+		task.delay(0.12, function()
+			if resultPanel.Visible then
+				statsList.Visible = true
+			end
+		end)
+	end
+
+	for _, button in ipairs({ playAgainButton, backToMenuButton }) do
+		if button ~= nil and button:IsA("TextButton") then
+			button.BackgroundTransparency = 1
+			button.TextTransparency = 1
+			task.delay(0.22, function()
+				if not resultPanel.Visible then
+					return
+				end
+
+				TweenService:Create(button, TweenInfo.new(0.18), {
+					BackgroundTransparency = 0,
+					TextTransparency = 0,
+				}):Play()
+			end)
+		end
+	end
+end
+
 local function isMobileLayout()
 	return UserInputService.TouchEnabled == true or MobileControlsConfig.ForceEnabledInStudio == true
 end
@@ -959,11 +1037,13 @@ local function shouldShowGameplayHudPanel(panelName, isVisible)
 end
 
 local function setGameplayHudVisible(isVisible)
+	local legacyHudVisible = isVisible and not isScriptedDuelHudActive()
+
 	for _, guiName in ipairs(HUD_GUI_NAMES) do
 		local gui = playerGui:FindFirstChild(guiName)
 
 		if gui ~= nil and gui:IsA("ScreenGui") then
-			gui.Enabled = isVisible
+			gui.Enabled = legacyHudVisible
 		end
 	end
 
@@ -974,13 +1054,13 @@ local function setGameplayHudVisible(isVisible)
 		return
 	end
 
-	local panelNames = isVisible and PERSISTENT_HUD_PANEL_NAMES or ALL_HUD_PANEL_NAMES
+	local panelNames = legacyHudVisible and PERSISTENT_HUD_PANEL_NAMES or ALL_HUD_PANEL_NAMES
 
 	for _, panelName in ipairs(panelNames) do
 		local panel = rootFrame:FindFirstChild(panelName)
 
 		if panel ~= nil and panel:IsA("GuiObject") then
-			panel.Visible = shouldShowGameplayHudPanel(panelName, isVisible)
+			panel.Visible = shouldShowGameplayHudPanel(panelName, legacyHudVisible)
 		end
 	end
 end
@@ -993,6 +1073,7 @@ local function applyShellState(state)
 	local isResult = mode == PLAYER_MODE_RESULT
 	local isStatsOpen = isLobby and activeShellPanel == SHELL_PANEL_STATS
 	local showLobbyControls = isLobby and not isMenuOpen and not isStatsOpen
+	local shouldAnimateResultPanel = isResult and not resultPanelWasVisible
 
 	for _, screenGui in ipairs(getShellScreenGuis()) do
 		screenGui.Enabled = true
@@ -1009,6 +1090,10 @@ local function applyShellState(state)
 
 		if resultPanel ~= nil and resultPanel:IsA("GuiObject") then
 			resultPanel.Visible = isResult
+
+			if shouldAnimateResultPanel then
+				animateResultPanel(resultPanel)
+			end
 		end
 
 		if statsPanel ~= nil and statsPanel:IsA("GuiObject") then
@@ -1033,6 +1118,8 @@ local function applyShellState(state)
 	if isStatsOpen then
 		updateStatsPanel()
 	end
+
+	resultPanelWasVisible = isResult
 end
 
 local function updateShell()

@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local DebugCombatConfig = require(configs:WaitForChild("DebugCombatConfig"))
+local TankArmorConfig = require(configs:WaitForChild("TankArmorConfig"))
 local ArmorHitResolver = require(script.Parent:WaitForChild("ArmorHitResolver"))
 local ProjectileHitResult = require(script.Parent.Parent:WaitForChild("Projectiles"):WaitForChild("ProjectileHitResult"))
 local MatchStatsService = require(script.Parent.Parent:WaitForChild("Stats"):WaitForChild("MatchStatsService"))
@@ -71,6 +72,19 @@ local function printBounce(projectile)
 			.. " speed="
 			.. math.floor(projectile.Speed)
 	)
+end
+
+local function getFeedbackConfig()
+	return TankArmorConfig.Feedback or {}
+end
+
+local function getFeedbackOptions()
+	local feedbackConfig = getFeedbackConfig()
+
+	return {
+		Lifetime = tonumber(feedbackConfig.Lifetime) or 0.6,
+		RiseDistance = tonumber(feedbackConfig.RiseDistance) or 2.1,
+	}
 end
 
 local function getParticipantModel(participant)
@@ -180,7 +194,8 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 			"Damage",
 			hitPosition,
 			damageText,
-			Color3.fromRGB(255, 105, 75)
+			getFeedbackConfig().DamageColor or Color3.fromRGB(255, 105, 75),
+			getFeedbackOptions()
 		)
 
 		if damageParticipant(targetParticipant, armorHit.FinalDamage, projectile) and projectile.NoStats ~= true then
@@ -202,8 +217,9 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 		sendCombatFeedback(
 			"ArmorRicochet",
 			hitPosition,
-			"RICOCHET",
-			Color3.fromRGB(255, 220, 70)
+			getFeedbackConfig().RicochetText or "RICOCHET",
+			getFeedbackConfig().RicochetColor or Color3.fromRGB(255, 220, 70),
+			getFeedbackOptions()
 		)
 
 		if projectile.BounceCount >= projectile.MaxBounces then
@@ -229,8 +245,9 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 	sendCombatFeedback(
 		"NoPenetration",
 		hitPosition,
-		"NO PEN",
-		Color3.fromRGB(180, 220, 255)
+		getFeedbackConfig().NoPenText or "NO PEN",
+		getFeedbackConfig().NoPenColor or Color3.fromRGB(180, 220, 255),
+		getFeedbackOptions()
 	)
 
 	destroyProjectile(projectile)

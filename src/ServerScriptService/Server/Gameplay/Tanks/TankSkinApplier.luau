@@ -15,19 +15,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local TankFactoryConfig = require(configs:WaitForChild("TankFactoryConfig"))
+local SkinCatalog = require(configs:WaitForChild("SkinCatalog"))
 
 local TankSkinApplier = {}
-
--- Default skin visual configuration.
--- Extend this table to add more skins; do not change stats/armor here.
-local SKIN_CONFIGS = {
-	Default = {
-		BodyColor    = Color3.fromRGB(55, 185, 255),
-		TurretColor  = Color3.fromRGB(80, 220, 160),
-		BarrelColor  = Color3.fromRGB(35, 40, 42),
-		Material     = Enum.Material.SmoothPlastic,
-	},
-}
 
 -- Part name → which skin color key to use.
 local VISUAL_PART_COLOR_MAP = {
@@ -107,6 +97,22 @@ local function findVisualsFolder(tankModel)
 	return nil
 end
 
+local function getSkinConfig(skinId)
+	local skins = SkinCatalog.Skins or {}
+	local defaultSkinId = SkinCatalog.DefaultSkinId or TankFactoryConfig.DefaultLoadout.SkinId or "Default"
+	local requestedSkin = skins[skinId]
+
+	if requestedSkin ~= nil and typeof(requestedSkin.AliasOf) == "string" and skins[requestedSkin.AliasOf] ~= nil then
+		return skins[requestedSkin.AliasOf], requestedSkin.AliasOf
+	end
+
+	if requestedSkin ~= nil then
+		return requestedSkin, skinId
+	end
+
+	return skins[defaultSkinId] or skins.Default, defaultSkinId
+end
+
 -- Apply skin to the tank model.
 -- loadout: table with optional SkinId field.
 -- Falls back to "Default" if SkinId is nil or unknown.
@@ -121,12 +127,14 @@ function TankSkinApplier.Apply(tankModel, loadout)
 		skinId = loadout.SkinId
 	end
 
-	local skinConfig = SKIN_CONFIGS[skinId] or SKIN_CONFIGS[TankFactoryConfig.DefaultLoadout.SkinId] or SKIN_CONFIGS.Default
+	local skinConfig, resolvedSkinId = getSkinConfig(skinId)
 
 	if skinConfig == nil then
 		warn("[TANK SKIN APPLIER] No skin config found for SkinId=" .. tostring(skinId) .. "; skipping.")
 		return
 	end
+
+	tankModel:SetAttribute("SkinId", resolvedSkinId)
 
 	local visualsFolder = findVisualsFolder(tankModel)
 
