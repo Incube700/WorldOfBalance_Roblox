@@ -45,6 +45,18 @@ local currentPlayerTank = nil
 local currentEnemyTank = nil
 local elapsedSinceTankRefresh = 0
 
+local COLORS = {
+	Panel = Color3.fromRGB(13, 17, 23),
+	PanelSoft = Color3.fromRGB(17, 24, 39),
+	Border = Color3.fromRGB(31, 41, 55),
+	Text = Color3.fromRGB(226, 232, 240),
+	Muted = Color3.fromRGB(148, 163, 184),
+	Blue = Color3.fromRGB(59, 130, 246),
+	Red = Color3.fromRGB(239, 68, 68),
+	Green = Color3.fromRGB(34, 197, 94),
+	Yellow = Color3.fromRGB(250, 204, 21),
+}
+
 for _, guiName in ipairs({
 	LEGACY_RUNTIME_GUI_NAME,
 	SERIES_RUNTIME_GUI_NAME,
@@ -78,6 +90,67 @@ local function lockUiTree(rootObject)
 	end
 
 	lockGuiObject(rootObject)
+end
+
+local function addCorner(parent, radius)
+	local corner = parent:FindFirstChildOfClass("UICorner") or Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, radius)
+	corner.Parent = parent
+	return corner
+end
+
+local function addStroke(parent, color, transparency, thickness)
+	local stroke = parent:FindFirstChildOfClass("UIStroke") or Instance.new("UIStroke")
+	stroke.Color = color
+	stroke.Transparency = transparency
+	stroke.Thickness = thickness
+	stroke.Parent = parent
+	return stroke
+end
+
+local function styleHudPanel(panel, strokeColor)
+	if panel == nil or not panel:IsA("Frame") then
+		return
+	end
+
+	panel.BackgroundColor3 = COLORS.Panel
+	panel.BackgroundTransparency = 0.12
+	panel.BorderSizePixel = 0
+	addCorner(panel, 8)
+	addStroke(panel, strokeColor or COLORS.Border, 0.3, 1)
+end
+
+local function styleHudLabel(label, color, size, font)
+	if label == nil or not label:IsA("TextLabel") then
+		return
+	end
+
+	label.BackgroundTransparency = 1
+	label.BorderSizePixel = 0
+	label.Font = font or Enum.Font.GothamBold
+	label.TextColor3 = color or COLORS.Text
+	label.TextSize = size or label.TextSize
+	label.TextWrapped = true
+	label.TextStrokeTransparency = 1
+end
+
+local function styleHudBar(fill, color)
+	if fill == nil or not fill:IsA("Frame") then
+		return
+	end
+
+	local track = fill.Parent
+
+	if track ~= nil and track:IsA("Frame") then
+		track.BackgroundColor3 = COLORS.PanelSoft
+		track.BackgroundTransparency = 0.12
+		track.BorderSizePixel = 0
+		addCorner(track, 99)
+	end
+
+	fill.BackgroundColor3 = color
+	fill.BorderSizePixel = 0
+	addCorner(fill, 99)
 end
 
 local function getNamedChild(parent, name, className, missing)
@@ -430,6 +503,30 @@ local roundUi, bindError = waitForModularHud()
 if roundUi == nil then
 	roundUi = createEmergencyRoundUi(bindError or "unknown reason")
 end
+
+local function applyRoundUiTheme()
+	styleHudPanel(roundUi.EnemyStatusPanel, COLORS.Red)
+	styleHudPanel(roundUi.WeaponStatusPanel, COLORS.Yellow)
+	styleHudPanel(roundUi.PlayerStatusPanel, COLORS.Blue)
+	styleHudPanel(roundUi.RoundStatusPanel, COLORS.Yellow)
+	styleHudPanel(roundUi.MatchSeriesPanel, COLORS.Border)
+
+	styleHudLabel(roundUi.EnemyHpLabel, COLORS.Text, 17, Enum.Font.GothamBold)
+	styleHudLabel(roundUi.ReloadLabel, COLORS.Text, 17, Enum.Font.GothamBold)
+	styleHudLabel(roundUi.PlayerHpLabel, COLORS.Text, 17, Enum.Font.GothamBold)
+	styleHudLabel(roundUi.RoundResultLabel, COLORS.Text, 23, Enum.Font.GothamBlack)
+	styleHudLabel(roundUi.RestartHintLabel, COLORS.Muted, 15, Enum.Font.GothamBold)
+	styleHudLabel(roundUi.RoundLabel, COLORS.Muted, 15, Enum.Font.GothamBold)
+	styleHudLabel(roundUi.ScoreLabel, COLORS.Text, 16, Enum.Font.GothamBlack)
+	styleHudLabel(roundUi.TargetWinsLabel, COLORS.Muted, 15, Enum.Font.GothamBold)
+	styleHudLabel(roundUi.MatchResultLabel, COLORS.Yellow, 18, Enum.Font.GothamBlack)
+
+	styleHudBar(roundUi.EnemyHpFill, COLORS.Red)
+	styleHudBar(roundUi.ReloadFill, COLORS.Yellow)
+	styleHudBar(roundUi.PlayerHpFill, COLORS.Green)
+end
+
+applyRoundUiTheme()
 
 local function isCombatHudVisible()
 	local mode = localPlayer:GetAttribute("PlayerMode")

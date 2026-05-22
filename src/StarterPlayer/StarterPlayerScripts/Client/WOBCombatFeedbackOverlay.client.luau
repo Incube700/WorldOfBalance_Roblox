@@ -96,7 +96,7 @@ local function createBillboard(anchor, text, color)
 	label.TextColor3 = color
 	label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 	label.TextStrokeTransparency = 0.15
-	label.Font = Enum.Font.BuilderSansBold
+	label.Font = Enum.Font.GothamBlack
 	label.TextScaled = true
 	label.Active = false
 	label.Selectable = false

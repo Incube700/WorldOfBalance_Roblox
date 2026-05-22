@@ -39,7 +39,7 @@ local TankArmorConfig = table.freeze({
 	}),
 
 	Visuals = table.freeze({
-		ArmorZonesVisible = true,
+		ArmorZonesVisible = false,
 		Material = "SmoothPlastic",
 		FrontColor = Color3.fromRGB(75, 240, 180),
 		SideColor = Color3.fromRGB(255, 210, 70),

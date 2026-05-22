@@ -5,6 +5,7 @@ local DebugCombatConfig = table.freeze({
 	ProjectileDebug = false,
 	ProjectileRaycastDebug = false,
 	DamageLog = false,
+	SceneDebugVisuals = false,
 })
 
 return DebugCombatConfig

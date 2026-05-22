@@ -21,11 +21,13 @@ local GUI_NAME = "WOBPlayableShellGui"
 local MAIN_MENU_PANEL_NAME = "MainMenuPanel"
 local RESULT_PANEL_NAME = "ResultScreenPanel"
 local STATS_PANEL_NAME = "StatsPanel"
+local SETTINGS_PANEL_NAME = "SettingsPanel"
 local GAME_STATE_MENU = "Menu"
 local GAME_STATE_PLAYING = "Playing"
 local GAME_STATE_RESULT = "Result"
 local SHELL_PANEL_MENU = "Menu"
 local SHELL_PANEL_STATS = "Stats"
+local SHELL_PANEL_SETTINGS = "Settings"
 local SHELL_PANEL_HIDDEN = "Hidden"
 local PLAYER_MODE_LOBBY = "Lobby"
 local PLAYER_MODE_QUEUED = "QueuedForDuel"
@@ -118,9 +120,24 @@ local TOTAL_STAT_KEYS = {
 local statValueLabels = {}
 local totalStatValueLabels = {}
 local connectedButtons = {}
+local animatedButtons = {}
 local activeShellPanel = SHELL_PANEL_HIDDEN
 local resultPanelWasVisible = false
 local DEBUG_SHELL = false
+
+local COLORS = {
+	Overlay = Color3.fromRGB(7, 9, 13),
+	Panel = Color3.fromRGB(13, 17, 23),
+	PanelSoft = Color3.fromRGB(17, 24, 39),
+	Border = Color3.fromRGB(31, 41, 55),
+	Text = Color3.fromRGB(226, 232, 240),
+	Muted = Color3.fromRGB(148, 163, 184),
+	Yellow = Color3.fromRGB(250, 204, 21),
+	Blue = Color3.fromRGB(59, 130, 246),
+	Teal = Color3.fromRGB(45, 212, 191),
+	Purple = Color3.fromRGB(168, 85, 247),
+	Disabled = Color3.fromRGB(48, 55, 68),
+}
 
 local function findDescendant(parent, name)
 	local directChild = parent:FindFirstChild(name)
@@ -153,6 +170,7 @@ local function isShellScreenGui(instance)
 			or instance:FindFirstChild(MAIN_MENU_PANEL_NAME) ~= nil
 			or instance:FindFirstChild(RESULT_PANEL_NAME) ~= nil
 			or instance:FindFirstChild(STATS_PANEL_NAME) ~= nil
+			or instance:FindFirstChild(SETTINGS_PANEL_NAME) ~= nil
 		)
 end
 
@@ -198,6 +216,84 @@ local function addStroke(parent, color, transparency, thickness)
 	stroke.Parent = parent
 end
 
+local function getShellMobileLayout()
+	return UserInputService.TouchEnabled == true or MobileControlsConfig.ForceEnabledInStudio == true
+end
+
+local function addPadding(parent, padding)
+	local uiPadding = parent:FindFirstChildOfClass("UIPadding") or Instance.new("UIPadding")
+	uiPadding.PaddingTop = UDim.new(0, padding)
+	uiPadding.PaddingBottom = UDim.new(0, padding)
+	uiPadding.PaddingLeft = UDim.new(0, padding)
+	uiPadding.PaddingRight = UDim.new(0, padding)
+	uiPadding.Parent = parent
+end
+
+local function addSizeConstraint(parent, minSize, maxSize)
+	local constraint = parent:FindFirstChildOfClass("UISizeConstraint") or Instance.new("UISizeConstraint")
+	constraint.MinSize = minSize
+	constraint.MaxSize = maxSize
+	constraint.Parent = parent
+end
+
+local function ensureButtonScale(button)
+	local scale = button:FindFirstChild("ShellButtonScale")
+
+	if scale == nil then
+		scale = Instance.new("UIScale")
+		scale.Name = "ShellButtonScale"
+		scale.Parent = button
+	end
+
+	return scale
+end
+
+local function animateButtonScale(button, scaleValue, duration)
+	local scale = ensureButtonScale(button)
+	TweenService:Create(scale, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Scale = scaleValue,
+	}):Play()
+end
+
+local function bindButtonAnimation(button)
+	if animatedButtons[button] == true then
+		return
+	end
+
+	animatedButtons[button] = true
+	ensureButtonScale(button)
+
+	button.MouseEnter:Connect(function()
+		if button.Active then
+			animateButtonScale(button, 1.025, 0.1)
+		end
+	end)
+
+	button.MouseLeave:Connect(function()
+		animateButtonScale(button, 1, 0.1)
+	end)
+
+	button.InputBegan:Connect(function(input)
+		if not button.Active then
+			return
+		end
+
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch
+		then
+			animateButtonScale(button, 0.97, 0.06)
+		end
+	end)
+
+	button.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch
+		then
+			animateButtonScale(button, 1, 0.08)
+		end
+	end)
+end
+
 local function styleLabel(label, text, textSize, color)
 	if not label:IsA("TextLabel") then
 		return
@@ -205,7 +301,7 @@ local function styleLabel(label, text, textSize, color)
 
 	label.BackgroundTransparency = 1
 	label.BorderSizePixel = 0
-	label.Font = Enum.Font.GothamMedium
+	label.Font = Enum.Font.Gotham
 	label.Text = text
 	label.TextColor3 = color
 	label.TextSize = textSize
@@ -214,17 +310,18 @@ local function styleLabel(label, text, textSize, color)
 	label.TextYAlignment = Enum.TextYAlignment.Center
 end
 
-local function styleButton(button, text, enabled)
+local function styleButton(button, text, enabled, accentColor)
 	if not button:IsA("TextButton") then
 		return
 	end
 
-	button.BackgroundColor3 = enabled and Color3.fromRGB(56, 168, 118) or Color3.fromRGB(48, 55, 58)
-	button.BackgroundTransparency = 0
+	accentColor = accentColor or COLORS.Yellow
+	button.BackgroundColor3 = enabled and COLORS.PanelSoft or COLORS.Disabled
+	button.BackgroundTransparency = enabled and 0.04 or 0.24
 	button.BorderSizePixel = 0
-	button.Font = Enum.Font.GothamBold
+	button.Font = Enum.Font.GothamBlack
 	button.Text = text
-	button.TextColor3 = enabled and Color3.fromRGB(248, 255, 248) or Color3.fromRGB(158, 170, 166)
+	button.TextColor3 = enabled and COLORS.Text or COLORS.Muted
 	button.TextSize = 20
 	button.TextWrapped = true
 	button.AutoButtonColor = enabled
@@ -235,7 +332,8 @@ local function styleButton(button, text, enabled)
 	end)
 
 	addCorner(button, UDim.new(0, 8))
-	addStroke(button, enabled and Color3.fromRGB(132, 242, 180) or Color3.fromRGB(76, 86, 86), 0.3, 1)
+	addStroke(button, enabled and accentColor or COLORS.Border, enabled and 0.22 or 0.55, 1)
+	bindButtonAnimation(button)
 end
 
 local function styleOverlayPanel(panel)
@@ -245,7 +343,7 @@ local function styleOverlayPanel(panel)
 
 	panel.Size = UDim2.new(1, 0, 1, 0)
 	panel.Position = UDim2.new(0, 0, 0, 0)
-	panel.BackgroundColor3 = Color3.fromRGB(7, 9, 11)
+	panel.BackgroundColor3 = COLORS.Overlay
 	panel.BackgroundTransparency = 0.08
 	panel.BorderSizePixel = 0
 end
@@ -256,34 +354,47 @@ local function createMenu(screenGui)
 
 	local content = getOrCreate(panel, "Frame", "MenuContent")
 	content.AnchorPoint = Vector2.new(0.5, 0.5)
-	content.Position = UDim2.new(0.5, 0, 0.5, 0)
-	content.Size = UDim2.new(0, 420, 0, 420)
-	content.BackgroundTransparency = 1
+	content.Position = UDim2.new(0.5, 0, 0.52, 0)
+	content.Size = UDim2.new(0.9, 0, 0, 360)
+	content.BackgroundColor3 = COLORS.Panel
+	content.BackgroundTransparency = 0.08
 	content.BorderSizePixel = 0
+	addCorner(content, UDim.new(0, 8))
+	addStroke(content, COLORS.Border, 0.22, 1)
+	addPadding(content, 20)
+	addSizeConstraint(content, Vector2.new(300, 330), Vector2.new(460, 390))
+
+	for _, obsoleteName in ipairs({ "PlayButton", "DuelButton", "ArenaButton", "CloseButton" }) do
+		local obsoleteButton = content:FindFirstChild(obsoleteName)
+
+		if obsoleteButton ~= nil then
+			obsoleteButton:Destroy()
+		end
+	end
 
 	local title = getOrCreate(content, "TextLabel", "TitleLabel")
 	title.Position = UDim2.new(0, 0, 0, 0)
-	title.Size = UDim2.new(1, 0, 0, 82)
-	styleLabel(title, "World of Balance", 38, Color3.fromRGB(241, 255, 247))
-	title.Font = Enum.Font.GothamBold
+	title.Size = UDim2.new(1, 0, 0, 70)
+	styleLabel(title, "WORLD OF BALANCE", 32, COLORS.Text)
+	title.Font = Enum.Font.GothamBlack
 
 	local subtitle = getOrCreate(content, "TextLabel", "SubtitleLabel")
-	subtitle.Position = UDim2.new(0, 0, 0, 84)
-	subtitle.Size = UDim2.new(1, 0, 0, 42)
-	styleLabel(subtitle, "Ricochet Tanks", 22, Color3.fromRGB(139, 224, 190))
+	subtitle.Position = UDim2.new(0, 0, 0, 68)
+	subtitle.Size = UDim2.new(1, 0, 0, 34)
+	styleLabel(subtitle, "RICOCHET TANKS", 17, COLORS.Yellow)
+	subtitle.Font = Enum.Font.GothamBold
 
 	local buttonNames = {
-		{ Name = "PlayButton", Text = "Play", Enabled = true, Y = 158 },
-		{ Name = "TrainingButton", Text = "Training", Enabled = false, Y = 224 },
-		{ Name = "StatsButton", Text = "Stats", Enabled = true, Y = 290 },
-		{ Name = "CloseButton", Text = "Close", Enabled = true, Y = 356 },
+		{ Name = "TrainingButton", Text = "TRAINING", Enabled = true, Y = 130, Accent = COLORS.Yellow },
+		{ Name = "StatsButton", Text = "STATS", Enabled = true, Y = 198, Accent = COLORS.Blue },
+		{ Name = "SettingsButton", Text = "SETTINGS", Enabled = true, Y = 266, Accent = COLORS.Teal },
 	}
 
 	for _, data in ipairs(buttonNames) do
 		local button = getOrCreate(content, "TextButton", data.Name)
-		button.Position = UDim2.new(0.13, 0, 0, data.Y)
-		button.Size = UDim2.new(0.74, 0, 0, 50)
-		styleButton(button, data.Text, data.Enabled)
+		button.Position = UDim2.new(0.08, 0, 0, data.Y)
+		button.Size = UDim2.new(0.84, 0, 0, data.Name == "TrainingButton" and 58 or 52)
+		styleButton(button, data.Text, data.Enabled, data.Accent)
 	end
 
 	return panel
@@ -400,18 +511,19 @@ local function createStatsPanel(screenGui)
 	local content = getOrCreate(panel, "Frame", "StatsContent")
 	content.AnchorPoint = Vector2.new(0.5, 0.5)
 	content.Position = UDim2.new(0.5, 0, 0.5, 0)
-	content.Size = UDim2.new(0, 560, 0, 630)
-	content.BackgroundColor3 = Color3.fromRGB(12, 16, 18)
+	content.Size = UDim2.new(0.9, 0, 0, 610)
+	content.BackgroundColor3 = COLORS.Panel
 	content.BackgroundTransparency = 0.08
 	content.BorderSizePixel = 0
 	addCorner(content, UDim.new(0, 8))
-	addStroke(content, Color3.fromRGB(75, 115, 104), 0.25, 1)
+	addStroke(content, COLORS.Border, 0.22, 1)
+	addSizeConstraint(content, Vector2.new(300, 430), Vector2.new(560, 630))
 
 	local title = getOrCreate(content, "TextLabel", "StatsTitleLabel")
 	title.Position = UDim2.new(0.08, 0, 0, 24)
 	title.Size = UDim2.new(0.84, 0, 0, 52)
-	styleLabel(title, "Your Stats", 30, Color3.fromRGB(241, 255, 247))
-	title.Font = Enum.Font.GothamBold
+	styleLabel(title, "STATS", 30, COLORS.Text)
+	title.Font = Enum.Font.GothamBlack
 
 	local list = getOrCreate(content, "Frame", "StatsList")
 	list.Position = UDim2.new(0.1, 0, 0, 96)
@@ -428,32 +540,76 @@ local function createStatsPanel(screenGui)
 		createTotalStatRow(list, row.Key, row.Label, index)
 	end
 
+	local emptyLabel = getOrCreate(content, "TextLabel", "StatsEmptyLabel")
+	emptyLabel.Position = UDim2.new(0.1, 0, 0, 104)
+	emptyLabel.Size = UDim2.new(0.8, 0, 0, 70)
+	styleLabel(emptyLabel, "No stats yet", 18, COLORS.Muted)
+	emptyLabel.Font = Enum.Font.GothamBold
+	emptyLabel.Visible = false
+
 	local backButton = getOrCreate(content, "TextButton", "StatsBackButton")
 	backButton.Position = UDim2.new(0.28, 0, 1, -88)
 	backButton.Size = UDim2.new(0.44, 0, 0, 52)
-	styleButton(backButton, "Back", true)
+	styleButton(backButton, "BACK", true, COLORS.Yellow)
+
+	return panel
+end
+
+local function createSettingsPanel(screenGui)
+	local panel = getOrCreate(screenGui, "Frame", SETTINGS_PANEL_NAME)
+	styleOverlayPanel(panel)
+
+	local content = getOrCreate(panel, "Frame", "SettingsContent")
+	content.AnchorPoint = Vector2.new(0.5, 0.5)
+	content.Position = UDim2.new(0.5, 0, 0.5, 0)
+	content.Size = UDim2.new(0.9, 0, 0, 340)
+	content.BackgroundColor3 = COLORS.Panel
+	content.BackgroundTransparency = 0.08
+	content.BorderSizePixel = 0
+	addCorner(content, UDim.new(0, 8))
+	addStroke(content, COLORS.Border, 0.22, 1)
+	addPadding(content, 18)
+	addSizeConstraint(content, Vector2.new(300, 300), Vector2.new(500, 360))
+
+	local title = getOrCreate(content, "TextLabel", "SettingsTitleLabel")
+	title.Position = UDim2.new(0.08, 0, 0, 22)
+	title.Size = UDim2.new(0.84, 0, 0, 44)
+	styleLabel(title, "SETTINGS", 28, COLORS.Text)
+	title.Font = Enum.Font.GothamBlack
+
+	local body = getOrCreate(content, "TextLabel", "SettingsBodyLabel")
+	body.Position = UDim2.new(0.1, 0, 0, 86)
+	body.Size = UDim2.new(0.8, 0, 0, 118)
+	styleLabel(body, "Settings coming soon\nAudio and controls toggles are not wired yet.", 17, COLORS.Muted)
+	body.Font = Enum.Font.GothamBold
+
+	local backButton = getOrCreate(content, "TextButton", "SettingsBackButton")
+	backButton.Position = UDim2.new(0.28, 0, 1, -76)
+	backButton.Size = UDim2.new(0.44, 0, 0, 52)
+	styleButton(backButton, "BACK", true, COLORS.Yellow)
 
 	return panel
 end
 
 local function createLobbyControls(screenGui)
 	local menuButton = getOrCreate(screenGui, "TextButton", "LobbyMenuButton")
-	menuButton.AnchorPoint = Vector2.new(1, 1)
-	menuButton.Position = UDim2.new(1, -22, 1, -22)
-	menuButton.Size = UDim2.new(0, 118, 0, 42)
-	styleButton(menuButton, "Menu", true)
-	menuButton.TextSize = 18
+	local isMobile = getShellMobileLayout()
+	menuButton.AnchorPoint = isMobile and Vector2.new(1, 0) or Vector2.new(1, 1)
+	menuButton.Position = isMobile and UDim2.new(1, -18, 0, 96) or UDim2.new(1, -22, 1, -22)
+	menuButton.Size = isMobile and UDim2.new(0, 76, 0, 34) or UDim2.new(0, 118, 0, 42)
+	styleButton(menuButton, "MENU", true, COLORS.Yellow)
+	menuButton.TextSize = isMobile and 14 or 18
 
 	local hintLabel = getOrCreate(screenGui, "TextLabel", "LobbyHintLabel")
 	hintLabel.AnchorPoint = Vector2.new(0.5, 0)
 	hintLabel.Position = UDim2.new(0.5, 0, 0, 18)
 	hintLabel.Size = UDim2.new(0, 520, 0, 40)
-	styleLabel(hintLabel, "Drive to Arena, Duel, or Training. Win Duels to earn Crystals.", 17, Color3.fromRGB(244, 255, 248))
-	hintLabel.BackgroundColor3 = Color3.fromRGB(7, 9, 11)
+	styleLabel(hintLabel, "Choose TRAINING from MENU to start.", 17, COLORS.Text)
+	hintLabel.BackgroundColor3 = COLORS.Panel
 	hintLabel.BackgroundTransparency = 0.28
 	hintLabel.BorderSizePixel = 0
 	addCorner(hintLabel, UDim.new(0, 8))
-	addStroke(hintLabel, Color3.fromRGB(75, 115, 104), 0.35, 1)
+	addStroke(hintLabel, COLORS.Border, 0.35, 1)
 
 	return menuButton, hintLabel
 end
@@ -524,7 +680,13 @@ local function updateStaticShellText()
 		local statsTitleLabel = findDescendant(screenGui, "StatsTitleLabel")
 
 		if statsTitleLabel ~= nil and statsTitleLabel:IsA("TextLabel") then
-			statsTitleLabel.Text = "Your Stats"
+			statsTitleLabel.Text = "STATS"
+		end
+
+		local settingsTitleLabel = findDescendant(screenGui, "SettingsTitleLabel")
+
+		if settingsTitleLabel ~= nil and settingsTitleLabel:IsA("TextLabel") then
+			settingsTitleLabel.Text = "SETTINGS"
 		end
 
 		local playAgainButton = findDescendant(screenGui, "PlayAgainButton")
@@ -553,8 +715,15 @@ local function createShellGui()
 		screenGui.Parent = playerGui
 	end
 
+	screenGui.Name = GUI_NAME
 	screenGui.Enabled = true
 	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+	for _, otherGui in ipairs(getShellScreenGuis()) do
+		if otherGui ~= screenGui then
+			otherGui:Destroy()
+		end
+	end
 
 	local menuPanel = screenGui:FindFirstChild(MAIN_MENU_PANEL_NAME)
 
@@ -574,32 +743,35 @@ local function createShellGui()
 		statsPanel = createStatsPanel(screenGui)
 	end
 
+	local settingsPanel = screenGui:FindFirstChild(SETTINGS_PANEL_NAME)
+
+	if settingsPanel == nil or not settingsPanel:IsA("Frame") then
+		settingsPanel = createSettingsPanel(screenGui)
+	end
+
 	local lobbyMenuButton = findDescendant(screenGui, "LobbyMenuButton")
 	local lobbyHintLabel = findDescendant(screenGui, "LobbyHintLabel")
 
-	if lobbyMenuButton == nil
-		or not lobbyMenuButton:IsA("TextButton")
-		or lobbyHintLabel == nil
-		or not lobbyHintLabel:IsA("TextLabel")
-	then
-		lobbyMenuButton, lobbyHintLabel = createLobbyControls(screenGui)
-	end
+	lobbyMenuButton, lobbyHintLabel = createLobbyControls(screenGui)
 
 	bindResultStatLabels(resultPanel)
 	bindTotalStatLabels(statsPanel)
 	updateStaticShellText()
 
-	local playButton = findDescendant(menuPanel, "PlayButton")
+	local trainingButton = findDescendant(menuPanel, "TrainingButton")
 	local statsButton = findDescendant(menuPanel, "StatsButton")
+	local settingsButton = findDescendant(menuPanel, "SettingsButton")
 	local menuCloseButton = findDescendant(menuPanel, "CloseButton")
 	local playAgainButton = findDescendant(resultPanel, "PlayAgainButton")
 	local backToMenuButton = findDescendant(resultPanel, "BackToMenuButton") or findDescendant(resultPanel, "MenuButton")
 	local statsBackButton = findDescendant(statsPanel, "StatsBackButton")
+	local settingsBackButton = findDescendant(settingsPanel, "SettingsBackButton")
 
-	if playButton == nil or not playButton:IsA("TextButton") then
+	if trainingButton == nil or not trainingButton:IsA("TextButton") then
 		menuPanel = createMenu(screenGui)
-		playButton = findDescendant(menuPanel, "PlayButton")
+		trainingButton = findDescendant(menuPanel, "TrainingButton")
 		statsButton = findDescendant(menuPanel, "StatsButton")
+		settingsButton = findDescendant(menuPanel, "SettingsButton")
 		menuCloseButton = findDescendant(menuPanel, "CloseButton")
 	end
 
@@ -621,8 +793,13 @@ local function createShellGui()
 		statsBackButton = findDescendant(statsPanel, "StatsBackButton")
 	end
 
-	if playButton == nil or not playButton:IsA("TextButton") then
-		warn("[SHELL] PlayButton not found under " .. menuPanel:GetFullName())
+	if settingsBackButton == nil or not settingsBackButton:IsA("TextButton") then
+		settingsPanel = createSettingsPanel(screenGui)
+		settingsBackButton = findDescendant(settingsPanel, "SettingsBackButton")
+	end
+
+	if trainingButton == nil or not trainingButton:IsA("TextButton") then
+		warn("[SHELL] TrainingButton not found under " .. menuPanel:GetFullName())
 	elseif DEBUG_SHELL then
 		print("[SHELL] bound main menu")
 	end
@@ -639,8 +816,16 @@ local function createShellGui()
 		warn("[SHELL] StatsButton not found under " .. menuPanel:GetFullName())
 	end
 
+	if settingsButton == nil or not settingsButton:IsA("TextButton") then
+		warn("[SHELL] SettingsButton not found under " .. menuPanel:GetFullName())
+	end
+
 	if statsBackButton == nil or not statsBackButton:IsA("TextButton") then
 		warn("[SHELL] StatsBackButton not found under " .. statsPanel:GetFullName())
+	end
+
+	if settingsBackButton == nil or not settingsBackButton:IsA("TextButton") then
+		warn("[SHELL] SettingsBackButton not found under " .. settingsPanel:GetFullName())
 	end
 
 	return {
@@ -648,14 +833,17 @@ local function createShellGui()
 		MenuPanel = menuPanel,
 		ResultPanel = resultPanel,
 		StatsPanel = statsPanel,
-		PlayButton = playButton,
+		SettingsPanel = settingsPanel,
+		TrainingButton = trainingButton,
 		StatsButton = statsButton,
+		SettingsButton = settingsButton,
 		MenuCloseButton = menuCloseButton,
 		LobbyMenuButton = lobbyMenuButton,
 		LobbyHintLabel = lobbyHintLabel,
 		PlayAgainButton = playAgainButton,
 		BackToMenuButton = backToMenuButton,
 		StatsBackButton = statsBackButton,
+		SettingsBackButton = settingsBackButton,
 	}
 end
 
@@ -858,6 +1046,7 @@ end
 
 local function updateStatsPanel()
 	local totals = getAccumulatedTotals()
+	local hasAnyStats = false
 	local values = {
 		TotalMatches = tostring(math.floor(totals.TotalMatches or 0)),
 		TotalWins = tostring(math.floor(totals.TotalWins or 0)),
@@ -873,6 +1062,13 @@ local function updateStatsPanel()
 		TotalDamageTaken = tostring(math.floor(totals.TotalDamageTaken or 0)),
 	}
 
+	for _, value in pairs(totals) do
+		if tonumber(value) ~= nil and tonumber(value) > 0 then
+			hasAnyStats = true
+			break
+		end
+	end
+
 	for key, text in pairs(values) do
 		local label = totalStatValueLabels[key]
 
@@ -887,6 +1083,20 @@ local function updateStatsPanel()
 			if duplicateLabel ~= nil and duplicateLabel:IsA("TextLabel") then
 				duplicateLabel.Text = text
 			end
+		end
+	end
+
+	for _, screenGui in ipairs(getShellScreenGuis()) do
+		local statsPanel = findDescendant(screenGui, STATS_PANEL_NAME)
+		local emptyLabel = statsPanel ~= nil and findDescendant(statsPanel, "StatsEmptyLabel") or nil
+		local statsList = statsPanel ~= nil and findDescendant(statsPanel, "StatsList") or nil
+
+		if emptyLabel ~= nil and emptyLabel:IsA("TextLabel") then
+			emptyLabel.Visible = not hasAnyStats
+		end
+
+		if statsList ~= nil and statsList:IsA("GuiObject") then
+			statsList.Visible = hasAnyStats
 		end
 	end
 end
@@ -961,7 +1171,7 @@ local function animateResultPanel(resultPanel)
 end
 
 local function isMobileLayout()
-	return UserInputService.TouchEnabled == true or MobileControlsConfig.ForceEnabledInStudio == true
+	return getShellMobileLayout()
 end
 
 local function shouldHideTopHpPanels()
@@ -1072,7 +1282,8 @@ local function applyShellState(state)
 	local isPlaying = mode == PLAYER_MODE_IN_MATCH and state == GAME_STATE_PLAYING
 	local isResult = mode == PLAYER_MODE_RESULT
 	local isStatsOpen = isLobby and activeShellPanel == SHELL_PANEL_STATS
-	local showLobbyControls = isLobby and not isMenuOpen and not isStatsOpen
+	local isSettingsOpen = isLobby and activeShellPanel == SHELL_PANEL_SETTINGS
+	local showLobbyControls = isLobby and not isMenuOpen and not isStatsOpen and not isSettingsOpen
 	local shouldAnimateResultPanel = isResult and not resultPanelWasVisible
 
 	for _, screenGui in ipairs(getShellScreenGuis()) do
@@ -1081,6 +1292,7 @@ local function applyShellState(state)
 		local menuPanel = findDescendant(screenGui, MAIN_MENU_PANEL_NAME)
 		local resultPanel = findDescendant(screenGui, RESULT_PANEL_NAME)
 		local statsPanel = findDescendant(screenGui, STATS_PANEL_NAME)
+		local settingsPanel = findDescendant(screenGui, SETTINGS_PANEL_NAME)
 		local lobbyMenuButton = findDescendant(screenGui, "LobbyMenuButton")
 		local lobbyHintLabel = findDescendant(screenGui, "LobbyHintLabel")
 
@@ -1100,12 +1312,16 @@ local function applyShellState(state)
 			statsPanel.Visible = isStatsOpen
 		end
 
+		if settingsPanel ~= nil and settingsPanel:IsA("GuiObject") then
+			settingsPanel.Visible = isSettingsOpen
+		end
+
 		if lobbyMenuButton ~= nil and lobbyMenuButton:IsA("GuiObject") then
 			lobbyMenuButton.Visible = showLobbyControls
 		end
 
 		if lobbyHintLabel ~= nil and lobbyHintLabel:IsA("GuiObject") then
-			lobbyHintLabel.Visible = showLobbyControls
+			lobbyHintLabel.Visible = showLobbyControls and not isMobileLayout()
 		end
 	end
 
@@ -1139,9 +1355,9 @@ local function connectActionButton(button, logMessage, callback)
 	end
 
 	connectedButtons[button] = true
-	styleButton(button, button.Text, true)
 	button.Active = true
 	button.AutoButtonColor = true
+	bindButtonAnimation(button)
 
 	pcall(function()
 		button.Selectable = true
@@ -1167,6 +1383,11 @@ local function openStatsPanel()
 	activeShellPanel = SHELL_PANEL_STATS
 	updateStatsPanel()
 	print("[STATS] panel showing userId=" .. tostring(localPlayer.UserId))
+	applyShellState(root:GetAttribute("GameState") or GAME_STATE_MENU)
+end
+
+local function openSettingsPanel()
+	activeShellPanel = SHELL_PANEL_SETTINGS
 	applyShellState(root:GetAttribute("GameState") or GAME_STATE_MENU)
 end
 
@@ -1202,10 +1423,12 @@ local function bindShellButtons(screenGui)
 	local menuPanel = findDescendant(screenGui, MAIN_MENU_PANEL_NAME)
 	local resultPanel = findDescendant(screenGui, RESULT_PANEL_NAME)
 	local statsPanel = findDescendant(screenGui, STATS_PANEL_NAME)
+	local settingsPanel = findDescendant(screenGui, SETTINGS_PANEL_NAME)
 
 	if menuPanel ~= nil then
-		connectRemoteButton(findDescendant(menuPanel, "PlayButton"), "[SHELL] Play clicked", GAME_STATE_PLAYING, startMatchRequestEvent)
+		connectRemoteButton(findDescendant(menuPanel, "TrainingButton"), "[SHELL] Training clicked", GAME_STATE_PLAYING, startMatchRequestEvent)
 		connectActionButton(findDescendant(menuPanel, "StatsButton"), "[SHELL] Stats clicked", openStatsPanel)
+		connectActionButton(findDescendant(menuPanel, "SettingsButton"), "[SHELL] Settings clicked", openSettingsPanel)
 		connectActionButton(findDescendant(menuPanel, "CloseButton"), "[SHELL] Close clicked", closeLobbyMenu)
 	end
 
@@ -1230,6 +1453,13 @@ local function bindShellButtons(screenGui)
 		end)
 	end
 
+	if settingsPanel ~= nil then
+		connectActionButton(findDescendant(settingsPanel, "SettingsBackButton"), "[SHELL] SettingsBack clicked", function()
+			activeShellPanel = SHELL_PANEL_HIDDEN
+			applyShellState(root:GetAttribute("GameState") or GAME_STATE_MENU)
+		end)
+	end
+
 	connectActionButton(findDescendant(screenGui, "LobbyMenuButton"), "[SHELL] LobbyMenu clicked", openLobbyMenu)
 end
 
@@ -1241,12 +1471,16 @@ end
 
 bindAllShellButtons()
 
-if shell.PlayButton ~= nil and shell.PlayButton:IsA("TextButton") then
-	connectRemoteButton(shell.PlayButton, "[SHELL] Play clicked", GAME_STATE_PLAYING, startMatchRequestEvent)
+if shell.TrainingButton ~= nil and shell.TrainingButton:IsA("TextButton") then
+	connectRemoteButton(shell.TrainingButton, "[SHELL] Training clicked", GAME_STATE_PLAYING, startMatchRequestEvent)
 end
 
 if shell.StatsButton ~= nil and shell.StatsButton:IsA("TextButton") then
 	connectActionButton(shell.StatsButton, "[SHELL] Stats clicked", openStatsPanel)
+end
+
+if shell.SettingsButton ~= nil and shell.SettingsButton:IsA("TextButton") then
+	connectActionButton(shell.SettingsButton, "[SHELL] Settings clicked", openSettingsPanel)
 end
 
 if shell.MenuCloseButton ~= nil and shell.MenuCloseButton:IsA("TextButton") then
@@ -1267,6 +1501,13 @@ end
 
 if shell.StatsBackButton ~= nil and shell.StatsBackButton:IsA("TextButton") then
 	connectActionButton(shell.StatsBackButton, "[SHELL] StatsBack clicked", function()
+		activeShellPanel = SHELL_PANEL_HIDDEN
+		applyShellState(root:GetAttribute("GameState") or GAME_STATE_MENU)
+	end)
+end
+
+if shell.SettingsBackButton ~= nil and shell.SettingsBackButton:IsA("TextButton") then
+	connectActionButton(shell.SettingsBackButton, "[SHELL] SettingsBack clicked", function()
 		activeShellPanel = SHELL_PANEL_HIDDEN
 		applyShellState(root:GetAttribute("GameState") or GAME_STATE_MENU)
 	end)

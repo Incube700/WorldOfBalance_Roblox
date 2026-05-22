@@ -656,6 +656,73 @@ TrainingBotService.init({
 	dummyParticipant = dummyParticipant,
 })
 
+local DEBUG_TEMPLATE_MODEL_NAMES = {
+	[TankFactoryConfig.BaseTankTemplateName] = true,
+	[TankFactoryConfig.LegacyTankIds.Player] = true,
+	[TankFactoryConfig.LegacyTankIds.DuelOpponent] = true,
+	[TankFactoryConfig.LegacyTankIds.Dummy] = true,
+}
+
+local function hideDebugPart(part)
+	part.Transparency = 1
+	part.CanCollide = false
+	part.CanTouch = false
+	part.CanQuery = false
+	part.CastShadow = false
+end
+
+local function isSpawnMarkerPart(part)
+	if not part:IsA("BasePart") then
+		return false
+	end
+
+	local parent = part.Parent
+
+	return parent ~= nil
+		and parent.Name == "SpawnPoints"
+		and (
+			string.match(part.Name, "^LobbySpawn%d+$") ~= nil
+			or string.match(part.Name, "^ArenaSpawn%d+$") ~= nil
+			or part.Name == "PlayerSpawn"
+			or part.Name == "Player2Spawn"
+			or part.Name == "DummySpawn"
+		)
+end
+
+local function hideTemplateModel(model)
+	if model == nil or not model:IsA("Model") then
+		return
+	end
+
+	if model:GetAttribute("TankId") ~= nil or model:GetAttribute("IsActive") ~= nil then
+		return
+	end
+
+	model:SetAttribute("WOBDebugTemplateHidden", true)
+
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			hideDebugPart(descendant)
+		end
+	end
+end
+
+local function hideSceneDebugClutter()
+	if DebugCombatConfig.SceneDebugVisuals == true then
+		return
+	end
+
+	for _, descendant in ipairs(root:GetDescendants()) do
+		if isSpawnMarkerPart(descendant) then
+			hideDebugPart(descendant)
+		end
+	end
+
+	for templateName in pairs(DEBUG_TEMPLATE_MODEL_NAMES) do
+		hideTemplateModel(testObjects:FindFirstChild(templateName))
+	end
+end
+
 -- Init Possession Service
 PlayerPossessionService.init({
 	getOrCreateParticipantForPlayer = function(player)
@@ -687,6 +754,7 @@ TankSpawnResetService.applySpawnToParticipant(player2Participant, transforms.Pla
 TankParticipantRegistry.setParticipantModelVisible(playerParticipant, false)
 TankParticipantRegistry.setParticipantModelVisible(dummyParticipant, false)
 TankParticipantRegistry.setParticipantModelVisible(player2Participant, false)
+hideSceneDebugClutter()
 
 local function handlePlayerAdded(player)
 	task.spawn(function()
