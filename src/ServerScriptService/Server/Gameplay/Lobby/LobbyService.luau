@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local BattleArenaConfig = require(configs:WaitForChild("BattleArenaConfig"))
+local DebugCombatConfig = require(configs:WaitForChild("DebugCombatConfig"))
 local TankParticipantRegistry = require(script.Parent.Parent:WaitForChild("TankParticipantRegistry"))
 local LobbyPadResolver = require(script.Parent:WaitForChild("LobbyPadResolver"))
 
@@ -85,6 +86,55 @@ end
 
 local function getArenaPad()
 	return getPadTrigger(getArenaPadRoot())
+end
+
+local function isArenaPadEntryEnabled()
+	-- Gameplay availability is gated by EnableArenaPadGameplay, NOT by whether the
+	-- Arena button is shown in the main menu. Keep the arena pad live so existing
+	-- bot combat keeps working even while Arena is hidden from the menu.
+	return DebugCombatConfig.EnableArenaPadGameplay ~= false and BattleArenaConfig.Enabled == true
+end
+
+local function disablePadPart(part)
+	if not part:IsA("BasePart") then
+		return
+	end
+
+	part.Transparency = 1
+	part.CanCollide = false
+	part.CanTouch = false
+	part.CanQuery = false
+	part.CastShadow = false
+end
+
+local function applyArenaPadDisabledState()
+	if isArenaPadEntryEnabled() then
+		return false
+	end
+
+	local arenaPadRoot = getArenaPadRoot()
+
+	if arenaPadRoot == nil then
+		return true
+	end
+
+	if arenaPadRoot:GetAttribute("WOBArenaPadDisabledByConfig") == true then
+		return true
+	end
+
+	arenaPadRoot:SetAttribute("WOBArenaPadDisabledByConfig", true)
+	arenaPadRoot:SetAttribute("WOBPadEnabled", false)
+
+	for _, descendant in ipairs(arenaPadRoot:GetDescendants()) do
+		disablePadPart(descendant)
+		descendant:SetAttribute("WOBPadEnabled", false)
+	end
+
+	if arenaPadRoot:IsA("BasePart") then
+		disablePadPart(arenaPadRoot)
+	end
+
+	return true
 end
 
 local function getTrainingPadRoot()
@@ -242,6 +292,14 @@ local function getMatchParticipants(matchId)
 	end
 
 	return nil
+end
+
+local function isActiveTrainingMatch(matchId)
+	local activeMatch = roundMatchService ~= nil and roundMatchService.getActiveMatch() or nil
+
+	return activeMatch ~= nil
+		and activeMatch.MatchId == matchId
+		and activeMatch.MatchMode == "Training"
 end
 
 local function clearQueuedPlayer(player, reason)
@@ -591,6 +649,10 @@ local function updateArenaPadEntries()
 		return
 	end
 
+	if applyArenaPadDisabledState() then
+		return
+	end
+
 	local arenaPadRoot = getArenaPadRoot()
 	local arenaPad = getArenaPad()
 
@@ -650,6 +712,7 @@ function LobbyService.init(options)
 	arenaCombatService = options.arenaCombatService
 	dummyParticipant = options.dummyParticipant
 
+	applyArenaPadDisabledState()
 	setDuelPadAttributes(0, DUEL_STATE_IDLE, 0)
 	print("[LOBBY] lobby free drive enabled")
 	print("[LOBBY] lobby projectile no-damage mode")
@@ -721,11 +784,11 @@ function LobbyService.handleReturnToLobbyRequest(player)
 	local matchId = player:GetAttribute("MatchId")
 
 	if matchId ~= nil and matchId ~= "" then
-		if getMode(player) ~= LobbyService.MODE_RESULT then
+		if getMode(player) ~= LobbyService.MODE_RESULT and not isActiveTrainingMatch(matchId) then
 			return
 		end
 
-		returnParticipantsToLobby(matchId, "ReturnToLobby")
+		returnParticipantsToLobby(matchId, isActiveTrainingMatch(matchId) and "TrainingExit" or "ReturnToLobby")
 	else
 		clearQueuedPlayer(player, "ReturnToLobby")
 		setPlayerMode(player, participant, LobbyService.MODE_LOBBY, nil, nil)

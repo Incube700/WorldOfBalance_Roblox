@@ -58,6 +58,10 @@ local LEFT_STICK_SIZE = 110
 local RIGHT_AIM_SIZE = 116
 local FIRE_BUTTON_SIZE = 78
 local REVERSE_BUTTON_SIZE = 58
+-- Gameplay touch layout convention:
+-- Move stays bottom-left, REV sits near Move without overlapping it, Aim stays
+-- in the lower-right control area, Fire stays bottom-right, and Menu/Pause is
+-- owned by gameplay HUDs in the top-right safe area.
 
 local stickRadius = LEFT_STICK_SIZE / 2
 local stickMaxDistance = math.min(tonumber(leftStickConfig.MaxDistance) or stickRadius, stickRadius)

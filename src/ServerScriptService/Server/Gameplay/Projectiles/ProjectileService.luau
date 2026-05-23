@@ -64,6 +64,7 @@ local callbacks = {
 	areProjectilesEnabled = nil,
 	sendBlockedShotFeedback = nil,
 	sendCombatFeedback = nil,
+	onShotFired = nil,
 }
 
 function ProjectileService.init(orchestratorRoot, projFolder, effectsFolder, options)
@@ -924,6 +925,9 @@ function ProjectileService.tryShoot(participant, direction)
 	participant.WeaponState.LastShotTime = participant.LastShotTime
 	participant.WeaponState.WeaponReadyAt = participant.WeaponReadyAt
 	publishReloadPresentationState(participant, cooldown)
+	if callbacks.onShotFired ~= nil then
+		callbacks.onShotFired(participant, flatDirection.Unit)
+	end
 	local damageMultiplier = math.max(0, getArenaNumberModifier(participant, "ArenaDamageMultiplier", 1))
 	local shotOrigin = participant.ShootPoint.Position
 	for _, shot in ipairs(getShotPattern(participant, participant.ShootPoint.Position, flatDirection.Unit)) do

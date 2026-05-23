@@ -71,13 +71,13 @@ local function makePanel(name, position, size)
 	panel.Name = name
 	panel.Position = position
 	panel.Size = size
-	panel.BackgroundColor3 = Color3.fromRGB(10, 13, 16)
+	panel.BackgroundColor3 = Color3.fromRGB(13, 17, 23)
 	panel.BackgroundTransparency = 0.1
 	panel.BorderSizePixel = 0
 	panel.ZIndex = PANEL_Z_INDEX
 	panel.Parent = screenGui
 	addCorner(panel, UDim.new(0, 8))
-	addStroke(panel, Color3.fromRGB(90, 165, 140), 0.35, 1)
+	addStroke(panel, Color3.fromRGB(31, 41, 55), 0.25, 1)
 
 	return panel
 end
@@ -127,18 +127,18 @@ local function makeBar(parent, name, position, size, fillColor)
 end
 
 local function styleButton(button, text)
-	button.BackgroundColor3 = Color3.fromRGB(54, 148, 114)
+	button.BackgroundColor3 = Color3.fromRGB(250, 204, 21)
 	button.BackgroundTransparency = 0
 	button.BorderSizePixel = 0
 	button.Font = Enum.Font.GothamBold
 	button.Text = text or "Return to Lobby"
-	button.TextColor3 = Color3.fromRGB(248, 255, 248)
+	button.TextColor3 = Color3.fromRGB(13, 17, 23)
 	button.TextSize = 16
 	button.TextWrapped = true
 	button.AutoButtonColor = true
 	button.Active = true
 	addCorner(button, UDim.new(0, 8))
-	addStroke(button, Color3.fromRGB(138, 236, 185), 0.25, 1)
+	addStroke(button, Color3.fromRGB(249, 115, 22), 0.3, 1)
 end
 
 local healthPanel = makePanel(
@@ -276,14 +276,14 @@ menuPanel.Name = "MenuPanel"
 menuPanel.AnchorPoint = Vector2.new(0.5, 0.5)
 menuPanel.Position = UDim2.fromScale(0.5, 0.5)
 menuPanel.Size = UDim2.fromOffset(260, 172)
-menuPanel.BackgroundColor3 = Color3.fromRGB(10, 13, 16)
+menuPanel.BackgroundColor3 = Color3.fromRGB(13, 17, 23)
 menuPanel.BackgroundTransparency = 0.05
 menuPanel.BorderSizePixel = 0
 menuPanel.Active = true
 menuPanel.ZIndex = POPUP_Z_INDEX + 1
 menuPanel.Parent = menuPopupRoot
 addCorner(menuPanel, UDim.new(0, 8))
-addStroke(menuPanel, Color3.fromRGB(90, 165, 140), 0.25, 1)
+addStroke(menuPanel, Color3.fromRGB(31, 41, 55), 0.25, 1)
 
 local menuTitleLabel = Instance.new("TextLabel")
 menuTitleLabel.Name = "MenuTitleLabel"
@@ -315,6 +315,7 @@ popupReturnButton.ZIndex = POPUP_Z_INDEX + 2
 popupReturnButton.Parent = menuPanel
 styleButton(popupReturnButton)
 popupReturnButton.BackgroundColor3 = Color3.fromRGB(166, 74, 64)
+popupReturnButton.TextColor3 = Color3.fromRGB(248, 255, 248)
 
 local menuPopupOpen = false
 local currentUpgradeOffer = nil
@@ -390,6 +391,7 @@ local upgradeOfferTitle = makeLabel(
 	Enum.Font.GothamBlack
 )
 upgradeOfferTitle.Text = "Choose Upgrade"
+upgradeOfferTitle.TextColor3 = Color3.fromRGB(250, 204, 21)
 upgradeOfferTitle.TextXAlignment = Enum.TextXAlignment.Center
 
 local upgradeOfferSubtitle = makeLabel(
@@ -627,6 +629,8 @@ local function applyMobileLayout(viewportSize)
 	deathReturnButton.Position = UDim2.new(0.15, 0, 1, -42)
 	deathReturnButton.Size = UDim2.new(0.7, 0, 0, 32)
 
+	-- Keep upgrade choices top-center on mobile; bottom-left and bottom-right
+	-- are reserved for Move/REV and Aim/Fire controls.
 	upgradeOfferPanel.Position = UDim2.new(0.5, 0, 0, 138)
 	upgradeOfferPanel.Size = UDim2.fromOffset(math.min(320, viewportSize.X - 24), 194)
 	setTextLayout(upgradeOfferTitle, UDim2.new(0, 12, 0, 8), UDim2.new(1, -24, 0, 24), 14)

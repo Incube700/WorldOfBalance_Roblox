@@ -3,6 +3,16 @@
 local TankConfig = table.freeze({
 	Movement = table.freeze({
 		MoveSpeed = 34,
+		MaxSpeed = 34,
+		ReverseMaxSpeed = 28.9,
+		Acceleration = 125,
+		ReverseAcceleration = 105,
+		Deceleration = 92,
+		TurnAcceleration = 12,
+		TurnDeceleration = 16,
+		ShotRecoilImpulse = 7.5,
+		ShotRecoilMaxSpeed = 12,
+		ShotRecoilDamping = 30,
 		ReverseMoveSpeedMultiplier = 0.85,
 		InvertSteeringWhenReversing = true,
 		ReverseSteeringDeadZone = 0.05,
@@ -31,9 +41,11 @@ local TankConfig = table.freeze({
 		ArmorHitboxThickness = 0.25,
 		ArmorHitboxHeight = 5.4,
 		ArmorHitboxYOffset = 1.4,
-		ArmorHitboxesVisible = false,
+		ArmorHitboxesVisible = true,
 		ArmorHitboxTransparency = 0.45,
 		ArmorHitboxMaterial = "SmoothPlastic",
+		-- Intentional color-coded armor readability (front/rear/side). Keep visible
+		-- and colored; do not collapse to a single dark color.
 		FrontArmorColor = Color3.fromRGB(80, 255, 120),
 		RearArmorColor = Color3.fromRGB(255, 90, 90),
 		SideArmorColor = Color3.fromRGB(255, 220, 80),

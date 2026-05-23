@@ -23,6 +23,7 @@ local HudDeviceUtils = require(clientFolder:WaitForChild("Hud"):WaitForChild("Hu
 
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local combatFeedbackEvent = remotes:WaitForChild("CombatFeedbackEvent")
+local returnToMenuRequestEvent = remotes:WaitForChild("ReturnToMenuRequestEvent")
 
 local localPlayer = Players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
@@ -57,6 +58,7 @@ local MONO_FONT = Enum.Font.Code
 
 local RELOAD_FALLBACK_DURATION = math.max(0.05, (WeaponConfig.PrimaryWeapon or {}).ShootCooldown or 0.45)
 local SCRIPTED_DUEL_HUD_ENABLED = ((HudConfig.CombatHud or {}).UseScriptedDuelHud == true)
+local SCRIPTED_TRAINING_HUD_ENABLED = ((HudConfig.CombatHud or {}).UseScriptedTrainingHud == true)
 local MAX_FEEDBACK = 4
 
 ------------------------------------------------------------------------
@@ -157,6 +159,67 @@ local function makeBar(parent, position, size, fillColor)
 	return fill, track
 end
 
+local function setZIndexTree(instance, zIndex)
+	if instance:IsA("GuiObject") then
+		instance.ZIndex = zIndex
+	end
+
+	for _, descendant in ipairs(instance:GetDescendants()) do
+		if descendant:IsA("GuiObject") then
+			descendant.ZIndex = zIndex
+		end
+	end
+end
+
+local function tweenButtonVisual(button, scale, pressed, normalColor)
+	local targetColor = pressed and COLORS.Orange or normalColor
+	local targetScale = pressed and 0.96 or 1
+
+	TweenService:Create(button, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		BackgroundColor3 = targetColor,
+	}):Play()
+	TweenService:Create(scale, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Scale = targetScale,
+	}):Play()
+end
+
+local function makeButton(name, parent, text, accentColor)
+	local normalColor = accentColor or COLORS.Yellow
+	local button = Instance.new("TextButton")
+	button.Name = name
+	button.BackgroundColor3 = normalColor
+	button.BackgroundTransparency = 0
+	button.BorderSizePixel = 0
+	button.Font = TITLE_FONT
+	button.Text = text
+	button.TextColor3 = COLORS.Panel
+	button.TextSize = 13
+	button.TextWrapped = true
+	button.AutoButtonColor = false
+	button.Active = true
+	button.Parent = parent
+	addCorner(button, 8)
+	addStroke(button, COLORS.Orange, 0.35, 1)
+
+	local scale = Instance.new("UIScale")
+	scale.Parent = button
+
+	button.MouseEnter:Connect(function()
+		tweenButtonVisual(button, scale, false, normalColor)
+	end)
+	button.MouseButton1Down:Connect(function()
+		tweenButtonVisual(button, scale, true, normalColor)
+	end)
+	button.MouseButton1Up:Connect(function()
+		tweenButtonVisual(button, scale, false, normalColor)
+	end)
+	button.MouseLeave:Connect(function()
+		tweenButtonVisual(button, scale, false, normalColor)
+	end)
+
+	return button, scale
+end
+
 ------------------------------------------------------------------------
 -- Build the HUD tree
 ------------------------------------------------------------------------
@@ -221,7 +284,7 @@ local playerStroke = playerPanel:FindFirstChildOfClass("UIStroke")
 local playerName = makeLabel("Name", playerPanel, MONO_FONT, 11, COLORS.BlueLight, Enum.TextXAlignment.Left)
 playerName.Position = UDim2.new(0, 12, 0, 5)
 playerName.Size = UDim2.new(1, -24, 0, 12)
-playerName.Text = "ВЫ"
+playerName.Text = "YOU"
 
 local playerHpFill = makeBar(
 	playerPanel,
@@ -255,7 +318,7 @@ makeAccent(enemyPanel, COLORS.Red, "right")
 local enemyName = makeLabel("Name", enemyPanel, MONO_FONT, 11, COLORS.RedLight, Enum.TextXAlignment.Right)
 enemyName.Position = UDim2.new(0, 12, 0, 5)
 enemyName.Size = UDim2.new(1, -24, 0, 12)
-enemyName.Text = "ВРАГ"
+enemyName.Text = "ENEMY"
 
 local enemyHpValue = makeLabel("HpValue", enemyPanel, MONO_FONT, 12, COLORS.RedLight, Enum.TextXAlignment.Left)
 enemyHpValue.Position = UDim2.new(0, 12, 0, 24)
@@ -288,7 +351,7 @@ youNumScale.Parent = youNum
 local youSub = makeLabel("YouSub", scoreBox, LABEL_FONT, 9, COLORS.Muted, Enum.TextXAlignment.Center)
 youSub.Position = UDim2.new(0, 12, 0, 33)
 youSub.Size = UDim2.fromOffset(50, 12)
-youSub.Text = "ВЫ"
+youSub.Text = "YOU"
 
 local divider = makeLabel("Divider", scoreBox, TITLE_FONT, 16, COLORS.Border, Enum.TextXAlignment.Center)
 divider.Position = UDim2.new(0.5, -10, 0, 8)
@@ -305,7 +368,20 @@ oppNumScale.Parent = oppNum
 local oppSub = makeLabel("OppSub", scoreBox, LABEL_FONT, 9, COLORS.Muted, Enum.TextXAlignment.Center)
 oppSub.Position = UDim2.new(1, -62, 0, 33)
 oppSub.Size = UDim2.fromOffset(50, 12)
-oppSub.Text = "ВРАГ"
+oppSub.Text = "ENEMY"
+
+local trainingTitle = makeLabel("TrainingTitle", scoreBox, TITLE_FONT, 16, COLORS.Yellow, Enum.TextXAlignment.Center)
+trainingTitle.Position = UDim2.new(0, 12, 0, 6)
+trainingTitle.Size = UDim2.new(1, -24, 0, 20)
+trainingTitle.Text = "TRAINING"
+trainingTitle.Visible = false
+
+local trainingHint = makeLabel("TrainingHint", scoreBox, LABEL_FONT, 10, COLORS.Muted, Enum.TextXAlignment.Center)
+trainingHint.Position = UDim2.new(0, 10, 0, 28)
+trainingHint.Size = UDim2.new(1, -20, 0, 16)
+trainingHint.Text = "DESTROY TARGETS - PRACTICE RICOCHETS"
+trainingHint.TextTruncate = Enum.TextTruncate.AtEnd
+trainingHint.Visible = false
 
 -- ---- Bottom bar ----------------------------------------------------
 local bottomBar = Instance.new("Frame")
@@ -330,7 +406,7 @@ reloadIcon.Text = "⟳"
 local reloadTitle = makeLabel("Title", reloadPanel, LABEL_FONT, 9, COLORS.Muted, Enum.TextXAlignment.Left)
 reloadTitle.Position = UDim2.new(0, 36, 0, 7)
 reloadTitle.Size = UDim2.new(1, -46, 0, 12)
-reloadTitle.Text = "ПЕРЕЗАРЯДКА"
+reloadTitle.Text = "RELOAD"
 
 local reloadBarFill = makeBar(
 	reloadPanel,
@@ -450,6 +526,75 @@ resultButtonLike.Text = ""
 addCorner(resultButtonLike, 6)
 addStroke(resultButtonLike, COLORS.Orange, 0.35, 1)
 
+-- Gameplay layout convention:
+-- mobile Move/REV live bottom-left, Aim/Fire live lower-right, and Menu/Pause
+-- lives top-right below the safe-area HUD. Keep upgrade and pause overlays away
+-- from the bottom control clusters.
+local trainingMenuButton = makeButton("TrainingMenuButton", rootFrame, "MENU", COLORS.Yellow)
+trainingMenuButton.AnchorPoint = Vector2.new(1, 0)
+trainingMenuButton.Position = UDim2.new(1, -18, 0, 84)
+trainingMenuButton.Size = UDim2.fromOffset(76, 34)
+trainingMenuButton.Visible = false
+trainingMenuButton.ZIndex = 30
+
+local trainingPauseRoot = Instance.new("Frame")
+trainingPauseRoot.Name = "TrainingPauseRoot"
+trainingPauseRoot.Size = UDim2.fromScale(1, 1)
+trainingPauseRoot.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+trainingPauseRoot.BackgroundTransparency = 1
+trainingPauseRoot.BorderSizePixel = 0
+trainingPauseRoot.Visible = false
+trainingPauseRoot.Active = true
+trainingPauseRoot.ZIndex = 80
+trainingPauseRoot.Parent = rootFrame
+
+local trainingPausePanel = makePanel("TrainingPausePanel", trainingPauseRoot)
+trainingPausePanel.AnchorPoint = Vector2.new(0.5, 0.5)
+trainingPausePanel.Position = UDim2.fromScale(0.5, 0.5)
+trainingPausePanel.Size = UDim2.fromOffset(300, 214)
+trainingPausePanel.BackgroundTransparency = 0.06
+trainingPausePanel.Active = true
+setZIndexTree(trainingPausePanel, 82)
+
+local trainingPauseScale = Instance.new("UIScale")
+trainingPauseScale.Parent = trainingPausePanel
+
+local trainingPauseTitle = makeLabel(
+	"Title",
+	trainingPausePanel,
+	TITLE_FONT,
+	22,
+	COLORS.Yellow,
+	Enum.TextXAlignment.Center
+)
+trainingPauseTitle.Position = UDim2.new(0, 18, 0, 18)
+trainingPauseTitle.Size = UDim2.new(1, -36, 0, 28)
+trainingPauseTitle.Text = "TRAINING MENU"
+trainingPauseTitle.ZIndex = 83
+
+local trainingPauseSubtitle = makeLabel(
+	"Subtitle",
+	trainingPausePanel,
+	LABEL_FONT,
+	12,
+	COLORS.Muted,
+	Enum.TextXAlignment.Center
+)
+trainingPauseSubtitle.Position = UDim2.new(0, 18, 0, 50)
+trainingPauseSubtitle.Size = UDim2.new(1, -36, 0, 24)
+trainingPauseSubtitle.Text = "Practice stays active until you exit."
+trainingPauseSubtitle.ZIndex = 83
+
+local trainingResumeButton = makeButton("ResumeButton", trainingPausePanel, "RESUME", COLORS.BlueLight)
+trainingResumeButton.Position = UDim2.new(0, 28, 0, 92)
+trainingResumeButton.Size = UDim2.new(1, -56, 0, 42)
+trainingResumeButton.ZIndex = 83
+
+local trainingExitButton = makeButton("ExitToMenuButton", trainingPausePanel, "EXIT TO MENU", COLORS.Yellow)
+trainingExitButton.Position = UDim2.new(0, 28, 0, 146)
+trainingExitButton.Size = UDim2.new(1, -56, 0, 42)
+trainingExitButton.ZIndex = 83
+
 ------------------------------------------------------------------------
 -- State helpers
 ------------------------------------------------------------------------
@@ -463,6 +608,8 @@ local lowHpPulseActive = false
 local lowHpTween = nil
 local fillTweenState = {}
 local resultVisible = false
+local trainingMenuOpen = false
+local trainingMenuToken = 0
 
 local function clamp01(value)
 	return math.clamp(value, 0, 1)
@@ -489,15 +636,85 @@ local function getTopBarTargetPosition()
 	return UDim2.new(0, 0, 0, getSafeTopOffset())
 end
 
+local function getMatchMode()
+	return root:GetAttribute("MatchMode")
+end
+
+local function isDuelHudMode()
+	return getMatchMode() == "PvP" and SCRIPTED_DUEL_HUD_ENABLED
+end
+
+local function isTrainingHudMode()
+	return getMatchMode() == "Training" and SCRIPTED_TRAINING_HUD_ENABLED
+end
+
 local function isHudVisible()
-	if not SCRIPTED_DUEL_HUD_ENABLED then
+	if not (isDuelHudMode() or isTrainingHudMode()) then
 		return false
 	end
 
 	local mode = localPlayer:GetAttribute("PlayerMode")
 	return mode == "InMatch"
 		and root:GetAttribute("GameState") == "Playing"
-		and root:GetAttribute("MatchMode") == "PvP"
+end
+
+local function updateTrainingMenuLayout()
+	local topOffset = getSafeTopOffset()
+	trainingMenuButton.Position = UDim2.new(1, -18, 0, topOffset + 84)
+	trainingMenuButton.Size = isMobile() and UDim2.fromOffset(76, 34) or UDim2.fromOffset(82, 36)
+	trainingPausePanel.Size = isMobile() and UDim2.fromOffset(286, 206) or UDim2.fromOffset(300, 214)
+end
+
+local function setTrainingMenuOpen(open)
+	if open and not (isHudVisible() and isTrainingHudMode()) then
+		open = false
+	end
+
+	if trainingMenuOpen == open and trainingPauseRoot.Visible == open then
+		return
+	end
+
+	trainingMenuOpen = open
+	trainingMenuToken += 1
+	local token = trainingMenuToken
+
+	if open then
+		updateTrainingMenuLayout()
+		trainingPauseRoot.Visible = true
+		trainingPauseRoot.BackgroundTransparency = 1
+		trainingPauseScale.Scale = 0.94
+
+		TweenService:Create(trainingPauseRoot, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			BackgroundTransparency = 0.42,
+		}):Play()
+		TweenService:Create(trainingPauseScale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Scale = 1,
+		}):Play()
+	else
+		TweenService:Create(trainingPauseRoot, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			BackgroundTransparency = 1,
+		}):Play()
+		TweenService:Create(trainingPauseScale, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Scale = 0.96,
+		}):Play()
+
+		task.delay(0.16, function()
+			if token == trainingMenuToken and not trainingMenuOpen then
+				trainingPauseRoot.Visible = false
+			end
+		end)
+	end
+end
+
+local function updateTrainingMenuVisibility()
+	updateTrainingMenuLayout()
+
+	local visible = isHudVisible() and isTrainingHudMode()
+	trainingMenuButton.Visible = visible
+
+	if not visible then
+		setTrainingMenuOpen(false)
+	end
 end
 
 local function getServerTimeNow()
@@ -737,21 +954,21 @@ local function updateReload()
 
 	if reloadState.HasTank == false then
 		reloadBarFill.BackgroundColor3 = COLORS.Muted
-		reloadTitle.Text = "ОЖИДАНИЕ"
+		reloadTitle.Text = "WAITING"
 		reloadTitle.TextColor3 = COLORS.Muted
 		playerReloadLabel.Visible = false
 		playerReloadTrack.Visible = false
 		setFillImmediate(playerReloadFill, 0, COLORS.Muted)
 	elseif ready then
 		reloadBarFill.BackgroundColor3 = COLORS.GreenLight
-		reloadTitle.Text = "ГОТОВ"
+		reloadTitle.Text = "READY"
 		reloadTitle.TextColor3 = COLORS.GreenLight
 		playerReloadLabel.Text = "READY"
 		playerReloadLabel.TextColor3 = COLORS.GreenLight
 		setFillImmediate(playerReloadFill, 1, COLORS.GreenLight)
 	else
 		reloadBarFill.BackgroundColor3 = COLORS.BlueLight
-		reloadTitle.Text = "ПЕРЕЗАРЯДКА"
+		reloadTitle.Text = "RELOAD"
 		reloadTitle.TextColor3 = COLORS.Muted
 		playerReloadLabel.Text = math.floor(progress * 100) .. "%"
 		playerReloadLabel.TextColor3 = COLORS.Muted
@@ -799,6 +1016,21 @@ local function getLocalSeriesScore()
 	return you, opp
 end
 
+local function updateModeContent()
+	local trainingMode = isTrainingHudMode()
+
+	playerName.Text = "YOU"
+	enemyName.Text = trainingMode and "TARGET" or "ENEMY"
+	scoreBox.Size = trainingMode and UDim2.fromOffset(260, 50) or UDim2.fromOffset(168, 50)
+
+	for _, label in ipairs({ youNum, youSub, divider, oppNum, oppSub }) do
+		label.Visible = not trainingMode
+	end
+
+	trainingTitle.Visible = trainingMode
+	trainingHint.Visible = trainingMode
+end
+
 local function punchScale(scale)
 	scale.Scale = 1
 	TweenService:Create(scale, TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
@@ -812,6 +1044,12 @@ local function punchScale(scale)
 end
 
 local function updateScore()
+	updateModeContent()
+
+	if isTrainingHudMode() then
+		return
+	end
+
 	local you, opp = getLocalSeriesScore()
 	you = math.floor(you)
 	opp = math.floor(opp)
@@ -968,7 +1206,29 @@ local function updateResultOverlay()
 	local roundState = root:GetAttribute("RoundState")
 	local youWins, oppWins = getLocalSeriesScore()
 
-	if matchEnded and roundState == "MatchEnd" then
+	if isTrainingHudMode() then
+		if matchEnded and roundState == "MatchEnd" then
+			local seconds = getCountdownSeconds("MatchResultAt", "ResultStartsIn")
+			showResultOverlay(
+				"TRAINING DONE",
+				"TARGET PRACTICE COMPLETE  ·  RESULT IN " .. seconds,
+				COLORS.Yellow,
+				"RESULT"
+			)
+		elseif roundEnded and not matchEnded and roundState == "RoundEnd" then
+			local seconds = getCountdownSeconds("RoundResetAt", "NextRoundStartsIn")
+			local title = roundResult == "Win" and "TARGET DESTROYED" or "ROUND ENDED"
+			local color = roundResult == "Win" and COLORS.GreenLight or COLORS.Yellow
+			showResultOverlay(
+				title,
+				"PRACTICE RICOCHETS  ·  NEXT TARGET IN " .. seconds,
+				color,
+				"NEXT TARGET"
+			)
+		else
+			hideResultOverlay()
+		end
+	elseif matchEnded and roundState == "MatchEnd" then
 		local localMatchResult = getLocalMatchResult(root:GetAttribute("MatchResult") or "")
 		local title = "MATCH ENDED"
 		local color = COLORS.Yellow
@@ -1067,10 +1327,20 @@ local function tweenBoltsCount(target)
 end
 
 local function updateBolts()
+	if isDuelHudMode() then
+		boltsPanel.Visible = false
+		displayedBolts = nil
+		return
+	end
+
 	tweenBoltsCount(getVisibleBolts())
 end
 
 local function showBoltsReward()
+	if isDuelHudMode() then
+		return
+	end
+
 	if getVisibleBolts() == nil then
 		return
 	end
@@ -1206,6 +1476,7 @@ local function applyMobileLayout()
 	-- panel mini bar) and the top panels are nudged inward.
 	local mobile = isMobile()
 	bottomBar.Visible = not mobile
+	updateTrainingMenuLayout()
 
 	if wasVisible then
 		topBar.Position = getTopBarTargetPosition()
@@ -1264,6 +1535,7 @@ local function refreshAll()
 	updateScore()
 	updateBolts()
 	updateResultOverlay()
+	updateTrainingMenuVisibility()
 end
 
 local function applyVisibility()
@@ -1282,12 +1554,26 @@ local function applyVisibility()
 		gui.Enabled = true
 	end
 
+	updateTrainingMenuVisibility()
 	wasVisible = visible
 end
 
 ------------------------------------------------------------------------
 -- Wiring
 ------------------------------------------------------------------------
+trainingMenuButton.Activated:Connect(function()
+	setTrainingMenuOpen(not trainingMenuOpen)
+end)
+
+trainingResumeButton.Activated:Connect(function()
+	setTrainingMenuOpen(false)
+end)
+
+trainingExitButton.Activated:Connect(function()
+	setTrainingMenuOpen(false)
+	returnToMenuRequestEvent:FireServer()
+end)
+
 combatFeedbackEvent.OnClientEvent:Connect(onCombatFeedback)
 
 localPlayer:GetAttributeChangedSignal("PlayerMode"):Connect(function()
@@ -1302,7 +1588,10 @@ root:GetAttributeChangedSignal("GameState"):Connect(function()
 	refreshAll()
 	applyVisibility()
 end)
-root:GetAttributeChangedSignal("MatchMode"):Connect(refreshAll)
+root:GetAttributeChangedSignal("MatchMode"):Connect(function()
+	refreshAll()
+	applyVisibility()
+end)
 root:GetAttributeChangedSignal("PlayerWins"):Connect(updateScore)
 root:GetAttributeChangedSignal("DummyWins"):Connect(updateScore)
 root:GetAttributeChangedSignal("PlayerSideScore"):Connect(updateScore)
@@ -1348,4 +1637,4 @@ end)
 refreshAll()
 applyVisibility()
 
-print("[WOB] Scripted duel HUD initialised")
+print("[WOB] Scripted duel/training HUD initialised")

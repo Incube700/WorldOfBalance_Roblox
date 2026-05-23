@@ -9,12 +9,17 @@ TankFactoryConfig.LegacyTankIds = table.freeze({
 TankFactoryConfig.DynamicPlayerTankPrefix = "PlayerTank_"
 
 -- BaseTankTemplate: user-created editable template in Studio.
--- Looked up in Workspace.WOB_Generated.TestObjects by TankTemplateProvider.
--- If not present, falls back to LegacyTankIds per-role.
+-- Preferred home is ServerStorage.<TemplateStorageFolderName> (out of the world,
+-- so it never interferes with duels/arena). TankTemplateProvider looks there
+-- first, then falls back to Workspace.WOB_Generated.TestObjects.
+-- If not present in either, falls back to LegacyTankIds per-role.
 -- Do not create this in code; place it manually in Studio.
 TankFactoryConfig.BaseTankTemplateName = "BaseTankTemplate"
 
--- Legacy path placeholder — kept for documentation only, not used at runtime.
+-- ServerStorage folder that holds out-of-world tank prefabs.
+TankFactoryConfig.TemplateStorageFolderName = "TankTemplates"
+
+-- Documented canonical path for the base template once moved to ServerStorage.
 TankFactoryConfig.FutureBaseTemplatePath = "ServerStorage.TankTemplates.BaseTankTemplate"
 
 -- Startup static participant IDs.
@@ -26,6 +31,10 @@ TankFactoryConfig.StartupParticipantIds = table.freeze({
 	Player  = "Startup_Player",
 	Dummy   = "Startup_Dummy",
 	Player2 = "Startup_Player2",
+})
+
+TankFactoryConfig.TrainingParticipantIds = table.freeze({
+	Dummy = "Training_Dummy",
 })
 
 TankFactoryConfig.DefaultLoadout = table.freeze({

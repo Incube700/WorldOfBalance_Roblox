@@ -134,6 +134,8 @@ local COLORS = {
 	Muted = Color3.fromRGB(148, 163, 184),
 	Yellow = Color3.fromRGB(250, 204, 21),
 	Blue = Color3.fromRGB(59, 130, 246),
+	Green = Color3.fromRGB(34, 197, 94),
+	Red = Color3.fromRGB(239, 68, 68),
 	Teal = Color3.fromRGB(45, 212, 191),
 	Purple = Color3.fromRGB(168, 85, 247),
 	Disabled = Color3.fromRGB(48, 55, 68),
@@ -449,24 +451,45 @@ local function createResultScreen(screenGui)
 	local content = getOrCreate(panel, "Frame", "ResultContent")
 	content.AnchorPoint = Vector2.new(0.5, 0.5)
 	content.Position = UDim2.new(0.5, 0, 0.5, 0)
-	content.Size = UDim2.new(0, 560, 0, 630)
+	content.Size = UDim2.new(0.9, 0, 0, 330)
 	content.BackgroundColor3 = Color3.fromRGB(12, 16, 18)
 	content.BackgroundTransparency = 0.08
 	content.BorderSizePixel = 0
 	addCorner(content, UDim.new(0, 8))
 	addStroke(content, Color3.fromRGB(75, 115, 104), 0.25, 1)
+	addSizeConstraint(content, Vector2.new(300, 280), Vector2.new(440, 360))
 
 	local title = getOrCreate(content, "TextLabel", "ResultTitleLabel")
-	title.Position = UDim2.new(0.08, 0, 0, 24)
-	title.Size = UDim2.new(0.84, 0, 0, 52)
-	styleLabel(title, "Your Match Result", 30, Color3.fromRGB(241, 255, 247))
-	title.Font = Enum.Font.GothamBold
+	title.Position = UDim2.new(0.08, 0, 0, 26)
+	title.Size = UDim2.new(0.84, 0, 0, 48)
+	styleLabel(title, "RESULT", 30, Color3.fromRGB(241, 255, 247))
+	title.Font = Enum.Font.GothamBlack
+
+	local summaryLabel = getOrCreate(content, "TextLabel", "ResultSummaryLabel")
+	summaryLabel.Position = UDim2.new(0.1, 0, 0, 92)
+	summaryLabel.Size = UDim2.new(0.8, 0, 0, 34)
+	styleLabel(summaryLabel, "Score 0 / 0", 20, COLORS.Text)
+	summaryLabel.Font = Enum.Font.GothamBold
+
+	local scoreLabel = getOrCreate(content, "TextLabel", "ResultScoreLabel")
+	scoreLabel.Position = UDim2.new(0.1, 0, 0, 132)
+	scoreLabel.Size = UDim2.new(0.8, 0, 0, 30)
+	styleLabel(scoreLabel, "Rounds 0 - 0", 16, COLORS.Muted)
+	scoreLabel.Font = Enum.Font.GothamBold
+
+	local rewardLabel = getOrCreate(content, "TextLabel", "ResultRewardLabel")
+	rewardLabel.Position = UDim2.new(0.1, 0, 0, 166)
+	rewardLabel.Size = UDim2.new(0.8, 0, 0, 34)
+	styleLabel(rewardLabel, "", 16, COLORS.Yellow)
+	rewardLabel.Font = Enum.Font.GothamBold
 
 	local list = getOrCreate(content, "Frame", "StatsList")
-	list.Position = UDim2.new(0.1, 0, 0, 96)
-	list.Size = UDim2.new(0.8, 0, 0, 370)
+	list.Position = UDim2.new(0.1, 0, 0, 210)
+	list.Size = UDim2.new(0.8, 0, 0, 1)
 	list.BackgroundTransparency = 1
 	list.BorderSizePixel = 0
+	list.Visible = false
+	list:SetAttribute("CompactHidden", true)
 
 	local layout = list:FindFirstChildOfClass("UIListLayout") or Instance.new("UIListLayout")
 	layout.Padding = UDim.new(0, 4)
@@ -492,14 +515,14 @@ local function createResultScreen(screenGui)
 	end
 
 	local playAgainButton = getOrCreate(content, "TextButton", "PlayAgainButton")
-	playAgainButton.Position = UDim2.new(0.1, 0, 1, -128)
-	playAgainButton.Size = UDim2.new(0.38, 0, 0, 52)
-	styleButton(playAgainButton, "Rematch", true)
+	playAgainButton.Position = UDim2.new(0.1, 0, 1, -72)
+	playAgainButton.Size = UDim2.new(0.34, 0, 0, 48)
+	styleButton(playAgainButton, "AGAIN", true, COLORS.Blue)
 
 	local menuButton = getOrCreate(content, "TextButton", "BackToMenuButton")
-	menuButton.Position = UDim2.new(0.52, 0, 1, -128)
-	menuButton.Size = UDim2.new(0.38, 0, 0, 52)
-	styleButton(menuButton, "Return to Lobby", true)
+	menuButton.Position = UDim2.new(0.48, 0, 1, -72)
+	menuButton.Size = UDim2.new(0.42, 0, 0, 48)
+	styleButton(menuButton, "MENU", true, COLORS.Yellow)
 
 	return panel
 end
@@ -674,7 +697,7 @@ local function updateStaticShellText()
 		local resultTitleLabel = findDescendant(screenGui, "ResultTitleLabel")
 
 		if resultTitleLabel ~= nil and resultTitleLabel:IsA("TextLabel") then
-			resultTitleLabel.Text = "Your Match Result"
+			resultTitleLabel.Text = "RESULT"
 		end
 
 		local statsTitleLabel = findDescendant(screenGui, "StatsTitleLabel")
@@ -692,13 +715,13 @@ local function updateStaticShellText()
 		local playAgainButton = findDescendant(screenGui, "PlayAgainButton")
 
 		if playAgainButton ~= nil and playAgainButton:IsA("TextButton") then
-			playAgainButton.Text = "Rematch"
+			playAgainButton.Text = "AGAIN"
 		end
 
 		local backToMenuButton = findDescendant(screenGui, "BackToMenuButton") or findDescendant(screenGui, "MenuButton")
 
 		if backToMenuButton ~= nil and backToMenuButton:IsA("TextButton") then
-			backToMenuButton.Text = "Return to Lobby"
+			backToMenuButton.Text = "MENU"
 		end
 	end
 end
@@ -868,10 +891,14 @@ local function getLocalPlayerMode()
 end
 
 local function isScriptedDuelHudActive()
-	return ((HudConfig.CombatHud or {}).UseScriptedDuelHud == true)
+	local combatHudConfig = HudConfig.CombatHud or {}
+	local matchMode = root:GetAttribute("MatchMode")
+	local scriptedModeActive = (matchMode == "PvP" and combatHudConfig.UseScriptedDuelHud == true)
+		or (matchMode == "Training" and combatHudConfig.UseScriptedTrainingHud == true)
+
+	return scriptedModeActive
 		and getLocalPlayerMode() == PLAYER_MODE_IN_MATCH
 		and root:GetAttribute("GameState") == GAME_STATE_PLAYING
-		and root:GetAttribute("MatchMode") == "PvP"
 end
 
 local function isLobbyMode(mode)
@@ -1017,6 +1044,21 @@ local function updateResultStats()
 		DamageTaken = runtimeIntText("StatsDamageTaken"),
 	}
 	local rewardText = values.MatchResult == "Victory" and getCurrentMatchCrystalRewardText() or ""
+	local resultTitleText = values.MatchResult ~= "-" and string.upper(values.MatchResult) or "RESULT"
+	local resultTitleColor = COLORS.Text
+	local resultStatLine = ""
+
+	if values.MatchResult == "Victory" then
+		resultTitleColor = COLORS.Green
+	elseif values.MatchResult == "Defeat" then
+		resultTitleColor = COLORS.Red
+	end
+
+	if rewardText ~= "" then
+		resultStatLine = rewardText
+	elseif shots > 0 then
+		resultStatLine = "Shots " .. values.ShotsFired .. " - Hits " .. values.Hits .. " - Accuracy " .. values.Accuracy
+	end
 
 	for key, text in pairs(values) do
 		local label = statValueLabels[key]
@@ -1039,7 +1081,27 @@ local function updateResultStats()
 		local resultTitleLabel = findDescendant(screenGui, "ResultTitleLabel")
 
 		if resultTitleLabel ~= nil and resultTitleLabel:IsA("TextLabel") then
-			resultTitleLabel.Text = rewardText ~= "" and ("Victory " .. rewardText) or "Your Match Result"
+			resultTitleLabel.Text = resultTitleText
+			resultTitleLabel.TextColor3 = resultTitleColor
+		end
+
+		local summaryLabel = findDescendant(screenGui, "ResultSummaryLabel")
+
+		if summaryLabel ~= nil and summaryLabel:IsA("TextLabel") then
+			summaryLabel.Text = "Score " .. values.RoundsWon .. " / " .. values.RoundsLost
+		end
+
+		local scoreLabel = findDescendant(screenGui, "ResultScoreLabel")
+
+		if scoreLabel ~= nil and scoreLabel:IsA("TextLabel") then
+			scoreLabel.Text = "Rounds won " .. values.RoundsWon .. " - lost " .. values.RoundsLost
+		end
+
+		local rewardLabel = findDescendant(screenGui, "ResultRewardLabel")
+
+		if rewardLabel ~= nil and rewardLabel:IsA("TextLabel") then
+			rewardLabel.Text = resultStatLine
+			rewardLabel.Visible = resultStatLine ~= ""
 		end
 	end
 end
@@ -1146,7 +1208,7 @@ local function animateResultPanel(resultPanel)
 	if statsList ~= nil and statsList:IsA("GuiObject") then
 		statsList.Visible = false
 		task.delay(0.12, function()
-			if resultPanel.Visible then
+			if resultPanel.Visible and statsList:GetAttribute("CompactHidden") ~= true then
 				statsList.Visible = true
 			end
 		end)
@@ -1414,7 +1476,7 @@ local function updateRematchButton()
 		local button = resultPanel ~= nil and findDescendant(resultPanel, "PlayAgainButton") or nil
 
 		if button ~= nil and button:IsA("TextButton") then
-			styleButton(button, waiting and "Waiting for opponent..." or "Rematch", not waiting)
+			styleButton(button, waiting and "WAITING" or "AGAIN", not waiting, COLORS.Blue)
 		end
 	end
 end

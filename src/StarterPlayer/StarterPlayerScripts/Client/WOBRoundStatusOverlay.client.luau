@@ -10,6 +10,7 @@ local utils = shared:WaitForChild("Utils")
 local WeaponConfig = require(configs:WaitForChild("WeaponConfig"))
 local HudConfig = require(configs:WaitForChild("HudConfig"))
 local MatchConfig = require(configs:WaitForChild("MatchConfig"))
+local DebugCombatConfig = require(configs:WaitForChild("DebugCombatConfig"))
 local TankModelResolver = require(utils:WaitForChild("TankModelResolver"))
 local HudDeviceUtils = require(script.Parent:WaitForChild("Hud"):WaitForChild("HudDeviceUtils"))
 local HudVisibilityRules = require(script.Parent:WaitForChild("Hud"):WaitForChild("HudVisibilityRules"))
@@ -315,7 +316,12 @@ local function createEmergencyBar(parent, backName, fillName, position, size, fi
 end
 
 local function createEmergencyRoundUi(reason)
-	warn("[WOB] Modular HUD not found (" .. reason .. "). Using emergency runtime UI. Run docs/patches/CREATE_MODULAR_HUD_COMMAND.lua in Studio Command Bar.")
+	-- The scripted runtime HUD is the intentional path now, so this is not an
+	-- error condition. Only emit the modular-HUD diagnostic when a dev opts in
+	-- via DebugCombatConfig.WarnOnRuntimeHudFallback, otherwise stay quiet.
+	if DebugCombatConfig.WarnOnRuntimeHudFallback == true then
+		warn("[WOB] Modular HUD not found (" .. reason .. "). Using runtime HUD. Run docs/patches/CREATE_MODULAR_HUD_COMMAND.lua in Studio Command Bar to bind the modular HUD.")
+	end
 
 	local existingEmergencyGui = playerGui:FindFirstChild(EMERGENCY_GUI_NAME)
 
@@ -500,11 +506,11 @@ end
 
 local roundUi, bindError = waitForModularHud()
 
-if roundUi == nil then
-	roundUi = createEmergencyRoundUi(bindError or "unknown reason")
-end
-
 local function applyRoundUiTheme()
+	if roundUi == nil then
+		return
+	end
+
 	styleHudPanel(roundUi.EnemyStatusPanel, COLORS.Red)
 	styleHudPanel(roundUi.WeaponStatusPanel, COLORS.Yellow)
 	styleHudPanel(roundUi.PlayerStatusPanel, COLORS.Blue)
@@ -526,8 +532,6 @@ local function applyRoundUiTheme()
 	styleHudBar(roundUi.PlayerHpFill, COLORS.Green)
 end
 
-applyRoundUiTheme()
-
 local function isCombatHudVisible()
 	local mode = localPlayer:GetAttribute("PlayerMode")
 
@@ -535,11 +539,68 @@ local function isCombatHudVisible()
 end
 
 local function isScriptedDuelHudActive()
-	return ((HudConfig.CombatHud or {}).UseScriptedDuelHud == true)
+	local combatHudConfig = HudConfig.CombatHud or {}
+	local matchMode = root:GetAttribute("MatchMode")
+	local scriptedModeActive = (matchMode == "PvP" and combatHudConfig.UseScriptedDuelHud == true)
+		or (matchMode == "Training" and combatHudConfig.UseScriptedTrainingHud == true)
+
+	return scriptedModeActive
 		and localPlayer:GetAttribute("PlayerMode") == "InMatch"
 		and root:GetAttribute("GameState") == "Playing"
-		and root:GetAttribute("MatchMode") == "PvP"
 end
+
+-- Training is single-session bot practice, not a best-of-N duel. The series HUD
+-- (Round N / Score You-Opponent / First to N) is duel-only and must not be shown
+-- in Training, otherwise Training looks like a PvP duel.
+local function isTrainingMode()
+	return root:GetAttribute("MatchMode") == "Training"
+end
+
+local function hideDuelSeriesLabels()
+	if roundUi == nil then
+		return
+	end
+
+	if roundUi.RoundLabel ~= nil then
+		roundUi.RoundLabel.Text = ""
+		roundUi.RoundLabel.Visible = false
+	end
+
+	if roundUi.ScoreLabel ~= nil then
+		roundUi.ScoreLabel.Text = ""
+		roundUi.ScoreLabel.Visible = false
+	end
+
+	if roundUi.TargetWinsLabel ~= nil then
+		roundUi.TargetWinsLabel.Text = ""
+		roundUi.TargetWinsLabel.Visible = false
+	end
+
+	if roundUi.MatchResultLabel ~= nil then
+		roundUi.MatchResultLabel.Text = ""
+		roundUi.MatchResultLabel.Visible = false
+	end
+
+	if roundUi.MatchSeriesPanel ~= nil then
+		roundUi.MatchSeriesPanel.Visible = false
+	end
+end
+
+local function ensureRoundUiAvailable()
+	if roundUi ~= nil then
+		return true
+	end
+
+	if isScriptedDuelHudActive() or not isCombatHudVisible() then
+		return false
+	end
+
+	roundUi = createEmergencyRoundUi(bindError or "unknown reason")
+	applyRoundUiTheme()
+	return true
+end
+
+applyRoundUiTheme()
 
 local function isMobileLayout()
 	return HudDeviceUtils.IsMobileLayout()
@@ -585,6 +646,10 @@ local function setLabelAlignment(label, xAlignment, yAlignment)
 end
 
 local function applyMobileSeriesLayout(matchEnded)
+	if roundUi == nil then
+		return
+	end
+
 	if roundUi.MatchSeriesPanel == nil then
 		return
 	end
@@ -639,6 +704,10 @@ local function applyCombatHudLayout()
 end
 
 local function applyCombatHudVisibility()
+	if not ensureRoundUiAvailable() then
+		return
+	end
+
 	applyCombatHudLayout()
 
 	local isVisible = isCombatHudVisible()
@@ -831,6 +900,10 @@ local function setUnknownHealth(label, fill, prefix)
 end
 
 local function updateEnemyHealth()
+	if not ensureRoundUiAvailable() then
+		return
+	end
+
 	local health, maxHealth = getTankHealth(currentEnemyTank, HudConfig.DummyHealth.MaxHealthDisplay or 100)
 
 	if health == nil then
@@ -853,6 +926,10 @@ local function updateEnemyHealth()
 end
 
 local function updateHealth()
+	if not ensureRoundUiAvailable() then
+		return
+	end
+
 	local health, maxHealth = getTankHealth(currentPlayerTank, 100)
 
 	if health == nil then
@@ -875,6 +952,10 @@ local function updateHealth()
 end
 
 local function updateReloadStatus()
+	if not ensureRoundUiAvailable() then
+		return
+	end
+
 	local reloadProgress = clamp01((os.clock() - lastShotTime) / RELOAD_DISPLAY_COOLDOWN)
 
 	roundUi.ReloadFill.Size = UDim2.new(reloadProgress, 0, 1, 0)
@@ -894,6 +975,21 @@ local function updateRoundResult()
 
 	if not isCombatHudVisible() then
 		applyCombatHudVisibility()
+		return
+	end
+
+	if not ensureRoundUiAvailable() then
+		return
+	end
+
+	-- Training has no duel series, so suppress the "Score You / Opponent - Next
+	-- round" duel framing entirely.
+	if isTrainingMode() then
+		roundUi.RoundResultLabel.Text = ""
+		roundUi.RoundResultLabel.Visible = false
+		roundUi.RestartHintLabel.Text = ""
+		roundUi.RestartHintLabel.Visible = false
+		roundUi.RoundStatusPanel.Visible = false
 		return
 	end
 
@@ -974,6 +1070,18 @@ local function updateSeriesStatus()
 
 	if not isCombatHudVisible() then
 		applyCombatHudVisibility()
+		return
+	end
+
+	if not ensureRoundUiAvailable() then
+		return
+	end
+
+	-- Training is bot practice, not a duel series: keep the combat panels but hide
+	-- the Round / Score You-Opponent / First-to-N labels so it does not read as PvP.
+	if isTrainingMode() then
+		applyCombatHudLayout()
+		hideDuelSeriesLabels()
 		return
 	end
 
@@ -1139,4 +1247,8 @@ updateRoundResult()
 updateSeriesStatus()
 applyCombatHudVisibility()
 
-print("[WOB] Round status overlay bound to " .. roundUi.Source)
+if roundUi ~= nil then
+	print("[WOB] Round status overlay bound to " .. roundUi.Source)
+else
+	print("[WOB] Round status overlay waiting; scripted mode HUD will own PvP/Training when active")
+end

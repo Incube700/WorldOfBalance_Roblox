@@ -337,6 +337,9 @@ function TankSpawnResetService.applySpawnToParticipant(participant, spawnState)
 	participant.ControlState.Position = spawnState.Position
 	participant.ControlState.BodyYaw = spawnState.BodyYaw
 	participant.ControlState.TurretYaw = spawnState.TurretYaw
+	participant.ControlState.CurrentSpeed = 0
+	participant.ControlState.CurrentTurnRate = 0
+	participant.ControlState.RecoilVelocity = Vector3.zero
 	
 	-- Reset weapon state
 	participant.LastShotTime = 0

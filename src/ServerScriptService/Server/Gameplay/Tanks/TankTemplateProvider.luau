@@ -1,4 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 
 local configs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
 local TankFactoryConfig = require(configs:WaitForChild("TankFactoryConfig"))
@@ -45,18 +46,33 @@ function TankTemplateProvider:GetLegacyTankIdForRole(role)
 	return TankFactoryConfig.LegacyTankIds.Player
 end
 
--- Returns the BaseTankTemplate if the user has placed one in TestObjects.
--- This is priority 1 for all roles. Not created by code.
+-- Returns the BaseTankTemplate (priority 1 for all roles). Not created by code.
+-- Preferred home is ServerStorage.<TemplateStorageFolderName> so the prefab lives
+-- out of the world and never interferes with duels/arena. Falls back to
+-- Workspace.WOB_Generated.TestObjects so the project keeps working if the prefab
+-- has not been moved yet.
 function TankTemplateProvider:GetBaseTankTemplate()
-	if self.TestObjectsRoot == nil then
-		return nil
+	local baseName = TankFactoryConfig.BaseTankTemplateName
+	local folderName = TankFactoryConfig.TemplateStorageFolderName
+
+	if folderName ~= nil then
+		local storage = ServerStorage:FindFirstChild(folderName)
+
+		if storage ~= nil then
+			local stored = storage:FindFirstChild(baseName)
+
+			if stored ~= nil and stored:IsA("Model") then
+				return stored, baseName
+			end
+		end
 	end
 
-	local baseName = TankFactoryConfig.BaseTankTemplateName
-	local base = self.TestObjectsRoot:FindFirstChild(baseName)
+	if self.TestObjectsRoot ~= nil then
+		local base = self.TestObjectsRoot:FindFirstChild(baseName)
 
-	if base ~= nil and base:IsA("Model") then
-		return base, baseName
+		if base ~= nil and base:IsA("Model") then
+			return base, baseName
+		end
 	end
 
 	return nil

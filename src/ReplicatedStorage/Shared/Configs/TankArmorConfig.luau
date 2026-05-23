@@ -38,8 +38,11 @@ local TankArmorConfig = table.freeze({
 		DefaultPenetrationPower = 70,
 	}),
 
+	-- Color-coded armor zones are an intentional readability/design decision, not
+	-- debug clutter. Keep them visible and color-coded; only the disappearing /
+	-- unstable behavior was the regression.
 	Visuals = table.freeze({
-		ArmorZonesVisible = false,
+		ArmorZonesVisible = true,
 		Material = "SmoothPlastic",
 		FrontColor = Color3.fromRGB(75, 240, 180),
 		SideColor = Color3.fromRGB(255, 210, 70),

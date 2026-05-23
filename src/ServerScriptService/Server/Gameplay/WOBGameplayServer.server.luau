@@ -45,17 +45,41 @@ local BotService = require(script.Parent:WaitForChild("Bots"):WaitForChild("BotS
 local TrainingBotService = require(script.Parent:WaitForChild("Bots"):WaitForChild("TrainingBotService"))
 
 local primaryWeaponConfig = WeaponConfig.PrimaryWeapon
-local MOVE_SPEED = TankConfig.Movement.MoveSpeed
-local REVERSE_MOVE_SPEED_MULTIPLIER = TankConfig.Movement.ReverseMoveSpeedMultiplier or 1
-local INVERT_STEERING_WHEN_REVERSING = TankConfig.Movement.InvertSteeringWhenReversing == true
-local REVERSE_STEERING_DEAD_ZONE = math.max(0, tonumber(TankConfig.Movement.ReverseSteeringDeadZone) or 0.05)
-local TURN_SPEED = TankConfig.Movement.BodyTurnSpeedRadians
+local movementConfig = TankConfig.Movement or {}
+local MOVE_SPEED = movementConfig.MoveSpeed
+local MAX_SPEED = math.max(0, tonumber(movementConfig.MaxSpeed) or MOVE_SPEED)
+local REVERSE_MOVE_SPEED_MULTIPLIER = movementConfig.ReverseMoveSpeedMultiplier or 1
+local REVERSE_MAX_SPEED = math.max(0, tonumber(movementConfig.ReverseMaxSpeed) or (MAX_SPEED * REVERSE_MOVE_SPEED_MULTIPLIER))
+local ACCELERATION = math.max(0, tonumber(movementConfig.Acceleration) or 120)
+local REVERSE_ACCELERATION = math.max(0, tonumber(movementConfig.ReverseAcceleration) or ACCELERATION)
+local DECELERATION = math.max(0, tonumber(movementConfig.Deceleration) or ACCELERATION)
+local TURN_ACCELERATION = math.max(0, tonumber(movementConfig.TurnAcceleration) or 12)
+local TURN_DECELERATION = math.max(0, tonumber(movementConfig.TurnDeceleration) or TURN_ACCELERATION)
+local SHOT_RECOIL_IMPULSE = math.max(0, tonumber(movementConfig.ShotRecoilImpulse) or 0)
+local SHOT_RECOIL_MAX_SPEED = math.max(0, tonumber(movementConfig.ShotRecoilMaxSpeed) or SHOT_RECOIL_IMPULSE)
+local SHOT_RECOIL_DAMPING = math.max(0, tonumber(movementConfig.ShotRecoilDamping) or 0)
+local INVERT_STEERING_WHEN_REVERSING = movementConfig.InvertSteeringWhenReversing == true
+local REVERSE_STEERING_DEAD_ZONE = math.max(0, tonumber(movementConfig.ReverseSteeringDeadZone) or 0.05)
+local TURN_SPEED = movementConfig.BodyTurnSpeedRadians
 local turretConfig = TankConfig.Turret or {}
 local TURRET_TURN_SPEED = turretConfig.TurnSpeedRadiansPerSecond
-	or math.rad(turretConfig.TurnSpeedDegreesPerSecond or TankConfig.Movement.TurretTurnSpeedDegrees or 240)
+	or math.rad(turretConfig.TurnSpeedDegreesPerSecond or movementConfig.TurretTurnSpeedDegrees or 240)
 local SHOOT_USES_TURRET_FACING = turretConfig.ShootUsesTurretFacing ~= false
-	and TankConfig.Movement.ShootUsesTurretFacing ~= false
+	and movementConfig.ShootUsesTurretFacing ~= false
 local DEBUG_INPUT = false
+local SPAWN_STARTUP_TEST_TANKS = DebugCombatConfig.SpawnStartupTestTanks == true
+
+local ARMOR_FOLDER_NAMES = {
+	ArmorZones = true,
+	Hitboxes = true,
+}
+
+local ARMOR_PART_NAMES = {
+	FrontArmor = true,
+	RearArmor = true,
+	LeftArmor = true,
+	RightArmor = true,
+}
 
 -- Remote Events
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -89,6 +113,23 @@ wobRuntime.Name = "WOB_Runtime"
 wobRuntime.Parent = Workspace
 local map = root:WaitForChild("Map")
 local testObjects = root:WaitForChild("TestObjects")
+
+local function clearDisabledStartupTestTanks()
+	if SPAWN_STARTUP_TEST_TANKS then
+		return
+	end
+
+	for _, tankId in pairs(TankFactoryConfig.StartupParticipantIds or {}) do
+		local model = testObjects:FindFirstChild(tankId)
+
+		if model ~= nil and model:IsA("Model") then
+			model:Destroy()
+			print("[STARTUP] removed disabled startup test tank " .. tankId)
+		end
+	end
+end
+
+clearDisabledStartupTestTanks()
 
 local projectileFolder = runtime:FindFirstChild("Projectiles") or Instance.new("Folder")
 projectileFolder.Name = "Projectiles"
@@ -153,6 +194,118 @@ local function spawnTankParticipant(request)
 	return result.Participant, result
 end
 
+local function getRegisteredTankModelSet()
+	local models = {}
+
+	for _, participant in ipairs(TankParticipantRegistry.getParticipants()) do
+		local model = TankParticipantRegistry.getParticipantPhysicalModel(participant)
+
+		if model ~= nil then
+			models[model] = true
+		end
+	end
+
+	return models
+end
+
+local function isKnownTankTemplateModel(model)
+	if model == nil or not model:IsA("Model") then
+		return false
+	end
+
+	if model.Name == TankFactoryConfig.BaseTankTemplateName then
+		return true
+	end
+
+	for _, tankId in pairs(TankFactoryConfig.LegacyTankIds or {}) do
+		if model.Name == tankId then
+			return true
+		end
+	end
+
+	return false
+end
+
+local function isDescendantOfRegisteredTank(instance, registeredModels)
+	local current = instance
+
+	while current ~= nil and current ~= root do
+		if current:IsA("Model") and registeredModels[current] == true then
+			return true
+		end
+
+		current = current.Parent
+	end
+
+	return false
+end
+
+local function isDescendantOfWorkspaceTemplate(instance)
+	local model = instance:FindFirstAncestorWhichIsA("Model")
+
+	return model ~= nil
+		and model:IsDescendantOf(testObjects)
+		and isKnownTankTemplateModel(model)
+end
+
+local function folderContainsArmorPart(folder)
+	for _, child in ipairs(folder:GetChildren()) do
+		if child:IsA("BasePart") and ARMOR_PART_NAMES[child.Name] == true then
+			return true
+		end
+	end
+
+	return false
+end
+
+local function looksLikeOrphanArmorPart(part)
+	if not part:IsA("BasePart") or ARMOR_PART_NAMES[part.Name] ~= true then
+		return false
+	end
+
+	local parent = part.Parent
+
+	return part:GetAttribute("WOBArmorHitbox") == true
+		or part:GetAttribute("ArmorZone") ~= nil
+		or (parent ~= nil and ARMOR_FOLDER_NAMES[parent.Name] == true)
+		or parent == root
+		or parent == testObjects
+		or parent == runtime
+end
+
+local function cleanupOrphanArmorZones(reason)
+	local registeredModels = getRegisteredTankModelSet()
+	local removed = 0
+
+	for _, instance in ipairs(root:GetDescendants()) do
+		if instance:IsA("Folder")
+			and ARMOR_FOLDER_NAMES[instance.Name] == true
+			and folderContainsArmorPart(instance)
+			and not isDescendantOfRegisteredTank(instance, registeredModels)
+			and not isDescendantOfWorkspaceTemplate(instance)
+		then
+			instance:Destroy()
+			removed += 1
+		end
+	end
+
+	for _, instance in ipairs(root:GetDescendants()) do
+		if looksLikeOrphanArmorPart(instance)
+			and not isDescendantOfRegisteredTank(instance, registeredModels)
+			and not isDescendantOfWorkspaceTemplate(instance)
+		then
+			instance:Destroy()
+			removed += 1
+		end
+	end
+
+	if removed > 0 then
+		print("[ARMOR CLEANUP] removed " .. tostring(removed) .. " orphan armor object(s) reason=" .. tostring(reason or "Runtime"))
+	end
+
+	return removed
+end
+
 -- Initialize Registry
 TankParticipantRegistry.init({
 	armorHitboxNames = { FrontArmor = true, RearArmor = true, LeftArmor = true, RightArmor = true },
@@ -166,22 +319,36 @@ TankParticipantRegistry.init({
 	},
 })
 
--- Startup static participants (IsActive=false, invisible until assigned).
--- TankIds use StartupParticipantIds so TankFactory runs GetTemplateForRole
--- (choosing BaseTankTemplate when present) instead of reusing the legacy
--- prototype model directly by name.
-local playerParticipant = spawnTankParticipant({
-	TankId = TankFactoryConfig.StartupParticipantIds.Player,
-	Role = TankRole.Player,
-	TeamId = "Player",
-	IsBot = false,
-	IsPlayerTank = true,
-	SpawnName = "PlayerSpawn",
-	IsActive = false,
-	StatsProfileId = TankStatsProfile.DuelNormalized,
-})
+-- Startup PvP/test participants are dev-only. Training keeps one hidden target
+-- participant because the current training loop expects a stable dummy.
+local playerParticipant = nil
+local player2Participant = nil
+
+if SPAWN_STARTUP_TEST_TANKS then
+	playerParticipant = spawnTankParticipant({
+		TankId = TankFactoryConfig.StartupParticipantIds.Player,
+		Role = TankRole.Player,
+		TeamId = "Player",
+		IsBot = false,
+		IsPlayerTank = true,
+		SpawnName = "PlayerSpawn",
+		IsActive = false,
+		StatsProfileId = TankStatsProfile.DuelNormalized,
+	})
+	player2Participant = spawnTankParticipant({
+		TankId = TankFactoryConfig.StartupParticipantIds.Player2,
+		Role = TankRole.DuelOpponent,
+		TeamId = "Player2",
+		IsBot = false,
+		IsPlayerTank = true,
+		SpawnName = "Player2Spawn",
+		IsActive = false,
+		StatsProfileId = TankStatsProfile.DuelNormalized,
+	})
+end
+
 local dummyParticipant = spawnTankParticipant({
-	TankId = TankFactoryConfig.StartupParticipantIds.Dummy,
+	TankId = (TankFactoryConfig.TrainingParticipantIds and TankFactoryConfig.TrainingParticipantIds.Dummy) or "Training_Dummy",
 	Role = TankRole.Dummy,
 	TeamId = "Dummy",
 	IsBot = true,
@@ -189,16 +356,6 @@ local dummyParticipant = spawnTankParticipant({
 	SpawnName = "DummySpawn",
 	IsActive = false,
 	StatsProfileId = TankStatsProfile.TrainingDummy,
-})
-local player2Participant = spawnTankParticipant({
-	TankId = TankFactoryConfig.StartupParticipantIds.Player2,
-	Role = TankRole.DuelOpponent,
-	TeamId = "Player2",
-	IsBot = false,
-	IsPlayerTank = true,
-	SpawnName = "Player2Spawn",
-	IsActive = false,
-	StatsProfileId = TankStatsProfile.DuelNormalized,
 })
 
 -- Setup Raycast Params
@@ -227,7 +384,7 @@ MatchStatsService.init(root)
 TankMovementService.init({
 	root = root,
 	map = map,
-	body = playerParticipant.Body,
+	body = (playerParticipant ~= nil and playerParticipant.Body) or (dummyParticipant ~= nil and dummyParticipant.Body) or nil,
 	tankModels = tankMovementIgnoredModels,
 	runtime = runtime,
 	tankMovementRaycastParams = tankMovementRaycastParams,
@@ -279,7 +436,24 @@ local function getOrCreatePlayerParticipantForPlayer(player)
 end
 
 -- Forward declarations for service inter-dependency
-local function getPlayerParticipant() return playerParticipant end
+local function getPlayerParticipant()
+	if playerParticipant ~= nil then
+		return playerParticipant
+	end
+
+	for _, participant in ipairs(TankParticipantRegistry.getPlayerParticipants()) do
+		if participant.OwnerPlayer ~= nil then
+			return participant
+		end
+	end
+
+	return nil
+end
+
+local function hasStaticDuelOpponentOwner()
+	return player2Participant ~= nil and player2Participant.OwnerPlayer ~= nil
+end
+
 local function normalizeAngleRadians(angle)
 	local fullTurn = math.pi * 2
 	return ((angle + math.pi) % fullTurn) - math.pi
@@ -294,6 +468,69 @@ local function moveAngleTowards(currentAngle, targetAngle, maxDelta)
 
 	local direction = delta >= 0 and 1 or -1
 	return currentAngle + direction * maxDelta
+end
+
+local function moveNumberTowards(currentValue, targetValue, maxDelta)
+	if math.abs(targetValue - currentValue) <= maxDelta then
+		return targetValue
+	end
+
+	return currentValue + (targetValue > currentValue and maxDelta or -maxDelta)
+end
+
+local function moveVectorTowards(currentValue, targetValue, maxDelta)
+	local delta = targetValue - currentValue
+
+	if delta.Magnitude <= maxDelta then
+		return targetValue
+	end
+
+	return currentValue + delta.Unit * maxDelta
+end
+
+local function getFlatUnitDirection(direction)
+	if typeof(direction) ~= "Vector3" then
+		return nil
+	end
+
+	local flatDirection = Vector3.new(direction.X, 0, direction.Z)
+
+	if flatDirection.Magnitude < 0.001 then
+		return nil
+	end
+
+	return flatDirection.Unit
+end
+
+local function applyShotRecoil(participant, shotDirection)
+	if participant == nil
+		or participant.OwnerPlayer == nil
+		or participant.ControlState == nil
+		or SHOT_RECOIL_IMPULSE <= 0
+	then
+		return
+	end
+
+	local flatDirection = getFlatUnitDirection(shotDirection)
+
+	if flatDirection == nil then
+		local bodyYaw = participant.ControlState.BodyYaw or 0
+		flatDirection = (CFrame.Angles(0, bodyYaw, 0)).LookVector
+	end
+
+	local currentRecoil = participant.ControlState.RecoilVelocity
+
+	if typeof(currentRecoil) ~= "Vector3" then
+		currentRecoil = Vector3.zero
+	end
+
+	local nextRecoil = currentRecoil - flatDirection * SHOT_RECOIL_IMPULSE
+
+	if SHOT_RECOIL_MAX_SPEED > 0 and nextRecoil.Magnitude > SHOT_RECOIL_MAX_SPEED then
+		nextRecoil = nextRecoil.Unit * SHOT_RECOIL_MAX_SPEED
+	end
+
+	participant.ControlState.RecoilVelocity = nextRecoil
 end
 
 local function getYawFromAimPosition(position, aimPosition, fallbackYaw)
@@ -514,6 +751,9 @@ ProjectileService.init(root, projectileFolder, vfxFolder, {
 	sendCombatFeedback = function(ftype, pos, text, color, audioOnly)
 		sendCombatFeedbackPayload(ftype, pos, text, color, audioOnly)
 	end,
+	onShotFired = function(participant, shotDirection)
+		applyShotRecoil(participant, shotDirection)
+	end,
 })
 
 -- Collect map targets for projectiles
@@ -572,9 +812,10 @@ RoundMatchService.init(root, {
 		local activeMatch = RoundMatchService.getActiveMatch()
 		TankSpawnResetService.configureActiveParticipants(
 			RoundMatchService.getMatchMode(),
-			player2Participant.OwnerPlayer ~= nil,
+			hasStaticDuelOpponentOwner(),
 			activeMatch ~= nil and activeMatch.Participants or nil
 		)
+		cleanupOrphanArmorZones("ConfigureParticipants")
 	end,
 	onRestoreColors = function() TankSpawnResetService.restoreAllTankColors() end,
 	onResetCombatAttributes = function()
@@ -596,7 +837,7 @@ RoundMatchService.init(root, {
 		LobbyService.onMatchEnded(activeMatch)
 	end,
 	getDefaultPlayerParticipant = function()
-		return playerParticipant
+		return getPlayerParticipant()
 	end,
 	getDefaultDuelOpponentParticipant = function()
 		return player2Participant
@@ -736,25 +977,44 @@ PlayerPossessionService.init({
 		local activeMatch = RoundMatchService.getActiveMatch()
 		TankSpawnResetService.configureActiveParticipants(
 			RoundMatchService.getMatchMode(),
-			player2Participant.OwnerPlayer ~= nil,
+			hasStaticDuelOpponentOwner(),
 			activeMatch ~= nil and activeMatch.Participants or nil
 		)
 	end,
 })
 
 -- Initial Setup
-TankSpawnResetService.captureTankColors(playerParticipant.TankId, playerParticipant.Model)
-TankSpawnResetService.captureTankColors(dummyParticipant.TankId, dummyParticipant.Model)
-TankSpawnResetService.captureTankColors(player2Participant.TankId, player2Participant.Model)
+local function captureParticipantColors(participant)
+	if participant ~= nil then
+		TankSpawnResetService.captureTankColors(participant.TankId, participant.Model)
+	end
+end
+
+local function applySpawnIfParticipant(participant, spawnTransform)
+	if participant ~= nil and spawnTransform ~= nil then
+		TankSpawnResetService.applySpawnToParticipant(participant, spawnTransform)
+	end
+end
+
+local function hideParticipantModel(participant)
+	if participant ~= nil then
+		TankParticipantRegistry.setParticipantModelVisible(participant, false)
+	end
+end
+
+captureParticipantColors(playerParticipant)
+captureParticipantColors(dummyParticipant)
+captureParticipantColors(player2Participant)
 
 local transforms = TankSpawnResetService.getAllSpawnTransforms()
-TankSpawnResetService.applySpawnToParticipant(playerParticipant, transforms.Player)
-TankSpawnResetService.applySpawnToParticipant(dummyParticipant, transforms.Dummy)
-TankSpawnResetService.applySpawnToParticipant(player2Participant, transforms.Player2)
-TankParticipantRegistry.setParticipantModelVisible(playerParticipant, false)
-TankParticipantRegistry.setParticipantModelVisible(dummyParticipant, false)
-TankParticipantRegistry.setParticipantModelVisible(player2Participant, false)
+applySpawnIfParticipant(playerParticipant, transforms.Player)
+applySpawnIfParticipant(dummyParticipant, transforms.Dummy)
+applySpawnIfParticipant(player2Participant, transforms.Player2)
+hideParticipantModel(playerParticipant)
+hideParticipantModel(dummyParticipant)
+hideParticipantModel(player2Participant)
 hideSceneDebugClutter()
+cleanupOrphanArmorZones("InitialSetup")
 
 local function handlePlayerAdded(player)
 	task.spawn(function()
@@ -943,45 +1203,80 @@ RunService.Heartbeat:Connect(function(deltaTime)
 
 	for _, p in ipairs(TankParticipantRegistry.getPlayerParticipants()) do
 		if p.OwnerPlayer and p.IsActive and p.ControlState and LobbyService.canParticipantDrive(p) then
-			local input = inputs[p.OwnerPlayer]
-			if input then
-				local state = p.ControlState
-				local currentBodyYaw = state.BodyYaw
-				local steeringInputForYaw = input.Steer
+			local state = p.ControlState
+			local fallbackAimDirection = (CFrame.Angles(0, state.TurretYaw or state.BodyYaw or 0, 0)).LookVector
+			local input = inputs[p.OwnerPlayer] or {
+				Throttle = 0,
+				Steer = 0,
+				AimPosition = state.Position + fallbackAimDirection * 20,
+			}
+			local currentBodyYaw = state.BodyYaw
+			local steeringInputForYaw = input.Steer
+			local throttle = math.clamp(tonumber(input.Throttle) or 0, -1, 1)
 
-				-- Reverse uses arcade car-style path control: A/D steer the backing path, not the tank nose.
-				if INVERT_STEERING_WHEN_REVERSING and input.Throttle < -REVERSE_STEERING_DEAD_ZONE then
-					steeringInputForYaw = -steeringInputForYaw
-				end
+			-- Reverse uses arcade car-style path control: A/D steer the backing path, not the tank nose.
+			if INVERT_STEERING_WHEN_REVERSING and throttle < -REVERSE_STEERING_DEAD_ZONE then
+				steeringInputForYaw = -steeringInputForYaw
+			end
 
-				local desiredBodyYaw = currentBodyYaw - steeringInputForYaw * TURN_SPEED * deltaTime
-				local arenaMoveSpeedMultiplier = 1
+			local targetTurnRate = -steeringInputForYaw * TURN_SPEED
+			local currentTurnRate = tonumber(state.CurrentTurnRate) or 0
+			local turnRate = math.abs(targetTurnRate) > 0.001 and TURN_ACCELERATION or TURN_DECELERATION
+			state.CurrentTurnRate = moveNumberTowards(currentTurnRate, targetTurnRate, turnRate * deltaTime)
+			local desiredBodyYaw = currentBodyYaw + state.CurrentTurnRate * deltaTime
+			local arenaMoveSpeedMultiplier = 1
 
-				if p.ParticipantState == LobbyService.MODE_IN_BATTLE_ARENA then
-					arenaMoveSpeedMultiplier = math.max(0.1, tonumber(p.ArenaMoveSpeedMultiplier) or 1)
-				end
+			if p.ParticipantState == LobbyService.MODE_IN_BATTLE_ARENA then
+				arenaMoveSpeedMultiplier = math.max(0.1, tonumber(p.ArenaMoveSpeedMultiplier) or 1)
+			end
 
-				local moveSpeed = MOVE_SPEED
-					* arenaMoveSpeedMultiplier
-					* (input.Throttle < 0 and REVERSE_MOVE_SPEED_MULTIPLIER or 1)
-				local desiredMove = (CFrame.Angles(0, desiredBodyYaw, 0).LookVector) * input.Throttle * moveSpeed * deltaTime
-				local resolvedPos, resolvedBodyYaw = TankMovementService.resolveTankPose(
-					state.Position,
-					currentBodyYaw,
-					desiredMove,
-					desiredBodyYaw,
-					{ TankId = p.TankId }
-				)
-				state.Position = resolvedPos
-				state.BodyYaw = resolvedBodyYaw
-				local targetTurretYaw = getYawFromAimPosition(state.Position, input.AimPosition, state.TurretYaw)
-				state.TurretYaw = moveAngleTowards(state.TurretYaw, targetTurretYaw, TURRET_TURN_SPEED * deltaTime)
-				TankSpawnResetService.layoutTank(p.Model, state.Position, state.BodyYaw, state.TurretYaw)
+			local targetMaxSpeed = throttle < 0 and REVERSE_MAX_SPEED or MAX_SPEED
+			local targetSpeed = throttle * targetMaxSpeed * arenaMoveSpeedMultiplier
+			local currentSpeed = tonumber(state.CurrentSpeed) or 0
+			local speedRate = DECELERATION
 
-				if shouldLogApply then
-					print(string.format("[SERVER] input applied to %s", p.TankId))
+			if math.abs(throttle) > 0.001 then
+				speedRate = throttle < 0 and REVERSE_ACCELERATION or ACCELERATION
+
+				if currentSpeed ~= 0 and (currentSpeed > 0) ~= (targetSpeed > 0) then
+					speedRate = DECELERATION + speedRate
 				end
 			end
+
+			state.CurrentSpeed = moveNumberTowards(currentSpeed, targetSpeed, speedRate * deltaTime)
+
+			local recoilVelocity = state.RecoilVelocity
+			if typeof(recoilVelocity) ~= "Vector3" then
+				recoilVelocity = Vector3.zero
+			end
+
+			local recoilMove = recoilVelocity * deltaTime
+			state.RecoilVelocity = SHOT_RECOIL_DAMPING > 0
+				and moveVectorTowards(recoilVelocity, Vector3.zero, SHOT_RECOIL_DAMPING * deltaTime)
+				or Vector3.zero
+
+			local desiredMove = (CFrame.Angles(0, desiredBodyYaw, 0).LookVector) * state.CurrentSpeed * deltaTime
+				+ recoilMove
+			local resolvedPos, resolvedBodyYaw = TankMovementService.resolveTankPose(
+				state.Position,
+				currentBodyYaw,
+				desiredMove,
+				desiredBodyYaw,
+				{ TankId = p.TankId }
+			)
+			state.Position = resolvedPos
+			state.BodyYaw = resolvedBodyYaw
+			local targetTurretYaw = getYawFromAimPosition(state.Position, input.AimPosition, state.TurretYaw)
+			state.TurretYaw = moveAngleTowards(state.TurretYaw, targetTurretYaw, TURRET_TURN_SPEED * deltaTime)
+			TankSpawnResetService.layoutTank(p.Model, state.Position, state.BodyYaw, state.TurretYaw)
+
+			if shouldLogApply then
+				print(string.format("[SERVER] input applied to %s", p.TankId))
+			end
+		elseif p.ControlState ~= nil then
+			p.ControlState.CurrentSpeed = 0
+			p.ControlState.CurrentTurnRate = 0
+			p.ControlState.RecoilVelocity = Vector3.zero
 		end
 	end
 
