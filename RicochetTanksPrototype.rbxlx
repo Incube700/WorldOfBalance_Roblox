@@ -107,27 +107,27 @@
 		<Item class="Camera" referent="RBXc1464cbc5d44410fbc4ee16ffc5ee710">
 			<Properties>
 				<CoordinateFrame name="CFrame">
-					<X>35.560894</X>
-					<Y>237.214066</Y>
-					<Z>94.5407181</Z>
-					<R00>0.673168838</R00>
-					<R01>-0.595971465</R01>
-					<R02>0.437791884</R02>
-					<R10>-1.49011594e-08</R10>
-					<R11>0.592019558</R11>
-					<R12>0.805923581</R12>
-					<R20>-0.73948884</R20>
-					<R21>-0.542522669</R21>
-					<R22>0.398529112</R22>
+					<X>94.524353</X>
+					<Y>250.844803</Y>
+					<Z>-37.282402</Z>
+					<R00>-0.999985456</R00>
+					<R01>-0.00420891866</R01>
+					<R02>0.00337219355</R02>
+					<R10>-0</R10>
+					<R11>0.62526679</R11>
+					<R12>0.780411065</R12>
+					<R20>-0.00539320707</R20>
+					<R21>0.78039974</R21>
+					<R22>-0.62525773</R22>
 				</CoordinateFrame>
 				<Ref name="CameraSubject">null</Ref>
 				<token name="CameraType">0</token>
 				<float name="FieldOfView">70</float>
 				<token name="FieldOfViewMode">0</token>
 				<CoordinateFrame name="Focus">
-					<X>34.6853104</X>
-					<Y>235.602219</Y>
-					<Z>93.74366</Z>
+					<X>94.5176086</X>
+					<Y>249.283981</Y>
+					<Z>-36.0318871</Z>
 					<R00>1</R00>
 					<R01>0</R01>
 					<R02>0</R02>
@@ -19638,6 +19638,7 @@ local hudModules = script.Parent:WaitForChild("Hud")
 local HudDeviceUtils = require(hudModules:WaitForChild("HudDeviceUtils"))
 local HudVisibilityRules = require(hudModules:WaitForChild("HudVisibilityRules"))
 local CompactStatsFormatter = require(hudModules:WaitForChild("CompactStatsFormatter"))
+local BattleArenaUpgradeHud = require(hudModules:WaitForChild("BattleArenaUpgradeHud"))
 
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local returnToMenuRequestEvent = remotes:WaitForChild("ReturnToMenuRequestEvent")
@@ -19996,213 +19997,27 @@ deathReturnButton.Size = UDim2.new(0.64, 0, 0, 38)
 deathReturnButton.Parent = deathPanel
 styleButton(deathReturnButton)
 
--- Upgrade offer panel ----------------------------------------------------------
-local upgradeOfferPanel = makePanel(
-	"UpgradeOfferPanel",
-	UDim2.new(0.5, -190, 0, 106),
-	UDim2.fromOffset(380, 260)
-)
-upgradeOfferPanel.AnchorPoint = Vector2.new(0.5, 0)
-upgradeOfferPanel.Visible = false
-upgradeOfferPanel.Active = false
-upgradeOfferPanel.ZIndex = POPUP_Z_INDEX
+local upgradeHud
+upgradeHud = BattleArenaUpgradeHud.new({
+	Parent = screenGui,
+	ZIndex = POPUP_Z_INDEX,
+	OnChoiceSelected = function(upgradeId)
+		if currentUpgradeOffer == nil then
+			return
+		end
 
-local upgradeOfferTitle = makeLabel(
-	upgradeOfferPanel,
-	"UpgradeOfferTitle",
-	UDim2.new(0, 14, 0, 10),
-	UDim2.new(1, -28, 0, 26),
-	16,
-	Enum.Font.GothamBlack
-)
-upgradeOfferTitle.Text = "Choose Upgrade"
-upgradeOfferTitle.TextColor3 = Color3.fromRGB(250, 204, 21)
-upgradeOfferTitle.TextXAlignment = Enum.TextXAlignment.Center
+		if typeof(upgradeId) ~= "string" or upgradeId == "" then
+			return
+		end
 
-local upgradeOfferSubtitle = makeLabel(
-	upgradeOfferPanel,
-	"UpgradeOfferSubtitle",
-	UDim2.new(0, 14, 0, 36),
-	UDim2.new(1, -28, 0, 20),
-	12,
-	Enum.Font.GothamMedium
-)
-upgradeOfferSubtitle.Text = "Run upgrade"
-upgradeOfferSubtitle.TextColor3 = Color3.fromRGB(178, 238, 205)
-upgradeOfferSubtitle.TextXAlignment = Enum.TextXAlignment.Center
-
--- Part 1: Card-based upgrade choices.
--- Each entry: { Card=Frame, Icon=TextLabel, Title=TextLabel, Effect=TextLabel, Button=TextButton }
-local upgradeCards = {}
-
-for index = 1, 3 do
-	local card = Instance.new("Frame")
-	card.Name = "UpgradeCard" .. tostring(index)
-	card.BackgroundColor3 = Color3.fromRGB(20, 26, 34)
-	card.BackgroundTransparency = 0.08
-	card.BorderSizePixel = 0
-	card.ZIndex = POPUP_Z_INDEX + 1
-	card.Parent = upgradeOfferPanel
-	addCorner(card, UDim.new(0, 6))
-	addStroke(card, Color3.fromRGB(250, 204, 21), 0.55, 1)
-
-	local iconLabel = Instance.new("TextLabel")
-	iconLabel.Name = "Icon"
-	iconLabel.BackgroundTransparency = 1
-	iconLabel.BorderSizePixel = 0
-	iconLabel.Font = Enum.Font.GothamBold
-	iconLabel.Text = "★"
-	iconLabel.TextColor3 = Color3.fromRGB(241, 255, 248)
-	iconLabel.TextSize = 22
-	iconLabel.TextXAlignment = Enum.TextXAlignment.Center
-	iconLabel.TextYAlignment = Enum.TextYAlignment.Center
-	iconLabel.ZIndex = POPUP_Z_INDEX + 2
-	iconLabel.Parent = card
-
-	local titleLabel = Instance.new("TextLabel")
-	titleLabel.Name = "Title"
-	titleLabel.BackgroundTransparency = 1
-	titleLabel.BorderSizePixel = 0
-	titleLabel.Font = Enum.Font.GothamBold
-	titleLabel.Text = ""
-	titleLabel.TextColor3 = Color3.fromRGB(250, 204, 21)
-	titleLabel.TextSize = 14
-	titleLabel.TextWrapped = false
-	titleLabel.TextTruncate = Enum.TextTruncate.AtEnd
-	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-	titleLabel.TextYAlignment = Enum.TextYAlignment.Center
-	titleLabel.ZIndex = POPUP_Z_INDEX + 2
-	titleLabel.Parent = card
-
-	local effectLabel = Instance.new("TextLabel")
-	effectLabel.Name = "Effect"
-	effectLabel.BackgroundTransparency = 1
-	effectLabel.BorderSizePixel = 0
-	effectLabel.Font = Enum.Font.GothamMedium
-	effectLabel.Text = ""
-	effectLabel.TextColor3 = Color3.fromRGB(178, 238, 205)
-	effectLabel.TextSize = 11
-	effectLabel.TextWrapped = false
-	effectLabel.TextTruncate = Enum.TextTruncate.AtEnd
-	effectLabel.TextXAlignment = Enum.TextXAlignment.Left
-	effectLabel.TextYAlignment = Enum.TextYAlignment.Center
-	effectLabel.ZIndex = POPUP_Z_INDEX + 2
-	effectLabel.Parent = card
-
-	-- Transparent full-card button for tap/click detection
-	local clickButton = Instance.new("TextButton")
-	clickButton.Name = "ClickButton"
-	clickButton.Position = UDim2.fromScale(0, 0)
-	clickButton.Size = UDim2.fromScale(1, 1)
-	clickButton.BackgroundTransparency = 1
-	clickButton.BorderSizePixel = 0
-	clickButton.Text = ""
-	clickButton.AutoButtonColor = false
-	clickButton.Active = true
-	clickButton.ZIndex = POPUP_Z_INDEX + 3
-	clickButton.Parent = card
-
-	table.insert(upgradeCards, {
-		Card = card,
-		Icon = iconLabel,
-		Title = titleLabel,
-		Effect = effectLabel,
-		Button = clickButton,
-	})
-end
-
--- Part 2: Active upgrade icon strip.
--- Shows up to 5 emoji icons from ArenaUpgradeIds, +N for overflow.
-local UPGRADE_ICON_SLOT_COUNT = 5
-
-local upgradeIconStrip = Instance.new("Frame")
-upgradeIconStrip.Name = "UpgradeIconStrip"
-upgradeIconStrip.BackgroundTransparency = 1
-upgradeIconStrip.BorderSizePixel = 0
-upgradeIconStrip.ZIndex = PANEL_Z_INDEX + 1
-upgradeIconStrip.Visible = false
-upgradeIconStrip.Parent = screenGui
-
-local upgradeIconSlots = {}
-
-for i = 1, UPGRADE_ICON_SLOT_COUNT do
-	local slot = Instance.new("TextLabel")
-	slot.Name = "Slot" .. tostring(i)
-	slot.BackgroundColor3 = Color3.fromRGB(20, 28, 38)
-	slot.BackgroundTransparency = 0.22
-	slot.BorderSizePixel = 0
-	slot.Font = Enum.Font.GothamBold
-	slot.Text = "★"
-	slot.TextColor3 = Color3.fromRGB(241, 255, 248)
-	slot.TextSize = 16
-	slot.TextXAlignment = Enum.TextXAlignment.Center
-	slot.TextYAlignment = Enum.TextYAlignment.Center
-	slot.Visible = false
-	slot.ZIndex = PANEL_Z_INDEX + 2
-	slot.Parent = upgradeIconStrip
-	addCorner(slot, UDim.new(0, 5))
-	addStroke(slot, Color3.fromRGB(250, 204, 21), 0.55, 1)
-	table.insert(upgradeIconSlots, slot)
-end
-
-local upgradeIconOverflow = Instance.new("TextLabel")
-upgradeIconOverflow.Name = "Overflow"
-upgradeIconOverflow.BackgroundColor3 = Color3.fromRGB(20, 28, 38)
-upgradeIconOverflow.BackgroundTransparency = 0.22
-upgradeIconOverflow.BorderSizePixel = 0
-upgradeIconOverflow.Font = Enum.Font.GothamBold
-upgradeIconOverflow.Text = "+0"
-upgradeIconOverflow.TextColor3 = Color3.fromRGB(178, 238, 205)
-upgradeIconOverflow.TextSize = 12
-upgradeIconOverflow.TextXAlignment = Enum.TextXAlignment.Center
-upgradeIconOverflow.TextYAlignment = Enum.TextYAlignment.Center
-upgradeIconOverflow.Visible = false
-upgradeIconOverflow.ZIndex = PANEL_Z_INDEX + 2
-upgradeIconOverflow.Parent = upgradeIconStrip
-addCorner(upgradeIconOverflow, UDim.new(0, 5))
-
--- Helper: map upgrade id → emoji icon
-local function getUpgradeIcon(upgradeId)
-	if typeof(upgradeId) ~= "string" then
-		return "★"
-	end
-
-	local lower = string.lower(upgradeId)
-
-	if string.find(lower, "firerate") or string.find(lower, "fire_rate") or string.find(lower, "reload") then
-		return "⚡"
-	elseif string.find(lower, "damage") then
-		return "💥"
-	elseif string.find(lower, "ricochet") or string.find(lower, "bounce") then
-		return "🔁"
-	elseif string.find(lower, "repair") or string.find(lower, "armor") or string.find(lower, "hp") then
-		return "🛡"
-	elseif string.find(lower, "speed") or string.find(lower, "turbo") or string.find(lower, "move") then
-		return "🏎"
-	elseif string.find(lower, "shield") then
-		return "🔵"
-	elseif string.find(lower, "triple") or string.find(lower, "double") or string.find(lower, "explosion") or string.find(lower, "bigboom") then
-		return "🔥"
-	elseif string.find(lower, "bolt") or string.find(lower, "reward") or string.find(lower, "magnet") then
-		return "🧲"
-	else
-		return "★"
-	end
-end
-
--- Helper: set icon strip slot sizes/positions after strip anchor/position is set
-local function layoutIconStrip(slotSize, gap)
-	for i, slot in ipairs(upgradeIconSlots) do
-		slot.Position = UDim2.fromOffset((i - 1) * (slotSize + gap), 0)
-		slot.Size = UDim2.fromOffset(slotSize, slotSize)
-		slot.TextSize = math.max(12, math.floor(slotSize * 0.52))
-	end
-
-	local overflowX = UPGRADE_ICON_SLOT_COUNT * (slotSize + gap)
-	upgradeIconOverflow.Position = UDim2.fromOffset(overflowX, 0)
-	upgradeIconOverflow.Size = UDim2.fromOffset(math.floor(slotSize * 1.25), slotSize)
-	upgradeIconOverflow.TextSize = math.max(10, math.floor(slotSize * 0.38))
-end
+		upgradeChoiceEvent:FireServer({
+			OfferId = currentUpgradeOffer.OfferId,
+			UpgradeId = upgradeId,
+		})
+		currentUpgradeOffer = nil
+		upgradeHud:SetOffer(nil)
+	end,
+})
 
 local function isArenaMode()
 	local mode = localPlayer:GetAttribute("PlayerMode")
@@ -20329,32 +20144,12 @@ local function applyDesktopLayout()
 	deathReturnButton.Position = UDim2.new(0.18, 0, 1, -52)
 	deathReturnButton.Size = UDim2.new(0.64, 0, 0, 38)
 
-	-- Upgrade panel: 3 cards × 58 px + spacing, total 260 px
-	upgradeOfferPanel.Position = UDim2.new(0.5, 0, 0, 106)
-	upgradeOfferPanel.Size = UDim2.fromOffset(380, 260)
-	setTextLayout(upgradeOfferTitle, UDim2.new(0, 14, 0, 10), UDim2.new(1, -28, 0, 26), 16)
-	setTextLayout(upgradeOfferSubtitle, UDim2.new(0, 14, 0, 36), UDim2.new(1, -28, 0, 20), 12)
-
-	local cardH, cardGap, cardStart = 58, 6, 62
-	for index, entry in ipairs(upgradeCards) do
-		entry.Card.Position = UDim2.new(0, 14, 0, cardStart + (index - 1) * (cardH + cardGap))
-		entry.Card.Size = UDim2.fromOffset(380 - 28, cardH)
-		entry.Icon.Position = UDim2.fromOffset(0, 0)
-		entry.Icon.Size = UDim2.fromOffset(50, cardH)
-		entry.Icon.TextSize = 22
-		entry.Title.Position = UDim2.new(0, 54, 0, 4)
-		entry.Title.Size = UDim2.new(1, -58, 0, 26)
-		entry.Title.TextSize = 14
-		entry.Effect.Position = UDim2.new(0, 54, 0, 30)
-		entry.Effect.Size = UDim2.new(1, -58, 0, 22)
-		entry.Effect.TextSize = 11
-	end
-
-	-- Icon strip: right-aligned below score panel (scorePanel top=18, height=154 → bottom at 172)
-	upgradeIconStrip.AnchorPoint = Vector2.new(1, 0)
-	upgradeIconStrip.Position = UDim2.new(1, -22, 0, 182)
-	upgradeIconStrip.Size = UDim2.fromOffset(250, 34)
-	layoutIconStrip(30, 4)
+	local camera = Workspace.CurrentCamera
+	local viewportSize = camera ~= nil and camera.ViewportSize or Vector2.new(1024, 768)
+	upgradeHud:SetLayout({
+		IsMobile = false,
+		ViewportSize = viewportSize,
+	})
 end
 
 local function applyMobileLayout(viewportSize)
@@ -20428,35 +20223,10 @@ local function applyMobileLayout(viewportSize)
 	deathReturnButton.Position = UDim2.new(0.15, 0, 1, -42)
 	deathReturnButton.Size = UDim2.new(0.7, 0, 0, 32)
 
-	-- Upgrade panel: top-center (y=138), 3 cards × 64 px + spacing, total 270 px.
-	-- Bottom of panel ≈ y=408, well above bottom-left (Move/REV) and bottom-right (Aim/Fire) controls.
-	local panelW = math.min(320, viewportSize.X - 24)
-	upgradeOfferPanel.Position = UDim2.new(0.5, 0, 0, 138)
-	upgradeOfferPanel.Size = UDim2.fromOffset(panelW, 270)
-	setTextLayout(upgradeOfferTitle, UDim2.new(0, 12, 0, 8), UDim2.new(1, -24, 0, 24), 14)
-	setTextLayout(upgradeOfferSubtitle, UDim2.new(0, 12, 0, 32), UDim2.new(1, -24, 0, 18), 11)
-
-	local mCardH, mCardGap, mCardStart = 64, 6, 56
-	for index, entry in ipairs(upgradeCards) do
-		entry.Card.Position = UDim2.new(0, 12, 0, mCardStart + (index - 1) * (mCardH + mCardGap))
-		entry.Card.Size = UDim2.fromOffset(panelW - 24, mCardH)
-		entry.Icon.Position = UDim2.fromOffset(0, 0)
-		entry.Icon.Size = UDim2.fromOffset(52, mCardH)
-		entry.Icon.TextSize = 24
-		entry.Title.Position = UDim2.new(0, 56, 0, 6)
-		entry.Title.Size = UDim2.new(1, -60, 0, 28)
-		entry.Title.TextSize = 15
-		entry.Effect.Position = UDim2.new(0, 56, 0, 34)
-		entry.Effect.Size = UDim2.new(1, -60, 0, 24)
-		entry.Effect.TextSize = 12
-	end
-
-	-- Icon strip: bottom-center, 90 px from bottom.
-	-- Centered in the safe zone between left and right control clusters.
-	upgradeIconStrip.AnchorPoint = Vector2.new(0.5, 1)
-	upgradeIconStrip.Position = UDim2.new(0.5, 0, 1, -90)
-	upgradeIconStrip.Size = UDim2.fromOffset(244, 40)
-	layoutIconStrip(36, 4)
+	upgradeHud:SetLayout({
+		IsMobile = true,
+		ViewportSize = viewportSize,
+	})
 end
 
 local function updateLayout()
@@ -20541,79 +20311,6 @@ local function getVisibleCrystals()
 	return math.max(0, math.floor(tonumber(localPlayer:GetAttribute(UNSAVED_CRYSTALS_ATTRIBUTE)) or 0))
 end
 
-local function updateUpgradeOfferPanel()
-	local offer = currentUpgradeOffer
-	local choices = offer ~= nil and offer.Choices or {}
-
-	upgradeOfferPanel.Visible = isArenaMode() and offer ~= nil and #choices > 0
-
-	if not upgradeOfferPanel.Visible then
-		return
-	end
-
-	local source = tostring(offer.Source or "LevelUp")
-	local arenaLevel = tonumber(offer.ArenaLevel) or tonumber(localPlayer:GetAttribute("ArenaLevel")) or 1
-	upgradeOfferTitle.Text = source == "SupplyCrate" and "Supply Crate" or "Level Up"
-	upgradeOfferSubtitle.Text = "Arena Level " .. tostring(math.floor(arenaLevel)) .. " upgrade"
-
-	for index, entry in ipairs(upgradeCards) do
-		local choice = choices[index]
-
-		if choice ~= nil then
-			local choiceId = tostring(choice.Id or "")
-			local choiceTitle = tostring(choice.Title or choice.Id or "Upgrade")
-			local choiceEffect = tostring(choice.Description or "")
-			entry.Card.Visible = true
-			entry.Icon.Text = getUpgradeIcon(choiceId)
-			entry.Title.Text = choiceTitle
-			entry.Effect.Text = choiceEffect
-			entry.Button:SetAttribute("UpgradeId", choiceId)
-		else
-			entry.Card.Visible = false
-			entry.Title.Text = ""
-			entry.Effect.Text = ""
-			entry.Button:SetAttribute("UpgradeId", nil)
-		end
-	end
-end
-
-local function updateUpgradeIconStrip()
-	local upgradeIds = tostring(localPlayer:GetAttribute("ArenaUpgradeIds") or "")
-	local ids = {}
-
-	if upgradeIds ~= "" then
-		for id in string.gmatch(upgradeIds, "[^,]+") do
-			table.insert(ids, id)
-		end
-	end
-
-	local visible = isArenaMode() and #ids > 0
-	upgradeIconStrip.Visible = visible
-
-	if not visible then
-		return
-	end
-
-	local displayCount = math.min(#ids, UPGRADE_ICON_SLOT_COUNT)
-	local overflow = #ids - displayCount
-
-	for i, slot in ipairs(upgradeIconSlots) do
-		if i <= displayCount then
-			slot.Text = getUpgradeIcon(ids[i])
-			slot.Visible = true
-		else
-			slot.Visible = false
-		end
-	end
-
-	if overflow > 0 then
-		upgradeIconOverflow.Text = "+" .. tostring(overflow)
-		upgradeIconOverflow.Visible = true
-	else
-		upgradeIconOverflow.Visible = false
-	end
-end
-
 local function updateHealth(ownedTank, mobileLayout)
 	local health, maxHealth = getOwnedTankHealth(ownedTank)
 	local normalizedHealth = clamp01(health / math.max(1, maxHealth))
@@ -20637,8 +20334,8 @@ local function updateOverlay()
 
 	if not visible then
 		setMenuPopupOpen(false)
-		upgradeOfferPanel.Visible = false
-		upgradeIconStrip.Visible = false
+		upgradeHud:SetVisible(false)
+		upgradeHud:SetOffer(nil)
 		return
 	end
 
@@ -20699,8 +20396,9 @@ local function updateOverlay()
 	end
 
 	updateHealth(ownedTank, mobileLayout)
-	updateUpgradeOfferPanel()
-	updateUpgradeIconStrip()
+	upgradeHud:SetVisible(true)
+	upgradeHud:SetOffer(currentUpgradeOffer)
+	upgradeHud:SetActiveUpgradeIds(upgrades)
 
 	local mode = localPlayer:GetAttribute("PlayerMode")
 	local isDead = mode == MODE_ARENA_RESPAWNING
@@ -20737,36 +20435,13 @@ end)
 popupReturnButton.Activated:Connect(requestReturnToLobby)
 deathReturnButton.Activated:Connect(requestReturnToLobby)
 
-for _, entry in ipairs(upgradeCards) do
-	local clickButton = entry.Button
-	clickButton.Activated:Connect(function()
-		if currentUpgradeOffer == nil then
-			return
-		end
-
-		local upgradeId = clickButton:GetAttribute("UpgradeId")
-
-		if typeof(upgradeId) ~= "string" or upgradeId == "" then
-			return
-		end
-
-		upgradeChoiceEvent:FireServer({
-			OfferId = currentUpgradeOffer.OfferId,
-			UpgradeId = upgradeId,
-		})
-		currentUpgradeOffer = nil
-		updateUpgradeOfferPanel()
-	end)
-end
-
 upgradeChoiceEvent.OnClientEvent:Connect(function(payload)
 	if typeof(payload) ~= "table" or typeof(payload.OfferId) ~= "string" then
 		return
 	end
 
 	currentUpgradeOffer = payload
-	updateLayout()
-	updateUpgradeOfferPanel()
+	updateOverlay()
 end)
 
 localPlayer:GetAttributeChangedSignal("PlayerMode"):Connect(updateOverlay)
@@ -23300,6 +22975,545 @@ return HudVisibilityRules
 							<int64 name="SourceAssetId">-1</int64>
 							<BinaryString name="Tags"></BinaryString>
 							<UniqueId name="UniqueId">26a304254af295c10a1efee200004a04</UniqueId>
+						</Properties>
+					</Item>
+					<Item class="ModuleScript" referent="RBXed5b3471f63e4d21b587baa06b186eca">
+						<Properties>
+							<Content name="LinkedSource"><null></null></Content>
+							<ProtectedString name="Source"><![CDATA[local BattleArenaUpgradeHud = {}
+BattleArenaUpgradeHud.__index = BattleArenaUpgradeHud
+
+local UPGRADE_ICON_SLOT_COUNT = 5
+
+local function addCorner(parent, radius)
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = radius
+	corner.Parent = parent
+
+	return corner
+end
+
+local function addStroke(parent, color, transparency, thickness)
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = color
+	stroke.Transparency = transparency
+	stroke.Thickness = thickness
+	stroke.Parent = parent
+
+	return stroke
+end
+
+local function makeLabel(parent, name, textSize, font, zIndex)
+	local label = Instance.new("TextLabel")
+	label.Name = name
+	label.BackgroundTransparency = 1
+	label.BorderSizePixel = 0
+	label.Font = font or Enum.Font.GothamBold
+	label.Text = ""
+	label.TextColor3 = Color3.fromRGB(241, 255, 248)
+	label.TextSize = textSize
+	label.TextWrapped = false
+	label.TextTruncate = Enum.TextTruncate.AtEnd
+	label.TextXAlignment = Enum.TextXAlignment.Center
+	label.TextYAlignment = Enum.TextYAlignment.Center
+	label.ZIndex = zIndex
+	label.Parent = parent
+
+	return label
+end
+
+local function splitUpgradeIds(upgradeIds)
+	local ids = {}
+
+	if typeof(upgradeIds) ~= "string" or upgradeIds == "" then
+		return ids
+	end
+
+	for id in string.gmatch(upgradeIds, "[^,]+") do
+		local trimmed = string.gsub(id, "^%s*(.-)%s*$", "%1")
+
+		if trimmed ~= "" then
+			table.insert(ids, trimmed)
+		end
+	end
+
+	return ids
+end
+
+local function getUpgradeIcon(upgradeId)
+	if typeof(upgradeId) ~= "string" then
+		return "★"
+	end
+
+	local lower = string.lower(upgradeId)
+
+	if string.find(lower, "firerate") or string.find(lower, "fire_rate") or string.find(lower, "reload") then
+		return "⚡"
+	elseif string.find(lower, "damage") or string.find(lower, "heavy") then
+		return "💥"
+	elseif string.find(lower, "ricochet") or string.find(lower, "bounce") then
+		return "🔁"
+	elseif string.find(lower, "repair") or string.find(lower, "armor") or string.find(lower, "hp") or string.find(lower, "health") then
+		return "🛡"
+	elseif string.find(lower, "speed") or string.find(lower, "turbo") or string.find(lower, "move") then
+		return "🏎"
+	elseif string.find(lower, "shield") then
+		return "🔵"
+	elseif string.find(lower, "triple") or string.find(lower, "double") or string.find(lower, "explosion") or string.find(lower, "bigboom") then
+		return "🔥"
+	elseif string.find(lower, "bolt") or string.find(lower, "reward") or string.find(lower, "magnet") then
+		return "🧲"
+	else
+		return "★"
+	end
+end
+
+local function getShortUpgradeTitle(choice)
+	local title = tostring(choice.Title or choice.Id or "UPG")
+	title = string.upper(title)
+
+	local replacements = {
+		["FIRE RATE"] = "RELOAD",
+		["FIRERATE"] = "RELOAD",
+		["DAMAGE UP"] = "DAMAGE",
+		["PROJECTILE DAMAGE"] = "DAMAGE",
+		["RICOCHET"] = "BOUNCE",
+		["REPAIR"] = "REPAIR",
+		["ARMOR"] = "ARMOR",
+		["SPEED"] = "SPEED",
+		["TURBO"] = "TURBO",
+	}
+
+	for pattern, replacement in pairs(replacements) do
+		if string.find(title, pattern) then
+			return replacement
+		end
+	end
+
+	if #title > 8 then
+		return string.sub(title, 1, 8)
+	end
+
+	return title
+end
+
+local function getDescription(choice)
+	local description = tostring(choice.Description or "")
+
+	if description == "" then
+		return tostring(choice.Id or "Run upgrade")
+	end
+
+	return description
+end
+
+function BattleArenaUpgradeHud.new(params)
+	assert(typeof(params) == "table", "BattleArenaUpgradeHud.new requires params")
+	assert(params.Parent ~= nil, "BattleArenaUpgradeHud.new requires params.Parent")
+
+	local self = setmetatable({}, BattleArenaUpgradeHud)
+
+	self._parent = params.Parent
+	self._zIndex = tonumber(params.ZIndex) or 30
+	self._onChoiceSelected = params.OnChoiceSelected
+	self._visible = true
+	self._isMobile = false
+	self._viewportSize = Vector2.new(1024, 768)
+	self._offer = nil
+	self._activeUpgradeIds = ""
+
+	self:_createRoot()
+	self:_createOfferPanel()
+	self:_createIconStrip()
+	self:SetLayout({
+		IsMobile = false,
+		ViewportSize = self._viewportSize,
+	})
+	self:_render()
+
+	return self
+end
+
+function BattleArenaUpgradeHud:_createRoot()
+	local root = Instance.new("Frame")
+	root.Name = "BattleArenaUpgradeHud"
+	root.BackgroundTransparency = 1
+	root.BorderSizePixel = 0
+	root.Position = UDim2.fromScale(0, 0)
+	root.Size = UDim2.fromScale(1, 1)
+	root.Active = false
+	root.ZIndex = self._zIndex
+	root.Parent = self._parent
+
+	self._root = root
+end
+
+function BattleArenaUpgradeHud:_createOfferPanel()
+	local panel = Instance.new("Frame")
+	panel.Name = "UpgradeChoiceBelt"
+	panel.BackgroundColor3 = Color3.fromRGB(13, 17, 23)
+	panel.BackgroundTransparency = 0.08
+	panel.BorderSizePixel = 0
+	panel.Visible = false
+	panel.Active = false
+	panel.ZIndex = self._zIndex
+	panel.Parent = self._root
+	addCorner(panel, UDim.new(0, 8))
+	addStroke(panel, Color3.fromRGB(250, 204, 21), 0.3, 1)
+
+	local title = makeLabel(panel, "Title", 14, Enum.Font.GothamBlack, self._zIndex + 1)
+	title.Text = "LEVEL UP"
+	title.TextColor3 = Color3.fromRGB(250, 204, 21)
+
+	local subtitle = makeLabel(panel, "Subtitle", 11, Enum.Font.GothamMedium, self._zIndex + 1)
+	subtitle.Text = ""
+	subtitle.TextColor3 = Color3.fromRGB(178, 238, 205)
+
+	self._offerPanel = panel
+	self._title = title
+	self._subtitle = subtitle
+	self._choiceCards = {}
+
+	for index = 1, 3 do
+		local card = Instance.new("Frame")
+		card.Name = "Choice" .. tostring(index)
+		card.BackgroundColor3 = Color3.fromRGB(20, 26, 34)
+		card.BackgroundTransparency = 0.06
+		card.BorderSizePixel = 0
+		card.Visible = false
+		card.ZIndex = self._zIndex + 1
+		card.Parent = panel
+		addCorner(card, UDim.new(0, 7))
+		addStroke(card, Color3.fromRGB(249, 115, 22), 0.42, 1)
+
+		local icon = makeLabel(card, "Icon", 24, Enum.Font.GothamBold, self._zIndex + 2)
+		icon.Text = "★"
+
+		local name = makeLabel(card, "Name", 10, Enum.Font.GothamBold, self._zIndex + 2)
+		name.Text = "UPG"
+		name.TextColor3 = Color3.fromRGB(241, 255, 248)
+
+		local effect = makeLabel(card, "Effect", 11, Enum.Font.GothamMedium, self._zIndex + 2)
+		effect.Text = ""
+		effect.TextColor3 = Color3.fromRGB(178, 238, 205)
+		effect.TextXAlignment = Enum.TextXAlignment.Left
+
+		local button = Instance.new("TextButton")
+		button.Name = "Button"
+		button.BackgroundTransparency = 1
+		button.BorderSizePixel = 0
+		button.Text = ""
+		button.AutoButtonColor = false
+		button.Active = true
+		button.ZIndex = self._zIndex + 3
+		button.Parent = card
+
+		local entry = {
+			Card = card,
+			Icon = icon,
+			Name = name,
+			Effect = effect,
+			Button = button,
+			UpgradeId = nil,
+		}
+
+		button.Activated:Connect(function()
+			if typeof(entry.UpgradeId) ~= "string" or entry.UpgradeId == "" then
+				return
+			end
+
+			if self._onChoiceSelected ~= nil then
+				self._onChoiceSelected(entry.UpgradeId)
+			end
+		end)
+
+		table.insert(self._choiceCards, entry)
+	end
+end
+
+function BattleArenaUpgradeHud:_createIconStrip()
+	local strip = Instance.new("Frame")
+	strip.Name = "ActiveUpgradeIconStrip"
+	strip.BackgroundTransparency = 1
+	strip.BorderSizePixel = 0
+	strip.Visible = false
+	strip.ZIndex = self._zIndex - 1
+	strip.Parent = self._root
+
+	self._iconStrip = strip
+	self._iconSlots = {}
+
+	for index = 1, UPGRADE_ICON_SLOT_COUNT do
+		local slot = makeLabel(strip, "Slot" .. tostring(index), 16, Enum.Font.GothamBold, self._zIndex)
+		slot.BackgroundColor3 = Color3.fromRGB(20, 28, 38)
+		slot.BackgroundTransparency = 0.22
+		slot.Visible = false
+		addCorner(slot, UDim.new(0, 6))
+		addStroke(slot, Color3.fromRGB(250, 204, 21), 0.58, 1)
+		table.insert(self._iconSlots, slot)
+	end
+
+	local overflow = makeLabel(strip, "Overflow", 12, Enum.Font.GothamBold, self._zIndex)
+	overflow.BackgroundColor3 = Color3.fromRGB(20, 28, 38)
+	overflow.BackgroundTransparency = 0.22
+	overflow.TextColor3 = Color3.fromRGB(178, 238, 205)
+	overflow.Visible = false
+	addCorner(overflow, UDim.new(0, 6))
+
+	self._overflow = overflow
+end
+
+function BattleArenaUpgradeHud:SetVisible(isVisible)
+	self._visible = isVisible == true
+	self:_render()
+end
+
+function BattleArenaUpgradeHud:SetLayout(layout)
+	layout = layout or {}
+	self._isMobile = layout.IsMobile == true
+	self._viewportSize = layout.ViewportSize or self._viewportSize
+
+	self:_applyLayout()
+	self:_render()
+end
+
+function BattleArenaUpgradeHud:SetOffer(offer)
+	self._offer = offer
+	self:_render()
+end
+
+function BattleArenaUpgradeHud:SetActiveUpgradeIds(upgradeIds)
+	self._activeUpgradeIds = typeof(upgradeIds) == "string" and upgradeIds or ""
+	self:_render()
+end
+
+function BattleArenaUpgradeHud:Destroy()
+	if self._root ~= nil then
+		self._root:Destroy()
+		self._root = nil
+	end
+end
+
+function BattleArenaUpgradeHud:_applyLayout()
+	if self._isMobile then
+		self:_applyMobileLayout()
+	else
+		self:_applyDesktopLayout()
+	end
+end
+
+function BattleArenaUpgradeHud:_applyMobileLayout()
+	local viewportSize = self._viewportSize
+	local panelWidth = math.clamp(math.floor(viewportSize.X * 0.56), 196, 248)
+	local panelHeight = 90
+	local buttonGap = 6
+	local buttonSize = math.floor((panelWidth - 24 - buttonGap * 2) / 3)
+	buttonSize = math.clamp(buttonSize, 50, 66)
+	local rowWidth = buttonSize * 3 + buttonGap * 2
+	local rowX = math.floor((panelWidth - rowWidth) * 0.5)
+
+	self._offerPanel.AnchorPoint = Vector2.new(0.5, 1)
+	self._offerPanel.Position = UDim2.new(0.5, 0, 1, -104)
+	self._offerPanel.Size = UDim2.fromOffset(panelWidth, panelHeight)
+
+	self._title.Position = UDim2.fromOffset(8, 4)
+	self._title.Size = UDim2.new(1, -16, 0, 18)
+	self._title.TextSize = 13
+
+	self._subtitle.Visible = false
+
+	for index, entry in ipairs(self._choiceCards) do
+		local x = rowX + (index - 1) * (buttonSize + buttonGap)
+		entry.Card.Position = UDim2.fromOffset(x, 24)
+		entry.Card.Size = UDim2.fromOffset(buttonSize, buttonSize)
+		entry.Icon.Position = UDim2.fromOffset(0, 4)
+		entry.Icon.Size = UDim2.new(1, 0, 0, math.floor(buttonSize * 0.56))
+		entry.Icon.TextSize = math.floor(buttonSize * 0.42)
+
+		entry.Name.Position = UDim2.new(0, 3, 1, -20)
+		entry.Name.Size = UDim2.new(1, -6, 0, 17)
+		entry.Name.TextSize = math.max(8, math.floor(buttonSize * 0.16))
+		entry.Name.TextXAlignment = Enum.TextXAlignment.Center
+
+		entry.Effect.Visible = false
+		entry.Button.Position = UDim2.fromScale(0, 0)
+		entry.Button.Size = UDim2.fromScale(1, 1)
+	end
+
+	self:_layoutIconStrip({
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -96),
+		SlotSize = 32,
+		Gap = 4,
+	})
+end
+
+function BattleArenaUpgradeHud:_applyDesktopLayout()
+	local panelWidth = 380
+	local panelHeight = 260
+	local cardHeight = 58
+	local cardGap = 6
+
+	self._offerPanel.AnchorPoint = Vector2.new(0.5, 0)
+	self._offerPanel.Position = UDim2.new(0.5, 0, 0, 106)
+	self._offerPanel.Size = UDim2.fromOffset(panelWidth, panelHeight)
+
+	self._title.Position = UDim2.fromOffset(14, 10)
+	self._title.Size = UDim2.new(1, -28, 0, 26)
+	self._title.TextSize = 16
+
+	self._subtitle.Visible = true
+	self._subtitle.Position = UDim2.fromOffset(14, 36)
+	self._subtitle.Size = UDim2.new(1, -28, 0, 20)
+	self._subtitle.TextSize = 12
+
+	for index, entry in ipairs(self._choiceCards) do
+		local y = 62 + (index - 1) * (cardHeight + cardGap)
+		entry.Card.Position = UDim2.fromOffset(14, y)
+		entry.Card.Size = UDim2.fromOffset(panelWidth - 28, cardHeight)
+
+		entry.Icon.Position = UDim2.fromOffset(0, 0)
+		entry.Icon.Size = UDim2.fromOffset(50, cardHeight)
+		entry.Icon.TextSize = 22
+
+		entry.Name.Position = UDim2.fromOffset(54, 4)
+		entry.Name.Size = UDim2.new(1, -58, 0, 26)
+		entry.Name.TextSize = 14
+		entry.Name.TextXAlignment = Enum.TextXAlignment.Left
+
+		entry.Effect.Visible = true
+		entry.Effect.Position = UDim2.fromOffset(54, 30)
+		entry.Effect.Size = UDim2.new(1, -58, 0, 22)
+		entry.Effect.TextSize = 11
+
+		entry.Button.Position = UDim2.fromScale(0, 0)
+		entry.Button.Size = UDim2.fromScale(1, 1)
+	end
+
+	self:_layoutIconStrip({
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -22, 0, 182),
+		SlotSize = 30,
+		Gap = 4,
+	})
+end
+
+function BattleArenaUpgradeHud:_layoutIconStrip(config)
+	local slotSize = config.SlotSize
+	local gap = config.Gap
+	local stripWidth = UPGRADE_ICON_SLOT_COUNT * slotSize + (UPGRADE_ICON_SLOT_COUNT - 1) * gap
+	local overflowWidth = math.floor(slotSize * 1.25)
+
+	self._iconStrip.AnchorPoint = config.AnchorPoint
+	self._iconStrip.Position = config.Position
+	self._iconStrip.Size = UDim2.fromOffset(stripWidth + gap + overflowWidth, slotSize)
+
+	for index, slot in ipairs(self._iconSlots) do
+		slot.Position = UDim2.fromOffset((index - 1) * (slotSize + gap), 0)
+		slot.Size = UDim2.fromOffset(slotSize, slotSize)
+		slot.TextSize = math.max(12, math.floor(slotSize * 0.52))
+	end
+
+	self._overflow.Position = UDim2.fromOffset(UPGRADE_ICON_SLOT_COUNT * (slotSize + gap), 0)
+	self._overflow.Size = UDim2.fromOffset(overflowWidth, slotSize)
+	self._overflow.TextSize = math.max(10, math.floor(slotSize * 0.38))
+end
+
+function BattleArenaUpgradeHud:_hasOffer()
+	local offer = self._offer
+	local choices = offer ~= nil and offer.Choices or {}
+
+	return offer ~= nil and #choices > 0
+end
+
+function BattleArenaUpgradeHud:_render()
+	if self._root == nil then
+		return
+	end
+
+	local hasOffer = self._visible and self:_hasOffer()
+
+	self._root.Visible = self._visible
+	self._offerPanel.Visible = hasOffer
+	self._offerPanel.Active = hasOffer
+
+	if hasOffer then
+		self:_renderOffer()
+		self._iconStrip.Visible = false
+	else
+		self:_renderIconStrip()
+	end
+end
+
+function BattleArenaUpgradeHud:_renderOffer()
+	local offer = self._offer
+	local choices = offer.Choices or {}
+	local source = tostring(offer.Source or "LevelUp")
+	local arenaLevel = tonumber(offer.ArenaLevel) or 1
+
+	self._title.Text = source == "SupplyCrate" and "SUPPLY" or "LEVEL UP"
+	self._subtitle.Text = "Arena Level " .. tostring(math.floor(arenaLevel)) .. " upgrade"
+
+	for index, entry in ipairs(self._choiceCards) do
+		local choice = choices[index]
+
+		if choice ~= nil then
+			local choiceId = tostring(choice.Id or "")
+			entry.UpgradeId = choiceId
+			entry.Card.Visible = true
+			entry.Icon.Text = getUpgradeIcon(choiceId)
+			entry.Name.Text = self._isMobile and getShortUpgradeTitle(choice) or tostring(choice.Title or choice.Id or "Upgrade")
+			entry.Effect.Text = getDescription(choice)
+		else
+			entry.UpgradeId = nil
+			entry.Card.Visible = false
+			entry.Name.Text = ""
+			entry.Effect.Text = ""
+		end
+	end
+end
+
+function BattleArenaUpgradeHud:_renderIconStrip()
+	local ids = splitUpgradeIds(self._activeUpgradeIds)
+	local visible = self._visible and #ids > 0
+
+	self._iconStrip.Visible = visible
+
+	if not visible then
+		return
+	end
+
+	local displayCount = math.min(#ids, UPGRADE_ICON_SLOT_COUNT)
+	local overflow = #ids - displayCount
+
+	for index, slot in ipairs(self._iconSlots) do
+		if index <= displayCount then
+			slot.Text = getUpgradeIcon(ids[index])
+			slot.Visible = true
+		else
+			slot.Visible = false
+		end
+	end
+
+	if overflow > 0 then
+		self._overflow.Text = "+" .. tostring(overflow)
+		self._overflow.Visible = true
+	else
+		self._overflow.Visible = false
+	end
+end
+
+return BattleArenaUpgradeHud
+]]></ProtectedString>
+							<string name="ScriptGuid">{579407a9-8850-483f-bd9f-f92f0a0c6908}</string>
+							<BinaryString name="AttributesSerialize"></BinaryString>
+							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+							<bool name="DefinesCapabilities">false</bool>
+							<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+							<string name="Name">BattleArenaUpgradeHud</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<BinaryString name="Tags"></BinaryString>
+							<UniqueId name="UniqueId">2580cdd9915f79820a23b1a20000325e</UniqueId>
 						</Properties>
 					</Item>
 				</Item>
