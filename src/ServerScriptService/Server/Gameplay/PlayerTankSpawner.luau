@@ -220,6 +220,20 @@ local function ensureHitboxes(model)
 		warn("[TANK] created missing " .. model:GetFullName() .. ".Hitboxes")
 	end
 
+	-- When ArmorZones is the active folder, destroy any coexisting legacy Hitboxes
+	-- folders to prevent duplicate floating armor rectangles near tanks.
+	if hitboxFolder.Name == "ArmorZones" then
+		local legacyToDestroy = {}
+		for _, descendant in ipairs(model:GetDescendants()) do
+			if descendant.Name == "Hitboxes" and descendant:IsA("Folder") then
+				table.insert(legacyToDestroy, descendant)
+			end
+		end
+		for _, folder in ipairs(legacyToDestroy) do
+			folder:Destroy()
+		end
+	end
+
 	-- Always ensure the 4 named armor parts exist inside whichever folder we found
 	-- or created. TankArmorPartsService.Configure positions and welds them to Body
 	-- after this function returns, so missing parts created here will be correctly

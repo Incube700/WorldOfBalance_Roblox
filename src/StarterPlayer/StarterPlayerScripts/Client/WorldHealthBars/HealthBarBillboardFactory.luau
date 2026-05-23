@@ -151,6 +151,9 @@ end
 function HealthBarBillboardFactory:ConfigureBillboard(billboard)
 	billboard.Size = self.Config.BILLBOARD_SIZE
 	billboard.StudsOffset = Vector3.zero
+	-- Reset world-space offset to zero so callers can override it safely.
+	-- TankHealthBarRecord sets StudsOffsetWorldSpace per anchor type after this call.
+	billboard.StudsOffsetWorldSpace = Vector3.zero
 	billboard.AlwaysOnTop = true
 	billboard.LightInfluence = 0
 	billboard.MaxDistance = self.Config.MAX_DISTANCE

@@ -50,6 +50,10 @@ local HudConfig = table.freeze({
 		HidePlayerHpPanelWhenWorldBarsEnabled = true,
 		UseScriptedDuelHud = true,
 		UseScriptedTrainingHud = true,
+		-- Compact layout for Training: hides duplicate reload panel, bolts panel,
+		-- top player/enemy HP panels, and long hint text. World bars under tanks
+		-- remain active. Duel HUD is unaffected.
+		TrainingCompactHud = true,
 	}),
 
 	DuelMobileScorePanel = table.freeze({

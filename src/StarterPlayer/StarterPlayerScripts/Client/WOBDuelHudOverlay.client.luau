@@ -59,6 +59,7 @@ local MONO_FONT = Enum.Font.Code
 local RELOAD_FALLBACK_DURATION = math.max(0.05, (WeaponConfig.PrimaryWeapon or {}).ShootCooldown or 0.45)
 local SCRIPTED_DUEL_HUD_ENABLED = ((HudConfig.CombatHud or {}).UseScriptedDuelHud == true)
 local SCRIPTED_TRAINING_HUD_ENABLED = ((HudConfig.CombatHud or {}).UseScriptedTrainingHud == true)
+local TRAINING_COMPACT_HUD = ((HudConfig.CombatHud or {}).TrainingCompactHud == true)
 local MAX_FEEDBACK = 4
 
 ------------------------------------------------------------------------
@@ -1018,6 +1019,9 @@ end
 
 local function updateModeContent()
 	local trainingMode = isTrainingHudMode()
+	-- In Training compact mode, top player/enemy panels and the long hint text are
+	-- suppressed — world bars under tanks carry that info instead.
+	local compact = TRAINING_COMPACT_HUD and trainingMode
 
 	playerName.Text = "YOU"
 	enemyName.Text = trainingMode and "TARGET" or "ENEMY"
@@ -1028,7 +1032,9 @@ local function updateModeContent()
 	end
 
 	trainingTitle.Visible = trainingMode
-	trainingHint.Visible = trainingMode
+	trainingHint.Visible = trainingMode and not compact
+	playerPanel.Visible = not compact
+	enemyPanel.Visible = not compact
 end
 
 local function punchScale(scale)
@@ -1474,8 +1480,11 @@ local function applyMobileLayout()
 	-- On phones the bottom-left is occupied by the movement joystick, so the
 	-- reload/bolts bar is hidden there (reload is still shown in the player
 	-- panel mini bar) and the top panels are nudged inward.
+	-- In Training compact mode the bottom bar is also hidden (world bars carry
+	-- reload state; bolts panel is not needed during training).
 	local mobile = isMobile()
-	bottomBar.Visible = not mobile
+	local hideBottom = mobile or (TRAINING_COMPACT_HUD and isTrainingHudMode())
+	bottomBar.Visible = not hideBottom
 	updateTrainingMenuLayout()
 
 	if wasVisible then

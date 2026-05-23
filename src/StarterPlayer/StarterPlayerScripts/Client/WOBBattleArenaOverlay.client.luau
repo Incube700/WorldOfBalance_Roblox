@@ -372,10 +372,11 @@ deathReturnButton.Size = UDim2.new(0.64, 0, 0, 38)
 deathReturnButton.Parent = deathPanel
 styleButton(deathReturnButton)
 
+-- Upgrade offer panel ----------------------------------------------------------
 local upgradeOfferPanel = makePanel(
 	"UpgradeOfferPanel",
 	UDim2.new(0.5, -190, 0, 106),
-	UDim2.fromOffset(380, 208)
+	UDim2.fromOffset(380, 260)
 )
 upgradeOfferPanel.AnchorPoint = Vector2.new(0.5, 0)
 upgradeOfferPanel.Visible = false
@@ -406,19 +407,177 @@ upgradeOfferSubtitle.Text = "Run upgrade"
 upgradeOfferSubtitle.TextColor3 = Color3.fromRGB(178, 238, 205)
 upgradeOfferSubtitle.TextXAlignment = Enum.TextXAlignment.Center
 
-local upgradeChoiceButtons = {}
+-- Part 1: Card-based upgrade choices.
+-- Each entry: { Card=Frame, Icon=TextLabel, Title=TextLabel, Effect=TextLabel, Button=TextButton }
+local upgradeCards = {}
 
 for index = 1, 3 do
-	local button = Instance.new("TextButton")
-	button.Name = "UpgradeChoice" .. tostring(index)
-	button.Position = UDim2.new(0, 14, 0, 62 + (index - 1) * 46)
-	button.Size = UDim2.new(1, -28, 0, 38)
-	button.ZIndex = POPUP_Z_INDEX + 1
-	button.Parent = upgradeOfferPanel
-	styleButton(button, "")
-	button.TextSize = 12
-	button.TextXAlignment = Enum.TextXAlignment.Left
-	table.insert(upgradeChoiceButtons, button)
+	local card = Instance.new("Frame")
+	card.Name = "UpgradeCard" .. tostring(index)
+	card.BackgroundColor3 = Color3.fromRGB(20, 26, 34)
+	card.BackgroundTransparency = 0.08
+	card.BorderSizePixel = 0
+	card.ZIndex = POPUP_Z_INDEX + 1
+	card.Parent = upgradeOfferPanel
+	addCorner(card, UDim.new(0, 6))
+	addStroke(card, Color3.fromRGB(250, 204, 21), 0.55, 1)
+
+	local iconLabel = Instance.new("TextLabel")
+	iconLabel.Name = "Icon"
+	iconLabel.BackgroundTransparency = 1
+	iconLabel.BorderSizePixel = 0
+	iconLabel.Font = Enum.Font.GothamBold
+	iconLabel.Text = "★"
+	iconLabel.TextColor3 = Color3.fromRGB(241, 255, 248)
+	iconLabel.TextSize = 22
+	iconLabel.TextXAlignment = Enum.TextXAlignment.Center
+	iconLabel.TextYAlignment = Enum.TextYAlignment.Center
+	iconLabel.ZIndex = POPUP_Z_INDEX + 2
+	iconLabel.Parent = card
+
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Name = "Title"
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.BorderSizePixel = 0
+	titleLabel.Font = Enum.Font.GothamBold
+	titleLabel.Text = ""
+	titleLabel.TextColor3 = Color3.fromRGB(250, 204, 21)
+	titleLabel.TextSize = 14
+	titleLabel.TextWrapped = false
+	titleLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	titleLabel.TextYAlignment = Enum.TextYAlignment.Center
+	titleLabel.ZIndex = POPUP_Z_INDEX + 2
+	titleLabel.Parent = card
+
+	local effectLabel = Instance.new("TextLabel")
+	effectLabel.Name = "Effect"
+	effectLabel.BackgroundTransparency = 1
+	effectLabel.BorderSizePixel = 0
+	effectLabel.Font = Enum.Font.GothamMedium
+	effectLabel.Text = ""
+	effectLabel.TextColor3 = Color3.fromRGB(178, 238, 205)
+	effectLabel.TextSize = 11
+	effectLabel.TextWrapped = false
+	effectLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	effectLabel.TextXAlignment = Enum.TextXAlignment.Left
+	effectLabel.TextYAlignment = Enum.TextYAlignment.Center
+	effectLabel.ZIndex = POPUP_Z_INDEX + 2
+	effectLabel.Parent = card
+
+	-- Transparent full-card button for tap/click detection
+	local clickButton = Instance.new("TextButton")
+	clickButton.Name = "ClickButton"
+	clickButton.Position = UDim2.fromScale(0, 0)
+	clickButton.Size = UDim2.fromScale(1, 1)
+	clickButton.BackgroundTransparency = 1
+	clickButton.BorderSizePixel = 0
+	clickButton.Text = ""
+	clickButton.AutoButtonColor = false
+	clickButton.Active = true
+	clickButton.ZIndex = POPUP_Z_INDEX + 3
+	clickButton.Parent = card
+
+	table.insert(upgradeCards, {
+		Card = card,
+		Icon = iconLabel,
+		Title = titleLabel,
+		Effect = effectLabel,
+		Button = clickButton,
+	})
+end
+
+-- Part 2: Active upgrade icon strip.
+-- Shows up to 5 emoji icons from ArenaUpgradeIds, +N for overflow.
+local UPGRADE_ICON_SLOT_COUNT = 5
+
+local upgradeIconStrip = Instance.new("Frame")
+upgradeIconStrip.Name = "UpgradeIconStrip"
+upgradeIconStrip.BackgroundTransparency = 1
+upgradeIconStrip.BorderSizePixel = 0
+upgradeIconStrip.ZIndex = PANEL_Z_INDEX + 1
+upgradeIconStrip.Visible = false
+upgradeIconStrip.Parent = screenGui
+
+local upgradeIconSlots = {}
+
+for i = 1, UPGRADE_ICON_SLOT_COUNT do
+	local slot = Instance.new("TextLabel")
+	slot.Name = "Slot" .. tostring(i)
+	slot.BackgroundColor3 = Color3.fromRGB(20, 28, 38)
+	slot.BackgroundTransparency = 0.22
+	slot.BorderSizePixel = 0
+	slot.Font = Enum.Font.GothamBold
+	slot.Text = "★"
+	slot.TextColor3 = Color3.fromRGB(241, 255, 248)
+	slot.TextSize = 16
+	slot.TextXAlignment = Enum.TextXAlignment.Center
+	slot.TextYAlignment = Enum.TextYAlignment.Center
+	slot.Visible = false
+	slot.ZIndex = PANEL_Z_INDEX + 2
+	slot.Parent = upgradeIconStrip
+	addCorner(slot, UDim.new(0, 5))
+	addStroke(slot, Color3.fromRGB(250, 204, 21), 0.55, 1)
+	table.insert(upgradeIconSlots, slot)
+end
+
+local upgradeIconOverflow = Instance.new("TextLabel")
+upgradeIconOverflow.Name = "Overflow"
+upgradeIconOverflow.BackgroundColor3 = Color3.fromRGB(20, 28, 38)
+upgradeIconOverflow.BackgroundTransparency = 0.22
+upgradeIconOverflow.BorderSizePixel = 0
+upgradeIconOverflow.Font = Enum.Font.GothamBold
+upgradeIconOverflow.Text = "+0"
+upgradeIconOverflow.TextColor3 = Color3.fromRGB(178, 238, 205)
+upgradeIconOverflow.TextSize = 12
+upgradeIconOverflow.TextXAlignment = Enum.TextXAlignment.Center
+upgradeIconOverflow.TextYAlignment = Enum.TextYAlignment.Center
+upgradeIconOverflow.Visible = false
+upgradeIconOverflow.ZIndex = PANEL_Z_INDEX + 2
+upgradeIconOverflow.Parent = upgradeIconStrip
+addCorner(upgradeIconOverflow, UDim.new(0, 5))
+
+-- Helper: map upgrade id → emoji icon
+local function getUpgradeIcon(upgradeId)
+	if typeof(upgradeId) ~= "string" then
+		return "★"
+	end
+
+	local lower = string.lower(upgradeId)
+
+	if string.find(lower, "firerate") or string.find(lower, "fire_rate") or string.find(lower, "reload") then
+		return "⚡"
+	elseif string.find(lower, "damage") then
+		return "💥"
+	elseif string.find(lower, "ricochet") or string.find(lower, "bounce") then
+		return "🔁"
+	elseif string.find(lower, "repair") or string.find(lower, "armor") or string.find(lower, "hp") then
+		return "🛡"
+	elseif string.find(lower, "speed") or string.find(lower, "turbo") or string.find(lower, "move") then
+		return "🏎"
+	elseif string.find(lower, "shield") then
+		return "🔵"
+	elseif string.find(lower, "triple") or string.find(lower, "double") or string.find(lower, "explosion") or string.find(lower, "bigboom") then
+		return "🔥"
+	elseif string.find(lower, "bolt") or string.find(lower, "reward") or string.find(lower, "magnet") then
+		return "🧲"
+	else
+		return "★"
+	end
+end
+
+-- Helper: set icon strip slot sizes/positions after strip anchor/position is set
+local function layoutIconStrip(slotSize, gap)
+	for i, slot in ipairs(upgradeIconSlots) do
+		slot.Position = UDim2.fromOffset((i - 1) * (slotSize + gap), 0)
+		slot.Size = UDim2.fromOffset(slotSize, slotSize)
+		slot.TextSize = math.max(12, math.floor(slotSize * 0.52))
+	end
+
+	local overflowX = UPGRADE_ICON_SLOT_COUNT * (slotSize + gap)
+	upgradeIconOverflow.Position = UDim2.fromOffset(overflowX, 0)
+	upgradeIconOverflow.Size = UDim2.fromOffset(math.floor(slotSize * 1.25), slotSize)
+	upgradeIconOverflow.TextSize = math.max(10, math.floor(slotSize * 0.38))
 end
 
 local function isArenaMode()
@@ -546,16 +705,32 @@ local function applyDesktopLayout()
 	deathReturnButton.Position = UDim2.new(0.18, 0, 1, -52)
 	deathReturnButton.Size = UDim2.new(0.64, 0, 0, 38)
 
+	-- Upgrade panel: 3 cards × 58 px + spacing, total 260 px
 	upgradeOfferPanel.Position = UDim2.new(0.5, 0, 0, 106)
-	upgradeOfferPanel.Size = UDim2.fromOffset(380, 208)
+	upgradeOfferPanel.Size = UDim2.fromOffset(380, 260)
 	setTextLayout(upgradeOfferTitle, UDim2.new(0, 14, 0, 10), UDim2.new(1, -28, 0, 26), 16)
 	setTextLayout(upgradeOfferSubtitle, UDim2.new(0, 14, 0, 36), UDim2.new(1, -28, 0, 20), 12)
 
-	for index, button in ipairs(upgradeChoiceButtons) do
-		button.Position = UDim2.new(0, 14, 0, 62 + (index - 1) * 46)
-		button.Size = UDim2.new(1, -28, 0, 38)
-		button.TextSize = 12
+	local cardH, cardGap, cardStart = 58, 6, 62
+	for index, entry in ipairs(upgradeCards) do
+		entry.Card.Position = UDim2.new(0, 14, 0, cardStart + (index - 1) * (cardH + cardGap))
+		entry.Card.Size = UDim2.fromOffset(380 - 28, cardH)
+		entry.Icon.Position = UDim2.fromOffset(0, 0)
+		entry.Icon.Size = UDim2.fromOffset(50, cardH)
+		entry.Icon.TextSize = 22
+		entry.Title.Position = UDim2.new(0, 54, 0, 4)
+		entry.Title.Size = UDim2.new(1, -58, 0, 26)
+		entry.Title.TextSize = 14
+		entry.Effect.Position = UDim2.new(0, 54, 0, 30)
+		entry.Effect.Size = UDim2.new(1, -58, 0, 22)
+		entry.Effect.TextSize = 11
 	end
+
+	-- Icon strip: right-aligned below score panel (scorePanel top=18, height=154 → bottom at 172)
+	upgradeIconStrip.AnchorPoint = Vector2.new(1, 0)
+	upgradeIconStrip.Position = UDim2.new(1, -22, 0, 182)
+	upgradeIconStrip.Size = UDim2.fromOffset(250, 34)
+	layoutIconStrip(30, 4)
 end
 
 local function applyMobileLayout(viewportSize)
@@ -629,18 +804,35 @@ local function applyMobileLayout(viewportSize)
 	deathReturnButton.Position = UDim2.new(0.15, 0, 1, -42)
 	deathReturnButton.Size = UDim2.new(0.7, 0, 0, 32)
 
-	-- Keep upgrade choices top-center on mobile; bottom-left and bottom-right
-	-- are reserved for Move/REV and Aim/Fire controls.
+	-- Upgrade panel: top-center (y=138), 3 cards × 64 px + spacing, total 270 px.
+	-- Bottom of panel ≈ y=408, well above bottom-left (Move/REV) and bottom-right (Aim/Fire) controls.
+	local panelW = math.min(320, viewportSize.X - 24)
 	upgradeOfferPanel.Position = UDim2.new(0.5, 0, 0, 138)
-	upgradeOfferPanel.Size = UDim2.fromOffset(math.min(320, viewportSize.X - 24), 194)
+	upgradeOfferPanel.Size = UDim2.fromOffset(panelW, 270)
 	setTextLayout(upgradeOfferTitle, UDim2.new(0, 12, 0, 8), UDim2.new(1, -24, 0, 24), 14)
 	setTextLayout(upgradeOfferSubtitle, UDim2.new(0, 12, 0, 32), UDim2.new(1, -24, 0, 18), 11)
 
-	for index, button in ipairs(upgradeChoiceButtons) do
-		button.Position = UDim2.new(0, 12, 0, 56 + (index - 1) * 42)
-		button.Size = UDim2.new(1, -24, 0, 34)
-		button.TextSize = 11
+	local mCardH, mCardGap, mCardStart = 64, 6, 56
+	for index, entry in ipairs(upgradeCards) do
+		entry.Card.Position = UDim2.new(0, 12, 0, mCardStart + (index - 1) * (mCardH + mCardGap))
+		entry.Card.Size = UDim2.fromOffset(panelW - 24, mCardH)
+		entry.Icon.Position = UDim2.fromOffset(0, 0)
+		entry.Icon.Size = UDim2.fromOffset(52, mCardH)
+		entry.Icon.TextSize = 24
+		entry.Title.Position = UDim2.new(0, 56, 0, 6)
+		entry.Title.Size = UDim2.new(1, -60, 0, 28)
+		entry.Title.TextSize = 15
+		entry.Effect.Position = UDim2.new(0, 56, 0, 34)
+		entry.Effect.Size = UDim2.new(1, -60, 0, 24)
+		entry.Effect.TextSize = 12
 	end
+
+	-- Icon strip: bottom-center, 90 px from bottom.
+	-- Centered in the safe zone between left and right control clusters.
+	upgradeIconStrip.AnchorPoint = Vector2.new(0.5, 1)
+	upgradeIconStrip.Position = UDim2.new(0.5, 0, 1, -90)
+	upgradeIconStrip.Size = UDim2.fromOffset(244, 40)
+	layoutIconStrip(36, 4)
 end
 
 local function updateLayout()
@@ -725,17 +917,6 @@ local function getVisibleCrystals()
 	return math.max(0, math.floor(tonumber(localPlayer:GetAttribute(UNSAVED_CRYSTALS_ATTRIBUTE)) or 0))
 end
 
-local function formatChoiceText(choice)
-	local title = tostring(choice.Title or choice.Id or "Upgrade")
-	local description = tostring(choice.Description or "")
-
-	if description == "" then
-		return title
-	end
-
-	return title .. "  -  " .. description
-end
-
 local function updateUpgradeOfferPanel()
 	local offer = currentUpgradeOffer
 	local choices = offer ~= nil and offer.Choices or {}
@@ -751,18 +932,61 @@ local function updateUpgradeOfferPanel()
 	upgradeOfferTitle.Text = source == "SupplyCrate" and "Supply Crate" or "Level Up"
 	upgradeOfferSubtitle.Text = "Arena Level " .. tostring(math.floor(arenaLevel)) .. " upgrade"
 
-	for index, button in ipairs(upgradeChoiceButtons) do
+	for index, entry in ipairs(upgradeCards) do
 		local choice = choices[index]
 
 		if choice ~= nil then
-			button.Visible = true
-			button.Text = formatChoiceText(choice)
-			button:SetAttribute("UpgradeId", choice.Id)
+			local choiceId = tostring(choice.Id or "")
+			local choiceTitle = tostring(choice.Title or choice.Id or "Upgrade")
+			local choiceEffect = tostring(choice.Description or "")
+			entry.Card.Visible = true
+			entry.Icon.Text = getUpgradeIcon(choiceId)
+			entry.Title.Text = choiceTitle
+			entry.Effect.Text = choiceEffect
+			entry.Button:SetAttribute("UpgradeId", choiceId)
 		else
-			button.Visible = false
-			button.Text = ""
-			button:SetAttribute("UpgradeId", nil)
+			entry.Card.Visible = false
+			entry.Title.Text = ""
+			entry.Effect.Text = ""
+			entry.Button:SetAttribute("UpgradeId", nil)
 		end
+	end
+end
+
+local function updateUpgradeIconStrip()
+	local upgradeIds = tostring(localPlayer:GetAttribute("ArenaUpgradeIds") or "")
+	local ids = {}
+
+	if upgradeIds ~= "" then
+		for id in string.gmatch(upgradeIds, "[^,]+") do
+			table.insert(ids, id)
+		end
+	end
+
+	local visible = isArenaMode() and #ids > 0
+	upgradeIconStrip.Visible = visible
+
+	if not visible then
+		return
+	end
+
+	local displayCount = math.min(#ids, UPGRADE_ICON_SLOT_COUNT)
+	local overflow = #ids - displayCount
+
+	for i, slot in ipairs(upgradeIconSlots) do
+		if i <= displayCount then
+			slot.Text = getUpgradeIcon(ids[i])
+			slot.Visible = true
+		else
+			slot.Visible = false
+		end
+	end
+
+	if overflow > 0 then
+		upgradeIconOverflow.Text = "+" .. tostring(overflow)
+		upgradeIconOverflow.Visible = true
+	else
+		upgradeIconOverflow.Visible = false
 	end
 end
 
@@ -790,6 +1014,7 @@ local function updateOverlay()
 	if not visible then
 		setMenuPopupOpen(false)
 		upgradeOfferPanel.Visible = false
+		upgradeIconStrip.Visible = false
 		return
 	end
 
@@ -851,6 +1076,7 @@ local function updateOverlay()
 
 	updateHealth(ownedTank, mobileLayout)
 	updateUpgradeOfferPanel()
+	updateUpgradeIconStrip()
 
 	local mode = localPlayer:GetAttribute("PlayerMode")
 	local isDead = mode == MODE_ARENA_RESPAWNING
@@ -887,13 +1113,14 @@ end)
 popupReturnButton.Activated:Connect(requestReturnToLobby)
 deathReturnButton.Activated:Connect(requestReturnToLobby)
 
-for _, button in ipairs(upgradeChoiceButtons) do
-	button.Activated:Connect(function()
+for _, entry in ipairs(upgradeCards) do
+	local clickButton = entry.Button
+	clickButton.Activated:Connect(function()
 		if currentUpgradeOffer == nil then
 			return
 		end
 
-		local upgradeId = button:GetAttribute("UpgradeId")
+		local upgradeId = clickButton:GetAttribute("UpgradeId")
 
 		if typeof(upgradeId) ~= "string" or upgradeId == "" then
 			return
@@ -903,6 +1130,7 @@ for _, button in ipairs(upgradeChoiceButtons) do
 			OfferId = currentUpgradeOffer.OfferId,
 			UpgradeId = upgradeId,
 		})
+		currentUpgradeOffer = nil
 		updateUpgradeOfferPanel()
 	end)
 end

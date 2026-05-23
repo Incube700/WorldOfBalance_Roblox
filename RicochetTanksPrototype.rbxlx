@@ -107,27 +107,27 @@
 		<Item class="Camera" referent="RBXc1464cbc5d44410fbc4ee16ffc5ee710">
 			<Properties>
 				<CoordinateFrame name="CFrame">
-					<X>172.167358</X>
-					<Y>275.311615</Y>
-					<Z>176.991455</Z>
-					<R00>0.61233288</R00>
-					<R01>-0.536516368</R01>
-					<R02>0.580688179</R02>
-					<R10>-0</R10>
-					<R11>0.734490514</R11>
-					<R12>0.678619087</R12>
-					<R20>-0.790600181</R20>
-					<R21>-0.415540785</R21>
-					<R22>0.449752599</R22>
+					<X>35.560894</X>
+					<Y>237.214066</Y>
+					<Z>94.5407181</Z>
+					<R00>0.673168838</R00>
+					<R01>-0.595971465</R01>
+					<R02>0.437791884</R02>
+					<R10>-1.49011594e-08</R10>
+					<R11>0.592019558</R11>
+					<R12>0.805923581</R12>
+					<R20>-0.73948884</R20>
+					<R21>-0.542522669</R21>
+					<R22>0.398529112</R22>
 				</CoordinateFrame>
 				<Ref name="CameraSubject">null</Ref>
 				<token name="CameraType">0</token>
 				<float name="FieldOfView">70</float>
 				<token name="FieldOfViewMode">0</token>
 				<CoordinateFrame name="Focus">
-					<X>171.005981</X>
-					<Y>273.954376</Y>
-					<Z>176.091949</Z>
+					<X>34.6853104</X>
+					<Y>235.602219</Y>
+					<Z>93.74366</Z>
 					<R00>1</R00>
 					<R01>0</R01>
 					<R02>0</R02>
@@ -3895,9 +3895,9 @@ AFdPQlBhZFRyaWdnZXIDAQoAAABXT0JQYWRUeXBlAgQAAABEdWVs]]></BinaryString>
 							<token name="BottomSurface">0</token>
 							<token name="BottomSurfaceInput">0</token>
 							<CoordinateFrame name="CFrame">
-								<X>-3</X>
-								<Y>132.249985</Y>
-								<Z>44.9999847</Z>
+								<X>0.5</X>
+								<Y>132.350006</Y>
+								<Z>39.9999695</Z>
 								<R00>1</R00>
 								<R01>0</R01>
 								<R02>0</R02>
@@ -3967,7 +3967,7 @@ AFdPQlBhZFRyaWdnZXIDAQoAAABXT0JQYWRUeXBlAgQAAABEdWVs]]></BinaryString>
 								<Z>0</Z>
 							</Vector3>
 							<Vector3 name="size">
-								<X>242</X>
+								<X>241</X>
 								<Y>1</Y>
 								<Z>304</Z>
 							</Vector3>
@@ -19996,10 +19996,11 @@ deathReturnButton.Size = UDim2.new(0.64, 0, 0, 38)
 deathReturnButton.Parent = deathPanel
 styleButton(deathReturnButton)
 
+-- Upgrade offer panel ----------------------------------------------------------
 local upgradeOfferPanel = makePanel(
 	"UpgradeOfferPanel",
 	UDim2.new(0.5, -190, 0, 106),
-	UDim2.fromOffset(380, 208)
+	UDim2.fromOffset(380, 260)
 )
 upgradeOfferPanel.AnchorPoint = Vector2.new(0.5, 0)
 upgradeOfferPanel.Visible = false
@@ -20030,19 +20031,177 @@ upgradeOfferSubtitle.Text = "Run upgrade"
 upgradeOfferSubtitle.TextColor3 = Color3.fromRGB(178, 238, 205)
 upgradeOfferSubtitle.TextXAlignment = Enum.TextXAlignment.Center
 
-local upgradeChoiceButtons = {}
+-- Part 1: Card-based upgrade choices.
+-- Each entry: { Card=Frame, Icon=TextLabel, Title=TextLabel, Effect=TextLabel, Button=TextButton }
+local upgradeCards = {}
 
 for index = 1, 3 do
-	local button = Instance.new("TextButton")
-	button.Name = "UpgradeChoice" .. tostring(index)
-	button.Position = UDim2.new(0, 14, 0, 62 + (index - 1) * 46)
-	button.Size = UDim2.new(1, -28, 0, 38)
-	button.ZIndex = POPUP_Z_INDEX + 1
-	button.Parent = upgradeOfferPanel
-	styleButton(button, "")
-	button.TextSize = 12
-	button.TextXAlignment = Enum.TextXAlignment.Left
-	table.insert(upgradeChoiceButtons, button)
+	local card = Instance.new("Frame")
+	card.Name = "UpgradeCard" .. tostring(index)
+	card.BackgroundColor3 = Color3.fromRGB(20, 26, 34)
+	card.BackgroundTransparency = 0.08
+	card.BorderSizePixel = 0
+	card.ZIndex = POPUP_Z_INDEX + 1
+	card.Parent = upgradeOfferPanel
+	addCorner(card, UDim.new(0, 6))
+	addStroke(card, Color3.fromRGB(250, 204, 21), 0.55, 1)
+
+	local iconLabel = Instance.new("TextLabel")
+	iconLabel.Name = "Icon"
+	iconLabel.BackgroundTransparency = 1
+	iconLabel.BorderSizePixel = 0
+	iconLabel.Font = Enum.Font.GothamBold
+	iconLabel.Text = "★"
+	iconLabel.TextColor3 = Color3.fromRGB(241, 255, 248)
+	iconLabel.TextSize = 22
+	iconLabel.TextXAlignment = Enum.TextXAlignment.Center
+	iconLabel.TextYAlignment = Enum.TextYAlignment.Center
+	iconLabel.ZIndex = POPUP_Z_INDEX + 2
+	iconLabel.Parent = card
+
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Name = "Title"
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.BorderSizePixel = 0
+	titleLabel.Font = Enum.Font.GothamBold
+	titleLabel.Text = ""
+	titleLabel.TextColor3 = Color3.fromRGB(250, 204, 21)
+	titleLabel.TextSize = 14
+	titleLabel.TextWrapped = false
+	titleLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	titleLabel.TextYAlignment = Enum.TextYAlignment.Center
+	titleLabel.ZIndex = POPUP_Z_INDEX + 2
+	titleLabel.Parent = card
+
+	local effectLabel = Instance.new("TextLabel")
+	effectLabel.Name = "Effect"
+	effectLabel.BackgroundTransparency = 1
+	effectLabel.BorderSizePixel = 0
+	effectLabel.Font = Enum.Font.GothamMedium
+	effectLabel.Text = ""
+	effectLabel.TextColor3 = Color3.fromRGB(178, 238, 205)
+	effectLabel.TextSize = 11
+	effectLabel.TextWrapped = false
+	effectLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	effectLabel.TextXAlignment = Enum.TextXAlignment.Left
+	effectLabel.TextYAlignment = Enum.TextYAlignment.Center
+	effectLabel.ZIndex = POPUP_Z_INDEX + 2
+	effectLabel.Parent = card
+
+	-- Transparent full-card button for tap/click detection
+	local clickButton = Instance.new("TextButton")
+	clickButton.Name = "ClickButton"
+	clickButton.Position = UDim2.fromScale(0, 0)
+	clickButton.Size = UDim2.fromScale(1, 1)
+	clickButton.BackgroundTransparency = 1
+	clickButton.BorderSizePixel = 0
+	clickButton.Text = ""
+	clickButton.AutoButtonColor = false
+	clickButton.Active = true
+	clickButton.ZIndex = POPUP_Z_INDEX + 3
+	clickButton.Parent = card
+
+	table.insert(upgradeCards, {
+		Card = card,
+		Icon = iconLabel,
+		Title = titleLabel,
+		Effect = effectLabel,
+		Button = clickButton,
+	})
+end
+
+-- Part 2: Active upgrade icon strip.
+-- Shows up to 5 emoji icons from ArenaUpgradeIds, +N for overflow.
+local UPGRADE_ICON_SLOT_COUNT = 5
+
+local upgradeIconStrip = Instance.new("Frame")
+upgradeIconStrip.Name = "UpgradeIconStrip"
+upgradeIconStrip.BackgroundTransparency = 1
+upgradeIconStrip.BorderSizePixel = 0
+upgradeIconStrip.ZIndex = PANEL_Z_INDEX + 1
+upgradeIconStrip.Visible = false
+upgradeIconStrip.Parent = screenGui
+
+local upgradeIconSlots = {}
+
+for i = 1, UPGRADE_ICON_SLOT_COUNT do
+	local slot = Instance.new("TextLabel")
+	slot.Name = "Slot" .. tostring(i)
+	slot.BackgroundColor3 = Color3.fromRGB(20, 28, 38)
+	slot.BackgroundTransparency = 0.22
+	slot.BorderSizePixel = 0
+	slot.Font = Enum.Font.GothamBold
+	slot.Text = "★"
+	slot.TextColor3 = Color3.fromRGB(241, 255, 248)
+	slot.TextSize = 16
+	slot.TextXAlignment = Enum.TextXAlignment.Center
+	slot.TextYAlignment = Enum.TextYAlignment.Center
+	slot.Visible = false
+	slot.ZIndex = PANEL_Z_INDEX + 2
+	slot.Parent = upgradeIconStrip
+	addCorner(slot, UDim.new(0, 5))
+	addStroke(slot, Color3.fromRGB(250, 204, 21), 0.55, 1)
+	table.insert(upgradeIconSlots, slot)
+end
+
+local upgradeIconOverflow = Instance.new("TextLabel")
+upgradeIconOverflow.Name = "Overflow"
+upgradeIconOverflow.BackgroundColor3 = Color3.fromRGB(20, 28, 38)
+upgradeIconOverflow.BackgroundTransparency = 0.22
+upgradeIconOverflow.BorderSizePixel = 0
+upgradeIconOverflow.Font = Enum.Font.GothamBold
+upgradeIconOverflow.Text = "+0"
+upgradeIconOverflow.TextColor3 = Color3.fromRGB(178, 238, 205)
+upgradeIconOverflow.TextSize = 12
+upgradeIconOverflow.TextXAlignment = Enum.TextXAlignment.Center
+upgradeIconOverflow.TextYAlignment = Enum.TextYAlignment.Center
+upgradeIconOverflow.Visible = false
+upgradeIconOverflow.ZIndex = PANEL_Z_INDEX + 2
+upgradeIconOverflow.Parent = upgradeIconStrip
+addCorner(upgradeIconOverflow, UDim.new(0, 5))
+
+-- Helper: map upgrade id → emoji icon
+local function getUpgradeIcon(upgradeId)
+	if typeof(upgradeId) ~= "string" then
+		return "★"
+	end
+
+	local lower = string.lower(upgradeId)
+
+	if string.find(lower, "firerate") or string.find(lower, "fire_rate") or string.find(lower, "reload") then
+		return "⚡"
+	elseif string.find(lower, "damage") then
+		return "💥"
+	elseif string.find(lower, "ricochet") or string.find(lower, "bounce") then
+		return "🔁"
+	elseif string.find(lower, "repair") or string.find(lower, "armor") or string.find(lower, "hp") then
+		return "🛡"
+	elseif string.find(lower, "speed") or string.find(lower, "turbo") or string.find(lower, "move") then
+		return "🏎"
+	elseif string.find(lower, "shield") then
+		return "🔵"
+	elseif string.find(lower, "triple") or string.find(lower, "double") or string.find(lower, "explosion") or string.find(lower, "bigboom") then
+		return "🔥"
+	elseif string.find(lower, "bolt") or string.find(lower, "reward") or string.find(lower, "magnet") then
+		return "🧲"
+	else
+		return "★"
+	end
+end
+
+-- Helper: set icon strip slot sizes/positions after strip anchor/position is set
+local function layoutIconStrip(slotSize, gap)
+	for i, slot in ipairs(upgradeIconSlots) do
+		slot.Position = UDim2.fromOffset((i - 1) * (slotSize + gap), 0)
+		slot.Size = UDim2.fromOffset(slotSize, slotSize)
+		slot.TextSize = math.max(12, math.floor(slotSize * 0.52))
+	end
+
+	local overflowX = UPGRADE_ICON_SLOT_COUNT * (slotSize + gap)
+	upgradeIconOverflow.Position = UDim2.fromOffset(overflowX, 0)
+	upgradeIconOverflow.Size = UDim2.fromOffset(math.floor(slotSize * 1.25), slotSize)
+	upgradeIconOverflow.TextSize = math.max(10, math.floor(slotSize * 0.38))
 end
 
 local function isArenaMode()
@@ -20170,16 +20329,32 @@ local function applyDesktopLayout()
 	deathReturnButton.Position = UDim2.new(0.18, 0, 1, -52)
 	deathReturnButton.Size = UDim2.new(0.64, 0, 0, 38)
 
+	-- Upgrade panel: 3 cards × 58 px + spacing, total 260 px
 	upgradeOfferPanel.Position = UDim2.new(0.5, 0, 0, 106)
-	upgradeOfferPanel.Size = UDim2.fromOffset(380, 208)
+	upgradeOfferPanel.Size = UDim2.fromOffset(380, 260)
 	setTextLayout(upgradeOfferTitle, UDim2.new(0, 14, 0, 10), UDim2.new(1, -28, 0, 26), 16)
 	setTextLayout(upgradeOfferSubtitle, UDim2.new(0, 14, 0, 36), UDim2.new(1, -28, 0, 20), 12)
 
-	for index, button in ipairs(upgradeChoiceButtons) do
-		button.Position = UDim2.new(0, 14, 0, 62 + (index - 1) * 46)
-		button.Size = UDim2.new(1, -28, 0, 38)
-		button.TextSize = 12
+	local cardH, cardGap, cardStart = 58, 6, 62
+	for index, entry in ipairs(upgradeCards) do
+		entry.Card.Position = UDim2.new(0, 14, 0, cardStart + (index - 1) * (cardH + cardGap))
+		entry.Card.Size = UDim2.fromOffset(380 - 28, cardH)
+		entry.Icon.Position = UDim2.fromOffset(0, 0)
+		entry.Icon.Size = UDim2.fromOffset(50, cardH)
+		entry.Icon.TextSize = 22
+		entry.Title.Position = UDim2.new(0, 54, 0, 4)
+		entry.Title.Size = UDim2.new(1, -58, 0, 26)
+		entry.Title.TextSize = 14
+		entry.Effect.Position = UDim2.new(0, 54, 0, 30)
+		entry.Effect.Size = UDim2.new(1, -58, 0, 22)
+		entry.Effect.TextSize = 11
 	end
+
+	-- Icon strip: right-aligned below score panel (scorePanel top=18, height=154 → bottom at 172)
+	upgradeIconStrip.AnchorPoint = Vector2.new(1, 0)
+	upgradeIconStrip.Position = UDim2.new(1, -22, 0, 182)
+	upgradeIconStrip.Size = UDim2.fromOffset(250, 34)
+	layoutIconStrip(30, 4)
 end
 
 local function applyMobileLayout(viewportSize)
@@ -20253,18 +20428,35 @@ local function applyMobileLayout(viewportSize)
 	deathReturnButton.Position = UDim2.new(0.15, 0, 1, -42)
 	deathReturnButton.Size = UDim2.new(0.7, 0, 0, 32)
 
-	-- Keep upgrade choices top-center on mobile; bottom-left and bottom-right
-	-- are reserved for Move/REV and Aim/Fire controls.
+	-- Upgrade panel: top-center (y=138), 3 cards × 64 px + spacing, total 270 px.
+	-- Bottom of panel ≈ y=408, well above bottom-left (Move/REV) and bottom-right (Aim/Fire) controls.
+	local panelW = math.min(320, viewportSize.X - 24)
 	upgradeOfferPanel.Position = UDim2.new(0.5, 0, 0, 138)
-	upgradeOfferPanel.Size = UDim2.fromOffset(math.min(320, viewportSize.X - 24), 194)
+	upgradeOfferPanel.Size = UDim2.fromOffset(panelW, 270)
 	setTextLayout(upgradeOfferTitle, UDim2.new(0, 12, 0, 8), UDim2.new(1, -24, 0, 24), 14)
 	setTextLayout(upgradeOfferSubtitle, UDim2.new(0, 12, 0, 32), UDim2.new(1, -24, 0, 18), 11)
 
-	for index, button in ipairs(upgradeChoiceButtons) do
-		button.Position = UDim2.new(0, 12, 0, 56 + (index - 1) * 42)
-		button.Size = UDim2.new(1, -24, 0, 34)
-		button.TextSize = 11
+	local mCardH, mCardGap, mCardStart = 64, 6, 56
+	for index, entry in ipairs(upgradeCards) do
+		entry.Card.Position = UDim2.new(0, 12, 0, mCardStart + (index - 1) * (mCardH + mCardGap))
+		entry.Card.Size = UDim2.fromOffset(panelW - 24, mCardH)
+		entry.Icon.Position = UDim2.fromOffset(0, 0)
+		entry.Icon.Size = UDim2.fromOffset(52, mCardH)
+		entry.Icon.TextSize = 24
+		entry.Title.Position = UDim2.new(0, 56, 0, 6)
+		entry.Title.Size = UDim2.new(1, -60, 0, 28)
+		entry.Title.TextSize = 15
+		entry.Effect.Position = UDim2.new(0, 56, 0, 34)
+		entry.Effect.Size = UDim2.new(1, -60, 0, 24)
+		entry.Effect.TextSize = 12
 	end
+
+	-- Icon strip: bottom-center, 90 px from bottom.
+	-- Centered in the safe zone between left and right control clusters.
+	upgradeIconStrip.AnchorPoint = Vector2.new(0.5, 1)
+	upgradeIconStrip.Position = UDim2.new(0.5, 0, 1, -90)
+	upgradeIconStrip.Size = UDim2.fromOffset(244, 40)
+	layoutIconStrip(36, 4)
 end
 
 local function updateLayout()
@@ -20349,17 +20541,6 @@ local function getVisibleCrystals()
 	return math.max(0, math.floor(tonumber(localPlayer:GetAttribute(UNSAVED_CRYSTALS_ATTRIBUTE)) or 0))
 end
 
-local function formatChoiceText(choice)
-	local title = tostring(choice.Title or choice.Id or "Upgrade")
-	local description = tostring(choice.Description or "")
-
-	if description == "" then
-		return title
-	end
-
-	return title .. "  -  " .. description
-end
-
 local function updateUpgradeOfferPanel()
 	local offer = currentUpgradeOffer
 	local choices = offer ~= nil and offer.Choices or {}
@@ -20375,18 +20556,61 @@ local function updateUpgradeOfferPanel()
 	upgradeOfferTitle.Text = source == "SupplyCrate" and "Supply Crate" or "Level Up"
 	upgradeOfferSubtitle.Text = "Arena Level " .. tostring(math.floor(arenaLevel)) .. " upgrade"
 
-	for index, button in ipairs(upgradeChoiceButtons) do
+	for index, entry in ipairs(upgradeCards) do
 		local choice = choices[index]
 
 		if choice ~= nil then
-			button.Visible = true
-			button.Text = formatChoiceText(choice)
-			button:SetAttribute("UpgradeId", choice.Id)
+			local choiceId = tostring(choice.Id or "")
+			local choiceTitle = tostring(choice.Title or choice.Id or "Upgrade")
+			local choiceEffect = tostring(choice.Description or "")
+			entry.Card.Visible = true
+			entry.Icon.Text = getUpgradeIcon(choiceId)
+			entry.Title.Text = choiceTitle
+			entry.Effect.Text = choiceEffect
+			entry.Button:SetAttribute("UpgradeId", choiceId)
 		else
-			button.Visible = false
-			button.Text = ""
-			button:SetAttribute("UpgradeId", nil)
+			entry.Card.Visible = false
+			entry.Title.Text = ""
+			entry.Effect.Text = ""
+			entry.Button:SetAttribute("UpgradeId", nil)
 		end
+	end
+end
+
+local function updateUpgradeIconStrip()
+	local upgradeIds = tostring(localPlayer:GetAttribute("ArenaUpgradeIds") or "")
+	local ids = {}
+
+	if upgradeIds ~= "" then
+		for id in string.gmatch(upgradeIds, "[^,]+") do
+			table.insert(ids, id)
+		end
+	end
+
+	local visible = isArenaMode() and #ids > 0
+	upgradeIconStrip.Visible = visible
+
+	if not visible then
+		return
+	end
+
+	local displayCount = math.min(#ids, UPGRADE_ICON_SLOT_COUNT)
+	local overflow = #ids - displayCount
+
+	for i, slot in ipairs(upgradeIconSlots) do
+		if i <= displayCount then
+			slot.Text = getUpgradeIcon(ids[i])
+			slot.Visible = true
+		else
+			slot.Visible = false
+		end
+	end
+
+	if overflow > 0 then
+		upgradeIconOverflow.Text = "+" .. tostring(overflow)
+		upgradeIconOverflow.Visible = true
+	else
+		upgradeIconOverflow.Visible = false
 	end
 end
 
@@ -20414,6 +20638,7 @@ local function updateOverlay()
 	if not visible then
 		setMenuPopupOpen(false)
 		upgradeOfferPanel.Visible = false
+		upgradeIconStrip.Visible = false
 		return
 	end
 
@@ -20475,6 +20700,7 @@ local function updateOverlay()
 
 	updateHealth(ownedTank, mobileLayout)
 	updateUpgradeOfferPanel()
+	updateUpgradeIconStrip()
 
 	local mode = localPlayer:GetAttribute("PlayerMode")
 	local isDead = mode == MODE_ARENA_RESPAWNING
@@ -20511,13 +20737,14 @@ end)
 popupReturnButton.Activated:Connect(requestReturnToLobby)
 deathReturnButton.Activated:Connect(requestReturnToLobby)
 
-for _, button in ipairs(upgradeChoiceButtons) do
-	button.Activated:Connect(function()
+for _, entry in ipairs(upgradeCards) do
+	local clickButton = entry.Button
+	clickButton.Activated:Connect(function()
 		if currentUpgradeOffer == nil then
 			return
 		end
 
-		local upgradeId = button:GetAttribute("UpgradeId")
+		local upgradeId = clickButton:GetAttribute("UpgradeId")
 
 		if typeof(upgradeId) ~= "string" or upgradeId == "" then
 			return
@@ -20527,6 +20754,7 @@ for _, button in ipairs(upgradeChoiceButtons) do
 			OfferId = currentUpgradeOffer.OfferId,
 			UpgradeId = upgradeId,
 		})
+		currentUpgradeOffer = nil
 		updateUpgradeOfferPanel()
 	end)
 end
@@ -21931,6 +22159,28 @@ function HealthBarAnchorService:CreateAnchor(model)
 		return nil
 	end
 
+	-- Prefer an Attachment inside the Body part so the billboard follows the
+	-- tank smoothly without needing per-frame position updates.
+	local bodyPart = getBodyPart(model)
+
+	if bodyPart ~= nil then
+		local existing = bodyPart:FindFirstChild("HealthBarAnchor")
+		if existing ~= nil then
+			existing:Destroy()
+		end
+
+		local attachment = Instance.new("Attachment")
+		attachment.Name = "HealthBarAnchor"
+		-- Use only HEIGHT_OFFSET in local body space. WORLD_OFFSET was a world-space
+		-- hack for the old floating Part anchor and rotates with the tank when applied
+		-- to an Attachment, causing the bar to appear to the side instead of above.
+		attachment.Position = self.Config.HEIGHT_OFFSET
+		attachment.Parent = bodyPart
+
+		return attachment
+	end
+
+	-- Fallback: invisible Part in the anchor folder (used when no Body part exists).
 	local anchor = Instance.new("Part")
 	anchor.Name = "HealthBarAnchor_" .. model.Name
 	anchor.Anchored = true
@@ -21949,6 +22199,15 @@ function HealthBarAnchorService:UpdateAnchor(model, anchor)
 		return
 	end
 
+	if anchor:IsA("Attachment") then
+		-- The Attachment follows its parent Body part automatically in world space.
+		-- Only HEIGHT_OFFSET is applied here; WORLD_OFFSET is omitted because it
+		-- would rotate with the body and shift the bar sideways as the tank turns.
+		anchor.Position = self.Config.HEIGHT_OFFSET
+		return
+	end
+
+	-- Legacy Part fallback: reposition in world space every frame.
 	local center = getAnchorPosition(model)
 
 	if center == nil then
@@ -22133,6 +22392,9 @@ end
 function HealthBarBillboardFactory:ConfigureBillboard(billboard)
 	billboard.Size = self.Config.BILLBOARD_SIZE
 	billboard.StudsOffset = Vector3.zero
+	-- Reset world-space offset to zero so callers can override it safely.
+	-- TankHealthBarRecord sets StudsOffsetWorldSpace per anchor type after this call.
+	billboard.StudsOffsetWorldSpace = Vector3.zero
 	billboard.AlwaysOnTop = true
 	billboard.LightInfluence = 0
 	billboard.MaxDistance = self.Config.MAX_DISTANCE
@@ -22420,6 +22682,19 @@ function TankHealthBarRecord:Update()
 	self.Billboard.Adornee = self.AnchorPart
 	self.Billboard.Enabled = not isDead
 	self.Factory:ConfigureBillboard(self.Billboard)
+
+	-- WORLD_OFFSET.Z is a world-space Z shift that appears sideways in a top-down
+	-- camera. For Attachment anchors we remap it to StudsOffset.Y (camera-space up),
+	-- so the bar is pushed toward the top of the screen regardless of world orientation.
+	-- StudsOffsetWorldSpace stays zero — no rotation artifacts.
+	-- The fallback Part anchor bakes WORLD_OFFSET into its world position already,
+	-- so its billboard uses zero here to avoid doubling the offset.
+	self.Billboard.StudsOffsetWorldSpace = Vector3.zero
+	if self.AnchorPart ~= nil and self.AnchorPart:IsA("Attachment") then
+		self.Billboard.StudsOffset = Vector3.new(0, math.abs(self.Config.WORLD_OFFSET.Z), 0)
+	else
+		self.Billboard.StudsOffset = Vector3.zero
+	end
 
 	if self.RedBar ~= nil then
 		self.RedBar.AnchorPoint = Vector2.new(0, 0.5)
@@ -23091,6 +23366,7 @@ local MONO_FONT = Enum.Font.Code
 local RELOAD_FALLBACK_DURATION = math.max(0.05, (WeaponConfig.PrimaryWeapon or {}).ShootCooldown or 0.45)
 local SCRIPTED_DUEL_HUD_ENABLED = ((HudConfig.CombatHud or {}).UseScriptedDuelHud == true)
 local SCRIPTED_TRAINING_HUD_ENABLED = ((HudConfig.CombatHud or {}).UseScriptedTrainingHud == true)
+local TRAINING_COMPACT_HUD = ((HudConfig.CombatHud or {}).TrainingCompactHud == true)
 local MAX_FEEDBACK = 4
 
 ------------------------------------------------------------------------
@@ -24050,6 +24326,9 @@ end
 
 local function updateModeContent()
 	local trainingMode = isTrainingHudMode()
+	-- In Training compact mode, top player/enemy panels and the long hint text are
+	-- suppressed — world bars under tanks carry that info instead.
+	local compact = TRAINING_COMPACT_HUD and trainingMode
 
 	playerName.Text = "YOU"
 	enemyName.Text = trainingMode and "TARGET" or "ENEMY"
@@ -24060,7 +24339,9 @@ local function updateModeContent()
 	end
 
 	trainingTitle.Visible = trainingMode
-	trainingHint.Visible = trainingMode
+	trainingHint.Visible = trainingMode and not compact
+	playerPanel.Visible = not compact
+	enemyPanel.Visible = not compact
 end
 
 local function punchScale(scale)
@@ -24506,8 +24787,11 @@ local function applyMobileLayout()
 	-- On phones the bottom-left is occupied by the movement joystick, so the
 	-- reload/bolts bar is hidden there (reload is still shown in the player
 	-- panel mini bar) and the top panels are nudged inward.
+	-- In Training compact mode the bottom bar is also hidden (world bars carry
+	-- reload state; bolts panel is not needed during training).
 	local mobile = isMobile()
-	bottomBar.Visible = not mobile
+	local hideBottom = mobile or (TRAINING_COMPACT_HUD and isTrainingHudMode())
+	bottomBar.Visible = not hideBottom
 	updateTrainingMenuLayout()
 
 	if wasVisible then
@@ -31682,6 +31966,10 @@ local HudConfig = table.freeze({
 		HidePlayerHpPanelWhenWorldBarsEnabled = true,
 		UseScriptedDuelHud = true,
 		UseScriptedTrainingHud = true,
+		-- Compact layout for Training: hides duplicate reload panel, bolts panel,
+		-- top player/enemy HP panels, and long hint text. World bars under tanks
+		-- remain active. Duel HUD is unaffected.
+		TrainingCompactHud = true,
 	}),
 
 	DuelMobileScorePanel = table.freeze({
@@ -34297,747 +34585,6 @@ return table.freeze(VfxTemplateCatalog)
 							<BinaryString name="Tags"></BinaryString>
 							<UniqueId name="UniqueId">5928dd4c2bef388f0a15b57900003dd6</UniqueId>
 						</Properties>
-					</Item>
-					<Item class="Model" referent="RBXfddf160475f54c5d95bc80c6375f9fdb">
-						<Properties>
-							<token name="LevelOfDetail">0</token>
-							<CoordinateFrame name="ModelMeshCFrame">
-								<X>0</X>
-								<Y>0</Y>
-								<Z>0</Z>
-								<R00>1</R00>
-								<R01>0</R01>
-								<R02>0</R02>
-								<R10>0</R10>
-								<R11>1</R11>
-								<R12>0</R12>
-								<R20>0</R20>
-								<R21>0</R21>
-								<R22>1</R22>
-							</CoordinateFrame>
-							<SharedString name="ModelMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
-							<Vector3 name="ModelMeshSize">
-								<X>0</X>
-								<Y>0</Y>
-								<Z>0</Z>
-							</Vector3>
-							<token name="ModelStreamingMode">0</token>
-							<bool name="NeedsPivotMigration">false</bool>
-							<Ref name="PrimaryPart">null</Ref>
-							<float name="ScaleFactor">1</float>
-							<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
-							<OptionalCoordinateFrame name="WorldPivotData">
-								<CFrame>
-									<X>38.0107651</X>
-									<Y>135.975006</Y>
-									<Z>50.2069702</Z>
-									<R00>0</R00>
-									<R01>0</R01>
-									<R02>1</R02>
-									<R10>0</R10>
-									<R11>1</R11>
-									<R12>-0</R12>
-									<R20>-1</R20>
-									<R21>0</R21>
-									<R22>0</R22>
-								</CFrame>
-							</OptionalCoordinateFrame>
-							<BinaryString name="AttributesSerialize"></BinaryString>
-							<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
-							<bool name="DefinesCapabilities">true</bool>
-							<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
-							<string name="Name">TankBurningTemplate</string>
-							<int64 name="SourceAssetId">5711704894</int64>
-							<BinaryString name="Tags"></BinaryString>
-							<UniqueId name="UniqueId">62ac66abb5ca38e80a1d5dd80000e000</UniqueId>
-						</Properties>
-						<Item class="Part" referent="RBX9fae7f0f096a407f801a3883ee2b458e">
-							<Properties>
-								<token name="shape">1</token>
-								<token name="formFactorRaw">3</token>
-								<bool name="Anchored">true</bool>
-								<bool name="AudioCanCollide">true</bool>
-								<float name="BackParamA">-0.5</float>
-								<float name="BackParamB">0.5</float>
-								<token name="BackSurface">0</token>
-								<token name="BackSurfaceInput">0</token>
-								<float name="BottomParamA">-0.5</float>
-								<float name="BottomParamB">0.5</float>
-								<token name="BottomSurface">0</token>
-								<token name="BottomSurfaceInput">0</token>
-								<CoordinateFrame name="CFrame">
-									<X>37.9507599</X>
-									<Y>135.5</Y>
-									<Z>50.1769676</Z>
-									<R00>0</R00>
-									<R01>0</R01>
-									<R02>-1</R02>
-									<R10>-1.74974645e-15</R10>
-									<R11>1</R11>
-									<R12>0</R12>
-									<R20>1</R20>
-									<R21>-1.74974645e-15</R21>
-									<R22>0</R22>
-								</CoordinateFrame>
-								<bool name="CanCollide">true</bool>
-								<bool name="CanQuery">true</bool>
-								<bool name="CanTouch">true</bool>
-								<bool name="CastShadow">true</bool>
-								<string name="CollisionGroup">Default</string>
-								<int name="CollisionGroupId">0</int>
-								<Color3uint8 name="Color3uint8">4288914085</Color3uint8>
-								<PhysicalProperties name="CustomPhysicalProperties">
-									<CustomPhysics>false</CustomPhysics>
-								</PhysicalProperties>
-								<bool name="EnableFluidForces">true</bool>
-								<float name="FrontParamA">-0.5</float>
-								<float name="FrontParamB">0.5</float>
-								<token name="FrontSurface">0</token>
-								<token name="FrontSurfaceInput">0</token>
-								<float name="LeftParamA">-0.5</float>
-								<float name="LeftParamB">0.5</float>
-								<token name="LeftSurface">0</token>
-								<token name="LeftSurfaceInput">0</token>
-								<bool name="Locked">false</bool>
-								<bool name="Massless">false</bool>
-								<token name="Material">800</token>
-								<string name="MaterialVariantSerialized"></string>
-								<CoordinateFrame name="PivotOffset">
-									<X>0</X>
-									<Y>0</Y>
-									<Z>0</Z>
-									<R00>1</R00>
-									<R01>0</R01>
-									<R02>0</R02>
-									<R10>0</R10>
-									<R11>1</R11>
-									<R12>0</R12>
-									<R20>0</R20>
-									<R21>0</R21>
-									<R22>1</R22>
-								</CoordinateFrame>
-								<float name="Reflectance">0</float>
-								<float name="RightParamA">-0.5</float>
-								<float name="RightParamB">0.5</float>
-								<token name="RightSurface">0</token>
-								<token name="RightSurfaceInput">0</token>
-								<int name="RootPriority">0</int>
-								<Vector3 name="RotVelocity">
-									<X>0</X>
-									<Y>0</Y>
-									<Z>0</Z>
-								</Vector3>
-								<float name="TopParamA">-0.5</float>
-								<float name="TopParamB">0.5</float>
-								<token name="TopSurface">0</token>
-								<token name="TopSurfaceInput">0</token>
-								<float name="Transparency">1</float>
-								<Vector3 name="Velocity">
-									<X>0</X>
-									<Y>0</Y>
-									<Z>0</Z>
-								</Vector3>
-								<Vector3 name="size">
-									<X>2.56000614</X>
-									<Y>1</Y>
-									<Z>1.70000219</Z>
-								</Vector3>
-								<BinaryString name="AttributesSerialize"></BinaryString>
-								<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-								<bool name="DefinesCapabilities">false</bool>
-								<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
-								<string name="Name">FIRE</string>
-								<int64 name="SourceAssetId">-1</int64>
-								<BinaryString name="Tags"></BinaryString>
-								<UniqueId name="UniqueId">37d18a1f00558cc30a17099c00001005</UniqueId>
-							</Properties>
-							<Item class="PointLight" referent="RBX7a802886c3b047ee896c27c82586eafb">
-								<Properties>
-									<float name="Range">14</float>
-									<float name="Brightness">1</float>
-									<Color3 name="Color">
-										<R>1</R>
-										<G>0.333333343</G>
-										<B>0</B>
-									</Color3>
-									<bool name="Enabled">true</bool>
-									<bool name="Shadows">true</bool>
-									<BinaryString name="AttributesSerialize"></BinaryString>
-									<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-									<bool name="DefinesCapabilities">false</bool>
-									<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
-									<string name="Name">FireLight</string>
-									<int64 name="SourceAssetId">-1</int64>
-									<BinaryString name="Tags"></BinaryString>
-									<UniqueId name="UniqueId">37d18a1f00558cc30a17099c00001006</UniqueId>
-								</Properties>
-								<Item class="Script" referent="RBX4b961101612b48a5b83f894165840b57">
-									<Properties>
-										<ProtectedString name="Source"><![CDATA[while true do
-	script.Parent.Range = script.Parent.Range + 1
-	wait(.001)
-	script.Parent.Range = script.Parent.Range + 1
-	wait(.001)
-	script.Parent.Range = script.Parent.Range + 1
-	wait(.001)
-	script.Parent.Range = script.Parent.Range - 1
-	wait(.001)
-	script.Parent.Range = script.Parent.Range - 1
-	wait(.001)
-	script.Parent.Range = script.Parent.Range + 1
-	wait(.001)
-	script.Parent.Range = script.Parent.Range - 1
-	wait(.001)
-	script.Parent.Range = script.Parent.Range - 1
-	wait(.001)
-end]]></ProtectedString>
-										<bool name="Disabled">false</bool>
-										<Content name="LinkedSource"><null></null></Content>
-										<token name="RunContext">0</token>
-										<string name="ScriptGuid">{4A0DC335-54B4-4F96-9AE5-33E12CE5001A}</string>
-										<BinaryString name="AttributesSerialize"></BinaryString>
-										<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
-										<bool name="DefinesCapabilities">true</bool>
-										<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
-										<string name="Name">Fire_Effect</string>
-										<int64 name="SourceAssetId">-1</int64>
-										<BinaryString name="Tags"></BinaryString>
-										<UniqueId name="UniqueId">717dd9693e6437720a1e2da700002ea3</UniqueId>
-									</Properties>
-								</Item>
-							</Item>
-							<Item class="ParticleEmitter" referent="RBXe5d39be7a8954e9f957eb03e84f1fa61">
-								<Properties>
-									<Vector3 name="Acceleration">
-										<X>8</X>
-										<Y>6</Y>
-										<Z>6</Z>
-									</Vector3>
-									<float name="Brightness">1</float>
-									<ColorSequence name="Color">0 1 0.333333 0 0 1 0.364706 0 0 0 </ColorSequence>
-									<float name="Drag">0</float>
-									<token name="EmissionDirection">1</token>
-									<bool name="Enabled">true</bool>
-									<bool name="FlipbookBlendFrames">true</bool>
-									<NumberRange name="FlipbookFramerate">1 1 </NumberRange>
-									<string name="FlipbookIncompatible">Particle texture must be 1024 by 1024 to use flipbooks.</string>
-									<token name="FlipbookLayout">0</token>
-									<token name="FlipbookMode">0</token>
-									<int name="FlipbookSizeX">1</int>
-									<int name="FlipbookSizeY">1</int>
-									<bool name="FlipbookStartRandom">false</bool>
-									<NumberRange name="Lifetime">0 1 </NumberRange>
-									<float name="LightEmission">0.860000014</float>
-									<float name="LightInfluence">0</float>
-									<bool name="LockedToPart">false</bool>
-									<token name="Orientation">0</token>
-									<float name="Rate">10000</float>
-									<NumberRange name="RotSpeed">5 9 </NumberRange>
-									<NumberRange name="Rotation">4 9 </NumberRange>
-									<token name="Shape">0</token>
-									<token name="ShapeInOut">0</token>
-									<float name="ShapePartial">1</float>
-									<token name="ShapeStyle">0</token>
-									<NumberSequence name="Size">0 3.3125 0 0.122673 2.8125 0 0.178532 2.6875 0 0.268346 2.5625 0 0.429354 2.3125 0 0.576123 2.1875 0 0.743702 1.75 0 0.90471 0.4375 0 1 0.125 0 </NumberSequence>
-									<NumberRange name="Speed">5 7 </NumberRange>
-									<Vector2 name="SpreadAngle">
-										<X>28</X>
-										<Y>28</Y>
-									</Vector2>
-									<NumberSequence name="Squash">0 0 0 1 0 0 </NumberSequence>
-									<Content name="Texture"><url>http://www.roblox.com/asset/?id=248625108</url></Content>
-									<float name="TimeScale">1</float>
-									<NumberSequence name="Transparency">0 0 0 0.13253 0.54375 0 0.32092 0.7375 0 0.387733 0 0 0.468784 0.725 0 0.522453 0.45625 0 0.615553 0.6375 0 0.63965 0 0 0.744797 0.525 0 1 0 0 </NumberSequence>
-									<float name="VelocityInheritance">0</float>
-									<bool name="WindAffectsDrag">false</bool>
-									<float name="ZOffset">0</float>
-									<BinaryString name="AttributesSerialize"></BinaryString>
-									<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-									<bool name="DefinesCapabilities">false</bool>
-									<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
-									<string name="Name">Fire</string>
-									<int64 name="SourceAssetId">-1</int64>
-									<BinaryString name="Tags"></BinaryString>
-									<UniqueId name="UniqueId">37d18a1f00558cc30a17099c00001008</UniqueId>
-								</Properties>
-							</Item>
-							<Item class="ParticleEmitter" referent="RBXd063bbcb066c448da80fab31948fbfa9">
-								<Properties>
-									<Vector3 name="Acceleration">
-										<X>-0.300000012</X>
-										<Y>0</Y>
-										<Z>0.899999976</Z>
-									</Vector3>
-									<float name="Brightness">1</float>
-									<ColorSequence name="Color">0 1 0.333333 0 0 1 0.364706 0 0 0 </ColorSequence>
-									<float name="Drag">0</float>
-									<token name="EmissionDirection">1</token>
-									<bool name="Enabled">true</bool>
-									<bool name="FlipbookBlendFrames">true</bool>
-									<NumberRange name="FlipbookFramerate">1 1 </NumberRange>
-									<string name="FlipbookIncompatible">Particle texture must be 1024 by 1024 to use flipbooks.</string>
-									<token name="FlipbookLayout">0</token>
-									<token name="FlipbookMode">0</token>
-									<int name="FlipbookSizeX">1</int>
-									<int name="FlipbookSizeY">1</int>
-									<bool name="FlipbookStartRandom">false</bool>
-									<NumberRange name="Lifetime">50 50 </NumberRange>
-									<float name="LightEmission">0.860000014</float>
-									<float name="LightInfluence">0</float>
-									<bool name="LockedToPart">false</bool>
-									<token name="Orientation">0</token>
-									<float name="Rate">50</float>
-									<NumberRange name="RotSpeed">5 9 </NumberRange>
-									<NumberRange name="Rotation">4 9 </NumberRange>
-									<token name="Shape">0</token>
-									<token name="ShapeInOut">0</token>
-									<float name="ShapePartial">1</float>
-									<token name="ShapeStyle">0</token>
-									<NumberSequence name="Size">0 0.3 0 1 0.3 0 </NumberSequence>
-									<NumberRange name="Speed">7 10 </NumberRange>
-									<Vector2 name="SpreadAngle">
-										<X>28</X>
-										<Y>28</Y>
-									</Vector2>
-									<NumberSequence name="Squash">0 0 0 1 0 0 </NumberSequence>
-									<Content name="Texture"><url>http://www.roblox.com/asset/?id=248625108</url></Content>
-									<float name="TimeScale">1</float>
-									<NumberSequence name="Transparency">0 0 0 0.13253 0.54375 0 0.32092 0.7375 0 0.387733 0 0 0.468784 0.725 0 0.522453 0.45625 0 0.615553 0.6375 0 0.63965 0 0 0.744797 0.525 0 1 0 0 </NumberSequence>
-									<float name="VelocityInheritance">0</float>
-									<bool name="WindAffectsDrag">false</bool>
-									<float name="ZOffset">0</float>
-									<BinaryString name="AttributesSerialize"></BinaryString>
-									<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-									<bool name="DefinesCapabilities">false</bool>
-									<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
-									<string name="Name">Fire</string>
-									<int64 name="SourceAssetId">-1</int64>
-									<BinaryString name="Tags"></BinaryString>
-									<UniqueId name="UniqueId">37d18a1f00558cc30a17099c00001009</UniqueId>
-								</Properties>
-							</Item>
-							<Item class="ParticleEmitter" referent="RBX7e63569a6da042cc9f932d93950120ec">
-								<Properties>
-									<Vector3 name="Acceleration">
-										<X>-0.300000012</X>
-										<Y>0</Y>
-										<Z>0.899999976</Z>
-									</Vector3>
-									<float name="Brightness">1</float>
-									<ColorSequence name="Color">0 0.317647 0.278431 0.231373 0 1 0.137255 0.12549 0.121569 0 </ColorSequence>
-									<float name="Drag">0</float>
-									<token name="EmissionDirection">1</token>
-									<bool name="Enabled">true</bool>
-									<bool name="FlipbookBlendFrames">true</bool>
-									<NumberRange name="FlipbookFramerate">1 1 </NumberRange>
-									<string name="FlipbookIncompatible">Particle texture must be 1024 by 1024 to use flipbooks.</string>
-									<token name="FlipbookLayout">0</token>
-									<token name="FlipbookMode">0</token>
-									<int name="FlipbookSizeX">1</int>
-									<int name="FlipbookSizeY">1</int>
-									<bool name="FlipbookStartRandom">false</bool>
-									<NumberRange name="Lifetime">10 15 </NumberRange>
-									<float name="LightEmission">0</float>
-									<float name="LightInfluence">0</float>
-									<bool name="LockedToPart">false</bool>
-									<token name="Orientation">0</token>
-									<float name="Rate">20</float>
-									<NumberRange name="RotSpeed">10 10 </NumberRange>
-									<NumberRange name="Rotation">-360 360 </NumberRange>
-									<token name="Shape">0</token>
-									<token name="ShapeInOut">0</token>
-									<float name="ShapePartial">1</float>
-									<token name="ShapeStyle">0</token>
-									<NumberSequence name="Size">0 0 0 0.21988 3.84615 0.714286 0.653614 4.34066 0 1 5.98901 0.824177 </NumberSequence>
-									<NumberRange name="Speed">5 5 </NumberRange>
-									<Vector2 name="SpreadAngle">
-										<X>0</X>
-										<Y>0</Y>
-									</Vector2>
-									<NumberSequence name="Squash">0 0 0 1 0 0 </NumberSequence>
-									<Content name="Texture"><url>http://www.roblox.com/asset/?id=297744035</url></Content>
-									<float name="TimeScale">1</float>
-									<NumberSequence name="Transparency">0 0.9 0 1 0.9 0 </NumberSequence>
-									<float name="VelocityInheritance">0</float>
-									<bool name="WindAffectsDrag">false</bool>
-									<float name="ZOffset">2</float>
-									<BinaryString name="AttributesSerialize"></BinaryString>
-									<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-									<bool name="DefinesCapabilities">false</bool>
-									<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
-									<string name="Name">Smoke</string>
-									<int64 name="SourceAssetId">-1</int64>
-									<BinaryString name="Tags"></BinaryString>
-									<UniqueId name="UniqueId">37d18a1f00558cc30a17099c0000100a</UniqueId>
-								</Properties>
-							</Item>
-						</Item>
-						<Item class="Model" referent="RBX12c8e3dcdb06449888c3097e32ce6a34">
-							<Properties>
-								<token name="LevelOfDetail">0</token>
-								<CoordinateFrame name="ModelMeshCFrame">
-									<X>0</X>
-									<Y>0</Y>
-									<Z>0</Z>
-									<R00>1</R00>
-									<R01>0</R01>
-									<R02>0</R02>
-									<R10>0</R10>
-									<R11>1</R11>
-									<R12>0</R12>
-									<R20>0</R20>
-									<R21>0</R21>
-									<R22>1</R22>
-								</CoordinateFrame>
-								<SharedString name="ModelMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
-								<Vector3 name="ModelMeshSize">
-									<X>0</X>
-									<Y>0</Y>
-									<Z>0</Z>
-								</Vector3>
-								<token name="ModelStreamingMode">0</token>
-								<bool name="NeedsPivotMigration">false</bool>
-								<Ref name="PrimaryPart">null</Ref>
-								<float name="ScaleFactor">1</float>
-								<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
-								<OptionalCoordinateFrame name="WorldPivotData">
-									<CFrame>
-										<X>38.0107651</X>
-										<Y>136.449997</Y>
-										<Z>50.2069702</Z>
-										<R00>0</R00>
-										<R01>0</R01>
-										<R02>1</R02>
-										<R10>0</R10>
-										<R11>1</R11>
-										<R12>-0</R12>
-										<R20>-1</R20>
-										<R21>0</R21>
-										<R22>0</R22>
-									</CFrame>
-								</OptionalCoordinateFrame>
-								<BinaryString name="AttributesSerialize"></BinaryString>
-								<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
-								<bool name="DefinesCapabilities">true</bool>
-								<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
-								<string name="Name">Smoke</string>
-								<int64 name="SourceAssetId">-1</int64>
-								<BinaryString name="Tags"></BinaryString>
-								<UniqueId name="UniqueId">62ac66abb5ca38e80a1d5dd80000e001</UniqueId>
-							</Properties>
-							<Item class="Part" referent="RBXf558134105114621a6a5de56eb727380">
-								<Properties>
-									<token name="shape">1</token>
-									<token name="formFactorRaw">3</token>
-									<bool name="Anchored">true</bool>
-									<bool name="AudioCanCollide">true</bool>
-									<float name="BackParamA">-0.5</float>
-									<float name="BackParamB">0.5</float>
-									<token name="BackSurface">0</token>
-									<token name="BackSurfaceInput">0</token>
-									<float name="BottomParamA">-0.5</float>
-									<float name="BottomParamB">0.5</float>
-									<token name="BottomSurface">4</token>
-									<token name="BottomSurfaceInput">0</token>
-									<CoordinateFrame name="CFrame">
-										<X>38.0107651</X>
-										<Y>136.449997</Y>
-										<Z>50.2069702</Z>
-										<R00>0</R00>
-										<R01>0</R01>
-										<R02>1</R02>
-										<R10>0</R10>
-										<R11>1</R11>
-										<R12>-0</R12>
-										<R20>-1</R20>
-										<R21>0</R21>
-										<R22>0</R22>
-									</CoordinateFrame>
-									<bool name="CanCollide">true</bool>
-									<bool name="CanQuery">true</bool>
-									<bool name="CanTouch">true</bool>
-									<bool name="CastShadow">true</bool>
-									<string name="CollisionGroup">Default</string>
-									<int name="CollisionGroupId">0</int>
-									<Color3uint8 name="Color3uint8">4288914085</Color3uint8>
-									<PhysicalProperties name="CustomPhysicalProperties">
-										<CustomPhysics>false</CustomPhysics>
-									</PhysicalProperties>
-									<bool name="EnableFluidForces">true</bool>
-									<float name="FrontParamA">-0.5</float>
-									<float name="FrontParamB">0.5</float>
-									<token name="FrontSurface">0</token>
-									<token name="FrontSurfaceInput">0</token>
-									<float name="LeftParamA">-0.5</float>
-									<float name="LeftParamB">0.5</float>
-									<token name="LeftSurface">0</token>
-									<token name="LeftSurfaceInput">0</token>
-									<bool name="Locked">false</bool>
-									<bool name="Massless">false</bool>
-									<token name="Material">256</token>
-									<string name="MaterialVariantSerialized"></string>
-									<CoordinateFrame name="PivotOffset">
-										<X>0</X>
-										<Y>0</Y>
-										<Z>0</Z>
-										<R00>1</R00>
-										<R01>0</R01>
-										<R02>0</R02>
-										<R10>0</R10>
-										<R11>1</R11>
-										<R12>0</R12>
-										<R20>0</R20>
-										<R21>0</R21>
-										<R22>1</R22>
-									</CoordinateFrame>
-									<float name="Reflectance">0</float>
-									<float name="RightParamA">-0.5</float>
-									<float name="RightParamB">0.5</float>
-									<token name="RightSurface">0</token>
-									<token name="RightSurfaceInput">0</token>
-									<int name="RootPriority">0</int>
-									<Vector3 name="RotVelocity">
-										<X>0</X>
-										<Y>0</Y>
-										<Z>0</Z>
-									</Vector3>
-									<float name="TopParamA">-0.5</float>
-									<float name="TopParamB">0.5</float>
-									<token name="TopSurface">3</token>
-									<token name="TopSurfaceInput">0</token>
-									<float name="Transparency">1</float>
-									<Vector3 name="Velocity">
-										<X>0</X>
-										<Y>0</Y>
-										<Z>0</Z>
-									</Vector3>
-									<Vector3 name="size">
-										<X>3</X>
-										<Y>1</Y>
-										<Z>3</Z>
-									</Vector3>
-									<BinaryString name="AttributesSerialize"></BinaryString>
-									<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-									<bool name="DefinesCapabilities">false</bool>
-									<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
-									<string name="Name">Part</string>
-									<int64 name="SourceAssetId">-1</int64>
-									<BinaryString name="Tags"></BinaryString>
-									<UniqueId name="UniqueId">37d18a1f00558cc30a17099c0000100e</UniqueId>
-								</Properties>
-								<Item class="ParticleEmitter" referent="RBX62aac173e3bf42bd98377447c71d63aa">
-									<Properties>
-										<Vector3 name="Acceleration">
-											<X>1</X>
-											<Y>-0.100000001</Y>
-											<Z>2</Z>
-										</Vector3>
-										<float name="Brightness">1</float>
-										<ColorSequence name="Color">0 1 1 1 0 1 1 1 1 0 </ColorSequence>
-										<float name="Drag">0</float>
-										<token name="EmissionDirection">1</token>
-										<bool name="Enabled">true</bool>
-										<bool name="FlipbookBlendFrames">true</bool>
-										<NumberRange name="FlipbookFramerate">1 1 </NumberRange>
-										<string name="FlipbookIncompatible">Particle texture must be 1024 by 1024 to use flipbooks.</string>
-										<token name="FlipbookLayout">0</token>
-										<token name="FlipbookMode">0</token>
-										<int name="FlipbookSizeX">1</int>
-										<int name="FlipbookSizeY">1</int>
-										<bool name="FlipbookStartRandom">false</bool>
-										<NumberRange name="Lifetime">10 10 </NumberRange>
-										<float name="LightEmission">0</float>
-										<float name="LightInfluence">0</float>
-										<bool name="LockedToPart">false</bool>
-										<token name="Orientation">0</token>
-										<float name="Rate">150</float>
-										<NumberRange name="RotSpeed">20 50 </NumberRange>
-										<NumberRange name="Rotation">0 360 </NumberRange>
-										<token name="Shape">0</token>
-										<token name="ShapeInOut">0</token>
-										<float name="ShapePartial">1</float>
-										<token name="ShapeStyle">0</token>
-										<NumberSequence name="Size">0 1 0 0.1 2 0 0.2 1.5 0 0.3 4 0 0.4 2 0 0.501 6 0 0.6 2.5 0 0.8 8 0 1 8 0 </NumberSequence>
-										<NumberRange name="Speed">5 5 </NumberRange>
-										<Vector2 name="SpreadAngle">
-											<X>20</X>
-											<Y>20</Y>
-										</Vector2>
-										<NumberSequence name="Squash">0 0 0 1 0 0 </NumberSequence>
-										<Content name="Texture"><url>http://www.roblox.com/asset/?id=122434485</url></Content>
-										<float name="TimeScale">1</float>
-										<NumberSequence name="Transparency">0 0.15 0 0.9 0.45 0 1 1 0 </NumberSequence>
-										<float name="VelocityInheritance">0</float>
-										<bool name="WindAffectsDrag">false</bool>
-										<float name="ZOffset">0</float>
-										<BinaryString name="AttributesSerialize"></BinaryString>
-										<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-										<bool name="DefinesCapabilities">false</bool>
-										<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
-										<string name="Name">ParticleEmitter</string>
-										<int64 name="SourceAssetId">-1</int64>
-										<BinaryString name="Tags"></BinaryString>
-										<UniqueId name="UniqueId">37d18a1f00558cc30a17099c0000100f</UniqueId>
-									</Properties>
-								</Item>
-							</Item>
-							<Item class="Part" referent="RBX9c4466f8698543b8a4b5c4c742a93746">
-								<Properties>
-									<token name="shape">1</token>
-									<token name="formFactorRaw">3</token>
-									<bool name="Anchored">true</bool>
-									<bool name="AudioCanCollide">true</bool>
-									<float name="BackParamA">-0.5</float>
-									<float name="BackParamB">0.5</float>
-									<token name="BackSurface">0</token>
-									<token name="BackSurfaceInput">0</token>
-									<float name="BottomParamA">-0.5</float>
-									<float name="BottomParamB">0.5</float>
-									<token name="BottomSurface">4</token>
-									<token name="BottomSurfaceInput">0</token>
-									<CoordinateFrame name="CFrame">
-										<X>38.0107651</X>
-										<Y>136.449997</Y>
-										<Z>50.2069702</Z>
-										<R00>0</R00>
-										<R01>0</R01>
-										<R02>1</R02>
-										<R10>0</R10>
-										<R11>1</R11>
-										<R12>-0</R12>
-										<R20>-1</R20>
-										<R21>0</R21>
-										<R22>0</R22>
-									</CoordinateFrame>
-									<bool name="CanCollide">true</bool>
-									<bool name="CanQuery">true</bool>
-									<bool name="CanTouch">true</bool>
-									<bool name="CastShadow">true</bool>
-									<string name="CollisionGroup">Default</string>
-									<int name="CollisionGroupId">0</int>
-									<Color3uint8 name="Color3uint8">4288914085</Color3uint8>
-									<PhysicalProperties name="CustomPhysicalProperties">
-										<CustomPhysics>false</CustomPhysics>
-									</PhysicalProperties>
-									<bool name="EnableFluidForces">true</bool>
-									<float name="FrontParamA">-0.5</float>
-									<float name="FrontParamB">0.5</float>
-									<token name="FrontSurface">0</token>
-									<token name="FrontSurfaceInput">0</token>
-									<float name="LeftParamA">-0.5</float>
-									<float name="LeftParamB">0.5</float>
-									<token name="LeftSurface">0</token>
-									<token name="LeftSurfaceInput">0</token>
-									<bool name="Locked">false</bool>
-									<bool name="Massless">false</bool>
-									<token name="Material">256</token>
-									<string name="MaterialVariantSerialized"></string>
-									<CoordinateFrame name="PivotOffset">
-										<X>0</X>
-										<Y>0</Y>
-										<Z>0</Z>
-										<R00>1</R00>
-										<R01>0</R01>
-										<R02>0</R02>
-										<R10>0</R10>
-										<R11>1</R11>
-										<R12>0</R12>
-										<R20>0</R20>
-										<R21>0</R21>
-										<R22>1</R22>
-									</CoordinateFrame>
-									<float name="Reflectance">0</float>
-									<float name="RightParamA">-0.5</float>
-									<float name="RightParamB">0.5</float>
-									<token name="RightSurface">0</token>
-									<token name="RightSurfaceInput">0</token>
-									<int name="RootPriority">0</int>
-									<Vector3 name="RotVelocity">
-										<X>0</X>
-										<Y>0</Y>
-										<Z>0</Z>
-									</Vector3>
-									<float name="TopParamA">-0.5</float>
-									<float name="TopParamB">0.5</float>
-									<token name="TopSurface">3</token>
-									<token name="TopSurfaceInput">0</token>
-									<float name="Transparency">1</float>
-									<Vector3 name="Velocity">
-										<X>0</X>
-										<Y>0</Y>
-										<Z>0</Z>
-									</Vector3>
-									<Vector3 name="size">
-										<X>1</X>
-										<Y>1</Y>
-										<Z>1</Z>
-									</Vector3>
-									<BinaryString name="AttributesSerialize"></BinaryString>
-									<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-									<bool name="DefinesCapabilities">false</bool>
-									<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
-									<string name="Name">Part</string>
-									<int64 name="SourceAssetId">-1</int64>
-									<BinaryString name="Tags"></BinaryString>
-									<UniqueId name="UniqueId">37d18a1f00558cc30a17099c00001010</UniqueId>
-								</Properties>
-								<Item class="ParticleEmitter" referent="RBX687883103a774774adb02b9aeeb05926">
-									<Properties>
-										<Vector3 name="Acceleration">
-											<X>1</X>
-											<Y>-0.100000001</Y>
-											<Z>2</Z>
-										</Vector3>
-										<float name="Brightness">1</float>
-										<ColorSequence name="Color">0 1 1 1 0 1 1 1 1 0 </ColorSequence>
-										<float name="Drag">0</float>
-										<token name="EmissionDirection">1</token>
-										<bool name="Enabled">true</bool>
-										<bool name="FlipbookBlendFrames">true</bool>
-										<NumberRange name="FlipbookFramerate">1 1 </NumberRange>
-										<string name="FlipbookIncompatible">Particle texture must be 1024 by 1024 to use flipbooks.</string>
-										<token name="FlipbookLayout">0</token>
-										<token name="FlipbookMode">0</token>
-										<int name="FlipbookSizeX">1</int>
-										<int name="FlipbookSizeY">1</int>
-										<bool name="FlipbookStartRandom">false</bool>
-										<NumberRange name="Lifetime">10 10 </NumberRange>
-										<float name="LightEmission">0</float>
-										<float name="LightInfluence">0</float>
-										<bool name="LockedToPart">false</bool>
-										<token name="Orientation">0</token>
-										<float name="Rate">150</float>
-										<NumberRange name="RotSpeed">20 50 </NumberRange>
-										<NumberRange name="Rotation">0 360 </NumberRange>
-										<token name="Shape">0</token>
-										<token name="ShapeInOut">0</token>
-										<float name="ShapePartial">1</float>
-										<token name="ShapeStyle">0</token>
-										<NumberSequence name="Size">0 1 0 0.1 2 0 0.2 1.5 0 0.3 4 0 0.4 2 0 0.501 6 0 0.6 2.5 0 0.8 8 0 1 8 0 </NumberSequence>
-										<NumberRange name="Speed">7 7 </NumberRange>
-										<Vector2 name="SpreadAngle">
-											<X>20</X>
-											<Y>20</Y>
-										</Vector2>
-										<NumberSequence name="Squash">0 0 0 1 0 0 </NumberSequence>
-										<Content name="Texture"><url>http://www.roblox.com/asset/?id=122434485</url></Content>
-										<float name="TimeScale">1</float>
-										<NumberSequence name="Transparency">0 0 0 0.9 0.25 0 1 1 0 </NumberSequence>
-										<float name="VelocityInheritance">0</float>
-										<bool name="WindAffectsDrag">false</bool>
-										<float name="ZOffset">0</float>
-										<BinaryString name="AttributesSerialize"></BinaryString>
-										<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-										<bool name="DefinesCapabilities">false</bool>
-										<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
-										<string name="Name">ParticleEmitter</string>
-										<int64 name="SourceAssetId">-1</int64>
-										<BinaryString name="Tags"></BinaryString>
-										<UniqueId name="UniqueId">37d18a1f00558cc30a17099c00001011</UniqueId>
-									</Properties>
-								</Item>
-							</Item>
-						</Item>
 					</Item>
 					<Item class="Part" referent="RBX0dd6f630d5824e4bb0e45b55f1abcc2f">
 						<Properties>
@@ -40650,42 +40197,747 @@ DgAAAFdPQlZmeFRlbXBsYXRlAwE=]]></BinaryString>
 							</Item>
 						</Item>
 					</Item>
-				</Item>
-			</Item>
-			<Item class="Folder" referent="RBXe57827309a904760ad64c8c1c36fad0c">
-				<Properties>
-					<BinaryString name="AttributesSerialize"></BinaryString>
-					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-					<bool name="DefinesCapabilities">false</bool>
-					<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
-					<string name="Name">Assets</string>
-					<int64 name="SourceAssetId">-1</int64>
-					<BinaryString name="Tags"></BinaryString>
-					<UniqueId name="UniqueId">6f300c301268d59e0a2103fe000010c8</UniqueId>
-				</Properties>
-				<Item class="Folder" referent="RBXd90b72fb4488489983d63356e8634dc8">
-					<Properties>
-						<BinaryString name="AttributesSerialize"></BinaryString>
-						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-						<bool name="DefinesCapabilities">false</bool>
-						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
-						<string name="Name">UI</string>
-						<int64 name="SourceAssetId">-1</int64>
-						<BinaryString name="Tags"></BinaryString>
-						<UniqueId name="UniqueId">6f300c301268d59e0a2103fe000010c9</UniqueId>
-					</Properties>
-				</Item>
-				<Item class="Folder" referent="RBX2eb03c5e202c4c8d96653792b5fb8492">
-					<Properties>
-						<BinaryString name="AttributesSerialize"></BinaryString>
-						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-						<bool name="DefinesCapabilities">false</bool>
-						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
-						<string name="Name">VFX</string>
-						<int64 name="SourceAssetId">-1</int64>
-						<BinaryString name="Tags"></BinaryString>
-						<UniqueId name="UniqueId">6f300c301268d59e0a2103fe000010ca</UniqueId>
-					</Properties>
+					<Item class="Model" referent="RBXa994ab2df89a483592c9c6bea0f3c313">
+						<Properties>
+							<token name="LevelOfDetail">0</token>
+							<CoordinateFrame name="ModelMeshCFrame">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+								<R00>1</R00>
+								<R01>0</R01>
+								<R02>0</R02>
+								<R10>0</R10>
+								<R11>1</R11>
+								<R12>0</R12>
+								<R20>0</R20>
+								<R21>0</R21>
+								<R22>1</R22>
+							</CoordinateFrame>
+							<SharedString name="ModelMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+							<Vector3 name="ModelMeshSize">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<token name="ModelStreamingMode">0</token>
+							<bool name="NeedsPivotMigration">false</bool>
+							<Ref name="PrimaryPart">null</Ref>
+							<float name="ScaleFactor">1</float>
+							<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+							<OptionalCoordinateFrame name="WorldPivotData">
+								<CFrame>
+									<X>38.0107651</X>
+									<Y>135.975006</Y>
+									<Z>50.2069702</Z>
+									<R00>0</R00>
+									<R01>0</R01>
+									<R02>1</R02>
+									<R10>0</R10>
+									<R11>1</R11>
+									<R12>-0</R12>
+									<R20>-1</R20>
+									<R21>0</R21>
+									<R22>0</R22>
+								</CFrame>
+							</OptionalCoordinateFrame>
+							<BinaryString name="AttributesSerialize"></BinaryString>
+							<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
+							<bool name="DefinesCapabilities">true</bool>
+							<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+							<string name="Name">TankBurningTemplate</string>
+							<int64 name="SourceAssetId">5711704894</int64>
+							<BinaryString name="Tags"></BinaryString>
+							<UniqueId name="UniqueId">2580cdd9915f79820a23b1a200000cb1</UniqueId>
+						</Properties>
+						<Item class="Part" referent="RBX9fae7f0f096a407f801a3883ee2b458e">
+							<Properties>
+								<token name="shape">1</token>
+								<token name="formFactorRaw">3</token>
+								<bool name="Anchored">true</bool>
+								<bool name="AudioCanCollide">true</bool>
+								<float name="BackParamA">-0.5</float>
+								<float name="BackParamB">0.5</float>
+								<token name="BackSurface">0</token>
+								<token name="BackSurfaceInput">0</token>
+								<float name="BottomParamA">-0.5</float>
+								<float name="BottomParamB">0.5</float>
+								<token name="BottomSurface">0</token>
+								<token name="BottomSurfaceInput">0</token>
+								<CoordinateFrame name="CFrame">
+									<X>37.9507599</X>
+									<Y>135.5</Y>
+									<Z>50.1769676</Z>
+									<R00>0</R00>
+									<R01>0</R01>
+									<R02>-1</R02>
+									<R10>-1.74974645e-15</R10>
+									<R11>1</R11>
+									<R12>0</R12>
+									<R20>1</R20>
+									<R21>-1.74974645e-15</R21>
+									<R22>0</R22>
+								</CoordinateFrame>
+								<bool name="CanCollide">true</bool>
+								<bool name="CanQuery">true</bool>
+								<bool name="CanTouch">true</bool>
+								<bool name="CastShadow">true</bool>
+								<string name="CollisionGroup">Default</string>
+								<int name="CollisionGroupId">0</int>
+								<Color3uint8 name="Color3uint8">4288914085</Color3uint8>
+								<PhysicalProperties name="CustomPhysicalProperties">
+									<CustomPhysics>false</CustomPhysics>
+								</PhysicalProperties>
+								<bool name="EnableFluidForces">true</bool>
+								<float name="FrontParamA">-0.5</float>
+								<float name="FrontParamB">0.5</float>
+								<token name="FrontSurface">0</token>
+								<token name="FrontSurfaceInput">0</token>
+								<float name="LeftParamA">-0.5</float>
+								<float name="LeftParamB">0.5</float>
+								<token name="LeftSurface">0</token>
+								<token name="LeftSurfaceInput">0</token>
+								<bool name="Locked">false</bool>
+								<bool name="Massless">false</bool>
+								<token name="Material">800</token>
+								<string name="MaterialVariantSerialized"></string>
+								<CoordinateFrame name="PivotOffset">
+									<X>0</X>
+									<Y>0</Y>
+									<Z>0</Z>
+									<R00>1</R00>
+									<R01>0</R01>
+									<R02>0</R02>
+									<R10>0</R10>
+									<R11>1</R11>
+									<R12>0</R12>
+									<R20>0</R20>
+									<R21>0</R21>
+									<R22>1</R22>
+								</CoordinateFrame>
+								<float name="Reflectance">0</float>
+								<float name="RightParamA">-0.5</float>
+								<float name="RightParamB">0.5</float>
+								<token name="RightSurface">0</token>
+								<token name="RightSurfaceInput">0</token>
+								<int name="RootPriority">0</int>
+								<Vector3 name="RotVelocity">
+									<X>0</X>
+									<Y>0</Y>
+									<Z>0</Z>
+								</Vector3>
+								<float name="TopParamA">-0.5</float>
+								<float name="TopParamB">0.5</float>
+								<token name="TopSurface">0</token>
+								<token name="TopSurfaceInput">0</token>
+								<float name="Transparency">1</float>
+								<Vector3 name="Velocity">
+									<X>0</X>
+									<Y>0</Y>
+									<Z>0</Z>
+								</Vector3>
+								<Vector3 name="size">
+									<X>2.56000614</X>
+									<Y>1</Y>
+									<Z>1.70000219</Z>
+								</Vector3>
+								<BinaryString name="AttributesSerialize"></BinaryString>
+								<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+								<bool name="DefinesCapabilities">false</bool>
+								<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+								<string name="Name">FIRE</string>
+								<int64 name="SourceAssetId">-1</int64>
+								<BinaryString name="Tags"></BinaryString>
+								<UniqueId name="UniqueId">37d18a1f00558cc30a17099c00001005</UniqueId>
+							</Properties>
+							<Item class="PointLight" referent="RBX7a802886c3b047ee896c27c82586eafb">
+								<Properties>
+									<float name="Range">14</float>
+									<float name="Brightness">1</float>
+									<Color3 name="Color">
+										<R>1</R>
+										<G>0.333333343</G>
+										<B>0</B>
+									</Color3>
+									<bool name="Enabled">true</bool>
+									<bool name="Shadows">true</bool>
+									<BinaryString name="AttributesSerialize"></BinaryString>
+									<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+									<bool name="DefinesCapabilities">false</bool>
+									<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+									<string name="Name">FireLight</string>
+									<int64 name="SourceAssetId">-1</int64>
+									<BinaryString name="Tags"></BinaryString>
+									<UniqueId name="UniqueId">37d18a1f00558cc30a17099c00001006</UniqueId>
+								</Properties>
+								<Item class="Script" referent="RBX4b961101612b48a5b83f894165840b57">
+									<Properties>
+										<ProtectedString name="Source"><![CDATA[while true do
+	script.Parent.Range = script.Parent.Range + 1
+	wait(.001)
+	script.Parent.Range = script.Parent.Range + 1
+	wait(.001)
+	script.Parent.Range = script.Parent.Range + 1
+	wait(.001)
+	script.Parent.Range = script.Parent.Range - 1
+	wait(.001)
+	script.Parent.Range = script.Parent.Range - 1
+	wait(.001)
+	script.Parent.Range = script.Parent.Range + 1
+	wait(.001)
+	script.Parent.Range = script.Parent.Range - 1
+	wait(.001)
+	script.Parent.Range = script.Parent.Range - 1
+	wait(.001)
+end]]></ProtectedString>
+										<bool name="Disabled">false</bool>
+										<Content name="LinkedSource"><null></null></Content>
+										<token name="RunContext">0</token>
+										<string name="ScriptGuid">{4A0DC335-54B4-4F96-9AE5-33E12CE5001A}</string>
+										<BinaryString name="AttributesSerialize"></BinaryString>
+										<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
+										<bool name="DefinesCapabilities">true</bool>
+										<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+										<string name="Name">Fire_Effect</string>
+										<int64 name="SourceAssetId">-1</int64>
+										<BinaryString name="Tags"></BinaryString>
+										<UniqueId name="UniqueId">717dd9693e6437720a1e2da700002ea3</UniqueId>
+									</Properties>
+								</Item>
+							</Item>
+							<Item class="ParticleEmitter" referent="RBXe5d39be7a8954e9f957eb03e84f1fa61">
+								<Properties>
+									<Vector3 name="Acceleration">
+										<X>8</X>
+										<Y>6</Y>
+										<Z>6</Z>
+									</Vector3>
+									<float name="Brightness">1</float>
+									<ColorSequence name="Color">0 1 0.333333 0 0 1 0.364706 0 0 0 </ColorSequence>
+									<float name="Drag">0</float>
+									<token name="EmissionDirection">1</token>
+									<bool name="Enabled">true</bool>
+									<bool name="FlipbookBlendFrames">true</bool>
+									<NumberRange name="FlipbookFramerate">1 1 </NumberRange>
+									<string name="FlipbookIncompatible">Particle texture must be 1024 by 1024 to use flipbooks.</string>
+									<token name="FlipbookLayout">0</token>
+									<token name="FlipbookMode">0</token>
+									<int name="FlipbookSizeX">1</int>
+									<int name="FlipbookSizeY">1</int>
+									<bool name="FlipbookStartRandom">false</bool>
+									<NumberRange name="Lifetime">0 1 </NumberRange>
+									<float name="LightEmission">0.860000014</float>
+									<float name="LightInfluence">0</float>
+									<bool name="LockedToPart">false</bool>
+									<token name="Orientation">0</token>
+									<float name="Rate">10000</float>
+									<NumberRange name="RotSpeed">5 9 </NumberRange>
+									<NumberRange name="Rotation">4 9 </NumberRange>
+									<token name="Shape">0</token>
+									<token name="ShapeInOut">0</token>
+									<float name="ShapePartial">1</float>
+									<token name="ShapeStyle">0</token>
+									<NumberSequence name="Size">0 3.3125 0 0.122673 2.8125 0 0.178532 2.6875 0 0.268346 2.5625 0 0.429354 2.3125 0 0.576123 2.1875 0 0.743702 1.75 0 0.90471 0.4375 0 1 0.125 0 </NumberSequence>
+									<NumberRange name="Speed">5 7 </NumberRange>
+									<Vector2 name="SpreadAngle">
+										<X>28</X>
+										<Y>28</Y>
+									</Vector2>
+									<NumberSequence name="Squash">0 0 0 1 0 0 </NumberSequence>
+									<Content name="Texture"><url>http://www.roblox.com/asset/?id=248625108</url></Content>
+									<float name="TimeScale">1</float>
+									<NumberSequence name="Transparency">0 0 0 0.13253 0.54375 0 0.32092 0.7375 0 0.387733 0 0 0.468784 0.725 0 0.522453 0.45625 0 0.615553 0.6375 0 0.63965 0 0 0.744797 0.525 0 1 0 0 </NumberSequence>
+									<float name="VelocityInheritance">0</float>
+									<bool name="WindAffectsDrag">false</bool>
+									<float name="ZOffset">0</float>
+									<BinaryString name="AttributesSerialize"></BinaryString>
+									<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+									<bool name="DefinesCapabilities">false</bool>
+									<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+									<string name="Name">Fire</string>
+									<int64 name="SourceAssetId">-1</int64>
+									<BinaryString name="Tags"></BinaryString>
+									<UniqueId name="UniqueId">37d18a1f00558cc30a17099c00001008</UniqueId>
+								</Properties>
+							</Item>
+							<Item class="ParticleEmitter" referent="RBXd063bbcb066c448da80fab31948fbfa9">
+								<Properties>
+									<Vector3 name="Acceleration">
+										<X>-0.300000012</X>
+										<Y>0</Y>
+										<Z>0.899999976</Z>
+									</Vector3>
+									<float name="Brightness">1</float>
+									<ColorSequence name="Color">0 1 0.333333 0 0 1 0.364706 0 0 0 </ColorSequence>
+									<float name="Drag">0</float>
+									<token name="EmissionDirection">1</token>
+									<bool name="Enabled">true</bool>
+									<bool name="FlipbookBlendFrames">true</bool>
+									<NumberRange name="FlipbookFramerate">1 1 </NumberRange>
+									<string name="FlipbookIncompatible">Particle texture must be 1024 by 1024 to use flipbooks.</string>
+									<token name="FlipbookLayout">0</token>
+									<token name="FlipbookMode">0</token>
+									<int name="FlipbookSizeX">1</int>
+									<int name="FlipbookSizeY">1</int>
+									<bool name="FlipbookStartRandom">false</bool>
+									<NumberRange name="Lifetime">50 50 </NumberRange>
+									<float name="LightEmission">0.860000014</float>
+									<float name="LightInfluence">0</float>
+									<bool name="LockedToPart">false</bool>
+									<token name="Orientation">0</token>
+									<float name="Rate">50</float>
+									<NumberRange name="RotSpeed">5 9 </NumberRange>
+									<NumberRange name="Rotation">4 9 </NumberRange>
+									<token name="Shape">0</token>
+									<token name="ShapeInOut">0</token>
+									<float name="ShapePartial">1</float>
+									<token name="ShapeStyle">0</token>
+									<NumberSequence name="Size">0 0.3 0 1 0.3 0 </NumberSequence>
+									<NumberRange name="Speed">7 10 </NumberRange>
+									<Vector2 name="SpreadAngle">
+										<X>28</X>
+										<Y>28</Y>
+									</Vector2>
+									<NumberSequence name="Squash">0 0 0 1 0 0 </NumberSequence>
+									<Content name="Texture"><url>http://www.roblox.com/asset/?id=248625108</url></Content>
+									<float name="TimeScale">1</float>
+									<NumberSequence name="Transparency">0 0 0 0.13253 0.54375 0 0.32092 0.7375 0 0.387733 0 0 0.468784 0.725 0 0.522453 0.45625 0 0.615553 0.6375 0 0.63965 0 0 0.744797 0.525 0 1 0 0 </NumberSequence>
+									<float name="VelocityInheritance">0</float>
+									<bool name="WindAffectsDrag">false</bool>
+									<float name="ZOffset">0</float>
+									<BinaryString name="AttributesSerialize"></BinaryString>
+									<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+									<bool name="DefinesCapabilities">false</bool>
+									<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+									<string name="Name">Fire</string>
+									<int64 name="SourceAssetId">-1</int64>
+									<BinaryString name="Tags"></BinaryString>
+									<UniqueId name="UniqueId">37d18a1f00558cc30a17099c00001009</UniqueId>
+								</Properties>
+							</Item>
+							<Item class="ParticleEmitter" referent="RBX7e63569a6da042cc9f932d93950120ec">
+								<Properties>
+									<Vector3 name="Acceleration">
+										<X>-0.300000012</X>
+										<Y>0</Y>
+										<Z>0.899999976</Z>
+									</Vector3>
+									<float name="Brightness">1</float>
+									<ColorSequence name="Color">0 0.317647 0.278431 0.231373 0 1 0.137255 0.12549 0.121569 0 </ColorSequence>
+									<float name="Drag">0</float>
+									<token name="EmissionDirection">1</token>
+									<bool name="Enabled">true</bool>
+									<bool name="FlipbookBlendFrames">true</bool>
+									<NumberRange name="FlipbookFramerate">1 1 </NumberRange>
+									<string name="FlipbookIncompatible">Particle texture must be 1024 by 1024 to use flipbooks.</string>
+									<token name="FlipbookLayout">0</token>
+									<token name="FlipbookMode">0</token>
+									<int name="FlipbookSizeX">1</int>
+									<int name="FlipbookSizeY">1</int>
+									<bool name="FlipbookStartRandom">false</bool>
+									<NumberRange name="Lifetime">10 15 </NumberRange>
+									<float name="LightEmission">0</float>
+									<float name="LightInfluence">0</float>
+									<bool name="LockedToPart">false</bool>
+									<token name="Orientation">0</token>
+									<float name="Rate">20</float>
+									<NumberRange name="RotSpeed">10 10 </NumberRange>
+									<NumberRange name="Rotation">-360 360 </NumberRange>
+									<token name="Shape">0</token>
+									<token name="ShapeInOut">0</token>
+									<float name="ShapePartial">1</float>
+									<token name="ShapeStyle">0</token>
+									<NumberSequence name="Size">0 0 0 0.21988 3.84615 0.714286 0.653614 4.34066 0 1 5.98901 0.824177 </NumberSequence>
+									<NumberRange name="Speed">5 5 </NumberRange>
+									<Vector2 name="SpreadAngle">
+										<X>0</X>
+										<Y>0</Y>
+									</Vector2>
+									<NumberSequence name="Squash">0 0 0 1 0 0 </NumberSequence>
+									<Content name="Texture"><url>http://www.roblox.com/asset/?id=297744035</url></Content>
+									<float name="TimeScale">1</float>
+									<NumberSequence name="Transparency">0 0.9 0 1 0.9 0 </NumberSequence>
+									<float name="VelocityInheritance">0</float>
+									<bool name="WindAffectsDrag">false</bool>
+									<float name="ZOffset">2</float>
+									<BinaryString name="AttributesSerialize"></BinaryString>
+									<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+									<bool name="DefinesCapabilities">false</bool>
+									<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+									<string name="Name">Smoke</string>
+									<int64 name="SourceAssetId">-1</int64>
+									<BinaryString name="Tags"></BinaryString>
+									<UniqueId name="UniqueId">37d18a1f00558cc30a17099c0000100a</UniqueId>
+								</Properties>
+							</Item>
+						</Item>
+						<Item class="Model" referent="RBXe50fa1afe309425484a1295c80c7d36f">
+							<Properties>
+								<token name="LevelOfDetail">0</token>
+								<CoordinateFrame name="ModelMeshCFrame">
+									<X>0</X>
+									<Y>0</Y>
+									<Z>0</Z>
+									<R00>1</R00>
+									<R01>0</R01>
+									<R02>0</R02>
+									<R10>0</R10>
+									<R11>1</R11>
+									<R12>0</R12>
+									<R20>0</R20>
+									<R21>0</R21>
+									<R22>1</R22>
+								</CoordinateFrame>
+								<SharedString name="ModelMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+								<Vector3 name="ModelMeshSize">
+									<X>0</X>
+									<Y>0</Y>
+									<Z>0</Z>
+								</Vector3>
+								<token name="ModelStreamingMode">0</token>
+								<bool name="NeedsPivotMigration">false</bool>
+								<Ref name="PrimaryPart">null</Ref>
+								<float name="ScaleFactor">1</float>
+								<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+								<OptionalCoordinateFrame name="WorldPivotData">
+									<CFrame>
+										<X>38.0107651</X>
+										<Y>136.449997</Y>
+										<Z>50.2069702</Z>
+										<R00>0</R00>
+										<R01>0</R01>
+										<R02>1</R02>
+										<R10>0</R10>
+										<R11>1</R11>
+										<R12>-0</R12>
+										<R20>-1</R20>
+										<R21>0</R21>
+										<R22>0</R22>
+									</CFrame>
+								</OptionalCoordinateFrame>
+								<BinaryString name="AttributesSerialize"></BinaryString>
+								<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
+								<bool name="DefinesCapabilities">true</bool>
+								<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+								<string name="Name">Smoke</string>
+								<int64 name="SourceAssetId">-1</int64>
+								<BinaryString name="Tags"></BinaryString>
+								<UniqueId name="UniqueId">2580cdd9915f79820a23b1a200000cb3</UniqueId>
+							</Properties>
+							<Item class="Part" referent="RBXf558134105114621a6a5de56eb727380">
+								<Properties>
+									<token name="shape">1</token>
+									<token name="formFactorRaw">3</token>
+									<bool name="Anchored">true</bool>
+									<bool name="AudioCanCollide">true</bool>
+									<float name="BackParamA">-0.5</float>
+									<float name="BackParamB">0.5</float>
+									<token name="BackSurface">0</token>
+									<token name="BackSurfaceInput">0</token>
+									<float name="BottomParamA">-0.5</float>
+									<float name="BottomParamB">0.5</float>
+									<token name="BottomSurface">4</token>
+									<token name="BottomSurfaceInput">0</token>
+									<CoordinateFrame name="CFrame">
+										<X>38.0107651</X>
+										<Y>136.449997</Y>
+										<Z>50.2069702</Z>
+										<R00>0</R00>
+										<R01>0</R01>
+										<R02>1</R02>
+										<R10>0</R10>
+										<R11>1</R11>
+										<R12>-0</R12>
+										<R20>-1</R20>
+										<R21>0</R21>
+										<R22>0</R22>
+									</CoordinateFrame>
+									<bool name="CanCollide">true</bool>
+									<bool name="CanQuery">true</bool>
+									<bool name="CanTouch">true</bool>
+									<bool name="CastShadow">true</bool>
+									<string name="CollisionGroup">Default</string>
+									<int name="CollisionGroupId">0</int>
+									<Color3uint8 name="Color3uint8">4288914085</Color3uint8>
+									<PhysicalProperties name="CustomPhysicalProperties">
+										<CustomPhysics>false</CustomPhysics>
+									</PhysicalProperties>
+									<bool name="EnableFluidForces">true</bool>
+									<float name="FrontParamA">-0.5</float>
+									<float name="FrontParamB">0.5</float>
+									<token name="FrontSurface">0</token>
+									<token name="FrontSurfaceInput">0</token>
+									<float name="LeftParamA">-0.5</float>
+									<float name="LeftParamB">0.5</float>
+									<token name="LeftSurface">0</token>
+									<token name="LeftSurfaceInput">0</token>
+									<bool name="Locked">false</bool>
+									<bool name="Massless">false</bool>
+									<token name="Material">256</token>
+									<string name="MaterialVariantSerialized"></string>
+									<CoordinateFrame name="PivotOffset">
+										<X>0</X>
+										<Y>0</Y>
+										<Z>0</Z>
+										<R00>1</R00>
+										<R01>0</R01>
+										<R02>0</R02>
+										<R10>0</R10>
+										<R11>1</R11>
+										<R12>0</R12>
+										<R20>0</R20>
+										<R21>0</R21>
+										<R22>1</R22>
+									</CoordinateFrame>
+									<float name="Reflectance">0</float>
+									<float name="RightParamA">-0.5</float>
+									<float name="RightParamB">0.5</float>
+									<token name="RightSurface">0</token>
+									<token name="RightSurfaceInput">0</token>
+									<int name="RootPriority">0</int>
+									<Vector3 name="RotVelocity">
+										<X>0</X>
+										<Y>0</Y>
+										<Z>0</Z>
+									</Vector3>
+									<float name="TopParamA">-0.5</float>
+									<float name="TopParamB">0.5</float>
+									<token name="TopSurface">3</token>
+									<token name="TopSurfaceInput">0</token>
+									<float name="Transparency">1</float>
+									<Vector3 name="Velocity">
+										<X>0</X>
+										<Y>0</Y>
+										<Z>0</Z>
+									</Vector3>
+									<Vector3 name="size">
+										<X>3</X>
+										<Y>1</Y>
+										<Z>3</Z>
+									</Vector3>
+									<BinaryString name="AttributesSerialize"></BinaryString>
+									<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+									<bool name="DefinesCapabilities">false</bool>
+									<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+									<string name="Name">Part</string>
+									<int64 name="SourceAssetId">-1</int64>
+									<BinaryString name="Tags"></BinaryString>
+									<UniqueId name="UniqueId">37d18a1f00558cc30a17099c0000100e</UniqueId>
+								</Properties>
+								<Item class="ParticleEmitter" referent="RBX62aac173e3bf42bd98377447c71d63aa">
+									<Properties>
+										<Vector3 name="Acceleration">
+											<X>1</X>
+											<Y>-0.100000001</Y>
+											<Z>2</Z>
+										</Vector3>
+										<float name="Brightness">1</float>
+										<ColorSequence name="Color">0 1 1 1 0 1 1 1 1 0 </ColorSequence>
+										<float name="Drag">0</float>
+										<token name="EmissionDirection">1</token>
+										<bool name="Enabled">true</bool>
+										<bool name="FlipbookBlendFrames">true</bool>
+										<NumberRange name="FlipbookFramerate">1 1 </NumberRange>
+										<string name="FlipbookIncompatible">Particle texture must be 1024 by 1024 to use flipbooks.</string>
+										<token name="FlipbookLayout">0</token>
+										<token name="FlipbookMode">0</token>
+										<int name="FlipbookSizeX">1</int>
+										<int name="FlipbookSizeY">1</int>
+										<bool name="FlipbookStartRandom">false</bool>
+										<NumberRange name="Lifetime">10 10 </NumberRange>
+										<float name="LightEmission">0</float>
+										<float name="LightInfluence">0</float>
+										<bool name="LockedToPart">false</bool>
+										<token name="Orientation">0</token>
+										<float name="Rate">150</float>
+										<NumberRange name="RotSpeed">20 50 </NumberRange>
+										<NumberRange name="Rotation">0 360 </NumberRange>
+										<token name="Shape">0</token>
+										<token name="ShapeInOut">0</token>
+										<float name="ShapePartial">1</float>
+										<token name="ShapeStyle">0</token>
+										<NumberSequence name="Size">0 1 0 0.1 2 0 0.2 1.5 0 0.3 4 0 0.4 2 0 0.501 6 0 0.6 2.5 0 0.8 8 0 1 8 0 </NumberSequence>
+										<NumberRange name="Speed">5 5 </NumberRange>
+										<Vector2 name="SpreadAngle">
+											<X>20</X>
+											<Y>20</Y>
+										</Vector2>
+										<NumberSequence name="Squash">0 0 0 1 0 0 </NumberSequence>
+										<Content name="Texture"><url>http://www.roblox.com/asset/?id=122434485</url></Content>
+										<float name="TimeScale">1</float>
+										<NumberSequence name="Transparency">0 0.15 0 0.9 0.45 0 1 1 0 </NumberSequence>
+										<float name="VelocityInheritance">0</float>
+										<bool name="WindAffectsDrag">false</bool>
+										<float name="ZOffset">0</float>
+										<BinaryString name="AttributesSerialize"></BinaryString>
+										<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+										<bool name="DefinesCapabilities">false</bool>
+										<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+										<string name="Name">ParticleEmitter</string>
+										<int64 name="SourceAssetId">-1</int64>
+										<BinaryString name="Tags"></BinaryString>
+										<UniqueId name="UniqueId">37d18a1f00558cc30a17099c0000100f</UniqueId>
+									</Properties>
+								</Item>
+							</Item>
+							<Item class="Part" referent="RBX9c4466f8698543b8a4b5c4c742a93746">
+								<Properties>
+									<token name="shape">1</token>
+									<token name="formFactorRaw">3</token>
+									<bool name="Anchored">true</bool>
+									<bool name="AudioCanCollide">true</bool>
+									<float name="BackParamA">-0.5</float>
+									<float name="BackParamB">0.5</float>
+									<token name="BackSurface">0</token>
+									<token name="BackSurfaceInput">0</token>
+									<float name="BottomParamA">-0.5</float>
+									<float name="BottomParamB">0.5</float>
+									<token name="BottomSurface">4</token>
+									<token name="BottomSurfaceInput">0</token>
+									<CoordinateFrame name="CFrame">
+										<X>38.0107651</X>
+										<Y>136.449997</Y>
+										<Z>50.2069702</Z>
+										<R00>0</R00>
+										<R01>0</R01>
+										<R02>1</R02>
+										<R10>0</R10>
+										<R11>1</R11>
+										<R12>-0</R12>
+										<R20>-1</R20>
+										<R21>0</R21>
+										<R22>0</R22>
+									</CoordinateFrame>
+									<bool name="CanCollide">true</bool>
+									<bool name="CanQuery">true</bool>
+									<bool name="CanTouch">true</bool>
+									<bool name="CastShadow">true</bool>
+									<string name="CollisionGroup">Default</string>
+									<int name="CollisionGroupId">0</int>
+									<Color3uint8 name="Color3uint8">4288914085</Color3uint8>
+									<PhysicalProperties name="CustomPhysicalProperties">
+										<CustomPhysics>false</CustomPhysics>
+									</PhysicalProperties>
+									<bool name="EnableFluidForces">true</bool>
+									<float name="FrontParamA">-0.5</float>
+									<float name="FrontParamB">0.5</float>
+									<token name="FrontSurface">0</token>
+									<token name="FrontSurfaceInput">0</token>
+									<float name="LeftParamA">-0.5</float>
+									<float name="LeftParamB">0.5</float>
+									<token name="LeftSurface">0</token>
+									<token name="LeftSurfaceInput">0</token>
+									<bool name="Locked">false</bool>
+									<bool name="Massless">false</bool>
+									<token name="Material">256</token>
+									<string name="MaterialVariantSerialized"></string>
+									<CoordinateFrame name="PivotOffset">
+										<X>0</X>
+										<Y>0</Y>
+										<Z>0</Z>
+										<R00>1</R00>
+										<R01>0</R01>
+										<R02>0</R02>
+										<R10>0</R10>
+										<R11>1</R11>
+										<R12>0</R12>
+										<R20>0</R20>
+										<R21>0</R21>
+										<R22>1</R22>
+									</CoordinateFrame>
+									<float name="Reflectance">0</float>
+									<float name="RightParamA">-0.5</float>
+									<float name="RightParamB">0.5</float>
+									<token name="RightSurface">0</token>
+									<token name="RightSurfaceInput">0</token>
+									<int name="RootPriority">0</int>
+									<Vector3 name="RotVelocity">
+										<X>0</X>
+										<Y>0</Y>
+										<Z>0</Z>
+									</Vector3>
+									<float name="TopParamA">-0.5</float>
+									<float name="TopParamB">0.5</float>
+									<token name="TopSurface">3</token>
+									<token name="TopSurfaceInput">0</token>
+									<float name="Transparency">1</float>
+									<Vector3 name="Velocity">
+										<X>0</X>
+										<Y>0</Y>
+										<Z>0</Z>
+									</Vector3>
+									<Vector3 name="size">
+										<X>1</X>
+										<Y>1</Y>
+										<Z>1</Z>
+									</Vector3>
+									<BinaryString name="AttributesSerialize"></BinaryString>
+									<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+									<bool name="DefinesCapabilities">false</bool>
+									<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+									<string name="Name">Part</string>
+									<int64 name="SourceAssetId">-1</int64>
+									<BinaryString name="Tags"></BinaryString>
+									<UniqueId name="UniqueId">37d18a1f00558cc30a17099c00001010</UniqueId>
+								</Properties>
+								<Item class="ParticleEmitter" referent="RBX687883103a774774adb02b9aeeb05926">
+									<Properties>
+										<Vector3 name="Acceleration">
+											<X>1</X>
+											<Y>-0.100000001</Y>
+											<Z>2</Z>
+										</Vector3>
+										<float name="Brightness">1</float>
+										<ColorSequence name="Color">0 1 1 1 0 1 1 1 1 0 </ColorSequence>
+										<float name="Drag">0</float>
+										<token name="EmissionDirection">1</token>
+										<bool name="Enabled">true</bool>
+										<bool name="FlipbookBlendFrames">true</bool>
+										<NumberRange name="FlipbookFramerate">1 1 </NumberRange>
+										<string name="FlipbookIncompatible">Particle texture must be 1024 by 1024 to use flipbooks.</string>
+										<token name="FlipbookLayout">0</token>
+										<token name="FlipbookMode">0</token>
+										<int name="FlipbookSizeX">1</int>
+										<int name="FlipbookSizeY">1</int>
+										<bool name="FlipbookStartRandom">false</bool>
+										<NumberRange name="Lifetime">10 10 </NumberRange>
+										<float name="LightEmission">0</float>
+										<float name="LightInfluence">0</float>
+										<bool name="LockedToPart">false</bool>
+										<token name="Orientation">0</token>
+										<float name="Rate">150</float>
+										<NumberRange name="RotSpeed">20 50 </NumberRange>
+										<NumberRange name="Rotation">0 360 </NumberRange>
+										<token name="Shape">0</token>
+										<token name="ShapeInOut">0</token>
+										<float name="ShapePartial">1</float>
+										<token name="ShapeStyle">0</token>
+										<NumberSequence name="Size">0 1 0 0.1 2 0 0.2 1.5 0 0.3 4 0 0.4 2 0 0.501 6 0 0.6 2.5 0 0.8 8 0 1 8 0 </NumberSequence>
+										<NumberRange name="Speed">7 7 </NumberRange>
+										<Vector2 name="SpreadAngle">
+											<X>20</X>
+											<Y>20</Y>
+										</Vector2>
+										<NumberSequence name="Squash">0 0 0 1 0 0 </NumberSequence>
+										<Content name="Texture"><url>http://www.roblox.com/asset/?id=122434485</url></Content>
+										<float name="TimeScale">1</float>
+										<NumberSequence name="Transparency">0 0 0 0.9 0.25 0 1 1 0 </NumberSequence>
+										<float name="VelocityInheritance">0</float>
+										<bool name="WindAffectsDrag">false</bool>
+										<float name="ZOffset">0</float>
+										<BinaryString name="AttributesSerialize"></BinaryString>
+										<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+										<bool name="DefinesCapabilities">false</bool>
+										<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+										<string name="Name">ParticleEmitter</string>
+										<int64 name="SourceAssetId">-1</int64>
+										<BinaryString name="Tags"></BinaryString>
+										<UniqueId name="UniqueId">37d18a1f00558cc30a17099c00001011</UniqueId>
+									</Properties>
+								</Item>
+							</Item>
+						</Item>
+					</Item>
 				</Item>
 			</Item>
 		</Item>
@@ -42926,6 +43178,20 @@ local function ensureHitboxes(model)
 		warn("[TANK] created missing " .. model:GetFullName() .. ".Hitboxes")
 	end
 
+	-- When ArmorZones is the active folder, destroy any coexisting legacy Hitboxes
+	-- folders to prevent duplicate floating armor rectangles near tanks.
+	if hitboxFolder.Name == "ArmorZones" then
+		local legacyToDestroy = {}
+		for _, descendant in ipairs(model:GetDescendants()) do
+			if descendant.Name == "Hitboxes" and descendant:IsA("Folder") then
+				table.insert(legacyToDestroy, descendant)
+			end
+		end
+		for _, folder in ipairs(legacyToDestroy) do
+			folder:Destroy()
+		end
+	end
+
 	-- Always ensure the 4 named armor parts exist inside whichever folder we found
 	-- or created. TankArmorPartsService.Configure positions and welds them to Body
 	-- after this function returns, so missing parts created here will be correctly
@@ -43585,6 +43851,7 @@ function TankMovementService.resolveTankPose(fromPosition, currentBodyYaw, desir
 	local targetBodyYaw = desiredBodyYaw or currentBodyYaw
 	local blockingPart = nil
 
+	-- 1. fullMove + new bodyYaw
 	local fullPosition, fullBlockingPart = tryPose(fromPosition, targetBodyYaw, fullMove, debugContext)
 
 	if fullPosition ~= nil then
@@ -43593,6 +43860,7 @@ function TankMovementService.resolveTankPose(fromPosition, currentBodyYaw, desir
 
 	blockingPart = fullBlockingPart
 
+	-- 2. fullMove + current bodyYaw
 	local movementOnlyPosition, movementOnlyBlockingPart = tryPose(fromPosition, currentBodyYaw, fullMove, debugContext)
 
 	if movementOnlyPosition ~= nil then
@@ -43601,6 +43869,7 @@ function TankMovementService.resolveTankPose(fromPosition, currentBodyYaw, desir
 
 	blockingPart = blockingPart or movementOnlyBlockingPart
 
+	-- 3. Only rotation, no movement
 	local rotationOnlyPosition, rotationOnlyBlockingPart = tryPose(fromPosition, targetBodyYaw, Vector3.zero, debugContext)
 
 	if rotationOnlyPosition ~= nil then
@@ -43609,6 +43878,35 @@ function TankMovementService.resolveTankPose(fromPosition, currentBodyYaw, desir
 
 	blockingPart = blockingPart or rotationOnlyBlockingPart
 
+	-- 4. Wall sliding: project fullMove onto the wall plane
+	-- Normal is computed as the XZ direction from the blocking part centre to the tank.
+	local wallBlockingPart = blockingPart
+	if wallBlockingPart ~= nil and fullMove.Magnitude > TANK_MOVEMENT_EPSILON then
+		local toTank = fromPosition - wallBlockingPart.Position
+		local toTankFlat = Vector3.new(toTank.X, 0, toTank.Z)
+
+		if toTankFlat.Magnitude > TANK_MOVEMENT_EPSILON then
+			local wallNormal = toTankFlat.Unit
+			local dot = fullMove:Dot(wallNormal)
+			local slideMove = Vector3.new(
+				fullMove.X - wallNormal.X * dot,
+				0,
+				fullMove.Z - wallNormal.Z * dot
+			)
+
+			if slideMove.Magnitude > TANK_MOVEMENT_EPSILON then
+				local slidePosition, slideBlockPart = tryPose(fromPosition, currentBodyYaw, slideMove, debugContext)
+
+				if slidePosition ~= nil then
+					return slidePosition, currentBodyYaw, nil
+				end
+
+				blockingPart = blockingPart or slideBlockPart
+			end
+		end
+	end
+
+	-- 5. Fallback: separate X / Z movement
 	local xMove = Vector3.new(fullMove.X, 0, 0)
 	local zMove = Vector3.new(0, 0, fullMove.Z)
 
@@ -43631,6 +43929,21 @@ function TankMovementService.resolveTankPose(fromPosition, currentBodyYaw, desir
 			end
 
 			blockingPart = blockingPart or zBlockingPart
+		end
+	end
+
+	-- 6. Wall nudge: tiny push away from the wall to free a corner-stuck tank
+	if wallBlockingPart ~= nil then
+		local toTank = fromPosition - wallBlockingPart.Position
+		local toTankFlat = Vector3.new(toTank.X, 0, toTank.Z)
+
+		if toTankFlat.Magnitude > TANK_MOVEMENT_EPSILON then
+			local nudgeMove = toTankFlat.Unit * 0.05
+			local nudgePosition, _ = tryPose(fromPosition, currentBodyYaw, nudgeMove, debugContext)
+
+			if nudgePosition ~= nil then
+				return nudgePosition, currentBodyYaw, blockingPart
+			end
 		end
 	end
 
@@ -58156,422 +58469,6 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 						<BinaryString name="Tags"></BinaryString>
 						<UniqueId name="UniqueId">26a304254af295c10a1efee200010265</UniqueId>
 					</Properties>
-				</Item>
-				<Item class="Folder" referent="RBX22ac5e43798a49c6a0c2f75531c82810">
-					<Properties>
-						<BinaryString name="AttributesSerialize"></BinaryString>
-						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-						<bool name="DefinesCapabilities">false</bool>
-						<UniqueId name="HistoryId">7c6c896485ebc3490a09ceb2000016cf</UniqueId>
-						<string name="Name">Hitboxes</string>
-						<int64 name="SourceAssetId">-1</int64>
-						<BinaryString name="Tags"></BinaryString>
-						<UniqueId name="UniqueId">26a304254af295c10a1efee200010266</UniqueId>
-					</Properties>
-					<Item class="Part" referent="RBX549aee58dc2e4cdc92ae45dd1b1c3f64">
-						<Properties>
-							<token name="shape">1</token>
-							<token name="formFactorRaw">1</token>
-							<bool name="Anchored">true</bool>
-							<bool name="AudioCanCollide">true</bool>
-							<float name="BackParamA">-0.5</float>
-							<float name="BackParamB">0.5</float>
-							<token name="BackSurface">0</token>
-							<token name="BackSurfaceInput">0</token>
-							<float name="BottomParamA">-0.5</float>
-							<float name="BottomParamB">0.5</float>
-							<token name="BottomSurface">0</token>
-							<token name="BottomSurfaceInput">0</token>
-							<CoordinateFrame name="CFrame">
-								<X>-49.894783</X>
-								<Y>3.5831511</Y>
-								<Z>24.8944378</Z>
-								<R00>-1</R00>
-								<R01>0</R01>
-								<R02>0</R02>
-								<R10>0</R10>
-								<R11>1</R11>
-								<R12>0</R12>
-								<R20>0</R20>
-								<R21>0</R21>
-								<R22>-1</R22>
-							</CoordinateFrame>
-							<bool name="CanCollide">false</bool>
-							<bool name="CanQuery">true</bool>
-							<bool name="CanTouch">false</bool>
-							<bool name="CastShadow">false</bool>
-							<string name="CollisionGroup">Default</string>
-							<int name="CollisionGroupId">0</int>
-							<Color3uint8 name="Color3uint8">4283498360</Color3uint8>
-							<PhysicalProperties name="CustomPhysicalProperties">
-								<CustomPhysics>false</CustomPhysics>
-							</PhysicalProperties>
-							<bool name="EnableFluidForces">true</bool>
-							<float name="FrontParamA">-0.5</float>
-							<float name="FrontParamB">0.5</float>
-							<token name="FrontSurface">0</token>
-							<token name="FrontSurfaceInput">0</token>
-							<float name="LeftParamA">-0.5</float>
-							<float name="LeftParamB">0.5</float>
-							<token name="LeftSurface">0</token>
-							<token name="LeftSurfaceInput">0</token>
-							<bool name="Locked">false</bool>
-							<bool name="Massless">false</bool>
-							<token name="Material">272</token>
-							<string name="MaterialVariantSerialized"></string>
-							<CoordinateFrame name="PivotOffset">
-								<X>0</X>
-								<Y>0</Y>
-								<Z>0</Z>
-								<R00>1</R00>
-								<R01>0</R01>
-								<R02>0</R02>
-								<R10>0</R10>
-								<R11>1</R11>
-								<R12>0</R12>
-								<R20>0</R20>
-								<R21>0</R21>
-								<R22>1</R22>
-							</CoordinateFrame>
-							<float name="Reflectance">0</float>
-							<float name="RightParamA">-0.5</float>
-							<float name="RightParamB">0.5</float>
-							<token name="RightSurface">0</token>
-							<token name="RightSurfaceInput">0</token>
-							<int name="RootPriority">0</int>
-							<Vector3 name="RotVelocity">
-								<X>0</X>
-								<Y>0</Y>
-								<Z>0</Z>
-							</Vector3>
-							<float name="TopParamA">-0.5</float>
-							<float name="TopParamB">0.5</float>
-							<token name="TopSurface">0</token>
-							<token name="TopSurfaceInput">0</token>
-							<float name="Transparency">0.449999988</float>
-							<Vector3 name="Velocity">
-								<X>0</X>
-								<Y>0</Y>
-								<Z>0</Z>
-							</Vector3>
-							<Vector3 name="size">
-								<X>8.41039944</X>
-								<Y>5.22024822</Y>
-								<Z>0.241678163</Z>
-							</Vector3>
-							<BinaryString name="AttributesSerialize">AQAAAAsAAABHYW1lcGxheVRhZwIKAAAAVGFua0hpdGJveA==</BinaryString>
-							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-							<bool name="DefinesCapabilities">false</bool>
-							<UniqueId name="HistoryId">7c6c896485ebc3490a09ceb2000016d0</UniqueId>
-							<string name="Name">FrontArmor</string>
-							<int64 name="SourceAssetId">-1</int64>
-							<BinaryString name="Tags"></BinaryString>
-							<UniqueId name="UniqueId">26a304254af295c10a1efee200010267</UniqueId>
-						</Properties>
-					</Item>
-					<Item class="Part" referent="RBXea125f4cae1143d689c96149fe6ad123">
-						<Properties>
-							<token name="shape">1</token>
-							<token name="formFactorRaw">1</token>
-							<bool name="Anchored">true</bool>
-							<bool name="AudioCanCollide">true</bool>
-							<float name="BackParamA">-0.5</float>
-							<float name="BackParamB">0.5</float>
-							<token name="BackSurface">0</token>
-							<token name="BackSurfaceInput">0</token>
-							<float name="BottomParamA">-0.5</float>
-							<float name="BottomParamB">0.5</float>
-							<token name="BottomSurface">0</token>
-							<token name="BottomSurfaceInput">0</token>
-							<CoordinateFrame name="CFrame">
-								<X>-49.894783</X>
-								<Y>3.5831511</Y>
-								<Z>13.8739634</Z>
-								<R00>-1</R00>
-								<R01>0</R01>
-								<R02>0</R02>
-								<R10>0</R10>
-								<R11>1</R11>
-								<R12>0</R12>
-								<R20>0</R20>
-								<R21>0</R21>
-								<R22>-1</R22>
-							</CoordinateFrame>
-							<bool name="CanCollide">false</bool>
-							<bool name="CanQuery">true</bool>
-							<bool name="CanTouch">false</bool>
-							<bool name="CastShadow">false</bool>
-							<string name="CollisionGroup">Default</string>
-							<int name="CollisionGroupId">0</int>
-							<Color3uint8 name="Color3uint8">4294924890</Color3uint8>
-							<PhysicalProperties name="CustomPhysicalProperties">
-								<CustomPhysics>false</CustomPhysics>
-							</PhysicalProperties>
-							<bool name="EnableFluidForces">true</bool>
-							<float name="FrontParamA">-0.5</float>
-							<float name="FrontParamB">0.5</float>
-							<token name="FrontSurface">0</token>
-							<token name="FrontSurfaceInput">0</token>
-							<float name="LeftParamA">-0.5</float>
-							<float name="LeftParamB">0.5</float>
-							<token name="LeftSurface">0</token>
-							<token name="LeftSurfaceInput">0</token>
-							<bool name="Locked">false</bool>
-							<bool name="Massless">false</bool>
-							<token name="Material">272</token>
-							<string name="MaterialVariantSerialized"></string>
-							<CoordinateFrame name="PivotOffset">
-								<X>0</X>
-								<Y>0</Y>
-								<Z>0</Z>
-								<R00>1</R00>
-								<R01>0</R01>
-								<R02>0</R02>
-								<R10>0</R10>
-								<R11>1</R11>
-								<R12>0</R12>
-								<R20>0</R20>
-								<R21>0</R21>
-								<R22>1</R22>
-							</CoordinateFrame>
-							<float name="Reflectance">0</float>
-							<float name="RightParamA">-0.5</float>
-							<float name="RightParamB">0.5</float>
-							<token name="RightSurface">0</token>
-							<token name="RightSurfaceInput">0</token>
-							<int name="RootPriority">0</int>
-							<Vector3 name="RotVelocity">
-								<X>0</X>
-								<Y>0</Y>
-								<Z>0</Z>
-							</Vector3>
-							<float name="TopParamA">-0.5</float>
-							<float name="TopParamB">0.5</float>
-							<token name="TopSurface">0</token>
-							<token name="TopSurfaceInput">0</token>
-							<float name="Transparency">0.449999988</float>
-							<Vector3 name="Velocity">
-								<X>0</X>
-								<Y>0</Y>
-								<Z>0</Z>
-							</Vector3>
-							<Vector3 name="size">
-								<X>8.41039944</X>
-								<Y>5.22024822</Y>
-								<Z>0.241678163</Z>
-							</Vector3>
-							<BinaryString name="AttributesSerialize">AQAAAAsAAABHYW1lcGxheVRhZwIKAAAAVGFua0hpdGJveA==</BinaryString>
-							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-							<bool name="DefinesCapabilities">false</bool>
-							<UniqueId name="HistoryId">7c6c896485ebc3490a09ceb2000016d1</UniqueId>
-							<string name="Name">RearArmor</string>
-							<int64 name="SourceAssetId">-1</int64>
-							<BinaryString name="Tags"></BinaryString>
-							<UniqueId name="UniqueId">26a304254af295c10a1efee200010268</UniqueId>
-						</Properties>
-					</Item>
-					<Item class="Part" referent="RBX1b245a79624141ddb5cd24b15b1b96a1">
-						<Properties>
-							<token name="shape">1</token>
-							<token name="formFactorRaw">1</token>
-							<bool name="Anchored">true</bool>
-							<bool name="AudioCanCollide">true</bool>
-							<float name="BackParamA">-0.5</float>
-							<float name="BackParamB">0.5</float>
-							<token name="BackSurface">0</token>
-							<token name="BackSurfaceInput">0</token>
-							<float name="BottomParamA">-0.5</float>
-							<float name="BottomParamB">0.5</float>
-							<token name="BottomSurface">0</token>
-							<token name="BottomSurfaceInput">0</token>
-							<CoordinateFrame name="CFrame">
-								<X>-45.8345566</X>
-								<Y>3.5831511</Y>
-								<Z>19.384201</Z>
-								<R00>-1</R00>
-								<R01>0</R01>
-								<R02>0</R02>
-								<R10>0</R10>
-								<R11>1</R11>
-								<R12>0</R12>
-								<R20>0</R20>
-								<R21>0</R21>
-								<R22>-1</R22>
-							</CoordinateFrame>
-							<bool name="CanCollide">false</bool>
-							<bool name="CanQuery">true</bool>
-							<bool name="CanTouch">false</bool>
-							<bool name="CastShadow">false</bool>
-							<string name="CollisionGroup">Default</string>
-							<int name="CollisionGroupId">0</int>
-							<Color3uint8 name="Color3uint8">4294958160</Color3uint8>
-							<PhysicalProperties name="CustomPhysicalProperties">
-								<CustomPhysics>false</CustomPhysics>
-							</PhysicalProperties>
-							<bool name="EnableFluidForces">true</bool>
-							<float name="FrontParamA">-0.5</float>
-							<float name="FrontParamB">0.5</float>
-							<token name="FrontSurface">0</token>
-							<token name="FrontSurfaceInput">0</token>
-							<float name="LeftParamA">-0.5</float>
-							<float name="LeftParamB">0.5</float>
-							<token name="LeftSurface">0</token>
-							<token name="LeftSurfaceInput">0</token>
-							<bool name="Locked">false</bool>
-							<bool name="Massless">false</bool>
-							<token name="Material">272</token>
-							<string name="MaterialVariantSerialized"></string>
-							<CoordinateFrame name="PivotOffset">
-								<X>0</X>
-								<Y>0</Y>
-								<Z>0</Z>
-								<R00>1</R00>
-								<R01>0</R01>
-								<R02>0</R02>
-								<R10>0</R10>
-								<R11>1</R11>
-								<R12>0</R12>
-								<R20>0</R20>
-								<R21>0</R21>
-								<R22>1</R22>
-							</CoordinateFrame>
-							<float name="Reflectance">0</float>
-							<float name="RightParamA">-0.5</float>
-							<float name="RightParamB">0.5</float>
-							<token name="RightSurface">0</token>
-							<token name="RightSurfaceInput">0</token>
-							<int name="RootPriority">0</int>
-							<Vector3 name="RotVelocity">
-								<X>0</X>
-								<Y>0</Y>
-								<Z>0</Z>
-							</Vector3>
-							<float name="TopParamA">-0.5</float>
-							<float name="TopParamB">0.5</float>
-							<token name="TopSurface">0</token>
-							<token name="TopSurfaceInput">0</token>
-							<float name="Transparency">0.449999988</float>
-							<Vector3 name="Velocity">
-								<X>0</X>
-								<Y>0</Y>
-								<Z>0</Z>
-							</Vector3>
-							<Vector3 name="size">
-								<X>0.241678163</X>
-								<Y>5.22024822</Y>
-								<Z>11.3105383</Z>
-							</Vector3>
-							<BinaryString name="AttributesSerialize">AQAAAAsAAABHYW1lcGxheVRhZwIKAAAAVGFua0hpdGJveA==</BinaryString>
-							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-							<bool name="DefinesCapabilities">false</bool>
-							<UniqueId name="HistoryId">7c6c896485ebc3490a09ceb2000016d2</UniqueId>
-							<string name="Name">LeftArmor</string>
-							<int64 name="SourceAssetId">-1</int64>
-							<BinaryString name="Tags"></BinaryString>
-							<UniqueId name="UniqueId">26a304254af295c10a1efee200010269</UniqueId>
-						</Properties>
-					</Item>
-					<Item class="Part" referent="RBX7c4982ecaae84084a2333e3eb5eb7af5">
-						<Properties>
-							<token name="shape">1</token>
-							<token name="formFactorRaw">1</token>
-							<bool name="Anchored">true</bool>
-							<bool name="AudioCanCollide">true</bool>
-							<float name="BackParamA">-0.5</float>
-							<float name="BackParamB">0.5</float>
-							<token name="BackSurface">0</token>
-							<token name="BackSurfaceInput">0</token>
-							<float name="BottomParamA">-0.5</float>
-							<float name="BottomParamB">0.5</float>
-							<token name="BottomSurface">0</token>
-							<token name="BottomSurfaceInput">0</token>
-							<CoordinateFrame name="CFrame">
-								<X>-53.9550133</X>
-								<Y>3.5831511</Y>
-								<Z>19.384201</Z>
-								<R00>-1</R00>
-								<R01>0</R01>
-								<R02>0</R02>
-								<R10>0</R10>
-								<R11>1</R11>
-								<R12>0</R12>
-								<R20>0</R20>
-								<R21>0</R21>
-								<R22>-1</R22>
-							</CoordinateFrame>
-							<bool name="CanCollide">false</bool>
-							<bool name="CanQuery">true</bool>
-							<bool name="CanTouch">false</bool>
-							<bool name="CastShadow">false</bool>
-							<string name="CollisionGroup">Default</string>
-							<int name="CollisionGroupId">0</int>
-							<Color3uint8 name="Color3uint8">4294958160</Color3uint8>
-							<PhysicalProperties name="CustomPhysicalProperties">
-								<CustomPhysics>false</CustomPhysics>
-							</PhysicalProperties>
-							<bool name="EnableFluidForces">true</bool>
-							<float name="FrontParamA">-0.5</float>
-							<float name="FrontParamB">0.5</float>
-							<token name="FrontSurface">0</token>
-							<token name="FrontSurfaceInput">0</token>
-							<float name="LeftParamA">-0.5</float>
-							<float name="LeftParamB">0.5</float>
-							<token name="LeftSurface">0</token>
-							<token name="LeftSurfaceInput">0</token>
-							<bool name="Locked">false</bool>
-							<bool name="Massless">false</bool>
-							<token name="Material">272</token>
-							<string name="MaterialVariantSerialized"></string>
-							<CoordinateFrame name="PivotOffset">
-								<X>0</X>
-								<Y>0</Y>
-								<Z>0</Z>
-								<R00>1</R00>
-								<R01>0</R01>
-								<R02>0</R02>
-								<R10>0</R10>
-								<R11>1</R11>
-								<R12>0</R12>
-								<R20>0</R20>
-								<R21>0</R21>
-								<R22>1</R22>
-							</CoordinateFrame>
-							<float name="Reflectance">0</float>
-							<float name="RightParamA">-0.5</float>
-							<float name="RightParamB">0.5</float>
-							<token name="RightSurface">0</token>
-							<token name="RightSurfaceInput">0</token>
-							<int name="RootPriority">0</int>
-							<Vector3 name="RotVelocity">
-								<X>0</X>
-								<Y>0</Y>
-								<Z>0</Z>
-							</Vector3>
-							<float name="TopParamA">-0.5</float>
-							<float name="TopParamB">0.5</float>
-							<token name="TopSurface">0</token>
-							<token name="TopSurfaceInput">0</token>
-							<float name="Transparency">0.449999988</float>
-							<Vector3 name="Velocity">
-								<X>0</X>
-								<Y>0</Y>
-								<Z>0</Z>
-							</Vector3>
-							<Vector3 name="size">
-								<X>0.241678163</X>
-								<Y>5.22024822</Y>
-								<Z>11.3105383</Z>
-							</Vector3>
-							<BinaryString name="AttributesSerialize">AQAAAAsAAABHYW1lcGxheVRhZwIKAAAAVGFua0hpdGJveA==</BinaryString>
-							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-							<bool name="DefinesCapabilities">false</bool>
-							<UniqueId name="HistoryId">7c6c896485ebc3490a09ceb2000016d3</UniqueId>
-							<string name="Name">RightArmor</string>
-							<int64 name="SourceAssetId">-1</int64>
-							<BinaryString name="Tags"></BinaryString>
-							<UniqueId name="UniqueId">26a304254af295c10a1efee20001026a</UniqueId>
-						</Properties>
-					</Item>
 				</Item>
 				<Item class="Folder" referent="RBX5b547a02be644ef0a930ac376e420e0d">
 					<Properties>

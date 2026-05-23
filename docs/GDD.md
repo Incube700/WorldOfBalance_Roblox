@@ -1,6 +1,6 @@
-# World of Balance: Ricochet Tanks — GDD v0.2
+# World of Balance: Ricochet Tanks — GDD v0.3
 
-Дата обновления: 2026-05-10  
+Дата обновления: 2026-05-24  
 Платформа: Roblox  
 Стек: Luau + Rojo + Roblox Studio  
 Рабочее название: **World of Balance: Ricochet Tanks**
@@ -15,7 +15,7 @@
 
 ## 2. Текущий статус проекта
 
-Проект уже переведён под Roblox/Rojo workflow.
+Проект работает под Roblox/Rojo workflow. Кодовая база значительно продвинулась вперёд от базового прототипа.
 
 Кодовая структура:
 
@@ -23,30 +23,81 @@
 - `ServerScriptService.Server` — server bootstrap and gameplay services.
 - `StarterPlayer.StarterPlayerScripts.Client` — client input, camera, UI, VFX readability.
 
-Текущее ядро уже содержит:
+### Реализовано (по состоянию на v0.3)
 
-- Rojo-managed server gameplay orchestrator.
+**Ядро боя:**
 - Server-authoritative player possession.
-- Player tank and Player2 tank foundation.
-- Training mode against dummy.
-- PvP foundation for two player-controlled tanks.
+- Player tank and Player2 tank possession.
+- Training mode against DummyTank.
 - Tank body movement with wall blocking.
 - Independent turret aiming.
 - Projectile shooting with cooldown.
 - Raycast projectile movement.
 - Wall ricochets.
 - Armor hitbox based tank hits.
-- Armor penetration / no-penetration / armor ricochet rules.
+- Armor penetration / no-penetration / armor ricochet rules (`ArmorHitResolver`, `RicochetMath`).
 - Self-hit after ricochet.
 - Player and opponent HP attributes.
 - Round win/lose result.
-- Match series to target wins.
-- Runtime match stats per player/participant.
-- Persistent player stats service with DataStore fallback/session attributes.
-- Modular HUD with local perspective: `You` / `Opponent`.
-- Result and stats UI shell.
+- Match series (`EnableMatchSeries = true`, `TargetWins = 3`).
+- Round reset delay (`RoundResetDelay = 2.0`).
+- Match result delay (`MatchResultDelay = 2.0`).
+- Runtime match stats per player/participant (`MatchStatsService`).
+- Persistent player stats service with DataStore fallback (`PersistentPlayerStatsService`).
+- Separate `TankArmorConfig` for armor zone values.
 
-Important: older audit documents may describe previous states where gameplay still lived in Studio-owned scripts. Current code is further ahead than those older snapshots.
+**Визуальная обратная связь:**
+- Modular HUD with local perspective: `You` / `Opponent` (`WOBDuelHudOverlay`).
+- Combat feedback overlay: `DAMAGE`, `NO PEN`, `RICOCHET`, self-hit text (`WOBCombatFeedbackOverlay`).
+- Impact flash and damage pulse (`WOBImpactFeedbackOverlay`, `WOBTankDamageFlash`).
+- Round status overlay (`WOBRoundStatusOverlay`).
+- World-space HP and reload bars on tanks (`WOBTankWorldHealthBars`, `WorldHealthBarsController`).
+- Aim laser from muzzle with obstacle stop (`WOBAimLaser`).
+- Projectile readability overlay: glow, trail, neon material (`WOBProjectileReadabilityOverlay`).
+- Tank visual smoothing for network-replicated tanks (`WOBTankVisualSmoothing`).
+- Team color visuals per local perspective (`WOBTankLocalTeamVisuals`).
+- VFX system: muzzle flash, smoke, impact sparks, ricochet sparks, tank explosion, burning tank (`CombatVfxService`, `VfxConfig`, `VfxTemplateCatalog`).
+
+**Режимы:**
+- Training: solo vs DummyTank.
+- Duel / PvP: 2-player match with series score.
+- BattleArena: multiplayer arena with bots (`ArenaCombatService`, `WOBBattleArenaOverlay`).
+- Lobby with duel pads (`LobbyService`, `LobbyPadResolver`, `WOBDuelPadVisual`).
+
+**Боты:**
+- Full bot AI suite: `BotBrain`, `BotController`, `BotService`, `BotSpawnPlanner`, `BotTargeting`.
+- Training-specific bot service: `TrainingBotService`.
+- Difficulty profiles: Easy, Normal (configurable in `BotConfig`).
+- Line-of-sight, preferred distance, anti-stuck, strafe logic.
+
+**Экономика:**
+- Player wallet with Bolts and Crystals currencies (`PlayerWalletService`, `CurrencyConfig`).
+- Kill reward service (`KillRewardService`).
+- Match reward service (`MatchRewardService`).
+- Wallet HUD overlay (`WOBWalletOverlay`).
+
+**Скины и кастомизация:**
+- Skin catalog and cosmetic catalog (`SkinCatalog`, `CosmeticCatalog`).
+- Tank skin applier service (`TankSkinApplier`).
+- Skin unlock service (`SkinUnlockService`).
+- Tank customization service (`TankCustomizationService`).
+
+**Мобильное управление:**
+- Mobile controls client script (`WOBMobileControls`).
+- Mobile controls config (`MobileControlsConfig`).
+- HUD layout adapts to mobile (`HudDeviceUtils`, `HudVisibilityRules`).
+
+**Прочее:**
+- Performance server (`WOBPerformanceServer`).
+- Debug configs: `DebugBotConfig`, `DebugCombatConfig`.
+- Aim assist config (`AimAssistConfig`).
+
+### Не реализовано / требует работы
+
+- **Main menu screen** — игра начинается сразу с арены/лобби. Главного меню нет.
+- **Audio (8/10 SoundId пустые)** — `DefaultCannonShot` и `DefaultRicochet` имеют реальные ID; остальные 8 записей в `AudioCatalog` имеют `SoundId = ""` и не воспроизводятся.
+- **3 VFX-шаблона отсутствуют** — `DamageHitTemplate`, `NoPenTemplate`, `SelfHitTemplate` не существуют как `.rbxm` файлы; система использует процедурный фолбэк (работает, но хуже выглядит).
+- **Final match result screen** — полноценный экран итогов матча (не раунда) не реализован.
 
 ## 3. Product direction
 
@@ -124,12 +175,12 @@ Desired Roblox feel:
 
 ## 6. Current MVP definition
 
-Current MVP is no longer just “one local tank and dummy”. Current MVP is:
+Current MVP is no longer just "one local tank and dummy". Current MVP is:
 
 ### Training MVP
 
 - One local player controls a tank.
-- Opponent is `DummyTank`.
+- Opponent is `DummyTank` (or a bot via `TrainingBotService`).
 - Player can drive, aim, shoot, ricochet, damage and destroy the dummy.
 - Dummy can serve as target for armor/ricochet testing.
 - Round and match result can be shown from local perspective.
@@ -149,27 +200,22 @@ The prototype is considered MVP-stable only when both checks pass:
 - Training: Play → drive → aim → shoot → ricochet → damage → win/lose → restart.
 - 2-player PvP: two clients → separate possession → separate cameras → separate controls → separate damage/results/stats.
 
-## 7. What is not in the current MVP
+## 7. What is not in the current build
 
-Do not add these until Training + 2-player PvP smoke test is stable:
+Not yet built (as of v0.3):
 
-- shop;
-- coins;
-- Robux monetization;
+- main menu screen;
+- complete audio (8/10 SoundId values are empty);
+- `DamageHitTemplate`, `NoPenTemplate`, `SelfHitTemplate` VFX assets;
+- final match result screen (match-end, not round-end);
 - ranked matchmaking;
 - wager/stake arenas;
-- many tanks;
 - many maps;
-- mobile controls;
-- advanced bot AI;
-- complex lobby;
+- complex lobby progression;
 - daily rewards;
-- cosmetics;
-- progression;
-- public matchmaking backend;
-- huge refactor for architecture aesthetics.
+- public matchmaking backend.
 
-These features may become future milestones, but they are not the next step.
+Note: mobile controls, economy (Bolts/Crystals), basic cosmetics/skins, BattleArena, and bots **are already implemented** as of v0.3.
 
 ## 8. Modes
 
@@ -186,14 +232,9 @@ Purpose:
 - test win/lose/restart loop;
 - let a solo player understand the game.
 
-Current opponent: `DummyTank`.
+Current opponent: `DummyTank`. Bot AI available via `TrainingBotService` (BotBrain v0 exists).
 
-Future Training upgrade:
-
-- BotBrain v0: dummy moves slowly, aims badly, shoots sometimes.
-- Still simple. It should not become a complex AI milestone.
-
-### 8.2 PvP
+### 8.2 Duel / PvP
 
 PvP is the long-term core mode, but currently it should stay as a controlled smoke-test mode.
 
@@ -214,6 +255,18 @@ Future PvP:
 - simple queue or join flow;
 - maybe 2v2 or free-for-all later if 1v1 feels too empty for Roblox.
 
+### 8.3 BattleArena
+
+Multiplayer arena with bots. Multiple players and bots fight together. Bots spawn and respawn based on player count.
+
+Current status: implemented. `ArenaCombatService`, `BotService`, `BattleArenaConfig`, `WOBBattleArenaOverlay`.
+
+Future: survival/roguelite upgrade loop (see section 29).
+
+### 8.4 Lobby
+
+Players can idle in lobby and join duels via pads. `LobbyService`, `LobbyPadResolver`, `WOBDuelPadVisual`.
+
 ## 9. Controls
 
 Current PC controls:
@@ -230,14 +283,12 @@ Current design note:
 - Body steering is independent from throttle.
 - Turret currently follows aim direction directly.
 
-Future:
+Mobile controls:
 
-- mobile stick + aim zone;
-- shoot button;
-- optional aim helper tuning;
-- optional controller support.
-
-Mobile controls are not current priority.
+- Left virtual joystick — move/steer tank body.
+- Right virtual joystick — aim turret.
+- Fire button — shoot.
+- Implemented via `WOBMobileControls.client.luau` and `MobileControlsConfig`.
 
 ## 10. Camera
 
@@ -267,11 +318,8 @@ Each physical tank model should contain:
 - `Turret`;
 - `Barrel`;
 - `ShootPoint`;
-- `Hitboxes` folder;
-- `FrontArmor`;
-- `RearArmor`;
-- `LeftArmor`;
-- `RightArmor`.
+- `ArmorZones` folder (with `FrontArmor`, `RearArmor`, `LeftArmor`, `RightArmor` children);
+- legacy `Hitboxes` folder — if present alongside `ArmorZones`, it is automatically destroyed by `PlayerTankSpawner` to prevent duplicate floating panels.
 
 Required model attributes include:
 
@@ -325,7 +373,7 @@ Current:
 - turret aims at client-provided aim position;
 - server calculates turret yaw;
 - shot origin comes from `ShootPoint`;
-- aim laser/helper is visual-only.
+- aim laser/helper is visual-only, stops on obstacles.
 
 Future:
 
@@ -388,7 +436,7 @@ Current armor zones:
 - Side — medium.
 - Rear — weak.
 
-Current values:
+Current values (from `TankArmorConfig`):
 
 - FrontArmor = `50`.
 - SideArmor = `40`.
@@ -419,9 +467,9 @@ Current:
 
 - participants have health and max health;
 - destroyed participant receives `IsDead` state;
-- destroyed tank visual is darkened;
+- destroyed tank visual: darkened + burning tank VFX (`TankBurningTemplate`) + explosion VFX (`TankExplosionTemplate`);
 - round result is set from local player perspective;
-- match series can continue until target wins.
+- match series to target wins (3 by default).
 
 Current target:
 
@@ -431,11 +479,8 @@ Current target:
 
 Future:
 
-- better death VFX;
-- explosion;
-- short round-end pause;
-- automatic next round after delay;
-- better match result screen.
+- better match result screen (match-end, not just round-end);
+- automatic next round after delay (round reset delay already configured at 2 sec).
 
 ## 18. Match flow
 
@@ -443,7 +488,10 @@ Current match config:
 
 - series enabled;
 - target wins: `3`;
-- round reset delay: `0`.
+- round reset delay: `2.0` sec;
+- match result delay: `2.0` sec;
+- small round result overlay shown;
+- small match result shown before full result.
 
 Current states:
 
@@ -466,35 +514,32 @@ Next improvement:
 
 ## 19. UI and feedback
 
-Current HUD target:
+Current HUD (implemented):
 
-- `You HP`;
-- `Opponent HP`;
-- reload status;
-- round number;
-- score: `You / Opponent`;
-- first-to target;
-- round result;
-- match result.
+- `You HP` / `Opponent HP` bars (HUD panels + world-space bars on tanks).
+- Reload bar (HUD + world-space reload bar below HP bar).
+- Round number and score: `You / Opponent`.
+- First-to target win count.
+- Round result overlay.
+- Match result state.
+- Combat feedback labels: `DAMAGE`, `NO PEN`, `RICOCHET`, self-hit.
+- Impact flash on tank hit.
+- Wallet overlay (Bolts/Crystals).
+- BattleArena overlay.
+- Compact Training HUD (hides redundant panels when `TrainingCompactHud = true`).
+- Mobile layout adaptation.
 
 Current shell UI:
 
-- main menu;
 - result panel;
-- stats panel.
+- stats panel;
+- lobby / duel pad UI.
 
-Feedback needed for fun:
+Still missing:
 
-- damage number;
-- `NO PEN`;
-- `RICOCHET`;
-- self-hit message;
-- win/lose;
-- strong projectile readability.
-
-Next UX priority:
-
-- make the first Play → Fight → Result → Rematch loop impossible to misunderstand.
+- main menu;
+- final match result screen;
+- floating damage numbers in-world (combat feedback labels exist but are screen-space, not world-space).
 
 ## 20. Visual style
 
@@ -503,32 +548,38 @@ Current MVP style:
 - simple Roblox parts;
 - readable colored teams;
 - visible projectile glow/trail;
-- armor hitboxes may be visible for debug/tuning.
+- armor hitboxes are visible and intentional (not debug-only).
 
 Near-term visual priority:
 
 - not final art;
 - better readability;
-- better hit feedback;
+- better hit feedback (VFX template assets for DamageHit, NoPen, SelfHit still missing);
 - better top-down silhouettes;
-- simple explosions and muzzle flashes.
+- muzzle flash and explosion VFX already have templates.
 
 Do not spend too much time hunting assets until gameplay feel is better.
 
 ## 21. Sound
 
-Sound is not yet a deep system, but for Roblox feel it becomes important soon.
+Current sound status:
+
+- `DefaultCannonShot` — `rbxassetid://139771888058836` ✅ (plays).
+- `DefaultRicochet` — `rbxassetid://140602821561280` ✅ (plays).
+- `DefaultHit`, `DefaultNoPenetration`, `DefaultExplosion`, `DefaultBarrelBlocked`, `DefaultBoltReward`, `DefaultButtonClick`, `DefaultWin`, `DefaultLose` — `SoundId = ""` ❌ (silent).
+
+Audio controller exists (`WOBAudioController.client.luau`) and is wired up. The gaps are missing asset IDs in `AudioCatalog.luau`, not missing code.
 
 Near-term sound needs:
 
-- shot;
-- ricochet;
-- no-penetration clang;
-- penetration hit;
-- tank destroyed;
-- UI result.
+- no-penetration clang (add SoundId for `DefaultNoPenetration`);
+- penetration hit (add SoundId for `DefaultHit`);
+- tank destroyed explosion (add SoundId for `DefaultExplosion`);
+- UI result sounds (add SoundId for `DefaultWin`, `DefaultLose`);
+- button click (add SoundId for `DefaultButtonClick`);
+- barrel blocked (add SoundId for `DefaultBarrelBlocked`).
 
-Sound should be added after the current combat loop is stable enough to test repeatedly.
+Sound should be added as SoundId values in `AudioCatalog.luau`. No code changes needed, only asset IDs.
 
 ## 22. Architecture rules
 
@@ -555,6 +606,10 @@ Current important services:
 - `TankParticipantRegistry` — tank participants, health/death, armor hitbox ownership.
 - `PlayerPossessionService` — player-to-tank assignment.
 - `MatchStatsService` — runtime stats per participant/player.
+- `BotService` / `BotBrain` — bot AI lifecycle and decision loop.
+- `ArenaCombatService` — BattleArena combat coordination.
+- `PlayerWalletService` — economy/wallet.
+- `LobbyService` — lobby state management.
 
 ## 23. Scene contract
 
@@ -601,7 +656,7 @@ Manual Studio command scripts are repair tools, not part of normal Play workflow
 
 Some docs describe old pre-migration state. This can cause confusion and repeated redesign anxiety.
 
-Decision: treat this GDD v0.2, `TECH_CONTEXT.md`, current source code and latest task notes as primary context.
+Decision: treat this GDD v0.3, current source code and latest task notes as primary context. Older audit documents are historical.
 
 ### 24.2 Scene/code drift
 
@@ -611,50 +666,57 @@ Decision: after every scene repair, use `File -> Save to File` and commit the `.
 
 ### 24.3 Feature creep
 
-Adding economy, cosmetics, mobile, bots, many modes or monetization now will hide core gameplay problems.
+Adding more modes, more currencies, more bots, and more skins before the core loop is fun will hide problems.
 
-Decision: stabilize and improve feel first.
+Decision: stabilize and improve feel first. Phase B (fight feel) before Phase C (retention shell).
 
 ### 24.4 Roblox fun gap
 
 The mechanics can be correct but still feel slow or unclear.
 
-Decision: after stability, focus on feedback, readability and pace before adding meta systems.
+Decision: after stability, focus on feedback, readability and pace. Audio and VFX are the next highest-leverage improvements.
+
+### 24.5 Audio and VFX gaps
+
+8/10 audio catalog entries have empty SoundId values. 3 VFX templates are missing (procedural fallback used instead).
+
+Decision: add missing SoundId values from Roblox audio library. Create `.rbxm` template files for DamageHit, NoPen, SelfHit impact types.
 
 ## 25. Next development direction
 
-### Phase A — Stabilize current runtime contract
+### Phase A — Stabilize current runtime contract ✅ Largely complete
 
 Goal: make the current project boringly reliable.
 
-Tasks:
+Status as of v0.3:
+- ✅ Only one gameplay server active.
+- ✅ Training smoke test works.
+- ✅ 2-player PvP foundation exists.
+- ✅ Modular HUD exists and works.
+- ✅ Tank physical model contract defined (ArmorZones, attributes).
+- ✅ Spawn points exist.
+- ✅ Result/stats are local per player.
+- ✅ Legacy Hitboxes folder cleanup automated.
+- ✅ World-space HP bars attached via Attachment (no jitter for local tank).
 
-- Verify only one gameplay server is active.
-- Verify legacy Studio-owned scripts are disabled.
-- Verify Training smoke test.
-- Verify 2-player PvP smoke test.
-- Verify modular HUD exists and no emergency HUD is needed.
-- Verify tank physical model contract.
-- Verify spawn points.
-- Verify result/stats are local per player.
-- Update old audits or mark them as historical.
+Remaining Phase A work:
+- Verify 2-player PvP smoke test end-to-end.
+- Play-test Training: shoot → ricochet → armor hit → damage → win/lose → restart loop.
 
-No new gameplay features in this phase.
-
-### Phase B — Make the fight feel good
+### Phase B — Make the fight feel good (current focus)
 
 Goal: make the existing core loop fun before expanding.
 
 Tasks:
 
-- improve shot impact feedback;
-- add strong ricochet/no-penetration feedback;
-- add simple destroy explosion;
-- tune projectile visibility;
-- tune movement speed/turn speed;
-- tune camera height/FOV;
-- reduce confusion in result/restart flow;
-- optionally add BotBrain v0 for training.
+- Add missing SoundId values to `AudioCatalog.luau` (8 empty entries).
+- Create `DamageHitTemplate`, `NoPenTemplate`, `SelfHitTemplate` VFX assets (.rbxm).
+- Tune projectile visibility (color, size, trail).
+- Tune movement speed/turn speed.
+- Tune camera height/FOV.
+- Reduce confusion in result/restart flow.
+- Add main menu or simple mode selection screen.
+- Add proper final match result screen.
 
 This phase is about feel, not architecture.
 
@@ -664,11 +726,10 @@ Only after Phase A and B are good.
 
 Possible features:
 
-- simple coins;
-- simple cosmetics;
+- cosmetics expansion;
 - daily reward;
 - small quest list;
-- 2–3 tank skins;
+- 2–3 additional tank skins;
 - one more arena;
 - menu polish;
 - thumbnail/icon testing.
@@ -686,11 +747,14 @@ Definition:
 - Training works without errors.
 - 2-player local server test works without possession/camera/stat bugs.
 - The fight is understandable without reading code.
-- Every shot/ricochet/hit has readable feedback.
+- Every shot/ricochet/hit has readable feedback (visual + audio).
 - Result/rematch flow is clear.
-- GDD and current code agree.
+- GDD and current code agree. ✅ Done in v0.3.
 
-Do not chase public release until this milestone is true.
+Primary blockers remaining:
+1. Audio: 8 missing SoundIds — no sound on hit, no-pen, death, win/lose.
+2. VFX: 3 templates missing — DamageHit, NoPen, SelfHit use generic spark fallback.
+3. Match result screen: no clean match-end screen.
 
 ## 27. Stop doing for now
 
@@ -699,7 +763,6 @@ Stop doing these until the current loop feels good:
 - rewriting the whole architecture;
 - adding new systems because the game feels unclear;
 - searching for final asset packs as a substitute for gameplay feel;
-- adding monetization;
 - adding complex lobby;
 - adding ranked or matchmaking;
 - adding many projectile types;
@@ -748,6 +811,5 @@ Relation to Extraction (section 25 future modes):
 
 Not doing now:
 - Do not implement until Duel Phase A and B are complete.
-- Do not add bots until BotBrain v0 exists.
 - Do not expand map until core combat feel is good.
 - Do not add minimap until the large map exists.

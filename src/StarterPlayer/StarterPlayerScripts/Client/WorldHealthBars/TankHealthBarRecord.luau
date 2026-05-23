@@ -147,6 +147,19 @@ function TankHealthBarRecord:Update()
 	self.Billboard.Enabled = not isDead
 	self.Factory:ConfigureBillboard(self.Billboard)
 
+	-- WORLD_OFFSET.Z is a world-space Z shift that appears sideways in a top-down
+	-- camera. For Attachment anchors we remap it to StudsOffset.Y (camera-space up),
+	-- so the bar is pushed toward the top of the screen regardless of world orientation.
+	-- StudsOffsetWorldSpace stays zero — no rotation artifacts.
+	-- The fallback Part anchor bakes WORLD_OFFSET into its world position already,
+	-- so its billboard uses zero here to avoid doubling the offset.
+	self.Billboard.StudsOffsetWorldSpace = Vector3.zero
+	if self.AnchorPart ~= nil and self.AnchorPart:IsA("Attachment") then
+		self.Billboard.StudsOffset = Vector3.new(0, math.abs(self.Config.WORLD_OFFSET.Z), 0)
+	else
+		self.Billboard.StudsOffset = Vector3.zero
+	end
+
 	if self.RedBar ~= nil then
 		self.RedBar.AnchorPoint = Vector2.new(0, 0.5)
 		self.RedBar.Position = UDim2.fromScale(0, 0.5)

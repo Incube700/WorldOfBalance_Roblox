@@ -121,6 +121,28 @@ function HealthBarAnchorService:CreateAnchor(model)
 		return nil
 	end
 
+	-- Prefer an Attachment inside the Body part so the billboard follows the
+	-- tank smoothly without needing per-frame position updates.
+	local bodyPart = getBodyPart(model)
+
+	if bodyPart ~= nil then
+		local existing = bodyPart:FindFirstChild("HealthBarAnchor")
+		if existing ~= nil then
+			existing:Destroy()
+		end
+
+		local attachment = Instance.new("Attachment")
+		attachment.Name = "HealthBarAnchor"
+		-- Use only HEIGHT_OFFSET in local body space. WORLD_OFFSET was a world-space
+		-- hack for the old floating Part anchor and rotates with the tank when applied
+		-- to an Attachment, causing the bar to appear to the side instead of above.
+		attachment.Position = self.Config.HEIGHT_OFFSET
+		attachment.Parent = bodyPart
+
+		return attachment
+	end
+
+	-- Fallback: invisible Part in the anchor folder (used when no Body part exists).
 	local anchor = Instance.new("Part")
 	anchor.Name = "HealthBarAnchor_" .. model.Name
 	anchor.Anchored = true
@@ -139,6 +161,15 @@ function HealthBarAnchorService:UpdateAnchor(model, anchor)
 		return
 	end
 
+	if anchor:IsA("Attachment") then
+		-- The Attachment follows its parent Body part automatically in world space.
+		-- Only HEIGHT_OFFSET is applied here; WORLD_OFFSET is omitted because it
+		-- would rotate with the body and shift the bar sideways as the tank turns.
+		anchor.Position = self.Config.HEIGHT_OFFSET
+		return
+	end
+
+	-- Legacy Part fallback: reposition in world space every frame.
 	local center = getAnchorPosition(model)
 
 	if center == nil then
