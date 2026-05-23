@@ -528,6 +528,7 @@ function TankMovementService.resolveTankPose(fromPosition, currentBodyYaw, desir
 	local targetBodyYaw = desiredBodyYaw or currentBodyYaw
 	local blockingPart = nil
 
+	-- 1. fullMove + new bodyYaw
 	local fullPosition, fullBlockingPart = tryPose(fromPosition, targetBodyYaw, fullMove, debugContext)
 
 	if fullPosition ~= nil then
@@ -536,6 +537,7 @@ function TankMovementService.resolveTankPose(fromPosition, currentBodyYaw, desir
 
 	blockingPart = fullBlockingPart
 
+	-- 2. fullMove + current bodyYaw
 	local movementOnlyPosition, movementOnlyBlockingPart = tryPose(fromPosition, currentBodyYaw, fullMove, debugContext)
 
 	if movementOnlyPosition ~= nil then
@@ -544,6 +546,7 @@ function TankMovementService.resolveTankPose(fromPosition, currentBodyYaw, desir
 
 	blockingPart = blockingPart or movementOnlyBlockingPart
 
+	-- 3. Only rotation, no movement
 	local rotationOnlyPosition, rotationOnlyBlockingPart = tryPose(fromPosition, targetBodyYaw, Vector3.zero, debugContext)
 
 	if rotationOnlyPosition ~= nil then
@@ -552,6 +555,35 @@ function TankMovementService.resolveTankPose(fromPosition, currentBodyYaw, desir
 
 	blockingPart = blockingPart or rotationOnlyBlockingPart
 
+	-- 4. Wall sliding: project fullMove onto the wall plane
+	-- Normal is computed as the XZ direction from the blocking part centre to the tank.
+	local wallBlockingPart = blockingPart
+	if wallBlockingPart ~= nil and fullMove.Magnitude > TANK_MOVEMENT_EPSILON then
+		local toTank = fromPosition - wallBlockingPart.Position
+		local toTankFlat = Vector3.new(toTank.X, 0, toTank.Z)
+
+		if toTankFlat.Magnitude > TANK_MOVEMENT_EPSILON then
+			local wallNormal = toTankFlat.Unit
+			local dot = fullMove:Dot(wallNormal)
+			local slideMove = Vector3.new(
+				fullMove.X - wallNormal.X * dot,
+				0,
+				fullMove.Z - wallNormal.Z * dot
+			)
+
+			if slideMove.Magnitude > TANK_MOVEMENT_EPSILON then
+				local slidePosition, slideBlockPart = tryPose(fromPosition, currentBodyYaw, slideMove, debugContext)
+
+				if slidePosition ~= nil then
+					return slidePosition, currentBodyYaw, nil
+				end
+
+				blockingPart = blockingPart or slideBlockPart
+			end
+		end
+	end
+
+	-- 5. Fallback: separate X / Z movement
 	local xMove = Vector3.new(fullMove.X, 0, 0)
 	local zMove = Vector3.new(0, 0, fullMove.Z)
 
@@ -574,6 +606,21 @@ function TankMovementService.resolveTankPose(fromPosition, currentBodyYaw, desir
 			end
 
 			blockingPart = blockingPart or zBlockingPart
+		end
+	end
+
+	-- 6. Wall nudge: tiny push away from the wall to free a corner-stuck tank
+	if wallBlockingPart ~= nil then
+		local toTank = fromPosition - wallBlockingPart.Position
+		local toTankFlat = Vector3.new(toTank.X, 0, toTank.Z)
+
+		if toTankFlat.Magnitude > TANK_MOVEMENT_EPSILON then
+			local nudgeMove = toTankFlat.Unit * 0.05
+			local nudgePosition, _ = tryPose(fromPosition, currentBodyYaw, nudgeMove, debugContext)
+
+			if nudgePosition ~= nil then
+				return nudgePosition, currentBodyYaw, blockingPart
+			end
 		end
 	end
 
