@@ -36,6 +36,13 @@ local MobileControlsConfig = table.freeze({
 		CooldownVisual = true,
 	}),
 
+	ReverseButton = table.freeze({
+		Size = UDim2.fromOffset(58, 58),
+		Position = UDim2.new(1, -118, 1, -128),
+		AnchorPoint = Vector2.new(1, 1),
+		Label = "REV",
+	}),
+
 	SecondaryButton = table.freeze({
 		Enabled = false,
 	}),

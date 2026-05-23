@@ -59,9 +59,9 @@ local RIGHT_AIM_SIZE = 116
 local FIRE_BUTTON_SIZE = 78
 local REVERSE_BUTTON_SIZE = 58
 -- Gameplay touch layout convention:
--- Move stays bottom-left, REV sits near Move without overlapping it, Aim stays
--- in the lower-right control area, Fire stays bottom-right, and Menu/Pause is
--- owned by gameplay HUDs in the top-right safe area.
+-- Move stays bottom-left, REV sits in the right thumb area without overlapping
+-- AIM/FIRE, Aim stays in the lower-right control area, Fire stays bottom-right,
+-- and Menu/Pause is owned by gameplay HUDs in the top-right safe area.
 
 local stickRadius = LEFT_STICK_SIZE / 2
 local stickMaxDistance = math.min(tonumber(leftStickConfig.MaxDistance) or stickRadius, stickRadius)
@@ -79,6 +79,9 @@ local aimPlaneY = tonumber(aimAreaConfig.AimPlaneY) or CameraConfig.Input.AimPla
 local aimMinXScale = math.clamp(tonumber(aimAreaConfig.MinXScale) or 0.45, 0, 1)
 local fireButtonLabel = tostring(fireButtonConfig.Label or "FIRE")
 local reverseButtonLabel = tostring(reverseButtonConfig.Label or "REV")
+local reverseButtonSize = reverseButtonConfig.Size or UDim2.fromOffset(REVERSE_BUTTON_SIZE, REVERSE_BUTTON_SIZE)
+local reverseButtonPosition = reverseButtonConfig.Position or UDim2.new(0, -118, 1, -128)
+local reverseButtonAnchorPoint = reverseButtonConfig.AnchorPoint or Vector2.new(1, 1)
 local shootCooldown = math.max(0.05, tonumber(primaryWeaponConfig.ShootCooldown) or 0.45)
 
 local shouldEnableMobileControls = MobileControlsConfig.Enabled == true
@@ -245,9 +248,9 @@ fireButtonStroke.Parent = fireButton
 
 local reverseButton = Instance.new("TextButton")
 reverseButton.Name = REVERSE_BUTTON_NAME
-reverseButton.AnchorPoint = Vector2.new(0, 1)
-reverseButton.Position = UDim2.new(0, 150, 1, -82)
-reverseButton.Size = UDim2.fromOffset(REVERSE_BUTTON_SIZE, REVERSE_BUTTON_SIZE)
+reverseButton.AnchorPoint = reverseButtonAnchorPoint
+reverseButton.Position = reverseButtonPosition
+reverseButton.Size = reverseButtonSize
 reverseButton.BackgroundColor3 = Color3.fromRGB(13, 17, 23)
 reverseButton.BackgroundTransparency = 0.2
 reverseButton.BorderSizePixel = 0
@@ -259,6 +262,7 @@ reverseButton.TextWrapped = true
 reverseButton.AutoButtonColor = false
 reverseButton.Active = true
 reverseButton.Parent = screenGui
+
 
 local reverseButtonCorner = Instance.new("UICorner")
 reverseButtonCorner.CornerRadius = UDim.new(1, 0)
@@ -370,9 +374,9 @@ local function applyResponsiveLayout()
 	leftStickBase.Size = UDim2.fromOffset(LEFT_STICK_SIZE, LEFT_STICK_SIZE)
 	leftStickBase.Position = UDim2.new(0, 28, 1, -30)
 
-	reverseButton.AnchorPoint = Vector2.new(0, 1)
-	reverseButton.Size = UDim2.fromOffset(REVERSE_BUTTON_SIZE, REVERSE_BUTTON_SIZE)
-	reverseButton.Position = UDim2.new(0, 150, 1, -82)
+	reverseButton.AnchorPoint = reverseButtonAnchorPoint
+	reverseButton.Size = reverseButtonSize
+	reverseButton.Position = reverseButtonPosition
 
 	rightAimBase.AnchorPoint = Vector2.new(1, 1)
 	rightAimBase.Size = UDim2.fromOffset(RIGHT_AIM_SIZE, RIGHT_AIM_SIZE)
