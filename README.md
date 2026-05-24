@@ -6,6 +6,19 @@ Top-down Roblox arena game about small tanks where you win through position, hul
 
 ---
 
+## Current Docs Entry Point
+
+This README is a lightweight project overview and may lag behind the current playtest state. For the latest workflow and cleanup/refactor guardrails, start here:
+
+- [Documentation Index](docs/DOCS_INDEX.md) — current docs map and status labels.
+- [Current Project State](docs/CURRENT_PROJECT_STATE.md) — playable BattleArena/Duel/Training state to preserve.
+- [Cleanup Candidates](docs/CLEANUP_CANDIDATES.md) — safe cleanup order and files that need confirmation before removal.
+- [Battle Arena Progression v2](docs/BATTLE_ARENA_PROGRESSION_V2.md) — post-5 levels, paid revive, free respawn, branch prep.
+
+Older sections below are retained as project context. Verify them against the current docs before using them as workflow instructions.
+
+---
+
 ## Setup
 
 **Requirements:**

@@ -43,6 +43,10 @@ local reviveConfig = BattleArenaConfig.Revive or {}
 local mobileHudCompact = mobileHudConfig.Compact ~= false
 local mobileUseMenuForReturn = mobileHudConfig.UseMenuForReturn ~= false
 local paidReviveEnabled = reviveConfig.Enabled == true
+local coreBuildLevel = math.max(
+	1,
+	math.floor(tonumber(BattleArenaConfig.MaxUpgradeLevel) or tonumber(BattleArenaConfig.CoreBuildLevel) or 5)
+)
 
 local existingGui = playerGui:FindFirstChild(GUI_NAME)
 
@@ -378,7 +382,9 @@ deathReturnButton.Name = "DeathReturnToLobbyButton"
 deathReturnButton.Position = UDim2.new(0.24, 0, 0, 258)
 deathReturnButton.Size = UDim2.new(0.64, 0, 0, 38)
 deathReturnButton.Parent = deathPanel
-styleButton(deathReturnButton)
+styleButton(deathReturnButton, "EXIT TO LOBBY")
+deathReturnButton.BackgroundColor3 = Color3.fromRGB(94, 75, 78)
+deathReturnButton.TextColor3 = Color3.fromRGB(248, 255, 248)
 
 local upgradeHud
 upgradeHud = BattleArenaUpgradeHud.new({
@@ -798,6 +804,7 @@ local function updateOverlay()
 	local arenaXP = localPlayer:GetAttribute("ArenaXP") or 0
 	local arenaLevel = localPlayer:GetAttribute("ArenaLevel") or 1
 	local nextLevelXP = localPlayer:GetAttribute("ArenaNextLevelXP")
+	local isPostCoreLevel = (tonumber(arenaLevel) or 1) > coreBuildLevel
 	local kills = localPlayer:GetAttribute("ArenaKills") or 0
 	local deaths = localPlayer:GetAttribute("ArenaDeaths") or 0
 	local streak = localPlayer:GetAttribute("ArenaStreak") or 0
@@ -812,6 +819,7 @@ local function updateOverlay()
 			Score = score,
 			XP = arenaXP,
 			Level = arenaLevel,
+			CoreBuildLevel = coreBuildLevel,
 			NextLevelXP = nextLevelXP,
 			Kills = kills,
 			Deaths = deaths,
@@ -834,7 +842,7 @@ local function updateOverlay()
 			.. tostring(math.floor(kills))
 			.. "/"
 			.. tostring(math.floor(deaths))
-		streakLabel.Text = "Lv "
+		streakLabel.Text = (isPostCoreLevel and "Record Lv " or "Lv ")
 			.. tostring(math.floor(arenaLevel))
 			.. " XP "
 			.. xpText
@@ -843,7 +851,7 @@ local function updateOverlay()
 		upgradesLabel.Text = "Bolts +" .. tostring(math.floor(localPlayer:GetAttribute("ArenaSessionBolts") or 0))
 			.. "  Upg: "
 			.. tostring(getUpgradeCount(upgrades))
-		sessionLabel.Text = getSessionStatusText()
+		sessionLabel.Text = isPostCoreLevel and "Core upgrades complete - record run" or getSessionStatusText()
 	end
 
 	updateHealth(ownedTank, mobileLayout)
@@ -885,12 +893,14 @@ local function updateOverlay()
 		deathFreeRespawnSubtitle.Visible = freeRespawnAvailable
 
 		if revivePending or freeRespawnAvailable then
-			respawnLabel.Text = canRevive and "Choose how to continue" or "Free respawn available"
-
-			if paidLimitReached or reviveError == "LimitReached" then
-				respawnLabel.Text = "No paid revives left"
+			if canRevive then
+				respawnLabel.Text = freeRespawnAvailable and "Choose your return" or "Revive available"
+			elseif paidLimitReached or reviveError == "LimitReached" then
+				respawnLabel.Text = freeRespawnAvailable and "Paid revives used" or "No paid revives left"
 			elseif reviveError == "WalletUnavailable" then
 				respawnLabel.Text = "Wallet unavailable"
+			else
+				respawnLabel.Text = freeRespawnAvailable and "No Bolts? Respawn free" or "Not enough Bolts"
 			end
 
 			if paidLimitReached then
@@ -904,10 +914,18 @@ local function updateOverlay()
 			deathReviveButton.BackgroundColor3 = canRevive
 				and Color3.fromRGB(55, 150, 96)
 				or Color3.fromRGB(74, 85, 104)
+			deathReviveButton.TextColor3 = canRevive
+				and Color3.fromRGB(248, 255, 248)
+				or Color3.fromRGB(207, 213, 224)
 			deathReviveSubtitle.Text = "Keep level and upgrades"
+			deathReviveSubtitle.TextColor3 = canRevive
+				and Color3.fromRGB(195, 230, 205)
+				or Color3.fromRGB(170, 180, 194)
 			deathFreeRespawnButton.Text = "RESPAWN - FREE"
 			deathFreeRespawnButton.BackgroundColor3 = Color3.fromRGB(250, 204, 21)
+			deathFreeRespawnButton.TextColor3 = Color3.fromRGB(13, 17, 23)
 			deathFreeRespawnSubtitle.Text = "Lose current run powers"
+			deathFreeRespawnSubtitle.TextColor3 = Color3.fromRGB(255, 235, 166)
 		else
 			respawnLabel.Text = "Respawn in " .. tostring(seconds) .. "..."
 			deathReviveButton.Visible = false

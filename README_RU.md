@@ -1,5 +1,20 @@
 # Arena Upgrade HUD refactor ready pack
 
+## Актуальная точка входа в документацию
+
+Этот файл — исторический ready-pack для старого рефактора BattleArena upgrade HUD. Он сохранен как контекст и не должен считаться главным источником текущего workflow.
+
+Для текущего состояния проекта начинай отсюда:
+
+- [Индекс документации](docs/DOCS_INDEX.md) — карта актуальных, справочных и исторических документов.
+- [Текущее состояние проекта](docs/CURRENT_PROJECT_STATE.md) — что сейчас playable и что нельзя сломать.
+- [Кандидаты на cleanup](docs/CLEANUP_CANDIDATES.md) — безопасный порядок чистки и файлы, которые нельзя удалять без подтверждения.
+- [Battle Arena Progression v2](docs/BATTLE_ARENA_PROGRESSION_V2.md) — post-5 уровни, платный revive, free respawn, подготовка веток.
+
+Инструкции ниже оставлены как исторический контекст для upgrade HUD refactor.
+
+---
+
 Что внутри:
 
 1. `BattleArenaUpgradeHud.luau`

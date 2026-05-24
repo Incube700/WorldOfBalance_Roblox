@@ -12,6 +12,9 @@ function CompactStatsFormatter.FormatArenaStats(stats)
 	local crystalsPrefix = useShortLabels and "C" or "Crystals"
 	local boltsPrefix = useShortLabels and "B" or "Bolts"
 	local level = floorNumber(stats.Level or 1)
+	local coreBuildLevel = math.max(1, floorNumber(stats.CoreBuildLevel or 5))
+	local isPostCoreLevel = level > coreBuildLevel
+	local recordPrefix = useShortLabels and "Rec" or "Record"
 	local xp = floorNumber(stats.XP)
 	local nextLevelXP = tonumber(stats.NextLevelXP)
 	local xpText = nextLevelXP ~= nil and nextLevelXP > 0
@@ -19,7 +22,7 @@ function CompactStatsFormatter.FormatArenaStats(stats)
 		or tostring(xp)
 
 	return {
-		Score = levelPrefix .. tostring(level) .. " XP " .. xpText,
+		Score = (isPostCoreLevel and recordPrefix or levelPrefix) .. " " .. tostring(level) .. " XP " .. xpText,
 		KillsDeaths = "K/D: " .. tostring(floorNumber(stats.Kills)) .. "/" .. tostring(floorNumber(stats.Deaths)),
 		Crystals = crystalsPrefix .. ": " .. tostring(floorNumber(stats.Crystals)),
 		Bolts = boltsPrefix .. ": " .. tostring(floorNumber(stats.Bolts)),

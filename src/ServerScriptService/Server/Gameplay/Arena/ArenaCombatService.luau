@@ -1,6 +1,5 @@
 local ArenaCombatService = {}
 
-local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -10,6 +9,12 @@ local configs = shared:WaitForChild("Configs")
 local BattleArenaConfig = require(configs:WaitForChild("BattleArenaConfig"))
 local BattleArenaLoopConfig = require(configs:WaitForChild("BattleArenaLoopConfig"))
 
+local ArenaLevelService = require(script.Parent:WaitForChild("ArenaLevelService"))
+local ArenaReviveService = require(script.Parent:WaitForChild("ArenaReviveService"))
+local ArenaRewardService = require(script.Parent:WaitForChild("ArenaRewardService"))
+local ArenaSessionRepository = require(script.Parent:WaitForChild("ArenaSessionRepository"))
+local ArenaUpgradeEffectApplier = require(script.Parent:WaitForChild("ArenaUpgradeEffectApplier"))
+local ArenaUpgradeOfferService = require(script.Parent:WaitForChild("ArenaUpgradeOfferService"))
 local TankParticipantRegistry = require(script.Parent.Parent:WaitForChild("TankParticipantRegistry"))
 
 ArenaCombatService.MODE_IN_BATTLE_ARENA = "InBattleArena"
@@ -31,25 +36,21 @@ local callbacks = {
 	restoreTankColors = nil,
 }
 
-local sessionsByPlayer = {}
-local sessionsByParticipant = {}
+local sessionRepository = ArenaSessionRepository.new()
+local levelService = ArenaLevelService.new(BattleArenaConfig)
+local reviveService = ArenaReviveService.new(BattleArenaConfig)
+local rewardService = ArenaRewardService.new(BattleArenaConfig, BattleArenaLoopConfig)
+local upgradeOfferService = ArenaUpgradeOfferService.new(BattleArenaConfig, levelService)
+local upgradeEffectApplier = ArenaUpgradeEffectApplier.new(
+	BattleArenaConfig,
+	upgradeOfferService,
+	TankParticipantRegistry
+)
 local nextSpawnIndex = 1
 local poiStateByInstance = {}
 local pickupAccumulator = 0
 local controlZoneAccumulator = 0
 local survivalAccumulator = 0
-local random = Random.new()
-
-local UPGRADE_ORDER = {
-	"DamageUp",
-	"FireRateUp",
-	"MoveSpeedUp",
-	"DoubleShot",
-	"TripleSpread",
-	"RicochetUp",
-	"ReflectShield",
-	"Repair",
-}
 
 local function getServerTimeNow()
 	local success, serverTime = pcall(function()
@@ -79,10 +80,6 @@ local function getLoopNumber(sectionName, valueName, fallback)
 	local section = getLoopSection(sectionName)
 
 	return tonumber(section[valueName]) or fallback
-end
-
-local function hasProjectileRicochet(sourceProjectile)
-	return sourceProjectile ~= nil and (tonumber(sourceProjectile.BounceCount) or 0) > 0
 end
 
 local function getSessionSoftEndAt(startedAt)
@@ -233,15 +230,6 @@ local function clearPlayerInput(player)
 	end
 end
 
-local function setArenaModifier(participant, attributeName, value)
-	if participant == nil then
-		return
-	end
-
-	participant[attributeName] = value
-	setAttributeOnParticipantModels(participant, attributeName, value)
-end
-
 local function getReflectShieldConfig()
 	return BattleArenaConfig.ReflectShield or {}
 end
@@ -310,12 +298,7 @@ end
 
 local function republishShieldAttributesSoon(session)
 	task.defer(function()
-		local currentSession = session ~= nil
-			and (
-				(session.Player ~= nil and sessionsByPlayer[session.Player])
-				or sessionsByParticipant[session.Participant]
-			)
-			or nil
+		local currentSession = sessionRepository:GetCurrentForSession(session)
 
 		if currentSession == session then
 			publishShieldAttributes(session)
@@ -342,9 +325,7 @@ local function scheduleSpawnShieldExpiry(session)
 			return
 		end
 
-		local currentSession = session.Player ~= nil
-			and sessionsByPlayer[session.Player]
-			or sessionsByParticipant[session.Participant]
+		local currentSession = sessionRepository:GetCurrentForSession(session)
 
 		if currentSession ~= session then
 			return
@@ -380,152 +361,7 @@ local function grantSpawnReflectShield(session, _reason)
 end
 
 local function resetParticipantArenaModifiers(participant)
-	if participant == nil then
-		return
-	end
-
-	setArenaModifier(participant, "ArenaDamageMultiplier", 1)
-	setArenaModifier(participant, "ArenaFireRateMultiplier", 1)
-	setArenaModifier(participant, "ArenaMoveSpeedMultiplier", 1)
-	setArenaModifier(participant, "ArenaProjectileCount", 1)
-	setArenaModifier(participant, "ArenaSpreadDegrees", 0)
-	setArenaModifier(participant, "ArenaDoubleShotLateralOffset", 0)
-	setArenaModifier(participant, "ArenaRicochetBonus", 0)
-	setArenaModifier(participant, "ArenaUpgradeIds", "")
-	setArenaModifier(participant, "ArenaReflectShieldCharges", 0)
-	setArenaModifier(participant, "ArenaSpawnShieldUntil", 0)
-	setArenaModifier(participant, "ArenaShieldActive", false)
-end
-
-local function getReviveConfig()
-	return BattleArenaConfig.Revive or {}
-end
-
-local function isReviveEnabled()
-	return getReviveConfig().Enabled == true
-end
-
-local function getMaxRevivesPerRun()
-	return math.max(0, math.floor(tonumber(getReviveConfig().MaxRevivesPerRun) or 0))
-end
-
-local function getReviveCost(session)
-	local reviveConfig = getReviveConfig()
-	local reviveCount = math.max(0, math.floor(tonumber(session ~= nil and session.ReviveCount) or 0))
-	local baseCost = tonumber(reviveConfig.CostBase)
-		or tonumber(reviveConfig.CostBaseBolts)
-		or 5
-	local perRevive = tonumber(reviveConfig.CostPerRevive)
-		or tonumber(reviveConfig.CostAdditiveBolts)
-		or 0
-	local multiplier = tonumber(reviveConfig.CostMultiplier) or 1
-	local scaledCost = (baseCost + perRevive * reviveCount) * (multiplier ^ reviveCount)
-
-	return math.max(1, math.floor(scaledCost + 0.5))
-end
-
-local function getReviveRestoreHpPercent()
-	local reviveConfig = getReviveConfig()
-	local percent = tonumber(reviveConfig.RestoreHpPercent)
-		or tonumber(reviveConfig.ReviveHpPercent)
-		or 0.5
-
-	return math.clamp(percent, 0.05, 1)
-end
-
-local function isFreeRespawnEnabled()
-	return getReviveConfig().FreeRespawnEnabled == true
-end
-
-local function shouldFreeRespawnResetRun()
-	return getReviveConfig().FreeRespawnResetsRun ~= false
-end
-
-local function getFreeRespawnRestoreHpPercent()
-	local percent = tonumber(getReviveConfig().FreeRespawnRestoreHpPercent) or 1
-
-	return math.clamp(percent, 0.05, 1)
-end
-
-local function canOfferRevive(session)
-	return isReviveEnabled()
-		and session ~= nil
-		and session.IsBotSession ~= true
-		and session.Player ~= nil
-		and (tonumber(session.ReviveCount) or 0) < getMaxRevivesPerRun()
-end
-
-local function canOfferFreeRespawn(session)
-	return isFreeRespawnEnabled()
-		and session ~= nil
-		and session.IsBotSession ~= true
-		and session.Player ~= nil
-end
-
-local function canAffordRevive(session)
-	if session == nil or session.Player == nil or playerWalletService == nil then
-		return false
-	end
-
-	local getBalance = playerWalletService.getBoltsBalance
-
-	if getBalance == nil then
-		return false
-	end
-
-	return getBalance(session.Player) >= getReviveCost(session)
-end
-
-local function clearRevivePending(session)
-	if session == nil then
-		return
-	end
-
-	session.RevivePending = false
-	session.ReviveCost = 0
-	session.ReviveLastError = ""
-end
-
-local function clearFreeRespawnPending(session)
-	if session == nil then
-		return
-	end
-
-	session.FreeRespawnPending = false
-	session.FreeRespawnLastError = ""
-end
-
-local function resetReviveRunState(session)
-	if session == nil then
-		return
-	end
-
-	session.ReviveCount = 0
-	clearRevivePending(session)
-	clearFreeRespawnPending(session)
-end
-
-local function beginRevivePending(session)
-	if not canOfferRevive(session) then
-		return false
-	end
-
-	session.RevivePending = true
-	session.ReviveCost = getReviveCost(session)
-	session.ReviveLastError = ""
-
-	return true
-end
-
-local function beginFreeRespawnPending(session)
-	if not canOfferFreeRespawn(session) then
-		return false
-	end
-
-	session.FreeRespawnPending = true
-	session.FreeRespawnLastError = ""
-
-	return true
+	upgradeEffectApplier:ResetParticipantArenaModifiers(participant)
 end
 
 local function setPlayerArenaDefaults(player)
@@ -536,7 +372,7 @@ local function setPlayerArenaDefaults(player)
 	player:SetAttribute("ArenaScore", 0)
 	player:SetAttribute("ArenaXP", 0)
 	player:SetAttribute("ArenaLevel", 1)
-	player:SetAttribute("ArenaNextLevelXP", BattleArenaConfig.LevelThresholds[2])
+	player:SetAttribute("ArenaNextLevelXP", levelService:GetNextLevelThreshold(1))
 	player:SetAttribute("ArenaKills", 0)
 	player:SetAttribute("ArenaDeaths", 0)
 	player:SetAttribute("ArenaStreak", 0)
@@ -553,7 +389,7 @@ local function setPlayerArenaDefaults(player)
 	player:SetAttribute("ArenaRevivePending", false)
 	player:SetAttribute("ArenaReviveCost", 0)
 	player:SetAttribute("ArenaRevivesUsed", 0)
-	player:SetAttribute("ArenaMaxRevives", getMaxRevivesPerRun())
+	player:SetAttribute("ArenaMaxRevives", reviveService:GetMaxRevivesPerRun())
 	player:SetAttribute("ArenaCanRevive", false)
 	player:SetAttribute("ArenaReviveLastError", "")
 	player:SetAttribute("ArenaFreeRespawnAvailable", false)
@@ -589,10 +425,10 @@ local function publishSessionAttributes(session)
 	player:SetAttribute("ArenaSessionBolts", session.EarnedBolts or 0)
 	player:SetAttribute("ArenaLastSummary", session.LastSummary or "")
 	player:SetAttribute("ArenaRevivePending", session.RevivePending == true)
-	player:SetAttribute("ArenaReviveCost", session.RevivePending == true and getReviveCost(session) or 0)
+	player:SetAttribute("ArenaReviveCost", session.RevivePending == true and reviveService:GetReviveCost(session) or 0)
 	player:SetAttribute("ArenaRevivesUsed", math.max(0, math.floor(tonumber(session.ReviveCount) or 0)))
-	player:SetAttribute("ArenaMaxRevives", getMaxRevivesPerRun())
-	player:SetAttribute("ArenaCanRevive", session.RevivePending == true and canAffordRevive(session))
+	player:SetAttribute("ArenaMaxRevives", reviveService:GetMaxRevivesPerRun())
+	player:SetAttribute("ArenaCanRevive", session.RevivePending == true and reviveService:CanAffordRevive(session))
 	player:SetAttribute("ArenaReviveLastError", tostring(session.ReviveLastError or ""))
 	player:SetAttribute("ArenaFreeRespawnAvailable", session.FreeRespawnPending == true)
 	player:SetAttribute("ArenaDamageMultiplier", session.DamageMultiplier)
@@ -603,265 +439,18 @@ local function publishSessionAttributes(session)
 	publishShieldAttributes(session)
 end
 
-local function hasUpgrade(session, upgradeId)
-	for _, existingUpgradeId in ipairs(session.UpgradeIds) do
-		if existingUpgradeId == upgradeId then
-			return true
-		end
-	end
-
-	return false
-end
-
-local function countUpgradeStacks(session, upgradeId)
-	local count = 0
-
-	for _, existingUpgradeId in ipairs(session.UpgradeIds) do
-		if existingUpgradeId == upgradeId then
-			count += 1
-		end
-	end
-
-	return count
-end
-
-local function getUpgradeDefinition(upgradeId)
-	local pool = BattleArenaConfig.UpgradePool or {}
-
-	return pool[upgradeId]
-end
-
-local function getUpgradeMaxStacks(upgradeId)
-	local definition = getUpgradeDefinition(upgradeId)
-
-	if definition == nil then
-		return 0
-	end
-
-	if definition.Immediate == true then
-		return math.huge
-	end
-
-	return math.max(1, math.floor(tonumber(definition.MaxStacks) or 1))
-end
-
-local function isBlockedByOwnedUpgrade(session, blockedUpgradeIds)
-	if typeof(blockedUpgradeIds) == "string" then
-		return hasUpgrade(session, blockedUpgradeIds)
-	end
-
-	if typeof(blockedUpgradeIds) ~= "table" then
-		return false
-	end
-
-	for _, blockedUpgradeId in ipairs(blockedUpgradeIds) do
-		if typeof(blockedUpgradeId) == "string" and hasUpgrade(session, blockedUpgradeId) then
-			return true
-		end
-	end
-
-	return false
-end
-
 local function isUpgradeChoiceValid(session, upgradeId)
-	if session == nil or typeof(upgradeId) ~= "string" then
-		return false
-	end
-
-	local definition = getUpgradeDefinition(upgradeId)
-
-	if definition == nil then
-		return false
-	end
-
-	if definition.Enabled == false or definition.FutureOnly == true then
-		return false
-	end
-
-	local minArenaLevel = tonumber(definition.MinArenaLevel)
-
-	if minArenaLevel ~= nil and session.ArenaLevel < minArenaLevel then
-		return false
-	end
-
-	local maxOfferLevel = tonumber(definition.MaxOfferLevel)
-
-	if maxOfferLevel ~= nil and session.ArenaLevel > maxOfferLevel then
-		return false
-	end
-
-	local offerAfterLevel = tonumber(definition.OfferAfterLevel)
-
-	if offerAfterLevel ~= nil and session.ArenaLevel <= offerAfterLevel then
-		return false
-	end
-
-	if isBlockedByOwnedUpgrade(session, definition.BlocksUpgrade) then
-		return false
-	end
-
-	if definition.Immediate == true then
-		return true
-	end
-
-	if upgradeId == "DoubleShot" and hasUpgrade(session, "TripleSpread") then
-		return false
-	end
-
-	if upgradeId == "TripleSpread" and not hasUpgrade(session, "DoubleShot") then
-		return false
-	end
-
-	local requiredUpgrade = definition.RequiresUpgrade
-
-	if typeof(requiredUpgrade) == "string" and not hasUpgrade(session, requiredUpgrade) then
-		return false
-	end
-
-	return countUpgradeStacks(session, upgradeId) < getUpgradeMaxStacks(upgradeId)
-end
-
-local function getValidUpgradeIds(session)
-	local upgradeIds = {}
-
-	for _, upgradeId in ipairs(UPGRADE_ORDER) do
-		if isUpgradeChoiceValid(session, upgradeId) then
-			table.insert(upgradeIds, upgradeId)
-		end
-	end
-
-	return upgradeIds
-end
-
-local function makeUpgradeChoicePayload(session, upgradeId)
-	local definition = getUpgradeDefinition(upgradeId) or {}
-	local currentStacks = countUpgradeStacks(session, upgradeId)
-	local maxStacks = getUpgradeMaxStacks(upgradeId)
-
-	return {
-		Id = upgradeId,
-		Title = definition.Title or upgradeId,
-		Description = definition.Description or "",
-		Stack = definition.Immediate == true and 0 or currentStacks + 1,
-		MaxStacks = maxStacks == math.huge and 0 or maxStacks,
-		Immediate = definition.Immediate == true,
-	}
+	return upgradeOfferService:IsUpgradeChoiceValid(session, upgradeId)
 end
 
 local function applySessionUpgrades(session)
-	local participant = session.Participant
-	local damageStacks = countUpgradeStacks(session, "DamageUp")
-	local moveSpeedStacks = countUpgradeStacks(session, "MoveSpeedUp")
-	local damageStep = (tonumber(BattleArenaConfig.DamageUpMultiplier) or 1.2) - 1
-	local moveSpeedStep = (tonumber(BattleArenaConfig.MoveSpeedMultiplier) or 1.1) - 1
-
-	session.DamageMultiplier = 1 + damageStep * damageStacks
-	session.FireRateMultiplier = hasUpgrade(session, "FireRateUp") and BattleArenaConfig.FireRateMultiplier or 1
-	session.MoveSpeedMultiplier = 1 + moveSpeedStep * moveSpeedStacks
-	session.RicochetBonus = hasUpgrade(session, "RicochetUp") and (tonumber(BattleArenaConfig.RicochetUpBonus) or 1) or 0
-
-	if hasUpgrade(session, "TripleSpread") then
-		session.ProjectileCount = 3
-		session.SpreadDegrees = BattleArenaConfig.MultiShotSpreadDegrees
-		session.DoubleShotLateralOffset = 0
-	elseif hasUpgrade(session, "DoubleShot") then
-		session.ProjectileCount = 2
-		session.SpreadDegrees = 0
-		session.DoubleShotLateralOffset = BattleArenaConfig.DoubleShotLateralOffset
-	else
-		session.ProjectileCount = 1
-		session.SpreadDegrees = 0
-		session.DoubleShotLateralOffset = 0
-	end
-
-	setArenaModifier(participant, "ArenaDamageMultiplier", session.DamageMultiplier)
-	setArenaModifier(participant, "ArenaFireRateMultiplier", session.FireRateMultiplier)
-	setArenaModifier(participant, "ArenaMoveSpeedMultiplier", session.MoveSpeedMultiplier)
-	setArenaModifier(participant, "ArenaProjectileCount", session.ProjectileCount)
-	setArenaModifier(participant, "ArenaSpreadDegrees", session.SpreadDegrees)
-	setArenaModifier(participant, "ArenaDoubleShotLateralOffset", session.DoubleShotLateralOffset)
-	setArenaModifier(participant, "ArenaRicochetBonus", session.RicochetBonus)
-	setArenaModifier(participant, "ArenaUpgradeIds", table.concat(session.UpgradeIds, ","))
-	publishSessionAttributes(session)
-
-	if BattleArenaConfig.Debug == true then
-		local ownerName = session.Player ~= nil and session.Player.Name or tostring(participant ~= nil and participant.TankId or "Bot")
-		print("[ARENA] upgrades " .. ownerName .. " -> " .. table.concat(session.UpgradeIds, ","))
-	end
-end
-
-local function getLevelThreshold(level)
-	local thresholds = BattleArenaConfig.LevelThresholds or {}
-	local numericLevel = math.max(1, math.floor(tonumber(level) or 1))
-	local explicitThreshold = tonumber(thresholds[numericLevel])
-
-	if explicitThreshold ~= nil then
-		return explicitThreshold
-	end
-
-	local highestLevel = 1
-	local highestThreshold = 0
-
-	for thresholdLevel, threshold in pairs(thresholds) do
-		local parsedLevel = tonumber(thresholdLevel)
-		local parsedThreshold = tonumber(threshold)
-
-		if parsedLevel ~= nil
-			and parsedThreshold ~= nil
-			and parsedLevel > highestLevel
-		then
-			highestLevel = parsedLevel
-			highestThreshold = parsedThreshold
-		end
-	end
-
-	if numericLevel <= highestLevel then
-		return nil
-	end
-
-	local postMaxLevelXPStep = math.max(1, math.floor(tonumber(BattleArenaConfig.PostMaxLevelXPStep) or 350))
-
-	return highestThreshold + (numericLevel - highestLevel) * postMaxLevelXPStep
-end
-
-local function getNextLevelThreshold(level)
-	return getLevelThreshold((tonumber(level) or 1) + 1)
-end
-
-local function getMaxArenaLevel()
-	local maxArenaLevel = tonumber(BattleArenaConfig.MaxArenaLevel)
-
-	if maxArenaLevel == nil or maxArenaLevel <= 0 then
-		return math.huge
-	end
-
-	return math.max(1, math.floor(maxArenaLevel))
-end
-
-local function getMaxUpgradeLevel()
-	local maxUpgradeLevel = tonumber(BattleArenaConfig.MaxUpgradeLevel)
-		or tonumber(BattleArenaConfig.CoreBuildLevel)
-		or 5
-
-	return math.max(1, math.floor(maxUpgradeLevel))
-end
-
-local function shouldGrantLevelUpgradeOffer(arenaLevel)
-	return (tonumber(arenaLevel) or 1) <= getMaxUpgradeLevel()
-end
-
-local function updateNextLevelXP(session)
-	if session.ArenaLevel >= getMaxArenaLevel() then
-		session.NextLevelXP = nil
-	else
-		session.NextLevelXP = getNextLevelThreshold(session.ArenaLevel)
+	if upgradeEffectApplier:ApplySessionUpgrades(session) then
+		publishSessionAttributes(session)
 	end
 end
 
 local function clearPendingUpgradeOffer(session)
-	session.PendingUpgradeOffer = nil
-	session.PendingUpgradeOfferId = ""
-	session.PendingUpgradeOfferSource = ""
+	upgradeOfferService:ClearPendingUpgradeOffer(session)
 	publishSessionAttributes(session)
 end
 
@@ -874,40 +463,12 @@ local function fireUpgradeOffer(session)
 end
 
 local function createUpgradeOffer(session, source)
-	if session == nil or session.Player == nil or session.PendingUpgradeOffer ~= nil then
+	local created = upgradeOfferService:CreateUpgradeOffer(session, source)
+
+	if not created then
 		return false
 	end
 
-	local validUpgradeIds = getValidUpgradeIds(session)
-
-	if #validUpgradeIds == 0 then
-		return false
-	end
-
-	for index = #validUpgradeIds, 2, -1 do
-		local swapIndex = random:NextInteger(1, index)
-		validUpgradeIds[index], validUpgradeIds[swapIndex] = validUpgradeIds[swapIndex], validUpgradeIds[index]
-	end
-
-	local choiceCount = math.min(
-		math.max(1, math.floor(tonumber(BattleArenaConfig.UpgradeChoicesPerOffer) or 3)),
-		#validUpgradeIds
-	)
-	local choices = {}
-
-	for index = 1, choiceCount do
-		table.insert(choices, makeUpgradeChoicePayload(session, validUpgradeIds[index]))
-	end
-
-	local offerId = "ArenaOffer_" .. HttpService:GenerateGUID(false)
-	session.PendingUpgradeOffer = {
-		OfferId = offerId,
-		Source = source or "LevelUp",
-		ArenaLevel = session.ArenaLevel,
-		Choices = choices,
-	}
-	session.PendingUpgradeOfferId = offerId
-	session.PendingUpgradeOfferSource = source or "LevelUp"
 	publishSessionAttributes(session)
 	fireUpgradeOffer(session)
 
@@ -915,50 +476,24 @@ local function createUpgradeOffer(session, source)
 end
 
 local function ensurePendingLevelOffer(session)
-	if session == nil or session.PendingUpgradeOffer ~= nil then
-		return
-	end
+	local result = upgradeOfferService:EnsurePendingLevelOffer(session)
 
-	if (session.UnclaimedLevelUpOffers or 0) <= 0 then
-		return
-	end
-
-	if not createUpgradeOffer(session, "LevelUp") then
-		session.UnclaimedLevelUpOffers = 0
+	if result.StateChanged == true then
 		publishSessionAttributes(session)
+	end
+
+	if result.Created == true then
+		fireUpgradeOffer(session)
 	end
 end
 
 local function addArenaXP(session, amount, reason)
-	if session == nil or session.IsBotSession == true then
+	local result = levelService:AddXP(session, amount)
+
+	if result.Added ~= true then
 		return false
 	end
 
-	local xpAmount = math.max(0, math.floor(tonumber(amount) or 0))
-
-	if xpAmount <= 0 then
-		return false
-	end
-
-	session.ArenaXP += xpAmount
-
-	local maxLevel = getMaxArenaLevel()
-
-	while session.ArenaLevel < maxLevel do
-		local nextThreshold = getNextLevelThreshold(session.ArenaLevel)
-
-		if nextThreshold == nil or session.ArenaXP < nextThreshold then
-			break
-		end
-
-		session.ArenaLevel += 1
-
-		if shouldGrantLevelUpgradeOffer(session.ArenaLevel) then
-			session.UnclaimedLevelUpOffers += 1
-		end
-	end
-
-	updateNextLevelXP(session)
 	publishSessionAttributes(session)
 	ensurePendingLevelOffer(session)
 
@@ -967,7 +502,7 @@ local function addArenaXP(session, amount, reason)
 		print(
 			("[ARENA XP] player=%s amount=%d reason=%s xp=%d level=%d"):format(
 				playerName,
-				xpAmount,
+				result.Amount,
 				tostring(reason or "Unknown"),
 				session.ArenaXP,
 				session.ArenaLevel
@@ -978,50 +513,13 @@ local function addArenaXP(session, amount, reason)
 	return true
 end
 
-local function applyRepairUpgrade(session)
-	local participant = session.Participant
-
-	if participant == nil then
-		return
-	end
-
-	local currentHealth = TankParticipantRegistry.getParticipantHealth(participant)
-	local maxHealth = TankParticipantRegistry.getParticipantMaxHealth(participant)
-	local healAmount = math.max(0, tonumber(BattleArenaConfig.RepairHealAmount) or 30)
-
-	TankParticipantRegistry.setParticipantHealth(participant, math.min(maxHealth, currentHealth + healAmount))
-end
-
-local function grantReflectShieldUpgradeCharge(session)
-	if session == nil then
-		return
-	end
-
-	local grantCharges = math.max(0, math.floor(tonumber(getReflectShieldConfig().UpgradeGrantCharges) or 1))
-
-	session.ReflectShieldCharges = math.clamp(
-		(tonumber(session.ReflectShieldCharges) or 0) + grantCharges,
-		0,
-		getReflectShieldMaxCharges()
-	)
-end
-
 local function applyChosenUpgrade(session, upgradeId)
-	if upgradeId == "Repair" then
-		applyRepairUpgrade(session)
+	if upgradeEffectApplier:ApplyChosenUpgrade(session, upgradeId) then
 		publishSessionAttributes(session)
 		return true
 	end
 
-	table.insert(session.UpgradeIds, upgradeId)
-
-	if upgradeId == "ReflectShield" then
-		grantReflectShieldUpgradeCharge(session)
-	end
-
-	applySessionUpgrades(session)
-
-	return true
+	return false
 end
 
 local function resetArenaRun(session)
@@ -1029,14 +527,11 @@ local function resetArenaRun(session)
 		return
 	end
 
-	session.ArenaXP = 0
-	session.ArenaLevel = 1
-	updateNextLevelXP(session)
+	levelService:ResetRunProgress(session)
 	session.Streak = 0
 	session.UpgradeIds = {}
 	session.ForcedUpgrades = {}
-	session.UnclaimedLevelUpOffers = 0
-	resetReviveRunState(session)
+	reviveService:ResetRunState(session)
 	session.ReflectShieldCharges = 0
 	session.SpawnShieldUntil = 0
 	session.ShieldToken = (session.ShieldToken or 0) + 1
@@ -1059,7 +554,7 @@ local function makeSession(player, participant)
 		Score = 0,
 		ArenaXP = 0,
 		ArenaLevel = 1,
-		NextLevelXP = getNextLevelThreshold(1),
+		NextLevelXP = levelService:GetNextLevelThreshold(1),
 		Kills = 0,
 		Deaths = 0,
 		Streak = 0,
@@ -1101,7 +596,7 @@ local function makeBotSession(participant)
 		Score = 0,
 		ArenaXP = 0,
 		ArenaLevel = 1,
-		NextLevelXP = getNextLevelThreshold(1),
+		NextLevelXP = levelService:GetNextLevelThreshold(1),
 		Kills = 0,
 		Deaths = 0,
 		Streak = 0,
@@ -1137,6 +632,8 @@ function ArenaCombatService.init(options)
 	root = options.root
 	tankSpawnResetService = options.tankSpawnResetService
 	playerWalletService = options.playerWalletService
+	reviveService:SetWalletService(playerWalletService)
+	rewardService:SetWalletService(playerWalletService)
 	upgradeChoiceEvent = options.upgradeChoiceEvent
 	reviveRequestEvent = options.reviveRequestEvent
 	freeRespawnRequestEvent = options.freeRespawnRequestEvent
@@ -1183,25 +680,25 @@ function ArenaCombatService.IsEnabled()
 end
 
 function ArenaCombatService.IsPlayerInArena(player)
-	return player ~= nil and sessionsByPlayer[player] ~= nil
+	return sessionRepository:Has(player)
 end
 
 function ArenaCombatService.IsParticipantInArena(participant)
-	return participant ~= nil and sessionsByParticipant[participant] ~= nil
+	return sessionRepository:HasParticipant(participant)
 end
 
 function ArenaCombatService.GetSession(player)
-	return sessionsByPlayer[player]
+	return sessionRepository:Get(player)
 end
 
 function ArenaCombatService.GetActivePlayerCount()
 	local count = 0
 
-	for player, _ in pairs(sessionsByPlayer) do
+	sessionRepository:ForEach(function(player, _session)
 		if player ~= nil and player.Parent == Players then
 			count += 1
 		end
-	end
+	end)
 
 	return count
 end
@@ -1209,11 +706,11 @@ end
 function ArenaCombatService.GetActiveParticipants()
 	local participants = {}
 
-	for participant, _ in pairs(sessionsByParticipant) do
+	sessionRepository:ForEachParticipant(function(participant, _session)
 		if participant ~= nil then
 			table.insert(participants, participant)
 		end
-	end
+	end)
 
 	return participants
 end
@@ -1223,14 +720,14 @@ function ArenaCombatService.RegisterBotParticipant(participant)
 		return nil
 	end
 
-	local existingSession = sessionsByParticipant[participant]
+	local existingSession = sessionRepository:GetByParticipant(participant)
 
 	if existingSession ~= nil then
 		return existingSession
 	end
 
 	local session = makeBotSession(participant)
-	sessionsByParticipant[participant] = session
+	sessionRepository:SetByParticipant(participant, session)
 	resetParticipantArenaModifiers(participant)
 	TankParticipantRegistry.setParticipantMatchState(participant, ArenaCombatService.MODE_IN_BATTLE_ARENA, nil, nil)
 
@@ -1238,13 +735,13 @@ function ArenaCombatService.RegisterBotParticipant(participant)
 end
 
 function ArenaCombatService.UnregisterBotParticipant(participant)
-	local session = sessionsByParticipant[participant]
+	local session = sessionRepository:GetByParticipant(participant)
 
 	if session == nil or session.IsBotSession ~= true then
 		return nil
 	end
 
-	sessionsByParticipant[participant] = nil
+	sessionRepository:RemoveByParticipant(participant)
 	resetParticipantArenaModifiers(participant)
 	TankParticipantRegistry.setParticipantMatchState(participant, nil, nil, nil)
 
@@ -1262,7 +759,7 @@ function ArenaCombatService.EnterArena(player)
 		return false
 	end
 
-	local existingSession = sessionsByPlayer[player]
+	local existingSession = sessionRepository:Get(player)
 
 	if existingSession ~= nil then
 		ArenaCombatService.RespawnPlayer(player)
@@ -1270,8 +767,7 @@ function ArenaCombatService.EnterArena(player)
 	end
 
 	local session = makeSession(player, participant)
-	sessionsByPlayer[player] = session
-	sessionsByParticipant[participant] = session
+	sessionRepository:Set(player, session)
 
 	setPlayerArenaDefaults(player)
 	resetParticipantArenaModifiers(participant)
@@ -1296,7 +792,7 @@ function ArenaCombatService.EnterArena(player)
 end
 
 function ArenaCombatService.ResetArenaSession(player)
-	local session = sessionsByPlayer[player]
+	local session = sessionRepository:Get(player)
 
 	if session ~= nil then
 		local startedAt = getServerTimeNow()
@@ -1315,7 +811,7 @@ function ArenaCombatService.ResetArenaSession(player)
 end
 
 function ArenaCombatService.LeaveArena(player)
-	local session = sessionsByPlayer[player]
+	local session = sessionRepository:Get(player)
 
 	if session == nil then
 		setPlayerArenaDefaults(player)
@@ -1323,8 +819,7 @@ function ArenaCombatService.LeaveArena(player)
 	end
 
 	session.RespawnToken += 1
-	sessionsByPlayer[player] = nil
-	sessionsByParticipant[session.Participant] = nil
+	sessionRepository:Remove(player)
 	resetParticipantArenaModifiers(session.Participant)
 	setPlayerArenaDefaults(player)
 	player:SetAttribute("ArenaSessionId", nil)
@@ -1335,7 +830,7 @@ function ArenaCombatService.LeaveArena(player)
 end
 
 function ArenaCombatService.GetArenaScore(player)
-	local session = sessionsByPlayer[player]
+	local session = sessionRepository:Get(player)
 
 	return session ~= nil and session.Score or 0
 end
@@ -1492,16 +987,24 @@ local function getPoiChildren(folderName)
 end
 
 local function getParticipantInsidePoi(instance, playersOnly)
-	for participant, session in pairs(sessionsByParticipant) do
+	local insideParticipant = nil
+	local insideSession = nil
+
+	sessionRepository:ForEachParticipant(function(participant, session)
+		if insideParticipant ~= nil then
+			return
+		end
+
 		if isParticipantAlive(participant)
 			and (playersOnly ~= true or session.Player ~= nil)
 			and isPositionInsidePoi(instance, getParticipantPosition(participant))
 		then
-			return participant, session
+			insideParticipant = participant
+			insideSession = session
 		end
-	end
+	end)
 
-	return nil, nil
+	return insideParticipant, insideSession
 end
 
 local function reactivatePoiIfReady(instance, state, now)
@@ -1580,14 +1083,14 @@ local function processControlZone()
 		return
 	end
 
-	for participant, session in pairs(sessionsByParticipant) do
+	sessionRepository:ForEachParticipant(function(participant, session)
 		if session.Player ~= nil
 			and isParticipantAlive(participant)
 			and isPositionInsidePoi(controlZone, getParticipantPosition(participant))
 		then
 			addArenaXP(session, BattleArenaConfig.XPPerControlZoneTick, "ControlZone")
 		end
-	end
+	end)
 end
 
 local function processSurvivalXP()
@@ -1597,15 +1100,15 @@ local function processSurvivalXP()
 		return
 	end
 
-	for participant, session in pairs(sessionsByParticipant) do
+	sessionRepository:ForEachParticipant(function(participant, session)
 		if session.Player ~= nil and isParticipantAlive(participant) then
 			addArenaXP(session, xpPerTick, "Survival")
 		end
-	end
+	end)
 end
 
 function ArenaCombatService.ApplyUpgrade(player, upgradeId)
-	local session = sessionsByPlayer[player]
+	local session = sessionRepository:Get(player)
 
 	if session == nil or typeof(upgradeId) ~= "string" then
 		return false
@@ -1619,7 +1122,7 @@ function ArenaCombatService.ApplyUpgrade(player, upgradeId)
 end
 
 function ArenaCombatService.HandleUpgradeChoice(player, payload)
-	local session = sessionsByPlayer[player]
+	local session = sessionRepository:Get(player)
 
 	if session == nil or session.PendingUpgradeOffer == nil or typeof(payload) ~= "table" then
 		return false
@@ -1635,16 +1138,9 @@ function ArenaCombatService.HandleUpgradeChoice(player, payload)
 		return false
 	end
 
-	local selectedWasOffered = false
-
-	for _, choice in ipairs(session.PendingUpgradeOffer.Choices or {}) do
-		if choice.Id == upgradeId then
-			selectedWasOffered = true
-			break
-		end
-	end
-
-	if not selectedWasOffered or not isUpgradeChoiceValid(session, upgradeId) then
+	if not upgradeOfferService:HasOfferedChoice(session, upgradeId)
+		or not isUpgradeChoiceValid(session, upgradeId)
+	then
 		return false
 	end
 
@@ -1663,7 +1159,7 @@ end
 
 function ArenaCombatService.RespawnPlayer(player, options)
 	options = options or {}
-	local session = sessionsByPlayer[player]
+	local session = sessionRepository:Get(player)
 
 	if session == nil or player == nil or player.Parent ~= Players then
 		return false
@@ -1694,8 +1190,8 @@ function ArenaCombatService.RespawnPlayer(player, options)
 	setPlayerMode(player, participant, ArenaCombatService.MODE_IN_BATTLE_ARENA)
 	player:SetAttribute("ArenaRespawnAt", 0)
 	player:SetAttribute("ArenaStatus", "Active")
-	clearRevivePending(session)
-	clearFreeRespawnPending(session)
+	reviveService:ClearRevivePending(session)
+	reviveService:ClearFreeRespawnPending(session)
 	clearPlayerInput(player)
 	applySessionUpgrades(session)
 	grantSpawnReflectShield(session, "Respawn")
@@ -1706,165 +1202,48 @@ function ArenaCombatService.RespawnPlayer(player, options)
 end
 
 function ArenaCombatService.HandleReviveRequest(player)
-	local session = sessionsByPlayer[player]
+	local session = sessionRepository:Get(player)
+	local result = reviveService:TryConsumeRevive(session, player, ArenaCombatService.MODE_ARENA_RESPAWNING)
 
-	if session == nil
-		or player == nil
-		or player.Parent ~= Players
-		or session.Player ~= player
-		or session.IsBotSession == true
-	then
+	if result.Success ~= true then
+		if result.Publish == true and session ~= nil then
+			publishSessionAttributes(session)
+		end
+
 		return false
 	end
-
-	if session.RevivePending ~= true then
-		session.ReviveLastError = "NotPending"
-		publishSessionAttributes(session)
-		return false
-	end
-
-	if session.Participant == nil or player:GetAttribute("PlayerMode") ~= ArenaCombatService.MODE_ARENA_RESPAWNING then
-		session.ReviveLastError = "InvalidState"
-		publishSessionAttributes(session)
-		return false
-	end
-
-	if not canOfferRevive(session) then
-		session.ReviveLastError = "LimitReached"
-		publishSessionAttributes(session)
-		return false
-	end
-
-	if playerWalletService == nil or playerWalletService.trySpendBolts == nil then
-		session.ReviveLastError = "WalletUnavailable"
-		publishSessionAttributes(session)
-		return false
-	end
-
-	local cost = getReviveCost(session)
-	local spent = playerWalletService.trySpendBolts(player, cost, "BattleArenaRevive")
-
-	if not spent then
-		session.ReviveLastError = "NotEnoughBolts"
-		session.ReviveCost = cost
-		publishSessionAttributes(session)
-		return false
-	end
-
-	session.ReviveCount = math.max(0, math.floor(tonumber(session.ReviveCount) or 0)) + 1
-	session.ReviveCost = 0
-	session.ReviveLastError = ""
 
 	return ArenaCombatService.RespawnPlayer(player, {
-		RestoreHpPercent = getReviveRestoreHpPercent(),
+		RestoreHpPercent = result.RestoreHpPercent,
 	})
 end
 
 function ArenaCombatService.HandleFreeRespawnRequest(player)
-	local session = sessionsByPlayer[player]
+	local session = sessionRepository:Get(player)
+	local result = reviveService:TryConsumeFreeRespawn(session, player, ArenaCombatService.MODE_ARENA_RESPAWNING)
 
-	if session == nil
-		or player == nil
-		or player.Parent ~= Players
-		or session.Player ~= player
-		or session.IsBotSession == true
-	then
+	if result.Success ~= true then
+		if result.Publish == true and session ~= nil then
+			publishSessionAttributes(session)
+		end
+
 		return false
 	end
 
-	if session.FreeRespawnPending ~= true
-		or session.Participant == nil
-		or player:GetAttribute("PlayerMode") ~= ArenaCombatService.MODE_ARENA_RESPAWNING
-	then
-		session.FreeRespawnLastError = "InvalidState"
-		publishSessionAttributes(session)
-		return false
-	end
-
-	if not canOfferFreeRespawn(session) then
-		session.FreeRespawnLastError = "Unavailable"
-		publishSessionAttributes(session)
-		return false
-	end
-
-	if shouldFreeRespawnResetRun() then
+	if result.ResetRun == true then
 		resetArenaRun(session)
 	else
-		clearRevivePending(session)
-		clearFreeRespawnPending(session)
+		reviveService:ClearRevivePending(session)
+		reviveService:ClearFreeRespawnPending(session)
 	end
 
 	return ArenaCombatService.RespawnPlayer(player, {
-		RestoreHpPercent = getFreeRespawnRestoreHpPercent(),
+		RestoreHpPercent = result.RestoreHpPercent,
 	})
 end
 
-local function updateArenaSummary(session)
-	if session == nil or session.IsBotSession == true then
-		return
-	end
-
-	session.LastSummary = ("Run: %d kills / %d deaths / +%d Bolts"):format(
-		math.floor(session.Kills or 0),
-		math.floor(session.Deaths or 0),
-		math.floor(session.EarnedBolts or 0)
-	)
-end
-
-local function getPlayerKillScore(killerSession, victimSession, sourceProjectile)
-	local defaultKillScore = math.max(0, math.floor(tonumber(BattleArenaConfig.KillScore) or 0))
-
-	if killerSession == nil or killerSession.IsBotSession == true then
-		return 0
-	end
-
-	if victimSession == nil or victimSession.IsBotSession ~= true or not isLoopV02Enabled() then
-		return defaultKillScore
-	end
-
-	local score = math.max(0, math.floor(getLoopNumber("Score", "PlayerKillBot", defaultKillScore)))
-
-	if hasProjectileRicochet(sourceProjectile) then
-		score += math.max(0, math.floor(getLoopNumber("Score", "RicochetKillBonus", 0)))
-	end
-
-	return score
-end
-
-local function awardArenaKillCurrency(killerSession, victimSession, sourceProjectile)
-	if killerSession == nil
-		or killerSession.IsBotSession == true
-		or killerSession.Player == nil
-		or victimSession == nil
-		or victimSession.IsBotSession ~= true
-		or playerWalletService == nil
-		or playerWalletService.addBolts == nil
-		or not isLoopV02Enabled()
-	then
-		return
-	end
-
-	local rewardAmount = math.max(0, math.floor(getLoopNumber("Rewards", "BoltsPerBotKill", 0)))
-	local reason = "BattleArenaBotKill"
-
-	if hasProjectileRicochet(sourceProjectile) then
-		rewardAmount += math.max(0, math.floor(getLoopNumber("Rewards", "BoltsPerRicochetKillBonus", 0)))
-		reason = "BattleArenaRicochetKill"
-	end
-
-	if rewardAmount <= 0 then
-		return
-	end
-
-	local awarded = playerWalletService.addBolts(killerSession.Player, rewardAmount, reason)
-
-	if awarded then
-		killerSession.EarnedBolts += rewardAmount
-	end
-end
-
 function ArenaCombatService.OnParticipantKilled(killerParticipant, victimParticipant, sourceProjectile)
-	local victimSession = sessionsByParticipant[victimParticipant]
+	local victimSession = sessionRepository:GetByParticipant(victimParticipant)
 
 	if victimSession == nil then
 		return
@@ -1872,8 +1251,8 @@ function ArenaCombatService.OnParticipantKilled(killerParticipant, victimPartici
 
 	local victimPlayer = victimSession.Player
 	victimSession.Deaths += 1
-	local revivePending = beginRevivePending(victimSession)
-	local freeRespawnPending = beginFreeRespawnPending(victimSession)
+	local revivePending = reviveService:BeginRevivePending(victimSession)
+	local freeRespawnPending = reviveService:BeginFreeRespawnPending(victimSession)
 
 	if not revivePending and not freeRespawnPending then
 		resetArenaRun(victimSession)
@@ -1882,20 +1261,19 @@ function ArenaCombatService.OnParticipantKilled(killerParticipant, victimPartici
 	local killerSession = nil
 
 	if killerParticipant ~= nil and killerParticipant ~= victimParticipant then
-		killerSession = sessionsByParticipant[killerParticipant]
+		killerSession = sessionRepository:GetByParticipant(killerParticipant)
 	end
 
 	if killerSession ~= nil and killerSession.IsBotSession ~= true then
-		killerSession.Score += getPlayerKillScore(killerSession, victimSession, sourceProjectile)
-		awardArenaKillCurrency(killerSession, victimSession, sourceProjectile)
+		rewardService:ApplyKillRewards(killerSession, victimSession, sourceProjectile)
 		addArenaXP(killerSession, BattleArenaConfig.XPPerKill, "Kill")
 		killerSession.Kills += 1
 		killerSession.Streak += 1
-		updateArenaSummary(killerSession)
+		rewardService:UpdateRunSummary(killerSession)
 		applySessionUpgrades(killerSession)
 	end
 
-	updateArenaSummary(victimSession)
+	rewardService:UpdateRunSummary(victimSession)
 	publishSessionAttributes(victimSession)
 
 	if victimPlayer == nil or victimPlayer.Parent ~= Players then
@@ -1920,7 +1298,7 @@ function ArenaCombatService.OnParticipantKilled(killerParticipant, victimPartici
 	end
 
 	task.delay(respawnDelay, function()
-		local currentSession = sessionsByPlayer[victimPlayer]
+		local currentSession = sessionRepository:Get(victimPlayer)
 
 		if currentSession ~= victimSession or currentSession.RespawnToken ~= token then
 			return
@@ -1935,8 +1313,8 @@ function ArenaCombatService.CanDamageParticipant(projectile, targetParticipant)
 		return false
 	end
 
-	local ownerSession = sessionsByParticipant[projectile.OwnerParticipant]
-	local targetSession = sessionsByParticipant[targetParticipant]
+	local ownerSession = sessionRepository:GetByParticipant(projectile.OwnerParticipant)
+	local targetSession = sessionRepository:GetByParticipant(targetParticipant)
 
 	return ownerSession ~= nil and targetSession ~= nil
 end
@@ -1946,8 +1324,8 @@ function ArenaCombatService.TryConsumeReflectShield(projectile, targetParticipan
 		return false, nil
 	end
 
-	local ownerSession = sessionsByParticipant[projectile.OwnerParticipant]
-	local targetSession = sessionsByParticipant[targetParticipant]
+	local ownerSession = sessionRepository:GetByParticipant(projectile.OwnerParticipant)
+	local targetSession = sessionRepository:GetByParticipant(targetParticipant)
 
 	if ownerSession == nil or targetSession == nil then
 		return false, nil
@@ -2000,7 +1378,7 @@ function ArenaCombatService.TryConsumeReflectShield(projectile, targetParticipan
 end
 
 function ArenaCombatService.IsArenaProjectile(projectile)
-	return projectile ~= nil and sessionsByParticipant[projectile.OwnerParticipant] ~= nil
+	return projectile ~= nil and sessionRepository:HasParticipant(projectile.OwnerParticipant)
 end
 
 function ArenaCombatService.GetControlZonePosition()
