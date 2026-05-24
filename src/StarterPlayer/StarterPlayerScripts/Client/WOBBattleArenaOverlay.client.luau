@@ -15,6 +15,7 @@ local HudDeviceUtils = require(hudModules:WaitForChild("HudDeviceUtils"))
 local HudVisibilityRules = require(hudModules:WaitForChild("HudVisibilityRules"))
 local CompactStatsFormatter = require(hudModules:WaitForChild("CompactStatsFormatter"))
 local BattleArenaUpgradeHud = require(hudModules:WaitForChild("BattleArenaUpgradeHud"))
+local HudWidgetFactory = require(hudModules:WaitForChild("HudWidgetFactory"))
 
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local returnToMenuRequestEvent = remotes:WaitForChild("ReturnToMenuRequestEvent")
@@ -53,93 +54,53 @@ screenGui.DisplayOrder = 82
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = playerGui
 
+-- UI primitive construction now lives in Hud/HudWidgetFactory. These thin
+-- wrappers keep the overlay's existing call sites and exact visual defaults.
 local function addCorner(parent, radius)
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = radius
-	corner.Parent = parent
+	return HudWidgetFactory.addCorner(parent, radius)
 end
 
 local function addStroke(parent, color, transparency, thickness)
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = color
-	stroke.Transparency = transparency
-	stroke.Thickness = thickness
-	stroke.Parent = parent
+	return HudWidgetFactory.addStroke(parent, color, transparency, thickness)
 end
 
 local function makePanel(name, position, size)
-	local panel = Instance.new("Frame")
-	panel.Name = name
-	panel.Position = position
-	panel.Size = size
-	panel.BackgroundColor3 = Color3.fromRGB(13, 17, 23)
-	panel.BackgroundTransparency = 0.1
-	panel.BorderSizePixel = 0
-	panel.ZIndex = PANEL_Z_INDEX
-	panel.Parent = screenGui
-	addCorner(panel, UDim.new(0, 8))
-	addStroke(panel, Color3.fromRGB(31, 41, 55), 0.25, 1)
-
-	return panel
+	return HudWidgetFactory.createPanel({
+		Name = name,
+		Parent = screenGui,
+		Position = position,
+		Size = size,
+		ZIndex = PANEL_Z_INDEX,
+	})
 end
 
 local function makeLabel(parent, name, position, size, textSize, font)
-	local label = Instance.new("TextLabel")
-	label.Name = name
-	label.Position = position
-	label.Size = size
-	label.BackgroundTransparency = 1
-	label.BorderSizePixel = 0
-	label.Font = font or Enum.Font.GothamBold
-	label.Text = ""
-	label.TextColor3 = Color3.fromRGB(241, 255, 248)
-	label.TextSize = textSize
-	label.TextWrapped = true
-	label.TextTruncate = Enum.TextTruncate.AtEnd
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.TextYAlignment = Enum.TextYAlignment.Center
-	label.ZIndex = parent:IsA("GuiObject") and parent.ZIndex + 1 or PANEL_Z_INDEX + 1
-	label.Parent = parent
-
-	return label
+	return HudWidgetFactory.createLabel({
+		Parent = parent,
+		Name = name,
+		Position = position,
+		Size = size,
+		TextSize = textSize,
+		Font = font or Enum.Font.GothamBold,
+		FallbackZIndex = PANEL_Z_INDEX + 1,
+	})
 end
 
 local function makeBar(parent, name, position, size, fillColor)
-	local back = Instance.new("Frame")
-	back.Name = name .. "Back"
-	back.Position = position
-	back.Size = size
-	back.BackgroundColor3 = Color3.fromRGB(35, 42, 45)
-	back.BorderSizePixel = 0
-	back.ZIndex = parent:IsA("GuiObject") and parent.ZIndex + 1 or PANEL_Z_INDEX + 1
-	back.Parent = parent
-	addCorner(back, UDim.new(0, 4))
-
-	local fill = Instance.new("Frame")
-	fill.Name = name .. "Fill"
-	fill.Size = UDim2.new(1, 0, 1, 0)
-	fill.BackgroundColor3 = fillColor
-	fill.BorderSizePixel = 0
-	fill.ZIndex = back.ZIndex + 1
-	fill.Parent = back
-	addCorner(fill, UDim.new(0, 4))
+	local fill = HudWidgetFactory.createBar({
+		Parent = parent,
+		Name = name,
+		Position = position,
+		Size = size,
+		FillColor = fillColor,
+		FallbackZIndex = PANEL_Z_INDEX + 1,
+	})
 
 	return fill
 end
 
 local function styleButton(button, text)
-	button.BackgroundColor3 = Color3.fromRGB(250, 204, 21)
-	button.BackgroundTransparency = 0
-	button.BorderSizePixel = 0
-	button.Font = Enum.Font.GothamBold
-	button.Text = text or "Return to Lobby"
-	button.TextColor3 = Color3.fromRGB(13, 17, 23)
-	button.TextSize = 16
-	button.TextWrapped = true
-	button.AutoButtonColor = true
-	button.Active = true
-	addCorner(button, UDim.new(0, 8))
-	addStroke(button, Color3.fromRGB(249, 115, 22), 0.3, 1)
+	HudWidgetFactory.styleButton(button, text)
 end
 
 local healthPanel = makePanel(
@@ -476,49 +437,68 @@ local function setCompactText(label, isCompact)
 	label.TextTruncate = isCompact and Enum.TextTruncate.AtEnd or Enum.TextTruncate.None
 end
 
+-- Presentation layout presets live in HudConfig.Layouts.BattleArena (Phase 2).
+-- The overlay only reads these display values and applies them; it does not own
+-- any layout constants itself.
+local battleArenaLayouts = (HudConfig.Layouts and HudConfig.Layouts.BattleArena) or {}
+
+local function applyPanelLayout(panel, cfg)
+	if cfg.AnchorPoint ~= nil then
+		panel.AnchorPoint = cfg.AnchorPoint
+	end
+	if cfg.Position ~= nil then
+		panel.Position = cfg.Position
+	end
+	if cfg.Size ~= nil then
+		panel.Size = cfg.Size
+	end
+	if cfg.BackgroundTransparency ~= nil then
+		panel.BackgroundTransparency = cfg.BackgroundTransparency
+	end
+end
+
+local function applyLabelLayout(label, cfg)
+	setTextLayout(label, cfg.Position, cfg.Size, cfg.TextSize)
+	if cfg.Compact ~= nil then
+		setCompactText(label, cfg.Compact)
+	end
+	if cfg.Visible ~= nil then
+		label.Visible = cfg.Visible
+	end
+end
+
 local function applyDesktopLayout()
-	healthPanel.AnchorPoint = Vector2.new(0, 0)
-	healthPanel.Position = UDim2.new(0, 18, 0, 18)
-	healthPanel.Size = UDim2.new(0, 260, 0, 78)
-	healthPanel.BackgroundTransparency = 0.1
-	setTextLayout(healthLabel, UDim2.new(0, 14, 0, 8), UDim2.new(1, -28, 0, 28), 18)
-	setCompactText(healthLabel, false)
-	healthBack.Position = UDim2.new(0, 14, 0, 46)
-	healthBack.Size = UDim2.new(1, -28, 0, 14)
+	local layout = battleArenaLayouts.Desktop
 
-	scorePanel.AnchorPoint = Vector2.new(0, 0)
-	scorePanel.Position = UDim2.new(1, -272, 0, 18)
-	scorePanel.Size = UDim2.new(0, 250, 0, 154)
-	scorePanel.BackgroundTransparency = 0.1
-	setTextLayout(scoreLabel, UDim2.new(0, 14, 0, 8), UDim2.new(1, -28, 0, 28), 18)
-	setTextLayout(killsDeathsLabel, UDim2.new(0, 14, 0, 36), UDim2.new(1, -28, 0, 24), 16)
-	setTextLayout(streakLabel, UDim2.new(0, 14, 0, 62), UDim2.new(1, -28, 0, 22), 14)
-	setTextLayout(upgradesLabel, UDim2.new(0, 14, 0, 86), UDim2.new(1, -28, 0, 34), 14)
-	setTextLayout(sessionLabel, UDim2.new(0, 14, 0, 120), UDim2.new(1, -28, 0, 22), 13)
-	setCompactText(scoreLabel, false)
-	setCompactText(killsDeathsLabel, false)
-	setCompactText(streakLabel, false)
-	setCompactText(upgradesLabel, false)
-	setCompactText(sessionLabel, true)
-	upgradesLabel.Visible = true
-	sessionLabel.Visible = true
+	applyPanelLayout(healthPanel, layout.HealthPanel)
+	applyLabelLayout(healthLabel, layout.HealthLabel)
+	healthBack.Position = layout.HealthBar.Position
+	healthBack.Size = layout.HealthBar.Size
 
-	returnButton.AnchorPoint = Vector2.new(1, 1)
-	returnButton.Position = UDim2.new(1, -22, 1, -22)
-	returnButton.Size = UDim2.fromOffset(154, 42)
-	returnButton.Text = "Return to Lobby"
-	returnButton.TextSize = 16
-	returnButton.Visible = true
-	menuButton.Visible = false
+	applyPanelLayout(scorePanel, layout.ScorePanel)
+	applyLabelLayout(scoreLabel, layout.ScoreLabel)
+	applyLabelLayout(killsDeathsLabel, layout.KillsDeathsLabel)
+	applyLabelLayout(streakLabel, layout.StreakLabel)
+	applyLabelLayout(upgradesLabel, layout.UpgradesLabel)
+	applyLabelLayout(sessionLabel, layout.SessionLabel)
+
+	local returnCfg = layout.ReturnButton
+	returnButton.AnchorPoint = returnCfg.AnchorPoint
+	returnButton.Position = returnCfg.Position
+	returnButton.Size = returnCfg.Size
+	returnButton.Text = returnCfg.Text
+	returnButton.TextSize = returnCfg.TextSize
+	returnButton.Visible = returnCfg.Visible
+	menuButton.Visible = layout.MenuButtonVisible
 	setMenuPopupOpen(false)
 
-	deathPanel.Position = UDim2.new(0.5, -150, 0.5, -92)
-	deathPanel.Size = UDim2.new(0, 300, 0, 184)
-	setTextLayout(destroyedLabel, UDim2.new(0, 18, 0, 18), UDim2.new(1, -36, 0, 44), 30)
-	setTextLayout(respawnLabel, UDim2.new(0, 18, 0, 68), UDim2.new(1, -36, 0, 30), 20)
-	setTextLayout(deathSummaryLabel, UDim2.new(0, 18, 0, 100), UDim2.new(1, -36, 0, 24), 14)
-	deathReturnButton.Position = UDim2.new(0.18, 0, 1, -52)
-	deathReturnButton.Size = UDim2.new(0.64, 0, 0, 38)
+	deathPanel.Position = layout.DeathPanel.Position
+	deathPanel.Size = layout.DeathPanel.Size
+	applyLabelLayout(destroyedLabel, layout.DestroyedLabel)
+	applyLabelLayout(respawnLabel, layout.RespawnLabel)
+	applyLabelLayout(deathSummaryLabel, layout.DeathSummaryLabel)
+	deathReturnButton.Position = layout.DeathReturnButton.Position
+	deathReturnButton.Size = layout.DeathReturnButton.Size
 
 	local camera = Workspace.CurrentCamera
 	local viewportSize = camera ~= nil and camera.ViewportSize or Vector2.new(1024, 768)
@@ -529,52 +509,64 @@ local function applyDesktopLayout()
 end
 
 local function applyMobileLayout(viewportSize)
-	local topY = 18
-	local sideInset = 12
-	local menuWidth = mobileUseMenuForReturn and 68 or 0
-	local scoreWidth = math.clamp(viewportSize.X - sideInset * 3 - menuWidth, 188, 270)
-	local showBolts = scoreWidth >= 224
-	local scoreContentWidth = scoreWidth - 20
-	local scoreColumnWidth = math.floor((scoreContentWidth - 6) * 0.5)
+	local m = battleArenaLayouts.Mobile
+	local topY = m.TopY
+	local sideInset = m.SideInset
+	local menuWidth = mobileUseMenuForReturn and m.MenuButtonWidth or 0
+	local scoreWidth = math.clamp(
+		viewportSize.X - sideInset * 3 - menuWidth,
+		m.ScoreWidthCompactMin,
+		m.ScoreWidthCompactMax
+	)
+	local showBolts = scoreWidth >= m.ShowBoltsMinWidth
+	local scoreContentWidth = scoreWidth - m.ScoreContentInset
+	local scoreColumnWidth = math.floor((scoreContentWidth - m.ScoreColumnGap) * 0.5)
 
 	if not mobileHudCompact then
-		scoreWidth = math.clamp(viewportSize.X - sideInset * 2, 220, 300)
-		scoreContentWidth = scoreWidth - 20
-		scoreColumnWidth = math.floor((scoreContentWidth - 6) * 0.5)
+		scoreWidth = math.clamp(viewportSize.X - sideInset * 2, m.ScoreWidthFullMin, m.ScoreWidthFullMax)
+		scoreContentWidth = scoreWidth - m.ScoreContentInset
+		scoreColumnWidth = math.floor((scoreContentWidth - m.ScoreColumnGap) * 0.5)
 		showBolts = true
 	end
 
-	healthPanel.AnchorPoint = Vector2.new(0, 0)
-	healthPanel.Position = UDim2.fromOffset(sideInset, 78)
-	healthPanel.Size = UDim2.fromOffset(math.min(scoreWidth, 180), 54)
-	healthPanel.BackgroundTransparency = 0.32
-	setTextLayout(healthLabel, UDim2.new(0, 10, 0, 4), UDim2.new(1, -20, 0, 24), 14)
+	local healthPanelCfg = m.HealthPanel
+	healthPanel.AnchorPoint = healthPanelCfg.AnchorPoint
+	healthPanel.Position = UDim2.fromOffset(sideInset, healthPanelCfg.OffsetY)
+	healthPanel.Size = UDim2.fromOffset(math.min(scoreWidth, healthPanelCfg.MaxWidth), healthPanelCfg.Height)
+	healthPanel.BackgroundTransparency = healthPanelCfg.BackgroundTransparency
+	setTextLayout(healthLabel, m.HealthLabel.Position, m.HealthLabel.Size, m.HealthLabel.TextSize)
 	setCompactText(healthLabel, true)
-	healthBack.Position = UDim2.new(0, 10, 0, 36)
-	healthBack.Size = UDim2.new(1, -20, 0, 6)
+	healthBack.Position = m.HealthBar.Position
+	healthBack.Size = m.HealthBar.Size
 
-	scorePanel.AnchorPoint = Vector2.new(0, 0)
+	local scorePanelCfg = m.ScorePanel
+	scorePanel.AnchorPoint = scorePanelCfg.AnchorPoint
 	scorePanel.Position = UDim2.fromOffset(sideInset, topY)
-	scorePanel.Size = UDim2.fromOffset(scoreWidth, showBolts and 48 or 44)
-	scorePanel.BackgroundTransparency = 0.32
-	setTextLayout(scoreLabel, UDim2.new(0, 10, 0, 3), UDim2.fromOffset(scoreColumnWidth, 18), 12)
+	scorePanel.Size = UDim2.fromOffset(scoreWidth, showBolts and scorePanelCfg.HeightWithBolts or scorePanelCfg.HeightWithoutBolts)
+	scorePanel.BackgroundTransparency = scorePanelCfg.BackgroundTransparency
+	setTextLayout(
+		scoreLabel,
+		UDim2.new(0, m.ScoreLabel.OffsetX, 0, m.ScoreLabel.OffsetY),
+		UDim2.fromOffset(scoreColumnWidth, m.ScoreLabel.Height),
+		m.ScoreLabel.TextSize
+	)
 	setTextLayout(
 		killsDeathsLabel,
-		UDim2.new(0, 16 + scoreColumnWidth, 0, 3),
-		UDim2.fromOffset(scoreColumnWidth, 18),
-		12
+		UDim2.new(0, m.KillsDeathsLabel.ColumnGapInset + scoreColumnWidth, 0, m.KillsDeathsLabel.OffsetY),
+		UDim2.fromOffset(scoreColumnWidth, m.KillsDeathsLabel.Height),
+		m.KillsDeathsLabel.TextSize
 	)
 	setTextLayout(
 		streakLabel,
-		UDim2.new(0, 10, 0, 23),
-		UDim2.fromOffset(showBolts and scoreColumnWidth or scoreContentWidth, 18),
-		12
+		UDim2.new(0, m.StreakLabel.OffsetX, 0, m.StreakLabel.OffsetY),
+		UDim2.fromOffset(showBolts and scoreColumnWidth or scoreContentWidth, m.StreakLabel.Height),
+		m.StreakLabel.TextSize
 	)
 	setTextLayout(
 		upgradesLabel,
-		UDim2.new(0, 16 + scoreColumnWidth, 0, 23),
-		UDim2.fromOffset(scoreColumnWidth, 18),
-		12
+		UDim2.new(0, m.UpgradesLabel.ColumnGapInset + scoreColumnWidth, 0, m.UpgradesLabel.OffsetY),
+		UDim2.fromOffset(scoreColumnWidth, m.UpgradesLabel.Height),
+		m.UpgradesLabel.TextSize
 	)
 	setCompactText(scoreLabel, true)
 	setCompactText(killsDeathsLabel, true)
@@ -585,19 +577,19 @@ local function applyMobileLayout(viewportSize)
 
 	returnButton.Visible = not mobileUseMenuForReturn
 	menuButton.Visible = mobileUseMenuForReturn
-	menuButton.AnchorPoint = Vector2.new(1, 0)
+	menuButton.AnchorPoint = m.MenuButton.AnchorPoint
 	menuButton.Position = UDim2.new(1, -sideInset, 0, topY)
-	menuButton.Size = UDim2.fromOffset(menuWidth, 34)
-	menuButton.Text = "Menu"
-	menuButton.TextSize = 13
+	menuButton.Size = UDim2.fromOffset(menuWidth, m.MenuButton.Height)
+	menuButton.Text = m.MenuButton.Text
+	menuButton.TextSize = m.MenuButton.TextSize
 
-	deathPanel.Position = UDim2.new(0.5, -130, 0.5, -78)
-	deathPanel.Size = UDim2.new(0, 260, 0, 156)
-	setTextLayout(destroyedLabel, UDim2.new(0, 16, 0, 14), UDim2.new(1, -32, 0, 38), 24)
-	setTextLayout(respawnLabel, UDim2.new(0, 16, 0, 58), UDim2.new(1, -32, 0, 28), 17)
-	setTextLayout(deathSummaryLabel, UDim2.new(0, 16, 0, 86), UDim2.new(1, -32, 0, 22), 12)
-	deathReturnButton.Position = UDim2.new(0.15, 0, 1, -42)
-	deathReturnButton.Size = UDim2.new(0.7, 0, 0, 32)
+	deathPanel.Position = m.DeathPanel.Position
+	deathPanel.Size = m.DeathPanel.Size
+	setTextLayout(destroyedLabel, m.DestroyedLabel.Position, m.DestroyedLabel.Size, m.DestroyedLabel.TextSize)
+	setTextLayout(respawnLabel, m.RespawnLabel.Position, m.RespawnLabel.Size, m.RespawnLabel.TextSize)
+	setTextLayout(deathSummaryLabel, m.DeathSummaryLabel.Position, m.DeathSummaryLabel.Size, m.DeathSummaryLabel.TextSize)
+	deathReturnButton.Position = m.DeathReturnButton.Position
+	deathReturnButton.Size = m.DeathReturnButton.Size
 
 	upgradeHud:SetLayout({
 		IsMobile = true,

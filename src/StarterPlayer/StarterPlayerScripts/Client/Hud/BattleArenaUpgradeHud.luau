@@ -1,5 +1,6 @@
 local BattleArenaUpgradeHud = {}
 BattleArenaUpgradeHud.__index = BattleArenaUpgradeHud
+BattleArenaUpgradeHud._warnedMissingTemplate = false
 
 local UPGRADE_ICON_SLOT_COUNT = 5
 
@@ -140,9 +141,18 @@ function BattleArenaUpgradeHud.new(params)
 	self._offer = nil
 	self._activeUpgradeIds = ""
 
-	self:_createRoot()
-	self:_createOfferPanel()
-	self:_createIconStrip()
+	local templateClone = self:_tryLoadTemplate()
+	if templateClone ~= nil then
+		self:_bindTemplate(templateClone)
+	else
+		if not BattleArenaUpgradeHud._warnedMissingTemplate then
+			BattleArenaUpgradeHud._warnedMissingTemplate = true
+			warn("[WOB] BattleArenaUpgradeBeltTemplate not found in ReplicatedStorage — using scripted fallback")
+		end
+		self:_createRoot()
+		self:_createOfferPanel()
+		self:_createIconStrip()
+	end
 	self:SetLayout({
 		IsMobile = false,
 		ViewportSize = self._viewportSize,
@@ -279,6 +289,145 @@ function BattleArenaUpgradeHud:_createIconStrip()
 	addCorner(overflow, UDim.new(0, 6))
 
 	self._overflow = overflow
+end
+
+function BattleArenaUpgradeHud:_tryLoadTemplate()
+	local ok, clone = pcall(function()
+		local rs = game:GetService("ReplicatedStorage")
+		local node = rs:FindFirstChild("Shared")
+		if not node then return nil end
+		node = node:FindFirstChild("Assets")
+		if not node then return nil end
+		node = node:FindFirstChild("UI")
+		if not node then return nil end
+		node = node:FindFirstChild("BattleArena")
+		if not node then return nil end
+		local template = node:FindFirstChild("BattleArenaUpgradeBeltTemplate")
+		if not template then return nil end
+		return template:Clone()
+	end)
+	if not ok then return nil end
+	return clone
+end
+
+function BattleArenaUpgradeHud:_bindTemplate(clone)
+	clone.ZIndex = self._zIndex
+	clone.Parent = self._parent
+	self._root = clone
+
+	local belt = clone:FindFirstChild("UpgradeChoiceBelt")
+	self._offerPanel = belt
+	self._title = belt:FindFirstChild("TitleLabel")
+	self._subtitle = belt:FindFirstChild("Subtitle")
+
+	-- Apply visual decorators if the template did not include them
+	if not belt:FindFirstChildOfClass("UICorner") then
+		addCorner(belt, UDim.new(0, 8))
+	end
+	if not belt:FindFirstChildOfClass("UIStroke") then
+		addStroke(belt, Color3.fromRGB(250, 204, 21), 0.3, 1)
+	end
+
+	local choices = belt:FindFirstChild("Choices")
+	self._choiceCards = {}
+
+	for index = 1, 3 do
+		local card = choices and choices:FindFirstChild("Choice" .. tostring(index))
+		if card == nil then break end
+
+		-- Re-parent to belt so existing layout offset math is correct
+		card.Parent = belt
+
+		-- Ensure Icon label exists
+		local iconInst = card:FindFirstChild("Icon")
+		if iconInst == nil then
+			iconInst = makeLabel(card, "Icon", 24, Enum.Font.GothamBold, self._zIndex + 2)
+			iconInst.Text = "★"
+		end
+
+		-- Ensure Name/Title label exists (template calls it "Title")
+		local nameInst = card:FindFirstChild("Title")
+		if nameInst == nil then
+			nameInst = makeLabel(card, "Title", 10, Enum.Font.GothamBold, self._zIndex + 2)
+			nameInst.Text = "UPG"
+		end
+
+		-- Ensure Effect label exists (optional in template)
+		local effectInst = card:FindFirstChild("Effect")
+		if effectInst == nil then
+			effectInst = makeLabel(card, "Effect", 11, Enum.Font.GothamMedium, self._zIndex + 2)
+			effectInst.TextColor3 = Color3.fromRGB(178, 238, 205)
+			effectInst.TextXAlignment = Enum.TextXAlignment.Left
+			effectInst.Visible = false
+		end
+
+		-- Ensure transparent full-size Button exists
+		local buttonInst = card:FindFirstChildOfClass("TextButton")
+		if buttonInst == nil then
+			buttonInst = Instance.new("TextButton")
+			buttonInst.Name = "Button"
+			buttonInst.BackgroundTransparency = 1
+			buttonInst.BorderSizePixel = 0
+			buttonInst.Text = ""
+			buttonInst.AutoButtonColor = false
+			buttonInst.Active = true
+			buttonInst.ZIndex = self._zIndex + 3
+			buttonInst.Position = UDim2.fromScale(0, 0)
+			buttonInst.Size = UDim2.fromScale(1, 1)
+			buttonInst.Parent = card
+		end
+
+		-- Visual decorators for card
+		if not card:FindFirstChildOfClass("UICorner") then
+			addCorner(card, UDim.new(0, 7))
+		end
+		if not card:FindFirstChildOfClass("UIStroke") then
+			addStroke(card, Color3.fromRGB(249, 115, 22), 0.42, 1)
+		end
+
+		local entry = {
+			Card = card,
+			Icon = iconInst,
+			Name = nameInst,
+			Effect = effectInst,
+			Button = buttonInst,
+			UpgradeId = nil,
+		}
+
+		buttonInst.Activated:Connect(function()
+			if typeof(entry.UpgradeId) ~= "string" or entry.UpgradeId == "" then
+				return
+			end
+			if self._onChoiceSelected ~= nil then
+				self._onChoiceSelected(entry.UpgradeId)
+			end
+		end)
+
+		table.insert(self._choiceCards, entry)
+	end
+
+	local iconStrip = clone:FindFirstChild("ActiveIcons")
+	self._iconStrip = iconStrip
+	self._iconSlots = {}
+
+	if iconStrip ~= nil then
+		for index = 1, UPGRADE_ICON_SLOT_COUNT do
+			local slot = iconStrip:FindFirstChild("Slot" .. tostring(index))
+			if slot ~= nil then
+				if not slot:FindFirstChildOfClass("UICorner") then
+					addCorner(slot, UDim.new(0, 6))
+				end
+				if not slot:FindFirstChildOfClass("UIStroke") then
+					addStroke(slot, Color3.fromRGB(250, 204, 21), 0.58, 1)
+				end
+				table.insert(self._iconSlots, slot)
+			end
+		end
+		self._overflow = iconStrip:FindFirstChild("Overflow")
+		if self._overflow ~= nil and not self._overflow:FindFirstChildOfClass("UICorner") then
+			addCorner(self._overflow, UDim.new(0, 6))
+		end
+	end
 end
 
 function BattleArenaUpgradeHud:SetVisible(isVisible)

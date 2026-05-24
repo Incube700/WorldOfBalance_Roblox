@@ -107,27 +107,27 @@
 		<Item class="Camera" referent="RBXc1464cbc5d44410fbc4ee16ffc5ee710">
 			<Properties>
 				<CoordinateFrame name="CFrame">
-					<X>69.3634796</X>
-					<Y>255.328384</Y>
-					<Z>43.6839218</Z>
-					<R00>0.732748151</R00>
-					<R01>-0.585738361</R01>
-					<R02>0.346396893</R02>
-					<R10>1.4901163e-08</R10>
-					<R11>0.509032965</R11>
-					<R12>0.860747039</R12>
-					<R20>-0.680499971</R20>
-					<R21>-0.630710781</R21>
-					<R22>0.372992933</R22>
+					<X>116.057121</X>
+					<Y>428.879303</Y>
+					<Z>110.684013</Z>
+					<R00>0.978900433</R00>
+					<R01>-0.1260591</R01>
+					<R02>0.160820544</R02>
+					<R10>-0</R10>
+					<R11>0.787031054</R11>
+					<R12>0.616913676</R12>
+					<R20>-0.204338312</R20>
+					<R21>-0.603897035</R21>
+					<R22>0.770424843</R22>
 				</CoordinateFrame>
 				<Ref name="CameraSubject">null</Ref>
 				<token name="CameraType">0</token>
 				<float name="FieldOfView">70</float>
 				<token name="FieldOfViewMode">0</token>
 				<CoordinateFrame name="Focus">
-					<X>68.6706848</X>
-					<Y>253.606888</Y>
-					<Z>42.9379349</Z>
+					<X>115.735497</X>
+					<Y>427.645538</Y>
+					<Z>109.143242</Z>
 					<R00>1</R00>
 					<R01>0</R01>
 					<R02>0</R02>
@@ -18709,9 +18709,9 @@ local RIGHT_AIM_SIZE = 116
 local FIRE_BUTTON_SIZE = 78
 local REVERSE_BUTTON_SIZE = 58
 -- Gameplay touch layout convention:
--- Move stays bottom-left, REV sits near Move without overlapping it, Aim stays
--- in the lower-right control area, Fire stays bottom-right, and Menu/Pause is
--- owned by gameplay HUDs in the top-right safe area.
+-- Move stays bottom-left, REV sits in the right thumb area without overlapping
+-- AIM/FIRE, Aim stays in the lower-right control area, Fire stays bottom-right,
+-- and Menu/Pause is owned by gameplay HUDs in the top-right safe area.
 
 local stickRadius = LEFT_STICK_SIZE / 2
 local stickMaxDistance = math.min(tonumber(leftStickConfig.MaxDistance) or stickRadius, stickRadius)
@@ -18729,6 +18729,9 @@ local aimPlaneY = tonumber(aimAreaConfig.AimPlaneY) or CameraConfig.Input.AimPla
 local aimMinXScale = math.clamp(tonumber(aimAreaConfig.MinXScale) or 0.45, 0, 1)
 local fireButtonLabel = tostring(fireButtonConfig.Label or "FIRE")
 local reverseButtonLabel = tostring(reverseButtonConfig.Label or "REV")
+local reverseButtonSize = reverseButtonConfig.Size or UDim2.fromOffset(REVERSE_BUTTON_SIZE, REVERSE_BUTTON_SIZE)
+local reverseButtonPosition = reverseButtonConfig.Position or UDim2.new(1, -95, 1, -128)
+local reverseButtonAnchorPoint = reverseButtonConfig.AnchorPoint or Vector2.new(1, 1)
 local shootCooldown = math.max(0.05, tonumber(primaryWeaponConfig.ShootCooldown) or 0.45)
 
 local shouldEnableMobileControls = MobileControlsConfig.Enabled == true
@@ -18895,9 +18898,9 @@ fireButtonStroke.Parent = fireButton
 
 local reverseButton = Instance.new("TextButton")
 reverseButton.Name = REVERSE_BUTTON_NAME
-reverseButton.AnchorPoint = Vector2.new(0, 1)
-reverseButton.Position = UDim2.new(0, 150, 1, -82)
-reverseButton.Size = UDim2.fromOffset(REVERSE_BUTTON_SIZE, REVERSE_BUTTON_SIZE)
+reverseButton.AnchorPoint = reverseButtonAnchorPoint
+reverseButton.Position = reverseButtonPosition
+reverseButton.Size = reverseButtonSize
 reverseButton.BackgroundColor3 = Color3.fromRGB(13, 17, 23)
 reverseButton.BackgroundTransparency = 0.2
 reverseButton.BorderSizePixel = 0
@@ -18909,6 +18912,7 @@ reverseButton.TextWrapped = true
 reverseButton.AutoButtonColor = false
 reverseButton.Active = true
 reverseButton.Parent = screenGui
+
 
 local reverseButtonCorner = Instance.new("UICorner")
 reverseButtonCorner.CornerRadius = UDim.new(1, 0)
@@ -19020,9 +19024,9 @@ local function applyResponsiveLayout()
 	leftStickBase.Size = UDim2.fromOffset(LEFT_STICK_SIZE, LEFT_STICK_SIZE)
 	leftStickBase.Position = UDim2.new(0, 28, 1, -30)
 
-	reverseButton.AnchorPoint = Vector2.new(0, 1)
-	reverseButton.Size = UDim2.fromOffset(REVERSE_BUTTON_SIZE, REVERSE_BUTTON_SIZE)
-	reverseButton.Position = UDim2.new(0, 150, 1, -82)
+	reverseButton.AnchorPoint = reverseButtonAnchorPoint
+	reverseButton.Size = reverseButtonSize
+	reverseButton.Position = reverseButtonPosition
 
 	rightAimBase.AnchorPoint = Vector2.new(1, 1)
 	rightAimBase.Size = UDim2.fromOffset(RIGHT_AIM_SIZE, RIGHT_AIM_SIZE)
@@ -31806,9 +31810,9 @@ local TankConfig = table.freeze({
 
 	Armor = table.freeze({
 		FrontArmor = 50,
-		SideArmor = 40,
+		SideArmor = 20,
 		RearArmor = 10,
-		AutoRicochetAngleDegrees = 72,
+		AutoRicochetAngleDegrees = 50,
 		SafeMinCos = 0.15,
 		ArmorHitboxPadding = 0.35,
 		ArmorHitboxThickness = 0.25,
@@ -31918,13 +31922,13 @@ return WeaponConfig
 local DEFAULT_RICOCHET_SHELL = table.freeze({
 	Id = "DefaultRicochetShell",
 	BehaviorType = "Ricochet",
-	Speed = 160,
+	Speed = 150,
 	Radius = 0.6,
 	BaseDamage = 110,
 	Damage = 110,
 	MaxDamage = 110,
-	PenetrationPower = 70,
-	Penetration = 45,
+	PenetrationPower = 49,
+	Penetration = 49,
 	MaxRicochets = 3,
 	BounceSpeedMultiplier = 0.78,
 	DamageMultiplierPerBounce = 0.75,
@@ -32691,6 +32695,13 @@ return VfxConfig
 		CooldownVisual = true,
 	}),
 
+	ReverseButton = table.freeze({
+		Size = UDim2.fromOffset(58, 58),
+		Position = UDim2.new(1, -85, 1, -128),
+		AnchorPoint = Vector2.new(1, 1),
+		Label = "REV",
+	}),
+
 	SecondaryButton = table.freeze({
 		Enabled = false,
 	}),
@@ -33349,17 +33360,17 @@ return RewardConfig
 
 		Zones = table.freeze({
 			Front = table.freeze({
-				Armor = 80,
+				Armor = 50,
 				DamageMultiplier = 0.65,
 				RicochetAngleDegrees = 60,
 			}),
 			Side = table.freeze({
-				Armor = 55,
+				Armor = 20,
 				DamageMultiplier = 0.9,
 				RicochetAngleDegrees = 62,
 			}),
 			Rear = table.freeze({
-				Armor = 35,
+				Armor = 10,
 				DamageMultiplier = 1.15,
 				RicochetAngleDegrees = 65,
 			}),
@@ -33505,8 +33516,8 @@ TankFactoryConfig.DefaultLoadout = table.freeze({
 })
 
 TankFactoryConfig.DefaultStats = table.freeze({
-	MaxHealth = 100,
-	Health = 100,
+	MaxHealth = 300,
+	Health = 300,
 })
 
 function TankFactoryConfig.GetDynamicPlayerTankId(playerOrUserId)

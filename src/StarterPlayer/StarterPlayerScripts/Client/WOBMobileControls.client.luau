@@ -80,7 +80,7 @@ local aimMinXScale = math.clamp(tonumber(aimAreaConfig.MinXScale) or 0.45, 0, 1)
 local fireButtonLabel = tostring(fireButtonConfig.Label or "FIRE")
 local reverseButtonLabel = tostring(reverseButtonConfig.Label or "REV")
 local reverseButtonSize = reverseButtonConfig.Size or UDim2.fromOffset(REVERSE_BUTTON_SIZE, REVERSE_BUTTON_SIZE)
-local reverseButtonPosition = reverseButtonConfig.Position or UDim2.new(0, -118, 1, -128)
+local reverseButtonPosition = reverseButtonConfig.Position or UDim2.new(1, -95, 1, -128)
 local reverseButtonAnchorPoint = reverseButtonConfig.AnchorPoint or Vector2.new(1, 1)
 local shootCooldown = math.max(0.05, tonumber(primaryWeaponConfig.ShootCooldown) or 0.45)
 

@@ -1,0 +1,525 @@
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
+	<External>null</External>
+	<External>nil</External>
+	<!-- Root: full-screen transparent container. Parented at runtime to the ScreenGui. -->
+	<Item class="Frame" referent="RBX_ROOT">
+		<Properties>
+			<string name="Name">BattleArenaUpgradeBeltTemplate</string>
+			<bool name="Active">false</bool>
+			<Color3 name="BackgroundColor3"><R>1</R><G>1</G><B>1</B></Color3>
+			<float name="BackgroundTransparency">1</float>
+			<int name="BorderSizePixel">0</int>
+			<Vector2 name="AnchorPoint"><X>0</X><Y>0</Y></Vector2>
+			<UDim2 name="Position"><XS>0</XS><XO>0</XO><YS>0</YS><YO>0</YO></UDim2>
+			<UDim2 name="Size"><XS>1</XS><XO>0</XO><YS>1</YS><YO>0</YO></UDim2>
+			<int name="ZIndex">30</int>
+			<bool name="Visible">false</bool>
+		</Properties>
+
+		<!-- UpgradeChoiceBelt: the offer panel. Hidden until an upgrade offer arrives.
+		     Position/Size are overridden at runtime by _applyDesktopLayout / _applyMobileLayout.
+		     UICorner and UIStroke are added by code if not already present here. -->
+		<Item class="Frame" referent="RBX_BELT">
+			<Properties>
+				<string name="Name">UpgradeChoiceBelt</string>
+				<bool name="Active">false</bool>
+				<Color3 name="BackgroundColor3"><R>0.051</R><G>0.067</G><B>0.09</B></Color3>
+				<float name="BackgroundTransparency">0.08</float>
+				<int name="BorderSizePixel">0</int>
+				<Vector2 name="AnchorPoint"><X>0.5</X><Y>0</Y></Vector2>
+				<UDim2 name="Position"><XS>0.5</XS><XO>0</XO><YS>0</YS><YO>106</YO></UDim2>
+				<UDim2 name="Size"><XS>0</XS><XO>380</XO><YS>0</YS><YO>260</YO></UDim2>
+				<int name="ZIndex">30</int>
+				<bool name="Visible">false</bool>
+			</Properties>
+
+			<!-- TitleLabel: displays "LEVEL UP" or "SUPPLY". Text/position set by code. -->
+			<Item class="TextLabel" referent="RBX_TITLELABEL">
+				<Properties>
+					<string name="Name">TitleLabel</string>
+					<bool name="Active">false</bool>
+					<Color3 name="BackgroundColor3"><R>1</R><G>1</G><B>1</B></Color3>
+					<float name="BackgroundTransparency">1</float>
+					<int name="BorderSizePixel">0</int>
+					<Vector2 name="AnchorPoint"><X>0</X><Y>0</Y></Vector2>
+					<UDim2 name="Position"><XS>0</XS><XO>14</XO><YS>0</YS><YO>10</YO></UDim2>
+					<UDim2 name="Size"><XS>1</XS><XO>-28</XO><YS>0</YS><YO>26</YO></UDim2>
+					<int name="ZIndex">31</int>
+					<token name="Font">4</token>
+					<string name="Text">LEVEL UP</string>
+					<Color3 name="TextColor3"><R>0.98</R><G>0.8</G><B>0.082</B></Color3>
+					<float name="TextSize">16</float>
+					<bool name="TextWrapped">false</bool>
+					<token name="TextTruncate">1</token>
+					<token name="TextXAlignment">2</token>
+					<token name="TextYAlignment">1</token>
+				</Properties>
+			</Item>
+
+			<!-- Subtitle: shows arena level. Hidden on mobile. -->
+			<Item class="TextLabel" referent="RBX_SUBTITLE">
+				<Properties>
+					<string name="Name">Subtitle</string>
+					<bool name="Active">false</bool>
+					<Color3 name="BackgroundColor3"><R>1</R><G>1</G><B>1</B></Color3>
+					<float name="BackgroundTransparency">1</float>
+					<int name="BorderSizePixel">0</int>
+					<Vector2 name="AnchorPoint"><X>0</X><Y>0</Y></Vector2>
+					<UDim2 name="Position"><XS>0</XS><XO>14</XO><YS>0</YS><YO>36</YO></UDim2>
+					<UDim2 name="Size"><XS>1</XS><XO>-28</XO><YS>0</YS><YO>20</YO></UDim2>
+					<int name="ZIndex">31</int>
+					<token name="Font">3</token>
+					<string name="Text"></string>
+					<Color3 name="TextColor3"><R>0.698</R><G>0.933</G><B>0.804</B></Color3>
+					<float name="TextSize">12</float>
+					<bool name="TextWrapped">false</bool>
+					<token name="TextTruncate">1</token>
+					<token name="TextXAlignment">2</token>
+					<token name="TextYAlignment">1</token>
+				</Properties>
+			</Item>
+
+			<!-- Choices: grouping container. At runtime, each Choice* Frame is re-parented
+			     directly to UpgradeChoiceBelt so the existing offset math in layout code works. -->
+			<Item class="Frame" referent="RBX_CHOICES">
+				<Properties>
+					<string name="Name">Choices</string>
+					<bool name="Active">false</bool>
+					<Color3 name="BackgroundColor3"><R>1</R><G>1</G><B>1</B></Color3>
+					<float name="BackgroundTransparency">1</float>
+					<int name="BorderSizePixel">0</int>
+					<Vector2 name="AnchorPoint"><X>0</X><Y>0</Y></Vector2>
+					<UDim2 name="Position"><XS>0</XS><XO>0</XO><YS>0</YS><YO>0</YO></UDim2>
+					<UDim2 name="Size"><XS>1</XS><XO>0</XO><YS>1</YS><YO>0</YO></UDim2>
+					<int name="ZIndex">31</int>
+					<bool name="Visible">true</bool>
+				</Properties>
+
+				<!-- Choice1: card + transparent tap button overlay + Icon/Title/Effect labels.
+				     UICorner and UIStroke added by code. Position/Size overridden by layout code. -->
+				<Item class="Frame" referent="RBX_CHOICE1">
+					<Properties>
+						<string name="Name">Choice1</string>
+						<bool name="Active">false</bool>
+						<Color3 name="BackgroundColor3"><R>0.078</R><G>0.102</G><B>0.133</B></Color3>
+						<float name="BackgroundTransparency">0.06</float>
+						<int name="BorderSizePixel">0</int>
+						<Vector2 name="AnchorPoint"><X>0</X><Y>0</Y></Vector2>
+						<UDim2 name="Position"><XS>0</XS><XO>14</XO><YS>0</YS><YO>62</YO></UDim2>
+						<UDim2 name="Size"><XS>1</XS><XO>-28</XO><YS>0</YS><YO>58</YO></UDim2>
+						<int name="ZIndex">31</int>
+						<bool name="Visible">false</bool>
+					</Properties>
+					<Item class="TextLabel" referent="RBX_C1_ICON">
+						<Properties>
+							<string name="Name">Icon</string>
+							<bool name="Active">false</bool>
+							<Color3 name="BackgroundColor3"><R>1</R><G>1</G><B>1</B></Color3>
+							<float name="BackgroundTransparency">1</float>
+							<int name="BorderSizePixel">0</int>
+							<Vector2 name="AnchorPoint"><X>0</X><Y>0</Y></Vector2>
+							<UDim2 name="Position"><XS>0</XS><XO>0</XO><YS>0</YS><YO>0</YO></UDim2>
+							<UDim2 name="Size"><XS>0</XS><XO>50</XO><YS>0</YS><YO>58</YO></UDim2>
+							<int name="ZIndex">32</int>
+							<token name="Font">4</token>
+							<string name="Text">★</string>
+							<Color3 name="TextColor3"><R>0.945</R><G>1</G><B>0.973</B></Color3>
+							<float name="TextSize">22</float>
+							<bool name="TextWrapped">false</bool>
+							<token name="TextXAlignment">2</token>
+							<token name="TextYAlignment">1</token>
+						</Properties>
+					</Item>
+					<Item class="TextLabel" referent="RBX_C1_TITLE">
+						<Properties>
+							<string name="Name">Title</string>
+							<bool name="Active">false</bool>
+							<Color3 name="BackgroundColor3"><R>1</R><G>1</G><B>1</B></Color3>
+							<float name="BackgroundTransparency">1</float>
+							<int name="BorderSizePixel">0</int>
+							<Vector2 name="AnchorPoint"><X>0</X><Y>0</Y></Vector2>
+							<UDim2 name="Position"><XS>0</XS><XO>54</XO><YS>0</YS><YO>4</YO></UDim2>
+							<UDim2 name="Size"><XS>1</XS><XO>-58</XO><YS>0</YS><YO>26</YO></UDim2>
+							<int name="ZIndex">32</int>
+							<token name="Font">4</token>
+							<string name="Text">Upgrade</string>
+							<Color3 name="TextColor3"><R>0.945</R><G>1</G><B>0.973</B></Color3>
+							<float name="TextSize">14</float>
+							<bool name="TextWrapped">false</bool>
+							<token name="TextTruncate">1</token>
+							<token name="TextXAlignment">0</token>
+							<token name="TextYAlignment">1</token>
+						</Properties>
+					</Item>
+					<Item class="TextLabel" referent="RBX_C1_EFFECT">
+						<Properties>
+							<string name="Name">Effect</string>
+							<bool name="Active">false</bool>
+							<Color3 name="BackgroundColor3"><R>1</R><G>1</G><B>1</B></Color3>
+							<float name="BackgroundTransparency">1</float>
+							<int name="BorderSizePixel">0</int>
+							<Vector2 name="AnchorPoint"><X>0</X><Y>0</Y></Vector2>
+							<UDim2 name="Position"><XS>0</XS><XO>54</XO><YS>0</YS><YO>30</YO></UDim2>
+							<UDim2 name="Size"><XS>1</XS><XO>-58</XO><YS>0</YS><YO>22</YO></UDim2>
+							<int name="ZIndex">32</int>
+							<token name="Font">3</token>
+							<string name="Text"></string>
+							<Color3 name="TextColor3"><R>0.698</R><G>0.933</G><B>0.804</B></Color3>
+							<float name="TextSize">11</float>
+							<bool name="TextWrapped">false</bool>
+							<token name="TextTruncate">1</token>
+							<token name="TextXAlignment">0</token>
+							<token name="TextYAlignment">1</token>
+							<bool name="Visible">true</bool>
+						</Properties>
+					</Item>
+					<Item class="TextButton" referent="RBX_C1_BTN">
+						<Properties>
+							<string name="Name">Button</string>
+							<bool name="Active">true</bool>
+							<bool name="AutoButtonColor">false</bool>
+							<Color3 name="BackgroundColor3"><R>1</R><G>1</G><B>1</B></Color3>
+							<float name="BackgroundTransparency">1</float>
+							<int name="BorderSizePixel">0</int>
+							<Vector2 name="AnchorPoint"><X>0</X><Y>0</Y></Vector2>
+							<UDim2 name="Position"><XS>0</XS><XO>0</XO><YS>0</YS><YO>0</YO></UDim2>
+							<UDim2 name="Size"><XS>1</XS><XO>0</XO><YS>1</YS><YO>0</YO></UDim2>
+							<int name="ZIndex">33</int>
+							<token name="Font">3</token>
+							<string name="Text"></string>
+							<Color3 name="TextColor3"><R>1</R><G>1</G><B>1</B></Color3>
+							<float name="TextSize">14</float>
+						</Properties>
+					</Item>
+				</Item>
+
+				<!-- Choice2 -->
+				<Item class="Frame" referent="RBX_CHOICE2">
+					<Properties>
+						<string name="Name">Choice2</string>
+						<bool name="Active">false</bool>
+						<Color3 name="BackgroundColor3"><R>0.078</R><G>0.102</G><B>0.133</B></Color3>
+						<float name="BackgroundTransparency">0.06</float>
+						<int name="BorderSizePixel">0</int>
+						<Vector2 name="AnchorPoint"><X>0</X><Y>0</Y></Vector2>
+						<UDim2 name="Position"><XS>0</XS><XO>14</XO><YS>0</YS><YO>126</YO></UDim2>
+						<UDim2 name="Size"><XS>1</XS><XO>-28</XO><YS>0</YS><YO>58</YO></UDim2>
+						<int name="ZIndex">31</int>
+						<bool name="Visible">false</bool>
+					</Properties>
+					<Item class="TextLabel" referent="RBX_C2_ICON">
+						<Properties>
+							<string name="Name">Icon</string>
+							<bool name="Active">false</bool>
+							<Color3 name="BackgroundColor3"><R>1</R><G>1</G><B>1</B></Color3>
+							<float name="BackgroundTransparency">1</float>
+							<int name="BorderSizePixel">0</int>
+							<UDim2 name="Position"><XS>0</XS><XO>0</XO><YS>0</YS><YO>0</YO></UDim2>
+							<UDim2 name="Size"><XS>0</XS><XO>50</XO><YS>0</YS><YO>58</YO></UDim2>
+							<int name="ZIndex">32</int>
+							<token name="Font">4</token>
+							<string name="Text">★</string>
+							<Color3 name="TextColor3"><R>0.945</R><G>1</G><B>0.973</B></Color3>
+							<float name="TextSize">22</float>
+							<bool name="TextWrapped">false</bool>
+							<token name="TextXAlignment">2</token>
+							<token name="TextYAlignment">1</token>
+						</Properties>
+					</Item>
+					<Item class="TextLabel" referent="RBX_C2_TITLE">
+						<Properties>
+							<string name="Name">Title</string>
+							<bool name="Active">false</bool>
+							<Color3 name="BackgroundColor3"><R>1</R><G>1</G><B>1</B></Color3>
+							<float name="BackgroundTransparency">1</float>
+							<int name="BorderSizePixel">0</int>
+							<UDim2 name="Position"><XS>0</XS><XO>54</XO><YS>0</YS><YO>4</YO></UDim2>
+							<UDim2 name="Size"><XS>1</XS><XO>-58</XO><YS>0</YS><YO>26</YO></UDim2>
+							<int name="ZIndex">32</int>
+							<token name="Font">4</token>
+							<string name="Text">Upgrade</string>
+							<Color3 name="TextColor3"><R>0.945</R><G>1</G><B>0.973</B></Color3>
+							<float name="TextSize">14</float>
+							<bool name="TextWrapped">false</bool>
+							<token name="TextTruncate">1</token>
+							<token name="TextXAlignment">0</token>
+							<token name="TextYAlignment">1</token>
+						</Properties>
+					</Item>
+					<Item class="TextLabel" referent="RBX_C2_EFFECT">
+						<Properties>
+							<string name="Name">Effect</string>
+							<bool name="Active">false</bool>
+							<Color3 name="BackgroundColor3"><R>1</R><G>1</G><B>1</B></Color3>
+							<float name="BackgroundTransparency">1</float>
+							<int name="BorderSizePixel">0</int>
+							<UDim2 name="Position"><XS>0</XS><XO>54</XO><YS>0</YS><YO>30</YO></UDim2>
+							<UDim2 name="Size"><XS>1</XS><XO>-58</XO><YS>0</YS><YO>22</YO></UDim2>
+							<int name="ZIndex">32</int>
+							<token name="Font">3</token>
+							<string name="Text"></string>
+							<Color3 name="TextColor3"><R>0.698</R><G>0.933</G><B>0.804</B></Color3>
+							<float name="TextSize">11</float>
+							<bool name="TextWrapped">false</bool>
+							<token name="TextTruncate">1</token>
+							<token name="TextXAlignment">0</token>
+							<token name="TextYAlignment">1</token>
+							<bool name="Visible">true</bool>
+						</Properties>
+					</Item>
+					<Item class="TextButton" referent="RBX_C2_BTN">
+						<Properties>
+							<string name="Name">Button</string>
+							<bool name="Active">true</bool>
+							<bool name="AutoButtonColor">false</bool>
+							<Color3 name="BackgroundColor3"><R>1</R><G>1</G><B>1</B></Color3>
+							<float name="BackgroundTransparency">1</float>
+							<int name="BorderSizePixel">0</int>
+							<UDim2 name="Position"><XS>0</XS><XO>0</XO><YS>0</YS><YO>0</YO></UDim2>
+							<UDim2 name="Size"><XS>1</XS><XO>0</XO><YS>1</YS><YO>0</YO></UDim2>
+							<int name="ZIndex">33</int>
+							<token name="Font">3</token>
+							<string name="Text"></string>
+							<Color3 name="TextColor3"><R>1</R><G>1</G><B>1</B></Color3>
+							<float name="TextSize">14</float>
+						</Properties>
+					</Item>
+				</Item>
+
+				<!-- Choice3 -->
+				<Item class="Frame" referent="RBX_CHOICE3">
+					<Properties>
+						<string name="Name">Choice3</string>
+						<bool name="Active">false</bool>
+						<Color3 name="BackgroundColor3"><R>0.078</R><G>0.102</G><B>0.133</B></Color3>
+						<float name="BackgroundTransparency">0.06</float>
+						<int name="BorderSizePixel">0</int>
+						<Vector2 name="AnchorPoint"><X>0</X><Y>0</Y></Vector2>
+						<UDim2 name="Position"><XS>0</XS><XO>14</XO><YS>0</YS><YO>190</YO></UDim2>
+						<UDim2 name="Size"><XS>1</XS><XO>-28</XO><YS>0</YS><YO>58</YO></UDim2>
+						<int name="ZIndex">31</int>
+						<bool name="Visible">false</bool>
+					</Properties>
+					<Item class="TextLabel" referent="RBX_C3_ICON">
+						<Properties>
+							<string name="Name">Icon</string>
+							<bool name="Active">false</bool>
+							<Color3 name="BackgroundColor3"><R>1</R><G>1</G><B>1</B></Color3>
+							<float name="BackgroundTransparency">1</float>
+							<int name="BorderSizePixel">0</int>
+							<UDim2 name="Position"><XS>0</XS><XO>0</XO><YS>0</YS><YO>0</YO></UDim2>
+							<UDim2 name="Size"><XS>0</XS><XO>50</XO><YS>0</YS><YO>58</YO></UDim2>
+							<int name="ZIndex">32</int>
+							<token name="Font">4</token>
+							<string name="Text">★</string>
+							<Color3 name="TextColor3"><R>0.945</R><G>1</G><B>0.973</B></Color3>
+							<float name="TextSize">22</float>
+							<bool name="TextWrapped">false</bool>
+							<token name="TextXAlignment">2</token>
+							<token name="TextYAlignment">1</token>
+						</Properties>
+					</Item>
+					<Item class="TextLabel" referent="RBX_C3_TITLE">
+						<Properties>
+							<string name="Name">Title</string>
+							<bool name="Active">false</bool>
+							<Color3 name="BackgroundColor3"><R>1</R><G>1</G><B>1</B></Color3>
+							<float name="BackgroundTransparency">1</float>
+							<int name="BorderSizePixel">0</int>
+							<UDim2 name="Position"><XS>0</XS><XO>54</XO><YS>0</YS><YO>4</YO></UDim2>
+							<UDim2 name="Size"><XS>1</XS><XO>-58</XO><YS>0</YS><YO>26</YO></UDim2>
+							<int name="ZIndex">32</int>
+							<token name="Font">4</token>
+							<string name="Text">Upgrade</string>
+							<Color3 name="TextColor3"><R>0.945</R><G>1</G><B>0.973</B></Color3>
+							<float name="TextSize">14</float>
+							<bool name="TextWrapped">false</bool>
+							<token name="TextTruncate">1</token>
+							<token name="TextXAlignment">0</token>
+							<token name="TextYAlignment">1</token>
+						</Properties>
+					</Item>
+					<Item class="TextLabel" referent="RBX_C3_EFFECT">
+						<Properties>
+							<string name="Name">Effect</string>
+							<bool name="Active">false</bool>
+							<Color3 name="BackgroundColor3"><R>1</R><G>1</G><B>1</B></Color3>
+							<float name="BackgroundTransparency">1</float>
+							<int name="BorderSizePixel">0</int>
+							<UDim2 name="Position"><XS>0</XS><XO>54</XO><YS>0</YS><YO>30</YO></UDim2>
+							<UDim2 name="Size"><XS>1</XS><XO>-58</XO><YS>0</YS><YO>22</YO></UDim2>
+							<int name="ZIndex">32</int>
+							<token name="Font">3</token>
+							<string name="Text"></string>
+							<Color3 name="TextColor3"><R>0.698</R><G>0.933</G><B>0.804</B></Color3>
+							<float name="TextSize">11</float>
+							<bool name="TextWrapped">false</bool>
+							<token name="TextTruncate">1</token>
+							<token name="TextXAlignment">0</token>
+							<token name="TextYAlignment">1</token>
+							<bool name="Visible">true</bool>
+						</Properties>
+					</Item>
+					<Item class="TextButton" referent="RBX_C3_BTN">
+						<Properties>
+							<string name="Name">Button</string>
+							<bool name="Active">true</bool>
+							<bool name="AutoButtonColor">false</bool>
+							<Color3 name="BackgroundColor3"><R>1</R><G>1</G><B>1</B></Color3>
+							<float name="BackgroundTransparency">1</float>
+							<int name="BorderSizePixel">0</int>
+							<UDim2 name="Position"><XS>0</XS><XO>0</XO><YS>0</YS><YO>0</YO></UDim2>
+							<UDim2 name="Size"><XS>1</XS><XO>0</XO><YS>1</YS><YO>0</YO></UDim2>
+							<int name="ZIndex">33</int>
+							<token name="Font">3</token>
+							<string name="Text"></string>
+							<Color3 name="TextColor3"><R>1</R><G>1</G><B>1</B></Color3>
+							<float name="TextSize">14</float>
+						</Properties>
+					</Item>
+				</Item>
+			</Item>
+		</Item>
+
+		<!-- ActiveIcons: upgrade icon strip. Shown when no offer is active.
+		     Position/Size are overridden by _layoutIconStrip at runtime. -->
+		<Item class="Frame" referent="RBX_ICONS">
+			<Properties>
+				<string name="Name">ActiveIcons</string>
+				<bool name="Active">false</bool>
+				<Color3 name="BackgroundColor3"><R>1</R><G>1</G><B>1</B></Color3>
+				<float name="BackgroundTransparency">1</float>
+				<int name="BorderSizePixel">0</int>
+				<Vector2 name="AnchorPoint"><X>1</X><Y>0</Y></Vector2>
+				<UDim2 name="Position"><XS>1</XS><XO>-22</XO><YS>0</YS><YO>182</YO></UDim2>
+				<UDim2 name="Size"><XS>0</XS><XO>204</XO><YS>0</YS><YO>30</YO></UDim2>
+				<int name="ZIndex">29</int>
+				<bool name="Visible">false</bool>
+			</Properties>
+
+			<!-- Slot1–Slot5: one per active upgrade icon. UICorner/UIStroke added by code. -->
+			<Item class="TextLabel" referent="RBX_SLOT1">
+				<Properties>
+					<string name="Name">Slot1</string>
+					<bool name="Active">false</bool>
+					<Color3 name="BackgroundColor3"><R>0.078</R><G>0.11</G><B>0.149</B></Color3>
+					<float name="BackgroundTransparency">0.22</float>
+					<int name="BorderSizePixel">0</int>
+					<UDim2 name="Position"><XS>0</XS><XO>0</XO><YS>0</YS><YO>0</YO></UDim2>
+					<UDim2 name="Size"><XS>0</XS><XO>30</XO><YS>0</YS><YO>30</YO></UDim2>
+					<int name="ZIndex">30</int>
+					<token name="Font">4</token>
+					<string name="Text"></string>
+					<Color3 name="TextColor3"><R>0.945</R><G>1</G><B>0.973</B></Color3>
+					<float name="TextSize">16</float>
+					<bool name="TextWrapped">false</bool>
+					<token name="TextXAlignment">2</token>
+					<token name="TextYAlignment">1</token>
+					<bool name="Visible">false</bool>
+				</Properties>
+			</Item>
+			<Item class="TextLabel" referent="RBX_SLOT2">
+				<Properties>
+					<string name="Name">Slot2</string>
+					<bool name="Active">false</bool>
+					<Color3 name="BackgroundColor3"><R>0.078</R><G>0.11</G><B>0.149</B></Color3>
+					<float name="BackgroundTransparency">0.22</float>
+					<int name="BorderSizePixel">0</int>
+					<UDim2 name="Position"><XS>0</XS><XO>34</XO><YS>0</YS><YO>0</YO></UDim2>
+					<UDim2 name="Size"><XS>0</XS><XO>30</XO><YS>0</YS><YO>30</YO></UDim2>
+					<int name="ZIndex">30</int>
+					<token name="Font">4</token>
+					<string name="Text"></string>
+					<Color3 name="TextColor3"><R>0.945</R><G>1</G><B>0.973</B></Color3>
+					<float name="TextSize">16</float>
+					<bool name="TextWrapped">false</bool>
+					<token name="TextXAlignment">2</token>
+					<token name="TextYAlignment">1</token>
+					<bool name="Visible">false</bool>
+				</Properties>
+			</Item>
+			<Item class="TextLabel" referent="RBX_SLOT3">
+				<Properties>
+					<string name="Name">Slot3</string>
+					<bool name="Active">false</bool>
+					<Color3 name="BackgroundColor3"><R>0.078</R><G>0.11</G><B>0.149</B></Color3>
+					<float name="BackgroundTransparency">0.22</float>
+					<int name="BorderSizePixel">0</int>
+					<UDim2 name="Position"><XS>0</XS><XO>68</XO><YS>0</YS><YO>0</YO></UDim2>
+					<UDim2 name="Size"><XS>0</XS><XO>30</XO><YS>0</YS><YO>30</YO></UDim2>
+					<int name="ZIndex">30</int>
+					<token name="Font">4</token>
+					<string name="Text"></string>
+					<Color3 name="TextColor3"><R>0.945</R><G>1</G><B>0.973</B></Color3>
+					<float name="TextSize">16</float>
+					<bool name="TextWrapped">false</bool>
+					<token name="TextXAlignment">2</token>
+					<token name="TextYAlignment">1</token>
+					<bool name="Visible">false</bool>
+				</Properties>
+			</Item>
+			<Item class="TextLabel" referent="RBX_SLOT4">
+				<Properties>
+					<string name="Name">Slot4</string>
+					<bool name="Active">false</bool>
+					<Color3 name="BackgroundColor3"><R>0.078</R><G>0.11</G><B>0.149</B></Color3>
+					<float name="BackgroundTransparency">0.22</float>
+					<int name="BorderSizePixel">0</int>
+					<UDim2 name="Position"><XS>0</XS><XO>102</XO><YS>0</YS><YO>0</YO></UDim2>
+					<UDim2 name="Size"><XS>0</XS><XO>30</XO><YS>0</YS><YO>30</YO></UDim2>
+					<int name="ZIndex">30</int>
+					<token name="Font">4</token>
+					<string name="Text"></string>
+					<Color3 name="TextColor3"><R>0.945</R><G>1</G><B>0.973</B></Color3>
+					<float name="TextSize">16</float>
+					<bool name="TextWrapped">false</bool>
+					<token name="TextXAlignment">2</token>
+					<token name="TextYAlignment">1</token>
+					<bool name="Visible">false</bool>
+				</Properties>
+			</Item>
+			<Item class="TextLabel" referent="RBX_SLOT5">
+				<Properties>
+					<string name="Name">Slot5</string>
+					<bool name="Active">false</bool>
+					<Color3 name="BackgroundColor3"><R>0.078</R><G>0.11</G><B>0.149</B></Color3>
+					<float name="BackgroundTransparency">0.22</float>
+					<int name="BorderSizePixel">0</int>
+					<UDim2 name="Position"><XS>0</XS><XO>136</XO><YS>0</YS><YO>0</YO></UDim2>
+					<UDim2 name="Size"><XS>0</XS><XO>30</XO><YS>0</YS><YO>30</YO></UDim2>
+					<int name="ZIndex">30</int>
+					<token name="Font">4</token>
+					<string name="Text"></string>
+					<Color3 name="TextColor3"><R>0.945</R><G>1</G><B>0.973</B></Color3>
+					<float name="TextSize">16</float>
+					<bool name="TextWrapped">false</bool>
+					<token name="TextXAlignment">2</token>
+					<token name="TextYAlignment">1</token>
+					<bool name="Visible">false</bool>
+				</Properties>
+			</Item>
+
+			<!-- Overflow: shows "+N" when more than 5 upgrades active. UICorner added by code. -->
+			<Item class="TextLabel" referent="RBX_OVERFLOW">
+				<Properties>
+					<string name="Name">Overflow</string>
+					<bool name="Active">false</bool>
+					<Color3 name="BackgroundColor3"><R>0.078</R><G>0.11</G><B>0.149</B></Color3>
+					<float name="BackgroundTransparency">0.22</float>
+					<int name="BorderSizePixel">0</int>
+					<UDim2 name="Position"><XS>0</XS><XO>174</XO><YS>0</YS><YO>0</YO></UDim2>
+					<UDim2 name="Size"><XS>0</XS><XO>38</XO><YS>0</YS><YO>30</YO></UDim2>
+					<int name="ZIndex">30</int>
+					<token name="Font">4</token>
+					<string name="Text"></string>
+					<Color3 name="TextColor3"><R>0.698</R><G>0.933</G><B>0.804</B></Color3>
+					<float name="TextSize">12</float>
+					<bool name="TextWrapped">false</bool>
+					<token name="TextXAlignment">2</token>
+					<token name="TextYAlignment">1</token>
+					<bool name="Visible">false</bool>
+				</Properties>
+			</Item>
+		</Item>
+	</Item>
+</roblox>
