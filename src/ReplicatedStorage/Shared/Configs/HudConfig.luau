@@ -41,6 +41,12 @@ local HudConfig = table.freeze({
 		DeadHideDelay = 1.0,
 		DiscoveryInterval = 1.0,
 		MaxDistance = 120,
+		-- Client-only visual smoothing for world-space HP/reload bar position.
+		-- Uses a lerp toward the raw tank body position each Heartbeat so bars
+		-- don't jitter when server-replicated parts update at network tick rate.
+		-- Does not affect health values, damage, or any server state.
+		SmoothingEnabled = true,
+		PositionSmoothingSpeed = 18,
 	}),
 
 	CombatHud = table.freeze({

@@ -61,6 +61,18 @@ local BotConfig = table.freeze({
 		CleanupOnPlayerLeave = true,
 	}),
 
+	-- BattleArena bot spawn staggering.
+	-- Bots are filled in gradually (a few per tick, spaced by an interval) instead
+	-- of all in one Heartbeat frame. This reduces the BattleArena entry spike
+	-- described in docs/PERFORMANCE_RUNTIME_DEEP_DIVE.md. It changes only spawn
+	-- *timing*: the eventual desired bot count and all post-spawn bot behavior are
+	-- unchanged. Set IntervalSeconds = 0 to disable staggering (legacy behavior:
+	-- fill the whole deficit immediately).
+	Spawn = table.freeze({
+		IntervalSeconds = 0.35,
+		MaxPerTick = 1,
+	}),
+
 	ThinkInterval = 0.12,
 	PreferredDistance = 55,
 	MinDistance = 28,

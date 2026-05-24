@@ -104,6 +104,8 @@ local rematchRequestEvent = getOrCreateRemoteEvent("RematchRequestEvent")
 local debugSpawnBotRequestEvent = getOrCreateRemoteEvent("DebugSpawnBotRequestEvent")
 local debugRemoveBotRequestEvent = getOrCreateRemoteEvent("DebugRemoveBotRequestEvent")
 local upgradeChoiceEvent = getOrCreateRemoteEvent("UpgradeChoiceEvent")
+local arenaReviveRequestEvent = getOrCreateRemoteEvent("ArenaReviveRequestEvent")
+local arenaFreeRespawnRequestEvent = getOrCreateRemoteEvent("ArenaFreeRespawnRequestEvent")
 
 -- Folders
 local root = Workspace:WaitForChild("WOB_Generated")
@@ -867,6 +869,8 @@ ArenaCombatService.init({
 		end
 	end,
 	upgradeChoiceEvent = upgradeChoiceEvent,
+	reviveRequestEvent = arenaReviveRequestEvent,
+	freeRespawnRequestEvent = arenaFreeRespawnRequestEvent,
 })
 
 BotService.init({

@@ -22,6 +22,19 @@ local PerformanceConfig = table.freeze({
 		CharacterCastShadow = false,
 	}),
 
+	-- Diagnostic isolation switches. Defaults preserve normal gameplay/presentation behavior.
+	Diagnostics = table.freeze({
+		WorldHealthBarsEnabledOverride = nil,
+		ProjectileVfxEnabled = true,
+		MuzzleFlashEnabled = true,
+		ImpactVfxEnabled = true,
+		DamageFlashEnabled = true,
+		FloatingCombatTextEnabled = true,
+		BattleArenaBotsEnabled = true,
+		BattleArenaMaxBotsOverride = nil,
+		DebugRuntimeLogs = false,
+	}),
+
 	Profiles = table.freeze({
 		MobileLow = table.freeze({
 			Lighting = table.freeze({

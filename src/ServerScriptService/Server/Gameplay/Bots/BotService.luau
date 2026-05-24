@@ -4,6 +4,7 @@ local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local BotConfig = require(configs:WaitForChild("BotConfig"))
 local BattleArenaLoopConfig = require(configs:WaitForChild("BattleArenaLoopConfig"))
+local PerformanceConfig = require(configs:WaitForChild("PerformanceConfig"))
 
 local BotController = require(script.Parent:WaitForChild("BotController"))
 local BotSpawnPlanner = require(script.Parent:WaitForChild("BotSpawnPlanner"))
@@ -30,6 +31,11 @@ local botRecords = {}
 local botRecordsById = {}
 local nextBotIndex = 1
 local lastDebugLogAtByKey = {}
+local spawnStaggerTimer = 0
+
+local function getDiagnosticsConfig()
+	return PerformanceConfig.Diagnostics or {}
+end
 
 local function debugLog(key, message)
 	if BotConfig.Debug ~= true then
@@ -48,16 +54,25 @@ end
 
 local function isBattleArenaBotsEnabled()
 	local battleArenaConfig = BotConfig.BattleArena or {}
+	local diagnosticsConfig = getDiagnosticsConfig()
 
-	return BotConfig.Enabled == true and battleArenaConfig.Enabled == true
+	return diagnosticsConfig.BattleArenaBotsEnabled ~= false
+		and BotConfig.Enabled == true
+		and battleArenaConfig.Enabled == true
 end
 
 local function getConfiguredBotLimit()
 	local battleArenaConfig = BotConfig.BattleArena or {}
 	local loopBotConfig = BattleArenaLoopConfig.Enabled == true and BattleArenaLoopConfig.Bots or {}
 	local safetyConfig = BotConfig.Safety or {}
+	local diagnosticsConfig = getDiagnosticsConfig()
 	local maxBots = math.max(0, math.floor(tonumber(loopBotConfig.MaxBots) or tonumber(battleArenaConfig.MaxBots) or 0))
 	local hardLimit = math.max(0, math.floor(tonumber(safetyConfig.MaxBotsHardLimit) or maxBots))
+	local maxBotsOverride = tonumber(diagnosticsConfig.BattleArenaMaxBotsOverride)
+
+	if maxBotsOverride ~= nil then
+		maxBots = math.max(0, math.floor(maxBotsOverride))
+	end
 
 	if hardLimit <= 0 then
 		return maxBots
@@ -263,29 +278,82 @@ local function deactivateBotRecord(record)
 	debugLog("despawn:" .. tostring(record.TankId), "[BOT] despawned id=" .. tostring(record.TankId))
 end
 
-local function ensureBotCount(desiredCount)
-	local activeRecords = getActiveBotRecords()
+local function getSpawnStaggerConfig()
+	local spawnConfig = BotConfig.Spawn or {}
+	local interval = math.max(0, tonumber(spawnConfig.IntervalSeconds) or 0)
+	local maxPerTick = math.max(1, math.floor(tonumber(spawnConfig.MaxPerTick) or 1))
 
-	while #activeRecords < desiredCount do
-		local inactiveRecord = nil
+	return interval, maxPerTick
+end
 
-		for _, record in ipairs(botRecords) do
-			if record.Active ~= true then
-				inactiveRecord = record
-				break
-			end
-		end
+-- Activates one inactive record if available (reuse, no clone), otherwise creates
+-- a fresh bot record. Returns the (now active) record. Both paths count as one
+-- spawn for stagger purposes, because reactivating many records in one frame also
+-- causes a spike (registration, color/health reset, controller creation).
+local function spawnOneBot(activeRecords)
+	local inactiveRecord = nil
 
-		if inactiveRecord ~= nil then
-			activateBotRecord(inactiveRecord)
-			table.insert(activeRecords, inactiveRecord)
-		else
-			table.insert(activeRecords, createBotRecord())
+	for _, record in ipairs(botRecords) do
+		if record.Active ~= true then
+			inactiveRecord = record
+			break
 		end
 	end
 
-	for index = #activeRecords, desiredCount + 1, -1 do
-		deactivateBotRecord(activeRecords[index])
+	if inactiveRecord ~= nil then
+		activateBotRecord(inactiveRecord)
+		table.insert(activeRecords, inactiveRecord)
+		return inactiveRecord
+	end
+
+	local createdRecord = createBotRecord()
+	table.insert(activeRecords, createdRecord)
+	return createdRecord
+end
+
+-- Brings the active bot population toward desiredCount.
+-- Removal of excess bots happens immediately (deactivation is cheap and does not
+-- clone/spawn anything). Filling missing bots is *staggered*: at most MaxPerTick
+-- bots are added per call, and only after IntervalSeconds has elapsed, so the
+-- whole deficit is not filled on a single Heartbeat frame (e.g. on BattleArena
+-- entry). The eventual desired count is still reached over subsequent ticks, so
+-- gameplay outcome is unchanged.
+local function ensureBotCount(desiredCount, deltaTime)
+	local activeRecords = getActiveBotRecords()
+	local activeCount = #activeRecords
+
+	if activeCount > desiredCount then
+		for index = activeCount, desiredCount + 1, -1 do
+			deactivateBotRecord(activeRecords[index])
+		end
+
+		spawnStaggerTimer = 0
+		return
+	end
+
+	if activeCount >= desiredCount then
+		spawnStaggerTimer = 0
+		return
+	end
+
+	local interval, maxPerTick = getSpawnStaggerConfig()
+
+	if interval > 0 then
+		spawnStaggerTimer += math.max(0, tonumber(deltaTime) or 0)
+
+		if spawnStaggerTimer < interval then
+			return
+		end
+	end
+
+	spawnStaggerTimer = 0
+
+	local spawnedThisTick = 0
+
+	while activeCount < desiredCount and spawnedThisTick < maxPerTick do
+		spawnOneBot(activeRecords)
+		activeCount += 1
+		spawnedThisTick += 1
 	end
 end
 
@@ -340,7 +408,7 @@ function BotService.update(deltaTime)
 	end
 
 	local desiredCount = getDesiredBotCount()
-	ensureBotCount(desiredCount)
+	ensureBotCount(desiredCount, deltaTime)
 
 	if desiredCount <= 0 and (BotConfig.Safety or {}).CleanupOnPlayerLeave ~= false then
 		return

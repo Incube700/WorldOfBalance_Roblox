@@ -107,18 +107,18 @@
 		<Item class="Camera" referent="RBXc1464cbc5d44410fbc4ee16ffc5ee710">
 			<Properties>
 				<CoordinateFrame name="CFrame">
-					<X>135.642471</X>
-					<Y>423.987854</Y>
-					<Z>103.961136</Z>
-					<R00>0.607417881</R00>
-					<R01>-0.735394478</R01>
-					<R02>0.300397456</R02>
-					<R10>-0</R10>
-					<R11>0.378152192</R11>
-					<R12>0.92574358</R12>
-					<R20>-0.794382453</R20>
-					<R21>-0.562313199</R21>
-					<R22>0.229696408</R22>
+					<X>135.870651</X>
+					<Y>423.807678</Y>
+					<Z>104.222504</Z>
+					<R00>0.656133354</R00>
+					<R01>-0.630625904</R01>
+					<R02>0.414487809</R02>
+					<R10>1.49011612e-08</R10>
+					<R11>0.549248755</R11>
+					<R12>0.835658967</R12>
+					<R20>-0.75464505</R20>
+					<R21>-0.548303723</R21>
+					<R22>0.360380411</R22>
 				</CoordinateFrame>
 				<Ref name="CameraSubject">null</Ref>
 				<token name="CameraType">0</token>
@@ -13504,7 +13504,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
 local configs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
+local PerformanceConfig = require(configs:WaitForChild("PerformanceConfig"))
 local ProjectileVisualConfig = require(configs:WaitForChild("ProjectileVisualConfig"))
+
+local diagnosticsConfig = PerformanceConfig.Diagnostics or {}
+
+if diagnosticsConfig.ProjectileVfxEnabled == false or diagnosticsConfig.ImpactVfxEnabled == false then
+	return
+end
 
 local root = Workspace:WaitForChild("WOB_Generated")
 local localPlayer = Players.LocalPlayer
@@ -13825,8 +13832,15 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local configs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
+local PerformanceConfig = require(configs:WaitForChild("PerformanceConfig"))
 local ProjectileVisualConfig = require(configs:WaitForChild("ProjectileVisualConfig"))
 local projectileVisual = ProjectileVisualConfig.ProjectileTypeVisuals.PrototypeRicochetShell
+
+local diagnosticsConfig = PerformanceConfig.Diagnostics or {}
+
+if diagnosticsConfig.ProjectileVfxEnabled == false then
+	return
+end
 
 local root = Workspace:WaitForChild("WOB_Generated")
 local runtime = root:WaitForChild("Runtime", 20)
@@ -14046,6 +14060,8 @@ local DEBUG_AIM_LASER = false
 local LASER_TARGET_REFRESH_INTERVAL = 0.5
 local playerTank = nil
 local loggedOwnedTankId = nil
+local smoothedStartPosition = nil
+local smoothedEndPosition = nil
 
 local function getOrCreateFolder(parent, name)
 	local folder = parent:FindFirstChild(name)
@@ -14282,6 +14298,40 @@ local function setLaserVisible(isVisible)
 	beam.Enabled = isVisible
 end
 
+local function hideLaser()
+	smoothedStartPosition = nil
+	smoothedEndPosition = nil
+	setLaserVisible(false)
+end
+
+local function getVisualSmoothingAlpha(deltaTime)
+	if AimAssistConfig.AimLaserVisualSmoothingEnabled ~= true then
+		return 1
+	end
+
+	local speed = math.max(0, tonumber(AimAssistConfig.AimLaserVisualSmoothingSpeed) or 30)
+
+	if speed <= 0 then
+		return 1
+	end
+
+	return 1 - math.exp(-speed * math.max(0, tonumber(deltaTime) or 0))
+end
+
+local function smoothLaserPoint(previousPosition, targetPosition, deltaTime)
+	if typeof(previousPosition) ~= "Vector3" then
+		return targetPosition
+	end
+
+	local snapDistance = math.max(0, tonumber(AimAssistConfig.AimLaserVisualSnapDistance) or 120)
+
+	if snapDistance > 0 and (previousPosition - targetPosition).Magnitude > snapDistance then
+		return targetPosition
+	end
+
+	return previousPosition:Lerp(targetPosition, getVisualSmoothingAlpha(deltaTime))
+end
+
 local function isAimLaserEnabledForLocalPlayer()
 	local mode = localPlayer:GetAttribute("PlayerMode")
 
@@ -14300,28 +14350,28 @@ local function isPlayerTankAbleToAim()
 		and playerTank:GetAttribute("CanShoot") ~= false
 end
 
-local function updateLaser()
+local function updateLaser(deltaTime)
 	if not isAimLaserEnabledForLocalPlayer() then
-		setLaserVisible(false)
+		hideLaser()
 		return
 	end
 
 	local muzzlePart = getMuzzlePart()
 
 	if muzzlePart == nil then
-		setLaserVisible(false)
+		hideLaser()
 		return
 	end
 
 	if not isPlayerTankAbleToAim() then
-		setLaserVisible(false)
+		hideLaser()
 		return
 	end
 
 	local direction = getFlatDirection(muzzlePart)
 
 	if direction == nil then
-		setLaserVisible(false)
+		hideLaser()
 		return
 	end
 
@@ -14344,12 +14394,15 @@ local function updateLaser()
 	end
 
 	if (endPosition - origin).Magnitude < 0.5 then
-		setLaserVisible(false)
+		hideLaser()
 		return
 	end
 
-	startPart.Position = origin
-	endPart.Position = endPosition
+	smoothedStartPosition = smoothLaserPoint(smoothedStartPosition, origin, deltaTime)
+	smoothedEndPosition = smoothLaserPoint(smoothedEndPosition, endPosition, deltaTime)
+
+	startPart.Position = smoothedStartPosition
+	endPart.Position = smoothedEndPosition
 
 	setLaserVisible(true)
 end
@@ -14381,7 +14434,14 @@ local Players = game:GetService("Players")
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local combatFeedbackEvent = remotes:WaitForChild("CombatFeedbackEvent")
 local configs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
+local PerformanceConfig = require(configs:WaitForChild("PerformanceConfig"))
 local TankArmorConfig = require(configs:WaitForChild("TankArmorConfig"))
+
+local diagnosticsConfig = PerformanceConfig.Diagnostics or {}
+
+if diagnosticsConfig.FloatingCombatTextEnabled == false then
+	return
+end
 
 local root = Workspace:WaitForChild("WOB_Generated")
 local localPlayer = Players.LocalPlayer
@@ -19947,6 +20007,8 @@ local HudWidgetFactory = require(hudModules:WaitForChild("HudWidgetFactory"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local returnToMenuRequestEvent = remotes:WaitForChild("ReturnToMenuRequestEvent")
 local upgradeChoiceEvent = remotes:WaitForChild("UpgradeChoiceEvent")
+local arenaReviveRequestEvent = remotes:WaitForChild("ArenaReviveRequestEvent")
+local arenaFreeRespawnRequestEvent = remotes:WaitForChild("ArenaFreeRespawnRequestEvent")
 
 local localPlayer = Players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
@@ -19964,8 +20026,10 @@ local ACTION_Z_INDEX = 20
 local POPUP_Z_INDEX = 30
 
 local mobileHudConfig = BattleArenaConfig.MobileHud or {}
+local reviveConfig = BattleArenaConfig.Revive or {}
 local mobileHudCompact = mobileHudConfig.Compact ~= false
 local mobileUseMenuForReturn = mobileHudConfig.UseMenuForReturn ~= false
+local paidReviveEnabled = reviveConfig.Enabled == true
 
 local existingGui = playerGui:FindFirstChild(GUI_NAME)
 
@@ -20217,8 +20281,8 @@ end
 
 local deathPanel = makePanel(
 	"DeathPanel",
-	UDim2.new(0.5, -150, 0.5, -82),
-	UDim2.new(0, 300, 0, 164)
+	UDim2.new(0.5, -160, 0.5, -150),
+	UDim2.new(0, 320, 0, 300)
 )
 
 local destroyedLabel = makeLabel(
@@ -20254,9 +20318,51 @@ local deathSummaryLabel = makeLabel(
 deathSummaryLabel.TextXAlignment = Enum.TextXAlignment.Center
 deathSummaryLabel.TextColor3 = Color3.fromRGB(255, 225, 120)
 
+local deathReviveButton = Instance.new("TextButton")
+deathReviveButton.Name = "DeathReviveButton"
+deathReviveButton.Position = UDim2.new(0.14, 0, 0, 124)
+deathReviveButton.Size = UDim2.new(0.72, 0, 0, 38)
+deathReviveButton.Parent = deathPanel
+styleButton(deathReviveButton, "REVIVE - 5 BOLTS")
+deathReviveButton.BackgroundColor3 = Color3.fromRGB(55, 150, 96)
+deathReviveButton.TextColor3 = Color3.fromRGB(248, 255, 248)
+
+local deathReviveSubtitle = makeLabel(
+	deathPanel,
+	"DeathReviveSubtitle",
+	UDim2.new(0, 18, 0, 164),
+	UDim2.new(1, -36, 0, 18),
+	12,
+	Enum.Font.GothamMedium
+)
+deathReviveSubtitle.Text = "Keep level and upgrades"
+deathReviveSubtitle.TextXAlignment = Enum.TextXAlignment.Center
+deathReviveSubtitle.TextColor3 = Color3.fromRGB(195, 230, 205)
+
+local deathFreeRespawnButton = Instance.new("TextButton")
+deathFreeRespawnButton.Name = "DeathFreeRespawnButton"
+deathFreeRespawnButton.Position = UDim2.new(0.14, 0, 0, 190)
+deathFreeRespawnButton.Size = UDim2.new(0.72, 0, 0, 38)
+deathFreeRespawnButton.Parent = deathPanel
+styleButton(deathFreeRespawnButton, "RESPAWN - FREE")
+deathFreeRespawnButton.BackgroundColor3 = Color3.fromRGB(250, 204, 21)
+deathFreeRespawnButton.TextColor3 = Color3.fromRGB(13, 17, 23)
+
+local deathFreeRespawnSubtitle = makeLabel(
+	deathPanel,
+	"DeathFreeRespawnSubtitle",
+	UDim2.new(0, 18, 0, 230),
+	UDim2.new(1, -36, 0, 18),
+	12,
+	Enum.Font.GothamMedium
+)
+deathFreeRespawnSubtitle.Text = "Lose current run powers"
+deathFreeRespawnSubtitle.TextXAlignment = Enum.TextXAlignment.Center
+deathFreeRespawnSubtitle.TextColor3 = Color3.fromRGB(255, 235, 166)
+
 local deathReturnButton = Instance.new("TextButton")
 deathReturnButton.Name = "DeathReturnToLobbyButton"
-deathReturnButton.Position = UDim2.new(0.18, 0, 1, -52)
+deathReturnButton.Position = UDim2.new(0.24, 0, 0, 258)
 deathReturnButton.Size = UDim2.new(0.64, 0, 0, 38)
 deathReturnButton.Parent = deathPanel
 styleButton(deathReturnButton)
@@ -20419,13 +20525,21 @@ local function applyDesktopLayout()
 	menuButton.Visible = layout.MenuButtonVisible
 	setMenuPopupOpen(false)
 
-	deathPanel.Position = layout.DeathPanel.Position
-	deathPanel.Size = layout.DeathPanel.Size
-	applyLabelLayout(destroyedLabel, layout.DestroyedLabel)
-	applyLabelLayout(respawnLabel, layout.RespawnLabel)
-	applyLabelLayout(deathSummaryLabel, layout.DeathSummaryLabel)
-	deathReturnButton.Position = layout.DeathReturnButton.Position
-	deathReturnButton.Size = layout.DeathReturnButton.Size
+	deathPanel.Position = UDim2.new(0.5, -160, 0.5, -150)
+	deathPanel.Size = UDim2.fromOffset(320, 300)
+	setTextLayout(destroyedLabel, UDim2.new(0, 18, 0, 16), UDim2.new(1, -36, 0, 42), layout.DestroyedLabel.TextSize)
+	setTextLayout(respawnLabel, UDim2.new(0, 18, 0, 62), UDim2.new(1, -36, 0, 28), layout.RespawnLabel.TextSize)
+	setTextLayout(deathSummaryLabel, UDim2.new(0, 18, 0, 92), UDim2.new(1, -36, 0, 26), layout.DeathSummaryLabel.TextSize)
+	deathReviveButton.Position = UDim2.new(0.14, 0, 0, 124)
+	deathReviveButton.Size = UDim2.new(0.72, 0, 0, 38)
+	setTextLayout(deathReviveSubtitle, UDim2.new(0, 18, 0, 164), UDim2.new(1, -36, 0, 18), 12)
+	deathFreeRespawnButton.Position = UDim2.new(0.14, 0, 0, 190)
+	deathFreeRespawnButton.Size = UDim2.new(0.72, 0, 0, 38)
+	deathFreeRespawnButton.TextSize = 16
+	setTextLayout(deathFreeRespawnSubtitle, UDim2.new(0, 18, 0, 230), UDim2.new(1, -36, 0, 18), 12)
+	deathReturnButton.Position = UDim2.new(0.24, 0, 0, 258)
+	deathReturnButton.Size = UDim2.new(0.52, 0, 0, 30)
+	deathReturnButton.TextSize = 13
 
 	local camera = Workspace.CurrentCamera
 	local viewportSize = camera ~= nil and camera.ViewportSize or Vector2.new(1024, 768)
@@ -20510,13 +20624,22 @@ local function applyMobileLayout(viewportSize)
 	menuButton.Text = m.MenuButton.Text
 	menuButton.TextSize = m.MenuButton.TextSize
 
-	deathPanel.Position = m.DeathPanel.Position
-	deathPanel.Size = m.DeathPanel.Size
-	setTextLayout(destroyedLabel, m.DestroyedLabel.Position, m.DestroyedLabel.Size, m.DestroyedLabel.TextSize)
-	setTextLayout(respawnLabel, m.RespawnLabel.Position, m.RespawnLabel.Size, m.RespawnLabel.TextSize)
-	setTextLayout(deathSummaryLabel, m.DeathSummaryLabel.Position, m.DeathSummaryLabel.Size, m.DeathSummaryLabel.TextSize)
-	deathReturnButton.Position = m.DeathReturnButton.Position
-	deathReturnButton.Size = m.DeathReturnButton.Size
+	deathPanel.Position = UDim2.new(0.5, -144, 0.5, -132)
+	deathPanel.Size = UDim2.new(0, 288, 0, 264)
+	setTextLayout(destroyedLabel, UDim2.new(0, 16, 0, 12), UDim2.new(1, -32, 0, 34), m.DestroyedLabel.TextSize)
+	setTextLayout(respawnLabel, UDim2.new(0, 16, 0, 50), UDim2.new(1, -32, 0, 24), m.RespawnLabel.TextSize)
+	setTextLayout(deathSummaryLabel, UDim2.new(0, 16, 0, 76), UDim2.new(1, -32, 0, 22), m.DeathSummaryLabel.TextSize)
+	deathReviveButton.Position = UDim2.new(0.13, 0, 0, 102)
+	deathReviveButton.Size = UDim2.new(0.74, 0, 0, 34)
+	deathReviveButton.TextSize = 13
+	setTextLayout(deathReviveSubtitle, UDim2.new(0, 16, 0, 137), UDim2.new(1, -32, 0, 16), 11)
+	deathFreeRespawnButton.Position = UDim2.new(0.13, 0, 0, 158)
+	deathFreeRespawnButton.Size = UDim2.new(0.74, 0, 0, 34)
+	deathFreeRespawnButton.TextSize = 13
+	setTextLayout(deathFreeRespawnSubtitle, UDim2.new(0, 16, 0, 193), UDim2.new(1, -32, 0, 16), 11)
+	deathReturnButton.Position = UDim2.new(0.24, 0, 0, 222)
+	deathReturnButton.Size = UDim2.new(0.52, 0, 0, 28)
+	deathReturnButton.TextSize = 11
 
 	upgradeHud:SetLayout({
 		IsMobile = true,
@@ -20711,28 +20834,81 @@ local function updateOverlay()
 	end
 
 	updateHealth(ownedTank, mobileLayout)
-	upgradeHud:SetVisible(true)
-	upgradeHud:SetOffer(currentUpgradeOffer)
-	upgradeHud:SetActiveUpgradeIds(upgrades)
-	upgradeHud:SetShieldState(getShieldHudState())
-
 	local mode = localPlayer:GetAttribute("PlayerMode")
 	local isDead = mode == MODE_ARENA_RESPAWNING
 		or (ownedTank ~= nil and ownedTank:GetAttribute("IsDead") == true)
 		or localPlayer:GetAttribute("IsDead") == true
 
+	upgradeHud:SetVisible(not isDead)
+	upgradeHud:SetOffer(isDead and nil or currentUpgradeOffer)
+	upgradeHud:SetActiveUpgradeIds(upgrades)
+	upgradeHud:SetShieldState(getShieldHudState())
+
 	deathPanel.Visible = isDead
 
 	if isDead then
+		local revivePending = localPlayer:GetAttribute("ArenaRevivePending") == true
+		local reviveCost = math.max(0, math.floor(tonumber(localPlayer:GetAttribute("ArenaReviveCost")) or 0))
+		local canRevive = localPlayer:GetAttribute("ArenaCanRevive") == true
+		local reviveError = tostring(localPlayer:GetAttribute("ArenaReviveLastError") or "")
+		local freeRespawnAvailable = localPlayer:GetAttribute("ArenaFreeRespawnAvailable") == true
+		local revivesUsed = math.max(0, math.floor(tonumber(localPlayer:GetAttribute("ArenaRevivesUsed")) or 0))
+		local maxRevives = math.max(0, math.floor(tonumber(localPlayer:GetAttribute("ArenaMaxRevives")) or 0))
+		local paidLimitReached = paidReviveEnabled and maxRevives > 0 and revivesUsed >= maxRevives
 		local respawnAt = localPlayer:GetAttribute("ArenaRespawnAt")
 		local seconds = 0
 
-		if typeof(respawnAt) == "number" and respawnAt > 0 then
+		if typeof(respawnAt) == "number" and respawnAt > 0 and not revivePending then
 			seconds = math.max(0, math.ceil(respawnAt - getServerTimeNow()))
 		end
 
-		respawnLabel.Text = "Respawn in " .. tostring(seconds) .. "..."
+		deathReviveButton.Visible = paidReviveEnabled and (revivePending or paidLimitReached)
+		deathReviveButton.Active = canRevive
+		deathReviveButton.AutoButtonColor = canRevive
+		deathReviveSubtitle.Visible = deathReviveButton.Visible
+		deathFreeRespawnButton.Visible = freeRespawnAvailable
+		deathFreeRespawnButton.Active = freeRespawnAvailable
+		deathFreeRespawnButton.AutoButtonColor = freeRespawnAvailable
+		deathFreeRespawnSubtitle.Visible = freeRespawnAvailable
+
+		if revivePending or freeRespawnAvailable then
+			respawnLabel.Text = canRevive and "Choose how to continue" or "Free respawn available"
+
+			if paidLimitReached or reviveError == "LimitReached" then
+				respawnLabel.Text = "No paid revives left"
+			elseif reviveError == "WalletUnavailable" then
+				respawnLabel.Text = "Wallet unavailable"
+			end
+
+			if paidLimitReached then
+				deathReviveButton.Text = "MAX REVIVES"
+			else
+				deathReviveButton.Text = canRevive
+					and ("REVIVE - " .. tostring(reviveCost) .. " BOLTS")
+					or ("NEED " .. tostring(reviveCost) .. " BOLTS")
+			end
+
+			deathReviveButton.BackgroundColor3 = canRevive
+				and Color3.fromRGB(55, 150, 96)
+				or Color3.fromRGB(74, 85, 104)
+			deathReviveSubtitle.Text = "Keep level and upgrades"
+			deathFreeRespawnButton.Text = "RESPAWN - FREE"
+			deathFreeRespawnButton.BackgroundColor3 = Color3.fromRGB(250, 204, 21)
+			deathFreeRespawnSubtitle.Text = "Lose current run powers"
+		else
+			respawnLabel.Text = "Respawn in " .. tostring(seconds) .. "..."
+			deathReviveButton.Visible = false
+			deathReviveButton.Active = false
+			deathReviveSubtitle.Visible = false
+			deathFreeRespawnButton.Visible = false
+			deathFreeRespawnButton.Active = false
+			deathFreeRespawnSubtitle.Visible = false
+		end
+
 		deathSummaryLabel.Text = tostring(localPlayer:GetAttribute("ArenaLastSummary") or "")
+	else
+		deathReviveButton.Active = false
+		deathFreeRespawnButton.Active = false
 	end
 end
 
@@ -20750,6 +20926,20 @@ resumeButton.Activated:Connect(function()
 end)
 popupReturnButton.Activated:Connect(requestReturnToLobby)
 deathReturnButton.Activated:Connect(requestReturnToLobby)
+deathReviveButton.Activated:Connect(function()
+	if localPlayer:GetAttribute("ArenaCanRevive") ~= true then
+		return
+	end
+
+	arenaReviveRequestEvent:FireServer()
+end)
+deathFreeRespawnButton.Activated:Connect(function()
+	if localPlayer:GetAttribute("ArenaFreeRespawnAvailable") ~= true then
+		return
+	end
+
+	arenaFreeRespawnRequestEvent:FireServer()
+end)
 
 upgradeChoiceEvent.OnClientEvent:Connect(function(payload)
 	if typeof(payload) ~= "table" or typeof(payload.OfferId) ~= "string" then
@@ -20783,6 +20973,13 @@ localPlayer:GetAttributeChangedSignal("ArenaSessionSoftEndsAt"):Connect(updateOv
 localPlayer:GetAttributeChangedSignal("ArenaSessionBolts"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("ArenaLastSummary"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("ArenaRespawnAt"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaRevivePending"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaReviveCost"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaCanRevive"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaReviveLastError"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaRevivesUsed"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaMaxRevives"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaFreeRespawnAvailable"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("CurrentHealth"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("MaxHealth"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("IsDead"):Connect(updateOverlay)
@@ -21657,9 +21854,16 @@ local Workspace = game:GetService("Workspace")
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local HudConfig = require(configs:WaitForChild("HudConfig"))
+local PerformanceConfig = require(configs:WaitForChild("PerformanceConfig"))
+
+local flashConfig = HudConfig.DamageFlash or {}
+local diagnosticsConfig = PerformanceConfig.Diagnostics or {}
+
+if diagnosticsConfig.DamageFlashEnabled == false then
+	return
+end
 
 local root = Workspace:WaitForChild("WOB_Generated")
-local flashConfig = HudConfig.DamageFlash or {}
 local RUNTIME_ROOT_NAME = "WOB_Runtime"
 local CLIENT_RUNTIME_FOLDER_NAME = "Client"
 local VISUALS_FOLDER_NAME = "Visuals"
@@ -22153,28 +22357,33 @@ function HealthBarAnchorService:CreateAnchor(model)
 		return nil
 	end
 
-	-- Prefer an Attachment inside the Body part so the billboard follows the
-	-- tank smoothly without needing per-frame position updates.
-	local bodyPart = getBodyPart(model)
+	-- When smoothing is disabled, prefer an Attachment inside the Body part.
+	-- The billboard adorns the Attachment, which follows the Body automatically —
+	-- no per-frame position writes needed.
+	if not self.Config.SMOOTHING_ENABLED then
+		local bodyPart = getBodyPart(model)
 
-	if bodyPart ~= nil then
-		local existing = bodyPart:FindFirstChild("HealthBarAnchor")
-		if existing ~= nil then
-			existing:Destroy()
+		if bodyPart ~= nil then
+			local existing = bodyPart:FindFirstChild("HealthBarAnchor")
+			if existing ~= nil then
+				existing:Destroy()
+			end
+
+			local attachment = Instance.new("Attachment")
+			attachment.Name = "HealthBarAnchor"
+			-- Use only HEIGHT_OFFSET in local body space. WORLD_OFFSET was a world-space
+			-- hack for the old floating Part anchor and rotates with the tank when applied
+			-- to an Attachment, causing the bar to appear to the side instead of above.
+			attachment.Position = self.Config.HEIGHT_OFFSET
+			attachment.Parent = bodyPart
+
+			return attachment
 		end
-
-		local attachment = Instance.new("Attachment")
-		attachment.Name = "HealthBarAnchor"
-		-- Use only HEIGHT_OFFSET in local body space. WORLD_OFFSET was a world-space
-		-- hack for the old floating Part anchor and rotates with the tank when applied
-		-- to an Attachment, causing the bar to appear to the side instead of above.
-		attachment.Position = self.Config.HEIGHT_OFFSET
-		attachment.Parent = bodyPart
-
-		return attachment
 	end
 
-	-- Fallback: invisible Part in the anchor folder (used when no Body part exists).
+	-- Smoothing enabled (or no Body found): use a floating Part in the anchor folder.
+	-- TankHealthBarRecord:Step(dt) lerps this Part's world Position each Heartbeat so
+	-- the billboard glides rather than jumping with the server replication tick.
 	local anchor = Instance.new("Part")
 	anchor.Name = "HealthBarAnchor_" .. model.Name
 	anchor.Anchored = true
@@ -22184,6 +22393,13 @@ function HealthBarAnchorService:CreateAnchor(model)
 	anchor.Transparency = 1
 	anchor.Size = Vector3.new(0.2, 0.2, 0.2)
 	anchor.Parent = self.AnchorFolder
+
+	-- Snap to initial world position so the billboard appears at a sensible
+	-- location immediately, before the first smoothed Step runs.
+	local initialCenter = getAnchorPosition(model)
+	if initialCenter ~= nil then
+		anchor.Position = initialCenter + self.Config.HEIGHT_OFFSET
+	end
 
 	return anchor
 end
@@ -22201,7 +22417,13 @@ function HealthBarAnchorService:UpdateAnchor(model, anchor)
 		return
 	end
 
-	-- Legacy Part fallback: reposition in world space every frame.
+	if self.Config.SMOOTHING_ENABLED then
+		-- Smoothed floating Part: position is managed by TankHealthBarRecord:Step(dt).
+		-- Do not overwrite it here or the lerp gets snapped on every attribute change.
+		return
+	end
+
+	-- Non-smoothed Part fallback: reposition in world space.
 	local center = getAnchorPosition(model)
 
 	if center == nil then
@@ -22209,6 +22431,12 @@ function HealthBarAnchorService:UpdateAnchor(model, anchor)
 	end
 
 	anchor.Position = center + self.Config.HEIGHT_OFFSET + self.Config.WORLD_OFFSET
+end
+
+-- Returns the raw world-space center of the model's body/hull/PrimaryPart.
+-- Used by TankHealthBarRecord:Step(dt) as the smoothing target.
+function HealthBarAnchorService:GetRawCenter(model)
+	return getAnchorPosition(model)
 end
 
 function HealthBarAnchorService:CleanupAnchor(anchor)
@@ -22608,6 +22836,9 @@ function TankHealthBarRecord.new(model, context)
 		ReloadBack = context.Factory:FindDescendant(billboard, "ReloadBack", "Frame"),
 		ReloadBar = context.Factory:FindDescendant(billboard, "ReloadBar", "Frame"),
 		Connections = {},
+		-- Smoothed world position for the anchor Part (nil until first Step).
+		-- Only used when Config.SMOOTHING_ENABLED is true.
+		SmoothedPosition = nil,
 	}, TankHealthBarRecord)
 
 	record:Connect()
@@ -22678,13 +22909,18 @@ function TankHealthBarRecord:Update()
 	self.Factory:ConfigureBillboard(self.Billboard)
 
 	-- WORLD_OFFSET.Z is a world-space Z shift that appears sideways in a top-down
-	-- camera. For Attachment anchors we remap it to StudsOffset.Y (camera-space up),
-	-- so the bar is pushed toward the top of the screen regardless of world orientation.
+	-- camera. Remap it to StudsOffset.Y (camera-space up) so the bar is pushed
+	-- toward the top of the screen regardless of world orientation.
 	-- StudsOffsetWorldSpace stays zero — no rotation artifacts.
-	-- The fallback Part anchor bakes WORLD_OFFSET into its world position already,
-	-- so its billboard uses zero here to avoid doubling the offset.
+	--
+	-- Three anchor cases:
+	--   Attachment inside Body  → camera-space StudsOffset (automatic world tracking)
+	--   Smoothed floating Part  → camera-space StudsOffset (code lerps world position)
+	--   Legacy non-smoothed Part → zero StudsOffset (WORLD_OFFSET baked into Part.Position)
 	self.Billboard.StudsOffsetWorldSpace = Vector3.zero
-	if self.AnchorPart ~= nil and self.AnchorPart:IsA("Attachment") then
+	local useCameraSpaceOffset = (self.AnchorPart ~= nil and self.AnchorPart:IsA("Attachment"))
+		or self.Config.SMOOTHING_ENABLED
+	if useCameraSpaceOffset then
 		self.Billboard.StudsOffset = Vector3.new(0, math.abs(self.Config.WORLD_OFFSET.Z), 0)
 	else
 		self.Billboard.StudsOffset = Vector3.zero
@@ -22709,7 +22945,7 @@ function TankHealthBarRecord:Update()
 	return true
 end
 
-function TankHealthBarRecord:Step()
+function TankHealthBarRecord:Step(dt)
 	if self.Model.Parent == nil or self.AnchorPart == nil then
 		return false
 	end
@@ -22718,7 +22954,29 @@ function TankHealthBarRecord:Step()
 		return true
 	end
 
-	self:UpdateAnchor()
+	if self.Config.SMOOTHING_ENABLED and self.AnchorPart:IsA("BasePart") then
+		-- Lerp the floating anchor Part toward the raw body center each frame.
+		-- This decouples the bar's visual position from the server replication tick
+		-- so it glides smoothly even when the body teleports at ~20 fps.
+		local rawCenter = self.AnchorService:GetRawCenter(self.Model)
+		if rawCenter ~= nil then
+			local target = rawCenter + self.Config.HEIGHT_OFFSET
+			local safeDt = typeof(dt) == "number" and math.max(0, dt) or (1 / 60)
+			if self.SmoothedPosition == nil then
+				-- First frame: snap to avoid sliding in from origin.
+				self.SmoothedPosition = target
+			else
+				local alpha = math.min(1, self.Config.POSITION_SMOOTHING_SPEED * safeDt)
+				self.SmoothedPosition = self.SmoothedPosition:Lerp(target, alpha)
+			end
+			self.AnchorPart.Position = self.SmoothedPosition
+		end
+	else
+		-- Non-smoothed path: Attachment follows body automatically; Part gets
+		-- its world position updated via UpdateAnchor (legacy behaviour).
+		self:UpdateAnchor()
+	end
+
 	self:UpdateReloadBar()
 
 	return true
@@ -22862,11 +23120,22 @@ return table.freeze(TankModelScanner)
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local HudConfig = require(configs:WaitForChild("HudConfig"))
+local PerformanceConfig = require(configs:WaitForChild("PerformanceConfig"))
 
 local worldHealthBarsConfig = HudConfig.WorldHealthBars or {}
-local SHOW_RELOAD_BAR = worldHealthBarsConfig.Enabled ~= false and worldHealthBarsConfig.ShowReloadBar ~= false
+local diagnosticsConfig = PerformanceConfig.Diagnostics or {}
+local enabledOverride = diagnosticsConfig.WorldHealthBarsEnabledOverride
+local enabled = worldHealthBarsConfig.Enabled ~= false
+
+if typeof(enabledOverride) == "boolean" then
+	enabled = enabledOverride
+end
+
+local SHOW_RELOAD_BAR = enabled and worldHealthBarsConfig.ShowReloadBar ~= false
 local maxDistance = math.max(80, tonumber(worldHealthBarsConfig.MaxDistance) or 120)
 local discoveryInterval = math.max(1, tonumber(worldHealthBarsConfig.DiscoveryInterval) or 1)
+local smoothingEnabled = enabled and worldHealthBarsConfig.SmoothingEnabled ~= false
+local positionSmoothingSpeed = math.max(1, tonumber(worldHealthBarsConfig.PositionSmoothingSpeed) or 18)
 
 local WorldHealthBarsConfig = {
 	GUI_NAME = "WOBTankWorldHealthBars",
@@ -22876,7 +23145,10 @@ local WorldHealthBarsConfig = {
 	LEGACY_ANCHOR_FOLDER_NAME = "WOB_ClientHealthBarAnchors",
 	TEMPLATE_NAME = "TankHealthBillboard",
 
+	ENABLED = enabled,
 	SHOW_RELOAD_BAR = SHOW_RELOAD_BAR,
+	SMOOTHING_ENABLED = smoothingEnabled,
+	POSITION_SMOOTHING_SPEED = positionSmoothingSpeed,
 	BILLBOARD_SIZE = SHOW_RELOAD_BAR and UDim2.fromOffset(68, 14) or UDim2.fromOffset(64, 8),
 	HEIGHT_OFFSET = Vector3.new(0, 2.2, 0),
 	WORLD_OFFSET = Vector3.new(0, 0, -7),
@@ -23012,11 +23284,11 @@ function WorldHealthBarsController:Discover()
 	end
 end
 
-function WorldHealthBarsController:Step()
+function WorldHealthBarsController:Step(dt)
 	local invalidModels = {}
 
 	for model, record in pairs(self.RecordsByModel) do
-		if not record:Step() then
+		if not record:Step(dt) then
 			table.insert(invalidModels, model)
 		end
 	end
@@ -23044,14 +23316,18 @@ function WorldHealthBarsController:Stop()
 end
 
 function WorldHealthBarsController:Start()
+	if self.Config.ENABLED == false then
+		return
+	end
+
 	self:CreateGuiFolder()
 
 	if not self.AnchorService:Start() then
 		return
 	end
 
-	self.HeartbeatConnection = RunService.Heartbeat:Connect(function()
-		self:Step()
+	self.HeartbeatConnection = RunService.Heartbeat:Connect(function(dt)
+		self:Step(dt)
 	end)
 
 	while self.GuiFolder.Parent ~= nil do
@@ -23472,7 +23748,15 @@ local function isChoiceRoot(instance)
 	return instance ~= nil and (instance:IsA("Frame") or instance:IsA("TextButton"))
 end
 
-local function getOrCreateIconImage(iconGui)
+local function getIconImageName(iconGui)
+	if iconGui ~= nil and iconGui.Name == "Icon" then
+		return "IconImage"
+	end
+
+	return tostring(iconGui ~= nil and iconGui.Name or "Icon") .. "IconImage"
+end
+
+local function findIconImage(iconGui)
 	if iconGui == nil or not iconGui:IsA("GuiObject") then
 		return nil
 	end
@@ -23481,28 +23765,85 @@ local function getOrCreateIconImage(iconGui)
 		return iconGui
 	end
 
-	local image = iconGui:FindFirstChild("IconImage")
+	local parent = iconGui.Parent
+
+	if parent == nil then
+		return nil
+	end
+
+	local imageName = getIconImageName(iconGui)
+	local image = parent:FindFirstChild(imageName)
 
 	if image ~= nil and not image:IsA("ImageLabel") then
 		image:Destroy()
 		image = nil
 	end
 
-	if image == nil then
-		image = Instance.new("ImageLabel")
-		image.Name = "IconImage"
-		image.BackgroundTransparency = 1
-		image.BorderSizePixel = 0
-		image.Active = false
-		image.Selectable = false
-		image.Parent = iconGui
+	return image
+end
+
+local function syncIconImageLayout(image, sourceGui)
+	if image == nil or sourceGui == nil then
+		return
 	end
 
-	image.AnchorPoint = Vector2.new(0.5, 0.5)
-	image.Position = UDim2.fromScale(0.5, 0.5)
-	image.Size = UDim2.new(1, -4, 1, -4)
+	image.AnchorPoint = sourceGui.AnchorPoint
+	image.Position = sourceGui.Position
+	image.Size = sourceGui.Size
+	image.Rotation = sourceGui.Rotation
+	image.BackgroundTransparency = 1
+	image.BorderSizePixel = 0
+	image.Active = false
+	image.Selectable = false
 	image.ScaleType = Enum.ScaleType.Fit
-	image.ZIndex = iconGui.ZIndex + 1
+	image.ZIndex = sourceGui.ZIndex + 1
+end
+
+local function getOrCreateIconImage(iconGui)
+	if iconGui == nil or not iconGui:IsA("GuiObject") then
+		return nil
+	end
+
+	if isImageGui(iconGui) then
+		iconGui.BackgroundTransparency = 1
+		iconGui.BorderSizePixel = 0
+		iconGui.Active = false
+		iconGui.Selectable = false
+		iconGui.ScaleType = Enum.ScaleType.Fit
+		return iconGui
+	end
+
+	local parent = iconGui.Parent
+
+	if parent == nil then
+		return nil
+	end
+
+	local imageName = getIconImageName(iconGui)
+	local image = parent:FindFirstChild(imageName)
+
+	if image ~= nil and not image:IsA("ImageLabel") then
+		image:Destroy()
+		image = nil
+	end
+
+	local nestedImage = iconGui:FindFirstChild("IconImage")
+
+	if image == nil and nestedImage ~= nil and nestedImage:IsA("ImageLabel") then
+		image = nestedImage
+		image.Name = imageName
+		image.Parent = parent
+	elseif nestedImage ~= nil and nestedImage:IsA("ImageLabel") and nestedImage ~= image then
+		nestedImage.Visible = false
+	end
+
+	if image == nil then
+		image = Instance.new("ImageLabel")
+		image.Name = imageName
+		image.Parent = parent
+	end
+
+	syncIconImageLayout(image, iconGui)
 
 	return image
 end
@@ -23523,7 +23864,7 @@ local function applyUpgradeIcon(iconGui, upgradeId)
 
 	if isTextGui(iconGui) then
 		iconGui.Text = imageId ~= nil and "" or fallbackText
-		iconGui.Visible = true
+		iconGui.Visible = imageId == nil
 	elseif isImageGui(iconGui) then
 		iconGui.Image = imageId or ""
 		iconGui.Visible = imageId ~= nil
@@ -23539,11 +23880,18 @@ local function clearUpgradeIcon(iconGui)
 		iconGui.Text = ""
 	end
 
-	local image = iconGui:IsA("GuiObject") and iconGui:FindFirstChild("IconImage") or nil
+	local image = findIconImage(iconGui)
 
 	if image ~= nil and image:IsA("ImageLabel") then
 		image.Image = ""
 		image.Visible = false
+	end
+
+	local nestedImage = iconGui:IsA("GuiObject") and iconGui:FindFirstChild("IconImage") or nil
+
+	if nestedImage ~= nil and nestedImage:IsA("ImageLabel") and nestedImage ~= image then
+		nestedImage.Image = ""
+		nestedImage.Visible = false
 	end
 
 	if isImageGui(iconGui) then
@@ -23785,12 +24133,19 @@ function BattleArenaUpgradeHud:_bindTemplate(clone)
 		end
 
 		local icon = card:FindFirstChild("Icon")
+		local iconImage = card:FindFirstChild("IconImage")
 		local title = card:FindFirstChild("Title")
 		local costLabel = card:FindFirstChild("CostLabel")
 
 		if icon ~= nil and not isIconGui(icon) then
 			table.insert(visualWarnings, layoutName .. ".PaidReflectChoice.Icon is not a supported icon gui")
 			icon = nil
+		end
+
+		if icon == nil and isImageGui(iconImage) then
+			icon = iconImage
+		elseif icon ~= nil then
+			getOrCreateIconImage(icon)
 		end
 
 		if title ~= nil and not isTextGui(title) then
@@ -23896,9 +24251,16 @@ function BattleArenaUpgradeHud:_bindTemplate(clone)
 					end
 
 					local icon = card:FindFirstChild("Icon")
+					local iconImage = card:FindFirstChild("IconImage")
 					if not isIconGui(icon) then
-						table.insert(visualWarnings, layoutName .. ".UpgradeChoiceBelt.Choices." .. choiceName .. ".Icon is missing or not a supported icon gui")
-						icon = nil
+						if isImageGui(iconImage) then
+							icon = iconImage
+						else
+							table.insert(visualWarnings, layoutName .. ".UpgradeChoiceBelt.Choices." .. choiceName .. ".Icon is missing or not a supported icon gui")
+							icon = nil
+						end
+					elseif icon ~= nil then
+						getOrCreateIconImage(icon)
 					end
 
 					local name = card:FindFirstChild("Title")
@@ -33441,6 +33803,12 @@ local HudConfig = table.freeze({
 		DeadHideDelay = 1.0,
 		DiscoveryInterval = 1.0,
 		MaxDistance = 120,
+		-- Client-only visual smoothing for world-space HP/reload bar position.
+		-- Uses a lerp toward the raw tank body position each Heartbeat so bars
+		-- don't jitter when server-replicated parts update at network tick rate.
+		-- Does not affect health values, damage, or any server state.
+		SmoothingEnabled = true,
+		PositionSmoothingSpeed = 18,
 	}),
 
 	CombatHud = table.freeze({
@@ -33707,6 +34075,19 @@ local PerformanceConfig = table.freeze({
 		CharacterCastShadow = false,
 	}),
 
+	-- Diagnostic isolation switches. Defaults preserve normal gameplay/presentation behavior.
+	Diagnostics = table.freeze({
+		WorldHealthBarsEnabledOverride = nil,
+		ProjectileVfxEnabled = true,
+		MuzzleFlashEnabled = true,
+		ImpactVfxEnabled = true,
+		DamageFlashEnabled = true,
+		FloatingCombatTextEnabled = true,
+		BattleArenaBotsEnabled = true,
+		BattleArenaMaxBotsOverride = nil,
+		DebugRuntimeLogs = false,
+	}),
+
 	Profiles = table.freeze({
 		MobileLow = table.freeze({
 			Lighting = table.freeze({
@@ -33777,6 +34158,9 @@ local AimAssistConfig = table.freeze({
 	AimLaserColor = Color3.fromRGB(95, 245, 165),
 	AimLaserMaxDistance = 140,
 	AimLaserHeightOffset = 0,
+	AimLaserVisualSmoothingEnabled = true,
+	AimLaserVisualSmoothingSpeed = 30,
+	AimLaserVisualSnapDistance = 120,
 })
 
 return AimAssistConfig
@@ -34258,7 +34642,10 @@ return MobileControlsConfig
 	XPPerKill = 100,
 	XPPerSurvivalTick = 10,
 	SurvivalTickInterval = 10,
-	MaxArenaLevel = 5,
+	MaxArenaLevel = 20,
+	CoreBuildLevel = 5,
+	MaxUpgradeLevel = 5,
+	PostMaxLevelXPStep = 350,
 	UpgradeChoicesPerOffer = 3,
 	LevelThresholds = table.freeze({
 		[1] = 0,
@@ -34289,6 +34676,69 @@ return MobileControlsConfig
 		UseMenuForReturn = true,
 	}),
 
+	PostLevelRewards = table.freeze({
+		Enabled = false,
+		BoltsPerLevel = 0,
+		RewardEveryLevels = 0,
+	}),
+
+	Revive = table.freeze({
+		Enabled = true,
+		CostBase = 5,
+		CostPerRevive = 0,
+		MaxRevivesPerRun = 3,
+		RestoreHpPercent = 0.5,
+		FreeRespawnEnabled = true,
+		FreeRespawnRestoreHpPercent = 1.0,
+		FreeRespawnResetsRun = true,
+		-- Legacy aliases kept during the MVP rollout.
+		CostBaseBolts = 5,
+		CostAdditiveBolts = 0,
+		CostMultiplier = 1,
+		ReviveHpPercent = 0.5,
+	}),
+
+	UpgradeSchema = table.freeze({
+		"Id",
+		"Title",
+		"Description",
+		"Tags",
+		"Branch",
+		"Rarity",
+		"MaxStacks",
+		"RequiresUpgrade",
+		"BlocksUpgrade",
+		"MinArenaLevel",
+		"MaxOfferLevel",
+		"OfferAfterLevel",
+		"FutureOnly",
+		"Enabled",
+	}),
+
+	UpgradeBranches = table.freeze({
+		Movement = table.freeze({
+			Title = "Movement",
+			Tags = table.freeze({ "speed", "positioning", "survival" }),
+		}),
+		Shooting = table.freeze({
+			Title = "Shooting",
+			Tags = table.freeze({ "damage", "reload", "multishot" }),
+		}),
+		Defense = table.freeze({
+			Title = "Defense",
+			Tags = table.freeze({ "shield", "repair", "survival" }),
+		}),
+		Vampire = table.freeze({
+			Title = "Vampire",
+			Tags = table.freeze({ "future", "lifesteal", "penetration" }),
+			FutureOnly = true,
+		}),
+		Ricochet = table.freeze({
+			Title = "Ricochet",
+			Tags = table.freeze({ "bounce", "angles", "map-control" }),
+		}),
+	}),
+
 	UpgradeThresholds = table.freeze({
 		DamageUp = 2,
 		FireRateUp = 4,
@@ -34315,45 +34765,100 @@ return MobileControlsConfig
 
 	UpgradePool = table.freeze({
 		DamageUp = table.freeze({
+			Id = "DamageUp",
 			Title = "Damage Up",
 			Description = "+20% projectile damage.",
+			Tags = table.freeze({ "damage", "cannon", "core" }),
+			Branch = "Shooting",
+			Rarity = "Common",
 			MaxStacks = 2,
+			Enabled = true,
 		}),
 		FireRateUp = table.freeze({
+			Id = "FireRateUp",
 			Title = "Fire Rate Up",
 			Description = "-15% cannon cooldown.",
+			Tags = table.freeze({ "reload", "cannon", "core" }),
+			Branch = "Shooting",
+			Rarity = "Common",
 			MaxStacks = 1,
+			Enabled = true,
 		}),
 		MoveSpeedUp = table.freeze({
+			Id = "MoveSpeedUp",
 			Title = "Move Speed Up",
 			Description = "+10% tank speed.",
+			Tags = table.freeze({ "speed", "positioning", "core" }),
+			Branch = "Movement",
+			Rarity = "Common",
 			MaxStacks = 2,
+			Enabled = true,
 		}),
 		DoubleShot = table.freeze({
+			Id = "DoubleShot",
 			Title = "Double Shot",
 			Description = "Fire two shells side by side.",
+			Tags = table.freeze({ "multishot", "cannon", "core" }),
+			Branch = "Shooting",
+			Rarity = "Rare",
 			MaxStacks = 1,
+			Enabled = true,
 		}),
 		TripleSpread = table.freeze({
+			Id = "TripleSpread",
 			Title = "Triple Spread",
 			Description = "Upgrade Double Shot into a 3-shell spread.",
+			Tags = table.freeze({ "multishot", "spread", "core" }),
+			Branch = "Shooting",
+			Rarity = "Rare",
 			MaxStacks = 1,
 			RequiresUpgrade = "DoubleShot",
+			Enabled = true,
 		}),
 		RicochetUp = table.freeze({
+			Id = "RicochetUp",
 			Title = "Ricochet Research",
 			Description = "+1 max wall ricochet.",
+			Tags = table.freeze({ "bounce", "angles", "core" }),
+			Branch = "Ricochet",
+			Rarity = "Uncommon",
 			MaxStacks = 1,
+			Enabled = true,
 		}),
 		Repair = table.freeze({
+			Id = "Repair",
 			Title = "Repair",
 			Description = "Restore 30 HP immediately.",
+			Tags = table.freeze({ "repair", "survival", "instant" }),
+			Branch = "Defense",
+			Rarity = "Common",
 			Immediate = true,
+			Enabled = true,
 		}),
 		ReflectShield = table.freeze({
+			Id = "ReflectShield",
 			Title = "Reflect Shield",
 			Description = "Reflect the next incoming shell.",
+			Tags = table.freeze({ "shield", "reflect", "survival" }),
+			Branch = "Defense",
+			Rarity = "Uncommon",
 			MaxStacks = 3,
+			Enabled = true,
+		}),
+	}),
+
+	FutureUpgradePool = table.freeze({
+		VampireShells = table.freeze({
+			Id = "VampireShells",
+			Title = "Vampire Shells",
+			Description = "Future: heal after confirmed penetrating hits.",
+			Tags = table.freeze({ "future", "lifesteal", "penetration" }),
+			Branch = "Vampire",
+			Rarity = "Rare",
+			MaxStacks = 3,
+			MinArenaLevel = 6,
+			FutureOnly = true,
+			Enabled = false,
 		}),
 	}),
 })
@@ -34435,6 +34940,18 @@ return BattleArenaConfig
 	Safety = table.freeze({
 		MaxBotsHardLimit = 6,
 		CleanupOnPlayerLeave = true,
+	}),
+
+	-- BattleArena bot spawn staggering.
+	-- Bots are filled in gradually (a few per tick, spaced by an interval) instead
+	-- of all in one Heartbeat frame. This reduces the BattleArena entry spike
+	-- described in docs/PERFORMANCE_RUNTIME_DEEP_DIVE.md. It changes only spawn
+	-- *timing*: the eventual desired bot count and all post-spawn bot behavior are
+	-- unchanged. Set IntervalSeconds = 0 to disable staggering (legacy behavior:
+	-- fill the whole deficit immediately).
+	Spawn = table.freeze({
+		IntervalSeconds = 0.35,
+		MaxPerTick = 1,
 	}),
 
 	ThinkInterval = 0.12,
@@ -35353,47 +35870,47 @@ UpgradeIconConfig.FallbackText = "★"
 
 UpgradeIconConfig.Icons = table.freeze({
 	DamageUp = table.freeze({
-		Image = "",
+		Image = "rbxassetid://95023821349011",
 		SourceFile = "src/ReplicatedStorage/Shared/Assets/UI/UpgradeIcons/DamageUp.png",
 		FallbackText = "★",
 	}),
 	FireRateUp = table.freeze({
-		Image = "",
+		Image = "rbxassetid://74054054852445",
 		SourceFile = "src/ReplicatedStorage/Shared/Assets/UI/UpgradeIcons/FireRateUp.png",
 		FallbackText = "★",
 	}),
 	MoveSpeedUp = table.freeze({
-		Image = "",
+		Image = "rbxassetid://119948702121051",
 		SourceFile = "src/ReplicatedStorage/Shared/Assets/UI/UpgradeIcons/MoveSpeedUp.png",
 		FallbackText = "★",
 	}),
 	DoubleShot = table.freeze({
-		Image = "",
+		Image = "rbxassetid://98014281402825",
 		SourceFile = "src/ReplicatedStorage/Shared/Assets/UI/UpgradeIcons/DoubleShot.png",
 		FallbackText = "★",
 	}),
 	TripleSpread = table.freeze({
-		Image = "",
+		Image = "rbxassetid://103984267112273",
 		SourceFile = "src/ReplicatedStorage/Shared/Assets/UI/UpgradeIcons/TripleSpread.png",
 		FallbackText = "★",
 	}),
 	RicochetUp = table.freeze({
-		Image = "",
+		Image = "rbxassetid://130485175566236",
 		SourceFile = "src/ReplicatedStorage/Shared/Assets/UI/UpgradeIcons/RicochetUp.png",
 		FallbackText = "★",
 	}),
 	Repair = table.freeze({
-		Image = "",
+		Image = "rbxassetid://86182173953361",
 		SourceFile = "src/ReplicatedStorage/Shared/Assets/UI/UpgradeIcons/Repair.png",
 		FallbackText = "★",
 	}),
 	ReflectShield = table.freeze({
-		Image = "",
+		Image = "rbxassetid://123920165907322",
 		SourceFile = "src/ReplicatedStorage/Shared/Assets/UI/UpgradeIcons/ReflectShield.png",
 		FallbackText = "★",
 	}),
 	VampireShells = table.freeze({
-		Image = "",
+		Image = "rbxassetid://111039230596636",
 		SourceFile = "src/ReplicatedStorage/Shared/Assets/UI/UpgradeIcons/VampireShells.png",
 		FallbackText = "★",
 		FutureOnly = true,
@@ -52819,6 +53336,7 @@ local WeaponConfig = require(configs:WaitForChild("WeaponConfig"))
 local WeaponSafetyConfig = require(configs:WaitForChild("WeaponSafetyConfig"))
 local VfxConfig = require(configs:WaitForChild("VfxConfig"))
 local DebugCombatConfig = require(configs:WaitForChild("DebugCombatConfig"))
+local PerformanceConfig = require(configs:WaitForChild("PerformanceConfig"))
 
 local TankParticipantRegistry = require(script.Parent.Parent:WaitForChild("TankParticipantRegistry"))
 local ProjectileCollisionService = require(script.Parent:WaitForChild("ProjectileCollisionService"))
@@ -52837,6 +53355,24 @@ local deathExplosionConfig = VfxConfig.DeathExplosion
 local burningTankConfig = VfxConfig.BurningTank
 local ricochetConfig = VfxConfig.Ricochet
 local shieldVfxConfig = VfxConfig.Shield or {}
+
+local function getDiagnosticsConfig()
+	return PerformanceConfig.Diagnostics or {}
+end
+
+local function isMuzzleVfxEnabled()
+	local diagnosticsConfig = getDiagnosticsConfig()
+
+	return diagnosticsConfig.ProjectileVfxEnabled ~= false
+		and diagnosticsConfig.MuzzleFlashEnabled ~= false
+end
+
+local function isImpactVfxEnabled()
+	local diagnosticsConfig = getDiagnosticsConfig()
+
+	return diagnosticsConfig.ProjectileVfxEnabled ~= false
+		and diagnosticsConfig.ImpactVfxEnabled ~= false
+end
 
 local PROJECTILE_SPEED = projectileConfig.Speed
 local PROJECTILE_DAMAGE = projectileConfig.Damage or projectileConfig.BaseDamage or projectileConfig.MaxDamage
@@ -53226,6 +53762,10 @@ local function createFlash(position, config, name, direction, skipParticleBurst)
 end
 
 local function createMuzzleFlash(position, direction)
+	if not isMuzzleVfxEnabled() then
+		return
+	end
+
 	local flatDirection = Vector3.new(direction.X, 0, direction.Z)
 	if flatDirection.Magnitude < 0.001 then
 		flatDirection = Vector3.new(0, 0, -1)
@@ -53325,6 +53865,7 @@ local function getVfxDirection(direction)
 end
 
 local function createImpactBurst(position, direction, config, effectName)
+	if not isImpactVfxEnabled() then return false end
 	if config == nil or config.Enabled ~= true then return false end
 	local effectDirection = getVfxDirection(direction)
 	local templateHandled = CombatVfxService.playVfxTemplate(
@@ -53394,6 +53935,10 @@ local function createImpactFlash(position)
 end
 
 local function createRicochetVfx(position, normal)
+	if not isImpactVfxEnabled() then
+		return false
+	end
+
 	local direction = typeof(normal) == "Vector3" and normal or Vector3.yAxis
 
 	local templateHandled = CombatVfxService.playVfxTemplate(
@@ -53417,6 +53962,10 @@ local function createRicochetVfx(position, normal)
 end
 
 local function createShieldReflectVfx(position, normal)
+	if not isImpactVfxEnabled() then
+		return false
+	end
+
 	local direction = typeof(normal) == "Vector3" and normal or Vector3.yAxis
 	local reflectConfig = shieldVfxConfig.Reflect
 
@@ -53479,6 +54028,10 @@ local function createProceduralDeathExplosion(position, config)
 end
 
 local function createDeathExplosion(position)
+	if not isImpactVfxEnabled() then
+		return false
+	end
+
 	if deathExplosionConfig == nil or deathExplosionConfig.Enabled ~= true then
 		return false
 	end
@@ -53498,6 +54051,10 @@ local function createDeathExplosion(position)
 end
 
 local function createBurningTank(position)
+	if not isImpactVfxEnabled() then
+		return false
+	end
+
 	if burningTankConfig == nil or burningTankConfig.Enabled ~= true then
 		return false
 	end
@@ -56803,6 +57360,8 @@ local rematchRequestEvent = getOrCreateRemoteEvent("RematchRequestEvent")
 local debugSpawnBotRequestEvent = getOrCreateRemoteEvent("DebugSpawnBotRequestEvent")
 local debugRemoveBotRequestEvent = getOrCreateRemoteEvent("DebugRemoveBotRequestEvent")
 local upgradeChoiceEvent = getOrCreateRemoteEvent("UpgradeChoiceEvent")
+local arenaReviveRequestEvent = getOrCreateRemoteEvent("ArenaReviveRequestEvent")
+local arenaFreeRespawnRequestEvent = getOrCreateRemoteEvent("ArenaFreeRespawnRequestEvent")
 
 -- Folders
 local root = Workspace:WaitForChild("WOB_Generated")
@@ -57566,6 +58125,8 @@ ArenaCombatService.init({
 		end
 	end,
 	upgradeChoiceEvent = upgradeChoiceEvent,
+	reviveRequestEvent = arenaReviveRequestEvent,
+	freeRespawnRequestEvent = arenaFreeRespawnRequestEvent,
 })
 
 BotService.init({
@@ -59765,7 +60326,11 @@ local root = nil
 local tankSpawnResetService = nil
 local playerWalletService = nil
 local upgradeChoiceEvent = nil
+local reviveRequestEvent = nil
+local freeRespawnRequestEvent = nil
 local upgradeChoiceConnection = nil
+local reviveRequestConnection = nil
+local freeRespawnRequestConnection = nil
 
 local callbacks = {
 	setPlayerMode = nil,
@@ -60139,6 +60704,137 @@ local function resetParticipantArenaModifiers(participant)
 	setArenaModifier(participant, "ArenaShieldActive", false)
 end
 
+local function getReviveConfig()
+	return BattleArenaConfig.Revive or {}
+end
+
+local function isReviveEnabled()
+	return getReviveConfig().Enabled == true
+end
+
+local function getMaxRevivesPerRun()
+	return math.max(0, math.floor(tonumber(getReviveConfig().MaxRevivesPerRun) or 0))
+end
+
+local function getReviveCost(session)
+	local reviveConfig = getReviveConfig()
+	local reviveCount = math.max(0, math.floor(tonumber(session ~= nil and session.ReviveCount) or 0))
+	local baseCost = tonumber(reviveConfig.CostBase)
+		or tonumber(reviveConfig.CostBaseBolts)
+		or 5
+	local perRevive = tonumber(reviveConfig.CostPerRevive)
+		or tonumber(reviveConfig.CostAdditiveBolts)
+		or 0
+	local multiplier = tonumber(reviveConfig.CostMultiplier) or 1
+	local scaledCost = (baseCost + perRevive * reviveCount) * (multiplier ^ reviveCount)
+
+	return math.max(1, math.floor(scaledCost + 0.5))
+end
+
+local function getReviveRestoreHpPercent()
+	local reviveConfig = getReviveConfig()
+	local percent = tonumber(reviveConfig.RestoreHpPercent)
+		or tonumber(reviveConfig.ReviveHpPercent)
+		or 0.5
+
+	return math.clamp(percent, 0.05, 1)
+end
+
+local function isFreeRespawnEnabled()
+	return getReviveConfig().FreeRespawnEnabled == true
+end
+
+local function shouldFreeRespawnResetRun()
+	return getReviveConfig().FreeRespawnResetsRun ~= false
+end
+
+local function getFreeRespawnRestoreHpPercent()
+	local percent = tonumber(getReviveConfig().FreeRespawnRestoreHpPercent) or 1
+
+	return math.clamp(percent, 0.05, 1)
+end
+
+local function canOfferRevive(session)
+	return isReviveEnabled()
+		and session ~= nil
+		and session.IsBotSession ~= true
+		and session.Player ~= nil
+		and (tonumber(session.ReviveCount) or 0) < getMaxRevivesPerRun()
+end
+
+local function canOfferFreeRespawn(session)
+	return isFreeRespawnEnabled()
+		and session ~= nil
+		and session.IsBotSession ~= true
+		and session.Player ~= nil
+end
+
+local function canAffordRevive(session)
+	if session == nil or session.Player == nil or playerWalletService == nil then
+		return false
+	end
+
+	local getBalance = playerWalletService.getBoltsBalance
+
+	if getBalance == nil then
+		return false
+	end
+
+	return getBalance(session.Player) >= getReviveCost(session)
+end
+
+local function clearRevivePending(session)
+	if session == nil then
+		return
+	end
+
+	session.RevivePending = false
+	session.ReviveCost = 0
+	session.ReviveLastError = ""
+end
+
+local function clearFreeRespawnPending(session)
+	if session == nil then
+		return
+	end
+
+	session.FreeRespawnPending = false
+	session.FreeRespawnLastError = ""
+end
+
+local function resetReviveRunState(session)
+	if session == nil then
+		return
+	end
+
+	session.ReviveCount = 0
+	clearRevivePending(session)
+	clearFreeRespawnPending(session)
+end
+
+local function beginRevivePending(session)
+	if not canOfferRevive(session) then
+		return false
+	end
+
+	session.RevivePending = true
+	session.ReviveCost = getReviveCost(session)
+	session.ReviveLastError = ""
+
+	return true
+end
+
+local function beginFreeRespawnPending(session)
+	if not canOfferFreeRespawn(session) then
+		return false
+	end
+
+	session.FreeRespawnPending = true
+	session.FreeRespawnLastError = ""
+
+	return true
+end
+
 local function setPlayerArenaDefaults(player)
 	if player == nil then
 		return
@@ -60161,6 +60857,13 @@ local function setPlayerArenaDefaults(player)
 	player:SetAttribute("ArenaSessionSoftEndsAt", 0)
 	player:SetAttribute("ArenaSessionBolts", 0)
 	player:SetAttribute("ArenaLastSummary", "")
+	player:SetAttribute("ArenaRevivePending", false)
+	player:SetAttribute("ArenaReviveCost", 0)
+	player:SetAttribute("ArenaRevivesUsed", 0)
+	player:SetAttribute("ArenaMaxRevives", getMaxRevivesPerRun())
+	player:SetAttribute("ArenaCanRevive", false)
+	player:SetAttribute("ArenaReviveLastError", "")
+	player:SetAttribute("ArenaFreeRespawnAvailable", false)
 	player:SetAttribute("ArenaDamageMultiplier", 1)
 	player:SetAttribute("ArenaFireRateMultiplier", 1)
 	player:SetAttribute("ArenaMoveSpeedMultiplier", 1)
@@ -60192,6 +60895,13 @@ local function publishSessionAttributes(session)
 	player:SetAttribute("ArenaSessionSoftEndsAt", session.SoftEndsAt or 0)
 	player:SetAttribute("ArenaSessionBolts", session.EarnedBolts or 0)
 	player:SetAttribute("ArenaLastSummary", session.LastSummary or "")
+	player:SetAttribute("ArenaRevivePending", session.RevivePending == true)
+	player:SetAttribute("ArenaReviveCost", session.RevivePending == true and getReviveCost(session) or 0)
+	player:SetAttribute("ArenaRevivesUsed", math.max(0, math.floor(tonumber(session.ReviveCount) or 0)))
+	player:SetAttribute("ArenaMaxRevives", getMaxRevivesPerRun())
+	player:SetAttribute("ArenaCanRevive", session.RevivePending == true and canAffordRevive(session))
+	player:SetAttribute("ArenaReviveLastError", tostring(session.ReviveLastError or ""))
+	player:SetAttribute("ArenaFreeRespawnAvailable", session.FreeRespawnPending == true)
 	player:SetAttribute("ArenaDamageMultiplier", session.DamageMultiplier)
 	player:SetAttribute("ArenaFireRateMultiplier", session.FireRateMultiplier)
 	player:SetAttribute("ArenaMoveSpeedMultiplier", session.MoveSpeedMultiplier)
@@ -60242,6 +60952,24 @@ local function getUpgradeMaxStacks(upgradeId)
 	return math.max(1, math.floor(tonumber(definition.MaxStacks) or 1))
 end
 
+local function isBlockedByOwnedUpgrade(session, blockedUpgradeIds)
+	if typeof(blockedUpgradeIds) == "string" then
+		return hasUpgrade(session, blockedUpgradeIds)
+	end
+
+	if typeof(blockedUpgradeIds) ~= "table" then
+		return false
+	end
+
+	for _, blockedUpgradeId in ipairs(blockedUpgradeIds) do
+		if typeof(blockedUpgradeId) == "string" and hasUpgrade(session, blockedUpgradeId) then
+			return true
+		end
+	end
+
+	return false
+end
+
 local function isUpgradeChoiceValid(session, upgradeId)
 	if session == nil or typeof(upgradeId) ~= "string" then
 		return false
@@ -60250,6 +60978,32 @@ local function isUpgradeChoiceValid(session, upgradeId)
 	local definition = getUpgradeDefinition(upgradeId)
 
 	if definition == nil then
+		return false
+	end
+
+	if definition.Enabled == false or definition.FutureOnly == true then
+		return false
+	end
+
+	local minArenaLevel = tonumber(definition.MinArenaLevel)
+
+	if minArenaLevel ~= nil and session.ArenaLevel < minArenaLevel then
+		return false
+	end
+
+	local maxOfferLevel = tonumber(definition.MaxOfferLevel)
+
+	if maxOfferLevel ~= nil and session.ArenaLevel > maxOfferLevel then
+		return false
+	end
+
+	local offerAfterLevel = tonumber(definition.OfferAfterLevel)
+
+	if offerAfterLevel ~= nil and session.ArenaLevel <= offerAfterLevel then
+		return false
+	end
+
+	if isBlockedByOwnedUpgrade(session, definition.BlocksUpgrade) then
 		return false
 	end
 
@@ -60345,16 +61099,70 @@ end
 
 local function getLevelThreshold(level)
 	local thresholds = BattleArenaConfig.LevelThresholds or {}
+	local numericLevel = math.max(1, math.floor(tonumber(level) or 1))
+	local explicitThreshold = tonumber(thresholds[numericLevel])
 
-	return tonumber(thresholds[level])
+	if explicitThreshold ~= nil then
+		return explicitThreshold
+	end
+
+	local highestLevel = 1
+	local highestThreshold = 0
+
+	for thresholdLevel, threshold in pairs(thresholds) do
+		local parsedLevel = tonumber(thresholdLevel)
+		local parsedThreshold = tonumber(threshold)
+
+		if parsedLevel ~= nil
+			and parsedThreshold ~= nil
+			and parsedLevel > highestLevel
+		then
+			highestLevel = parsedLevel
+			highestThreshold = parsedThreshold
+		end
+	end
+
+	if numericLevel <= highestLevel then
+		return nil
+	end
+
+	local postMaxLevelXPStep = math.max(1, math.floor(tonumber(BattleArenaConfig.PostMaxLevelXPStep) or 350))
+
+	return highestThreshold + (numericLevel - highestLevel) * postMaxLevelXPStep
 end
 
 local function getNextLevelThreshold(level)
 	return getLevelThreshold((tonumber(level) or 1) + 1)
 end
 
+local function getMaxArenaLevel()
+	local maxArenaLevel = tonumber(BattleArenaConfig.MaxArenaLevel)
+
+	if maxArenaLevel == nil or maxArenaLevel <= 0 then
+		return math.huge
+	end
+
+	return math.max(1, math.floor(maxArenaLevel))
+end
+
+local function getMaxUpgradeLevel()
+	local maxUpgradeLevel = tonumber(BattleArenaConfig.MaxUpgradeLevel)
+		or tonumber(BattleArenaConfig.CoreBuildLevel)
+		or 5
+
+	return math.max(1, math.floor(maxUpgradeLevel))
+end
+
+local function shouldGrantLevelUpgradeOffer(arenaLevel)
+	return (tonumber(arenaLevel) or 1) <= getMaxUpgradeLevel()
+end
+
 local function updateNextLevelXP(session)
-	session.NextLevelXP = getNextLevelThreshold(session.ArenaLevel)
+	if session.ArenaLevel >= getMaxArenaLevel() then
+		session.NextLevelXP = nil
+	else
+		session.NextLevelXP = getNextLevelThreshold(session.ArenaLevel)
+	end
 end
 
 local function clearPendingUpgradeOffer(session)
@@ -60441,7 +61249,7 @@ local function addArenaXP(session, amount, reason)
 
 	session.ArenaXP += xpAmount
 
-	local maxLevel = math.max(1, math.floor(tonumber(BattleArenaConfig.MaxArenaLevel) or 5))
+	local maxLevel = getMaxArenaLevel()
 
 	while session.ArenaLevel < maxLevel do
 		local nextThreshold = getNextLevelThreshold(session.ArenaLevel)
@@ -60451,7 +61259,10 @@ local function addArenaXP(session, amount, reason)
 		end
 
 		session.ArenaLevel += 1
-		session.UnclaimedLevelUpOffers += 1
+
+		if shouldGrantLevelUpgradeOffer(session.ArenaLevel) then
+			session.UnclaimedLevelUpOffers += 1
+		end
 	end
 
 	updateNextLevelXP(session)
@@ -60532,6 +61343,7 @@ local function resetArenaRun(session)
 	session.UpgradeIds = {}
 	session.ForcedUpgrades = {}
 	session.UnclaimedLevelUpOffers = 0
+	resetReviveRunState(session)
 	session.ReflectShieldCharges = 0
 	session.SpawnShieldUntil = 0
 	session.ShieldToken = (session.ShieldToken or 0) + 1
@@ -60566,6 +61378,12 @@ local function makeSession(player, participant)
 		PendingUpgradeOffer = nil,
 		PendingUpgradeOfferId = "",
 		PendingUpgradeOfferSource = "",
+		ReviveCount = 0,
+		RevivePending = false,
+		ReviveCost = 0,
+		ReviveLastError = "",
+		FreeRespawnPending = false,
+		FreeRespawnLastError = "",
 		DamageMultiplier = 1,
 		FireRateMultiplier = 1,
 		MoveSpeedMultiplier = 1,
@@ -60602,6 +61420,12 @@ local function makeBotSession(participant)
 		PendingUpgradeOffer = nil,
 		PendingUpgradeOfferId = "",
 		PendingUpgradeOfferSource = "",
+		ReviveCount = 0,
+		RevivePending = false,
+		ReviveCost = 0,
+		ReviveLastError = "",
+		FreeRespawnPending = false,
+		FreeRespawnLastError = "",
 		DamageMultiplier = 1,
 		FireRateMultiplier = 1,
 		MoveSpeedMultiplier = 1,
@@ -60621,6 +61445,8 @@ function ArenaCombatService.init(options)
 	tankSpawnResetService = options.tankSpawnResetService
 	playerWalletService = options.playerWalletService
 	upgradeChoiceEvent = options.upgradeChoiceEvent
+	reviveRequestEvent = options.reviveRequestEvent
+	freeRespawnRequestEvent = options.freeRespawnRequestEvent
 	callbacks.setPlayerMode = options.setPlayerMode
 	callbacks.clearPlayerInput = options.clearPlayerInput
 	callbacks.restoreTankColors = options.restoreTankColors
@@ -60630,9 +61456,31 @@ function ArenaCombatService.init(options)
 		upgradeChoiceConnection = nil
 	end
 
+	if reviveRequestConnection ~= nil then
+		reviveRequestConnection:Disconnect()
+		reviveRequestConnection = nil
+	end
+
+	if freeRespawnRequestConnection ~= nil then
+		freeRespawnRequestConnection:Disconnect()
+		freeRespawnRequestConnection = nil
+	end
+
 	if upgradeChoiceEvent ~= nil then
 		upgradeChoiceConnection = upgradeChoiceEvent.OnServerEvent:Connect(function(player, payload)
 			ArenaCombatService.HandleUpgradeChoice(player, payload)
+		end)
+	end
+
+	if reviveRequestEvent ~= nil then
+		reviveRequestConnection = reviveRequestEvent.OnServerEvent:Connect(function(player)
+			ArenaCombatService.HandleReviveRequest(player)
+		end)
+	end
+
+	if freeRespawnRequestEvent ~= nil then
+		freeRespawnRequestConnection = freeRespawnRequestEvent.OnServerEvent:Connect(function(player)
+			ArenaCombatService.HandleFreeRespawnRequest(player)
 		end)
 	end
 end
@@ -61120,7 +61968,8 @@ function ArenaCombatService.HandleUpgradeChoice(player, payload)
 	return true
 end
 
-function ArenaCombatService.RespawnPlayer(player)
+function ArenaCombatService.RespawnPlayer(player, options)
+	options = options or {}
 	local session = sessionsByPlayer[player]
 
 	if session == nil or player == nil or player.Parent ~= Players then
@@ -61136,6 +61985,14 @@ function ArenaCombatService.RespawnPlayer(player)
 	TankParticipantRegistry.setParticipantModelVisible(participant, true)
 	TankParticipantRegistry.resetParticipantHealth(participant)
 
+	local restoreHpPercent = tonumber(options.RestoreHpPercent)
+
+	if restoreHpPercent ~= nil then
+		local maxHealth = TankParticipantRegistry.getParticipantMaxHealth(participant)
+		local restoredHealth = math.max(1, math.floor(maxHealth * math.clamp(restoreHpPercent, 0.05, 1) + 0.5))
+		TankParticipantRegistry.setParticipantHealth(participant, restoredHealth)
+	end
+
 	if callbacks.restoreTankColors ~= nil then
 		callbacks.restoreTankColors(participant)
 	end
@@ -61144,12 +62001,109 @@ function ArenaCombatService.RespawnPlayer(player)
 	setPlayerMode(player, participant, ArenaCombatService.MODE_IN_BATTLE_ARENA)
 	player:SetAttribute("ArenaRespawnAt", 0)
 	player:SetAttribute("ArenaStatus", "Active")
+	clearRevivePending(session)
+	clearFreeRespawnPending(session)
 	clearPlayerInput(player)
 	applySessionUpgrades(session)
 	grantSpawnReflectShield(session, "Respawn")
+	publishSessionAttributes(session)
 	print("[ARENA] respawned " .. player.Name)
 
 	return true
+end
+
+function ArenaCombatService.HandleReviveRequest(player)
+	local session = sessionsByPlayer[player]
+
+	if session == nil
+		or player == nil
+		or player.Parent ~= Players
+		or session.Player ~= player
+		or session.IsBotSession == true
+	then
+		return false
+	end
+
+	if session.RevivePending ~= true then
+		session.ReviveLastError = "NotPending"
+		publishSessionAttributes(session)
+		return false
+	end
+
+	if session.Participant == nil or player:GetAttribute("PlayerMode") ~= ArenaCombatService.MODE_ARENA_RESPAWNING then
+		session.ReviveLastError = "InvalidState"
+		publishSessionAttributes(session)
+		return false
+	end
+
+	if not canOfferRevive(session) then
+		session.ReviveLastError = "LimitReached"
+		publishSessionAttributes(session)
+		return false
+	end
+
+	if playerWalletService == nil or playerWalletService.trySpendBolts == nil then
+		session.ReviveLastError = "WalletUnavailable"
+		publishSessionAttributes(session)
+		return false
+	end
+
+	local cost = getReviveCost(session)
+	local spent = playerWalletService.trySpendBolts(player, cost, "BattleArenaRevive")
+
+	if not spent then
+		session.ReviveLastError = "NotEnoughBolts"
+		session.ReviveCost = cost
+		publishSessionAttributes(session)
+		return false
+	end
+
+	session.ReviveCount = math.max(0, math.floor(tonumber(session.ReviveCount) or 0)) + 1
+	session.ReviveCost = 0
+	session.ReviveLastError = ""
+
+	return ArenaCombatService.RespawnPlayer(player, {
+		RestoreHpPercent = getReviveRestoreHpPercent(),
+	})
+end
+
+function ArenaCombatService.HandleFreeRespawnRequest(player)
+	local session = sessionsByPlayer[player]
+
+	if session == nil
+		or player == nil
+		or player.Parent ~= Players
+		or session.Player ~= player
+		or session.IsBotSession == true
+	then
+		return false
+	end
+
+	if session.FreeRespawnPending ~= true
+		or session.Participant == nil
+		or player:GetAttribute("PlayerMode") ~= ArenaCombatService.MODE_ARENA_RESPAWNING
+	then
+		session.FreeRespawnLastError = "InvalidState"
+		publishSessionAttributes(session)
+		return false
+	end
+
+	if not canOfferFreeRespawn(session) then
+		session.FreeRespawnLastError = "Unavailable"
+		publishSessionAttributes(session)
+		return false
+	end
+
+	if shouldFreeRespawnResetRun() then
+		resetArenaRun(session)
+	else
+		clearRevivePending(session)
+		clearFreeRespawnPending(session)
+	end
+
+	return ArenaCombatService.RespawnPlayer(player, {
+		RestoreHpPercent = getFreeRespawnRestoreHpPercent(),
+	})
 end
 
 local function updateArenaSummary(session)
@@ -61225,7 +62179,12 @@ function ArenaCombatService.OnParticipantKilled(killerParticipant, victimPartici
 
 	local victimPlayer = victimSession.Player
 	victimSession.Deaths += 1
-	resetArenaRun(victimSession)
+	local revivePending = beginRevivePending(victimSession)
+	local freeRespawnPending = beginFreeRespawnPending(victimSession)
+
+	if not revivePending and not freeRespawnPending then
+		resetArenaRun(victimSession)
+	end
 
 	local killerSession = nil
 
@@ -61252,14 +62211,20 @@ function ArenaCombatService.OnParticipantKilled(killerParticipant, victimPartici
 
 	victimSession.RespawnToken += 1
 	local token = victimSession.RespawnToken
-	local respawnDelay = math.max(0, tonumber(BattleArenaConfig.RespawnDelay) or 0)
-	local respawnAt = getServerTimeNow() + respawnDelay
+	local deathChoicePending = revivePending or freeRespawnPending
+	local respawnDelay = deathChoicePending and 0 or math.max(0, tonumber(BattleArenaConfig.RespawnDelay) or 0)
+	local respawnAt = deathChoicePending and 0 or getServerTimeNow() + respawnDelay
 
 	setPlayerMode(victimPlayer, victimParticipant, ArenaCombatService.MODE_ARENA_RESPAWNING)
 	victimPlayer:SetAttribute("ArenaStatus", "Destroyed")
 	victimPlayer:SetAttribute("ArenaRespawnDelay", respawnDelay)
 	victimPlayer:SetAttribute("ArenaRespawnAt", respawnAt)
 	clearPlayerInput(victimPlayer)
+
+	if deathChoicePending then
+		publishSessionAttributes(victimSession)
+		return
+	end
 
 	task.delay(respawnDelay, function()
 		local currentSession = sessionsByPlayer[victimPlayer]
@@ -62935,6 +63900,7 @@ local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local BotConfig = require(configs:WaitForChild("BotConfig"))
 local BattleArenaLoopConfig = require(configs:WaitForChild("BattleArenaLoopConfig"))
+local PerformanceConfig = require(configs:WaitForChild("PerformanceConfig"))
 
 local BotController = require(script.Parent:WaitForChild("BotController"))
 local BotSpawnPlanner = require(script.Parent:WaitForChild("BotSpawnPlanner"))
@@ -62961,6 +63927,11 @@ local botRecords = {}
 local botRecordsById = {}
 local nextBotIndex = 1
 local lastDebugLogAtByKey = {}
+local spawnStaggerTimer = 0
+
+local function getDiagnosticsConfig()
+	return PerformanceConfig.Diagnostics or {}
+end
 
 local function debugLog(key, message)
 	if BotConfig.Debug ~= true then
@@ -62979,16 +63950,25 @@ end
 
 local function isBattleArenaBotsEnabled()
 	local battleArenaConfig = BotConfig.BattleArena or {}
+	local diagnosticsConfig = getDiagnosticsConfig()
 
-	return BotConfig.Enabled == true and battleArenaConfig.Enabled == true
+	return diagnosticsConfig.BattleArenaBotsEnabled ~= false
+		and BotConfig.Enabled == true
+		and battleArenaConfig.Enabled == true
 end
 
 local function getConfiguredBotLimit()
 	local battleArenaConfig = BotConfig.BattleArena or {}
 	local loopBotConfig = BattleArenaLoopConfig.Enabled == true and BattleArenaLoopConfig.Bots or {}
 	local safetyConfig = BotConfig.Safety or {}
+	local diagnosticsConfig = getDiagnosticsConfig()
 	local maxBots = math.max(0, math.floor(tonumber(loopBotConfig.MaxBots) or tonumber(battleArenaConfig.MaxBots) or 0))
 	local hardLimit = math.max(0, math.floor(tonumber(safetyConfig.MaxBotsHardLimit) or maxBots))
+	local maxBotsOverride = tonumber(diagnosticsConfig.BattleArenaMaxBotsOverride)
+
+	if maxBotsOverride ~= nil then
+		maxBots = math.max(0, math.floor(maxBotsOverride))
+	end
 
 	if hardLimit <= 0 then
 		return maxBots
@@ -63194,29 +64174,82 @@ local function deactivateBotRecord(record)
 	debugLog("despawn:" .. tostring(record.TankId), "[BOT] despawned id=" .. tostring(record.TankId))
 end
 
-local function ensureBotCount(desiredCount)
-	local activeRecords = getActiveBotRecords()
+local function getSpawnStaggerConfig()
+	local spawnConfig = BotConfig.Spawn or {}
+	local interval = math.max(0, tonumber(spawnConfig.IntervalSeconds) or 0)
+	local maxPerTick = math.max(1, math.floor(tonumber(spawnConfig.MaxPerTick) or 1))
 
-	while #activeRecords < desiredCount do
-		local inactiveRecord = nil
+	return interval, maxPerTick
+end
 
-		for _, record in ipairs(botRecords) do
-			if record.Active ~= true then
-				inactiveRecord = record
-				break
-			end
-		end
+-- Activates one inactive record if available (reuse, no clone), otherwise creates
+-- a fresh bot record. Returns the (now active) record. Both paths count as one
+-- spawn for stagger purposes, because reactivating many records in one frame also
+-- causes a spike (registration, color/health reset, controller creation).
+local function spawnOneBot(activeRecords)
+	local inactiveRecord = nil
 
-		if inactiveRecord ~= nil then
-			activateBotRecord(inactiveRecord)
-			table.insert(activeRecords, inactiveRecord)
-		else
-			table.insert(activeRecords, createBotRecord())
+	for _, record in ipairs(botRecords) do
+		if record.Active ~= true then
+			inactiveRecord = record
+			break
 		end
 	end
 
-	for index = #activeRecords, desiredCount + 1, -1 do
-		deactivateBotRecord(activeRecords[index])
+	if inactiveRecord ~= nil then
+		activateBotRecord(inactiveRecord)
+		table.insert(activeRecords, inactiveRecord)
+		return inactiveRecord
+	end
+
+	local createdRecord = createBotRecord()
+	table.insert(activeRecords, createdRecord)
+	return createdRecord
+end
+
+-- Brings the active bot population toward desiredCount.
+-- Removal of excess bots happens immediately (deactivation is cheap and does not
+-- clone/spawn anything). Filling missing bots is *staggered*: at most MaxPerTick
+-- bots are added per call, and only after IntervalSeconds has elapsed, so the
+-- whole deficit is not filled on a single Heartbeat frame (e.g. on BattleArena
+-- entry). The eventual desired count is still reached over subsequent ticks, so
+-- gameplay outcome is unchanged.
+local function ensureBotCount(desiredCount, deltaTime)
+	local activeRecords = getActiveBotRecords()
+	local activeCount = #activeRecords
+
+	if activeCount > desiredCount then
+		for index = activeCount, desiredCount + 1, -1 do
+			deactivateBotRecord(activeRecords[index])
+		end
+
+		spawnStaggerTimer = 0
+		return
+	end
+
+	if activeCount >= desiredCount then
+		spawnStaggerTimer = 0
+		return
+	end
+
+	local interval, maxPerTick = getSpawnStaggerConfig()
+
+	if interval > 0 then
+		spawnStaggerTimer += math.max(0, tonumber(deltaTime) or 0)
+
+		if spawnStaggerTimer < interval then
+			return
+		end
+	end
+
+	spawnStaggerTimer = 0
+
+	local spawnedThisTick = 0
+
+	while activeCount < desiredCount and spawnedThisTick < maxPerTick do
+		spawnOneBot(activeRecords)
+		activeCount += 1
+		spawnedThisTick += 1
 	end
 end
 
@@ -63271,7 +64304,7 @@ function BotService.update(deltaTime)
 	end
 
 	local desiredCount = getDesiredBotCount()
-	ensureBotCount(desiredCount)
+	ensureBotCount(desiredCount, deltaTime)
 
 	if desiredCount <= 0 and (BotConfig.Safety or {}).CleanupOnPlayerLeave ~= false then
 		return
@@ -63355,12 +64388,34 @@ local function sanitizeCurrencyValue(value)
 	return math.max(0, math.floor(numberValue))
 end
 
+local function sanitizeCurrencyDelta(value)
+	local numberValue = tonumber(value)
+
+	if numberValue == nil then
+		return 0
+	end
+
+	if numberValue >= 0 then
+		return math.floor(numberValue)
+	end
+
+	return math.ceil(numberValue)
+end
+
 local function sanitizeBolts(value)
 	return sanitizeCurrencyValue(value)
 end
 
 local function sanitizeCrystals(value)
 	return sanitizeCurrencyValue(value)
+end
+
+local function sanitizeBoltsDelta(value)
+	return sanitizeCurrencyDelta(value)
+end
+
+local function sanitizeCrystalsDelta(value)
+	return sanitizeCurrencyDelta(value)
 end
 
 local function sanitizeWalletData(value)
@@ -63411,7 +64466,7 @@ local function getUnsavedBolts(player)
 end
 
 local function getVisibleBolts(player)
-	return getLoadedBolts(player) + getUnsavedBolts(player)
+	return math.max(0, getLoadedBolts(player) + getUnsavedBolts(player))
 end
 
 local function getLoadedCrystals(player)
@@ -63427,7 +64482,7 @@ local function getUnsavedCrystals(player)
 end
 
 local function getVisibleCrystals(player)
-	return getLoadedCrystals(player) + getUnsavedCrystals(player)
+	return math.max(0, getLoadedCrystals(player) + getUnsavedCrystals(player))
 end
 
 local function setWalletAttributes(player)
@@ -63446,13 +64501,19 @@ end
 
 local REWARD_SEQUENCE_ATTRIBUTE = "LastBoltsRewardSequence"
 
-local function setFallbackAttributes(player, preservedUnsavedBolts, preservedUnsavedCrystals)
-	loadedBoltsByUserId[player.UserId] = 0
+local function setFallbackAttributes(
+	player,
+	preservedLoadedBolts,
+	preservedUnsavedBolts,
+	preservedLoadedCrystals,
+	preservedUnsavedCrystals
+)
+	loadedBoltsByUserId[player.UserId] = sanitizeBolts(preservedLoadedBolts)
 	sessionBoltsByUserId[player.UserId] = 0
-	unsavedBoltsByUserId[player.UserId] = sanitizeBolts(preservedUnsavedBolts)
-	loadedCrystalsByUserId[player.UserId] = 0
+	unsavedBoltsByUserId[player.UserId] = sanitizeBoltsDelta(preservedUnsavedBolts)
+	loadedCrystalsByUserId[player.UserId] = sanitizeCrystals(preservedLoadedCrystals)
 	sessionCrystalsByUserId[player.UserId] = 0
-	unsavedCrystalsByUserId[player.UserId] = sanitizeCrystals(preservedUnsavedCrystals)
+	unsavedCrystalsByUserId[player.UserId] = sanitizeCrystalsDelta(preservedUnsavedCrystals)
 
 	setWalletAttributes(player)
 	player:SetAttribute(attributes.LastRewardAmount, 0)
@@ -63474,10 +64535,12 @@ function PlayerWalletService.loadPlayer(player)
 		}, false
 	end
 
+	local preservedLoadedBolts = getLoadedBolts(player)
 	local preservedUnsavedBolts = getUnsavedBolts(player)
+	local preservedLoadedCrystals = getLoadedCrystals(player)
 	local preservedUnsavedCrystals = getUnsavedCrystals(player)
 
-	setFallbackAttributes(player, preservedUnsavedBolts, preservedUnsavedCrystals)
+	setFallbackAttributes(player, preservedLoadedBolts, preservedUnsavedBolts, preservedLoadedCrystals, preservedUnsavedCrystals)
 
 	local store, storeError = getDataStore()
 
@@ -63516,7 +64579,7 @@ function PlayerWalletService.loadPlayer(player)
 
 	setWalletAttributes(player)
 	player:SetAttribute("WalletLoaded", true)
-	player:SetAttribute("WalletLastSaveSucceeded", currentUnsavedBolts <= 0 and currentUnsavedCrystals <= 0)
+	player:SetAttribute("WalletLastSaveSucceeded", currentUnsavedBolts == 0 and currentUnsavedCrystals == 0)
 
 	return walletData, true
 end
@@ -63554,6 +64617,44 @@ function PlayerWalletService.addBolts(player, amount, reason)
 
 	return true, PlayerWalletService.getBoltsBalance(player)
 end
+
+function PlayerWalletService.trySpendBolts(player, amount, reason)
+	if player == nil then
+		return false, 0
+	end
+
+	local spendAmount = sanitizeBolts(amount)
+
+	if spendAmount <= 0 then
+		return false, PlayerWalletService.getBoltsBalance(player)
+	end
+
+	local currentBalance = PlayerWalletService.getBoltsBalance(player)
+
+	if currentBalance < spendAmount then
+		return false, currentBalance
+	end
+
+	local userId = player.UserId
+	unsavedBoltsByUserId[userId] = getUnsavedBolts(player) - spendAmount
+
+	setWalletAttributes(player)
+	player:SetAttribute("WalletLastSaveSucceeded", false)
+
+	print(
+		("[WALLET] %s -%d %s reason=%s total=%d"):format(
+			player.Name,
+			spendAmount,
+			CurrencyConfig.DisplayName,
+			tostring(reason or "Spend"),
+			PlayerWalletService.getBoltsBalance(player)
+		)
+	)
+
+	return true, PlayerWalletService.getBoltsBalance(player)
+end
+
+PlayerWalletService.TrySpendBolts = PlayerWalletService.trySpendBolts
 
 function PlayerWalletService.addCrystals(player, amount, reason)
 	if player == nil then
@@ -63616,7 +64717,7 @@ function PlayerWalletService.savePlayer(player)
 	local pendingBoltsDelta = getUnsavedBolts(player)
 	local pendingCrystalsDelta = getUnsavedCrystals(player)
 
-	if pendingBoltsDelta <= 0 and pendingCrystalsDelta <= 0 then
+	if pendingBoltsDelta == 0 and pendingCrystalsDelta == 0 then
 		player:SetAttribute("WalletLastSaveSucceeded", true)
 		return true
 	end
@@ -63633,8 +64734,8 @@ function PlayerWalletService.savePlayer(player)
 	local success, result = pcall(function()
 		savedWalletData = store:UpdateAsync(getPlayerKey(player), function(oldValue)
 			local walletData = sanitizeWalletData(oldValue)
-			walletData.Bolts += pendingBoltsDelta
-			walletData.Crystals += pendingCrystalsDelta
+			walletData.Bolts = math.max(0, walletData.Bolts + pendingBoltsDelta)
+			walletData.Crystals = math.max(0, walletData.Crystals + pendingCrystalsDelta)
 			return walletData
 		end)
 	end)
@@ -63649,8 +64750,8 @@ function PlayerWalletService.savePlayer(player)
 
 	local currentUnsavedBolts = getUnsavedBolts(player)
 	local currentUnsavedCrystals = getUnsavedCrystals(player)
-	local remainingUnsavedBolts = math.max(0, currentUnsavedBolts - pendingBoltsDelta)
-	local remainingUnsavedCrystals = math.max(0, currentUnsavedCrystals - pendingCrystalsDelta)
+	local remainingUnsavedBolts = currentUnsavedBolts - pendingBoltsDelta
+	local remainingUnsavedCrystals = currentUnsavedCrystals - pendingCrystalsDelta
 
 	loadedBoltsByUserId[player.UserId] = savedWalletData.Bolts
 	unsavedBoltsByUserId[player.UserId] = remainingUnsavedBolts
@@ -63669,11 +64770,11 @@ function PlayerWalletService.removePlayer(player)
 		return
 	end
 
-	if getUnsavedBolts(player) > 0 or getUnsavedCrystals(player) > 0 then
+	if getUnsavedBolts(player) ~= 0 or getUnsavedCrystals(player) ~= 0 then
 		PlayerWalletService.savePlayer(player)
 	end
 
-	if getUnsavedBolts(player) > 0 or getUnsavedCrystals(player) > 0 then
+	if getUnsavedBolts(player) ~= 0 or getUnsavedCrystals(player) ~= 0 then
 		warn("[WALLET] Keeping unsaved wallet delta in memory for " .. player.Name)
 		return
 	end
@@ -66585,6 +67686,410 @@ ZAITAAAAUGxheWVyVGFua1Byb3RvdHlwZQYAAABUZWFtSWQCBgAAAFBsYXllcg==]]></BinaryStrin
 						<BinaryString name="Tags"></BinaryString>
 						<UniqueId name="UniqueId">26a304254af295c10a1efee20001026b</UniqueId>
 					</Properties>
+					<Item class="Part" referent="RBX9c4b044c5dcd4a0a8dea9996dccf995f">
+						<Properties>
+							<token name="shape">1</token>
+							<token name="formFactorRaw">1</token>
+							<bool name="Anchored">false</bool>
+							<bool name="AudioCanCollide">true</bool>
+							<float name="BackParamA">-0.5</float>
+							<float name="BackParamB">0.5</float>
+							<token name="BackSurface">0</token>
+							<token name="BackSurfaceInput">0</token>
+							<float name="BottomParamA">-0.5</float>
+							<float name="BottomParamB">0.5</float>
+							<token name="BottomSurface">0</token>
+							<token name="BottomSurfaceInput">0</token>
+							<CoordinateFrame name="CFrame">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+								<R00>1</R00>
+								<R01>0</R01>
+								<R02>0</R02>
+								<R10>0</R10>
+								<R11>1</R11>
+								<R12>0</R12>
+								<R20>0</R20>
+								<R21>0</R21>
+								<R22>1</R22>
+							</CoordinateFrame>
+							<bool name="CanCollide">false</bool>
+							<bool name="CanQuery">true</bool>
+							<bool name="CanTouch">false</bool>
+							<bool name="CastShadow">true</bool>
+							<string name="CollisionGroup">Default</string>
+							<int name="CollisionGroupId">0</int>
+							<Color3uint8 name="Color3uint8">4288914085</Color3uint8>
+							<PhysicalProperties name="CustomPhysicalProperties">
+								<CustomPhysics>false</CustomPhysics>
+							</PhysicalProperties>
+							<bool name="EnableFluidForces">true</bool>
+							<float name="FrontParamA">-0.5</float>
+							<float name="FrontParamB">0.5</float>
+							<token name="FrontSurface">0</token>
+							<token name="FrontSurfaceInput">0</token>
+							<float name="LeftParamA">-0.5</float>
+							<float name="LeftParamB">0.5</float>
+							<token name="LeftSurface">0</token>
+							<token name="LeftSurfaceInput">0</token>
+							<bool name="Locked">false</bool>
+							<bool name="Massless">false</bool>
+							<token name="Material">256</token>
+							<string name="MaterialVariantSerialized"></string>
+							<CoordinateFrame name="PivotOffset">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+								<R00>1</R00>
+								<R01>0</R01>
+								<R02>0</R02>
+								<R10>0</R10>
+								<R11>1</R11>
+								<R12>0</R12>
+								<R20>0</R20>
+								<R21>0</R21>
+								<R22>1</R22>
+							</CoordinateFrame>
+							<float name="Reflectance">0</float>
+							<float name="RightParamA">-0.5</float>
+							<float name="RightParamB">0.5</float>
+							<token name="RightSurface">0</token>
+							<token name="RightSurfaceInput">0</token>
+							<int name="RootPriority">0</int>
+							<Vector3 name="RotVelocity">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<float name="TopParamA">-0.5</float>
+							<float name="TopParamB">0.5</float>
+							<token name="TopSurface">0</token>
+							<token name="TopSurfaceInput">0</token>
+							<float name="Transparency">1</float>
+							<Vector3 name="Velocity">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<Vector3 name="size">
+								<X>4</X>
+								<Y>1</Y>
+								<Z>2</Z>
+							</Vector3>
+							<BinaryString name="AttributesSerialize"></BinaryString>
+							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+							<bool name="DefinesCapabilities">false</bool>
+							<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+							<string name="Name">FrontArmor</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<BinaryString name="Tags"></BinaryString>
+							<UniqueId name="UniqueId">4e2262f94049e8ca0a248bf300000dbd</UniqueId>
+						</Properties>
+					</Item>
+					<Item class="Part" referent="RBX5df788d3c9af4195a5732784c2a03db7">
+						<Properties>
+							<token name="shape">1</token>
+							<token name="formFactorRaw">1</token>
+							<bool name="Anchored">false</bool>
+							<bool name="AudioCanCollide">true</bool>
+							<float name="BackParamA">-0.5</float>
+							<float name="BackParamB">0.5</float>
+							<token name="BackSurface">0</token>
+							<token name="BackSurfaceInput">0</token>
+							<float name="BottomParamA">-0.5</float>
+							<float name="BottomParamB">0.5</float>
+							<token name="BottomSurface">0</token>
+							<token name="BottomSurfaceInput">0</token>
+							<CoordinateFrame name="CFrame">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+								<R00>1</R00>
+								<R01>0</R01>
+								<R02>0</R02>
+								<R10>0</R10>
+								<R11>1</R11>
+								<R12>0</R12>
+								<R20>0</R20>
+								<R21>0</R21>
+								<R22>1</R22>
+							</CoordinateFrame>
+							<bool name="CanCollide">false</bool>
+							<bool name="CanQuery">true</bool>
+							<bool name="CanTouch">false</bool>
+							<bool name="CastShadow">true</bool>
+							<string name="CollisionGroup">Default</string>
+							<int name="CollisionGroupId">0</int>
+							<Color3uint8 name="Color3uint8">4288914085</Color3uint8>
+							<PhysicalProperties name="CustomPhysicalProperties">
+								<CustomPhysics>false</CustomPhysics>
+							</PhysicalProperties>
+							<bool name="EnableFluidForces">true</bool>
+							<float name="FrontParamA">-0.5</float>
+							<float name="FrontParamB">0.5</float>
+							<token name="FrontSurface">0</token>
+							<token name="FrontSurfaceInput">0</token>
+							<float name="LeftParamA">-0.5</float>
+							<float name="LeftParamB">0.5</float>
+							<token name="LeftSurface">0</token>
+							<token name="LeftSurfaceInput">0</token>
+							<bool name="Locked">false</bool>
+							<bool name="Massless">false</bool>
+							<token name="Material">256</token>
+							<string name="MaterialVariantSerialized"></string>
+							<CoordinateFrame name="PivotOffset">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+								<R00>1</R00>
+								<R01>0</R01>
+								<R02>0</R02>
+								<R10>0</R10>
+								<R11>1</R11>
+								<R12>0</R12>
+								<R20>0</R20>
+								<R21>0</R21>
+								<R22>1</R22>
+							</CoordinateFrame>
+							<float name="Reflectance">0</float>
+							<float name="RightParamA">-0.5</float>
+							<float name="RightParamB">0.5</float>
+							<token name="RightSurface">0</token>
+							<token name="RightSurfaceInput">0</token>
+							<int name="RootPriority">0</int>
+							<Vector3 name="RotVelocity">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<float name="TopParamA">-0.5</float>
+							<float name="TopParamB">0.5</float>
+							<token name="TopSurface">0</token>
+							<token name="TopSurfaceInput">0</token>
+							<float name="Transparency">1</float>
+							<Vector3 name="Velocity">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<Vector3 name="size">
+								<X>4</X>
+								<Y>1</Y>
+								<Z>2</Z>
+							</Vector3>
+							<BinaryString name="AttributesSerialize"></BinaryString>
+							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+							<bool name="DefinesCapabilities">false</bool>
+							<UniqueId name="HistoryId">4e2262f94049e8ca0a248bf300000dbd</UniqueId>
+							<string name="Name">LeftArmor</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<BinaryString name="Tags"></BinaryString>
+							<UniqueId name="UniqueId">4e2262f94049e8ca0a248bf300000dd6</UniqueId>
+						</Properties>
+					</Item>
+					<Item class="Part" referent="RBXdd9c1f218f2f4bb5892d7c05c619ced0">
+						<Properties>
+							<token name="shape">1</token>
+							<token name="formFactorRaw">1</token>
+							<bool name="Anchored">false</bool>
+							<bool name="AudioCanCollide">true</bool>
+							<float name="BackParamA">-0.5</float>
+							<float name="BackParamB">0.5</float>
+							<token name="BackSurface">0</token>
+							<token name="BackSurfaceInput">0</token>
+							<float name="BottomParamA">-0.5</float>
+							<float name="BottomParamB">0.5</float>
+							<token name="BottomSurface">0</token>
+							<token name="BottomSurfaceInput">0</token>
+							<CoordinateFrame name="CFrame">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+								<R00>1</R00>
+								<R01>0</R01>
+								<R02>0</R02>
+								<R10>0</R10>
+								<R11>1</R11>
+								<R12>0</R12>
+								<R20>0</R20>
+								<R21>0</R21>
+								<R22>1</R22>
+							</CoordinateFrame>
+							<bool name="CanCollide">false</bool>
+							<bool name="CanQuery">true</bool>
+							<bool name="CanTouch">false</bool>
+							<bool name="CastShadow">true</bool>
+							<string name="CollisionGroup">Default</string>
+							<int name="CollisionGroupId">0</int>
+							<Color3uint8 name="Color3uint8">4288914085</Color3uint8>
+							<PhysicalProperties name="CustomPhysicalProperties">
+								<CustomPhysics>false</CustomPhysics>
+							</PhysicalProperties>
+							<bool name="EnableFluidForces">true</bool>
+							<float name="FrontParamA">-0.5</float>
+							<float name="FrontParamB">0.5</float>
+							<token name="FrontSurface">0</token>
+							<token name="FrontSurfaceInput">0</token>
+							<float name="LeftParamA">-0.5</float>
+							<float name="LeftParamB">0.5</float>
+							<token name="LeftSurface">0</token>
+							<token name="LeftSurfaceInput">0</token>
+							<bool name="Locked">false</bool>
+							<bool name="Massless">false</bool>
+							<token name="Material">256</token>
+							<string name="MaterialVariantSerialized"></string>
+							<CoordinateFrame name="PivotOffset">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+								<R00>1</R00>
+								<R01>0</R01>
+								<R02>0</R02>
+								<R10>0</R10>
+								<R11>1</R11>
+								<R12>0</R12>
+								<R20>0</R20>
+								<R21>0</R21>
+								<R22>1</R22>
+							</CoordinateFrame>
+							<float name="Reflectance">0</float>
+							<float name="RightParamA">-0.5</float>
+							<float name="RightParamB">0.5</float>
+							<token name="RightSurface">0</token>
+							<token name="RightSurfaceInput">0</token>
+							<int name="RootPriority">0</int>
+							<Vector3 name="RotVelocity">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<float name="TopParamA">-0.5</float>
+							<float name="TopParamB">0.5</float>
+							<token name="TopSurface">0</token>
+							<token name="TopSurfaceInput">0</token>
+							<float name="Transparency">1</float>
+							<Vector3 name="Velocity">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<Vector3 name="size">
+								<X>4</X>
+								<Y>1</Y>
+								<Z>2</Z>
+							</Vector3>
+							<BinaryString name="AttributesSerialize"></BinaryString>
+							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+							<bool name="DefinesCapabilities">false</bool>
+							<UniqueId name="HistoryId">4e2262f94049e8ca0a248bf300000dbd</UniqueId>
+							<string name="Name">RightArmor</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<BinaryString name="Tags"></BinaryString>
+							<UniqueId name="UniqueId">4e2262f94049e8ca0a248bf300000dd7</UniqueId>
+						</Properties>
+					</Item>
+					<Item class="Part" referent="RBX541f8728b9c34d04903073eb6dc72bec">
+						<Properties>
+							<token name="shape">1</token>
+							<token name="formFactorRaw">1</token>
+							<bool name="Anchored">false</bool>
+							<bool name="AudioCanCollide">true</bool>
+							<float name="BackParamA">-0.5</float>
+							<float name="BackParamB">0.5</float>
+							<token name="BackSurface">0</token>
+							<token name="BackSurfaceInput">0</token>
+							<float name="BottomParamA">-0.5</float>
+							<float name="BottomParamB">0.5</float>
+							<token name="BottomSurface">0</token>
+							<token name="BottomSurfaceInput">0</token>
+							<CoordinateFrame name="CFrame">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+								<R00>1</R00>
+								<R01>0</R01>
+								<R02>0</R02>
+								<R10>0</R10>
+								<R11>1</R11>
+								<R12>0</R12>
+								<R20>0</R20>
+								<R21>0</R21>
+								<R22>1</R22>
+							</CoordinateFrame>
+							<bool name="CanCollide">false</bool>
+							<bool name="CanQuery">true</bool>
+							<bool name="CanTouch">false</bool>
+							<bool name="CastShadow">true</bool>
+							<string name="CollisionGroup">Default</string>
+							<int name="CollisionGroupId">0</int>
+							<Color3uint8 name="Color3uint8">4288914085</Color3uint8>
+							<PhysicalProperties name="CustomPhysicalProperties">
+								<CustomPhysics>false</CustomPhysics>
+							</PhysicalProperties>
+							<bool name="EnableFluidForces">true</bool>
+							<float name="FrontParamA">-0.5</float>
+							<float name="FrontParamB">0.5</float>
+							<token name="FrontSurface">0</token>
+							<token name="FrontSurfaceInput">0</token>
+							<float name="LeftParamA">-0.5</float>
+							<float name="LeftParamB">0.5</float>
+							<token name="LeftSurface">0</token>
+							<token name="LeftSurfaceInput">0</token>
+							<bool name="Locked">false</bool>
+							<bool name="Massless">false</bool>
+							<token name="Material">256</token>
+							<string name="MaterialVariantSerialized"></string>
+							<CoordinateFrame name="PivotOffset">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+								<R00>1</R00>
+								<R01>0</R01>
+								<R02>0</R02>
+								<R10>0</R10>
+								<R11>1</R11>
+								<R12>0</R12>
+								<R20>0</R20>
+								<R21>0</R21>
+								<R22>1</R22>
+							</CoordinateFrame>
+							<float name="Reflectance">0</float>
+							<float name="RightParamA">-0.5</float>
+							<float name="RightParamB">0.5</float>
+							<token name="RightSurface">0</token>
+							<token name="RightSurfaceInput">0</token>
+							<int name="RootPriority">0</int>
+							<Vector3 name="RotVelocity">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<float name="TopParamA">-0.5</float>
+							<float name="TopParamB">0.5</float>
+							<token name="TopSurface">0</token>
+							<token name="TopSurfaceInput">0</token>
+							<float name="Transparency">1</float>
+							<Vector3 name="Velocity">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<Vector3 name="size">
+								<X>4</X>
+								<Y>1</Y>
+								<Z>2</Z>
+							</Vector3>
+							<BinaryString name="AttributesSerialize"></BinaryString>
+							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+							<bool name="DefinesCapabilities">false</bool>
+							<UniqueId name="HistoryId">4e2262f94049e8ca0a248bf300000dbd</UniqueId>
+							<string name="Name">RearArmor</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<BinaryString name="Tags"></BinaryString>
+							<UniqueId name="UniqueId">4e2262f94049e8ca0a248bf300000dd8</UniqueId>
+						</Properties>
+					</Item>
 				</Item>
 				<Item class="Folder" referent="RBX9496dbbb86e3438496b38b9dc5122c3a">
 					<Properties>

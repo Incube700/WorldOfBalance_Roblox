@@ -7,6 +7,9 @@ local AimAssistConfig = table.freeze({
 	AimLaserColor = Color3.fromRGB(95, 245, 165),
 	AimLaserMaxDistance = 140,
 	AimLaserHeightOffset = 0,
+	AimLaserVisualSmoothingEnabled = true,
+	AimLaserVisualSmoothingSpeed = 30,
+	AimLaserVisualSnapDistance = 120,
 })
 
 return AimAssistConfig

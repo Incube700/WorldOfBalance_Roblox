@@ -5,9 +5,16 @@ local Workspace = game:GetService("Workspace")
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local HudConfig = require(configs:WaitForChild("HudConfig"))
+local PerformanceConfig = require(configs:WaitForChild("PerformanceConfig"))
+
+local flashConfig = HudConfig.DamageFlash or {}
+local diagnosticsConfig = PerformanceConfig.Diagnostics or {}
+
+if diagnosticsConfig.DamageFlashEnabled == false then
+	return
+end
 
 local root = Workspace:WaitForChild("WOB_Generated")
-local flashConfig = HudConfig.DamageFlash or {}
 local RUNTIME_ROOT_NAME = "WOB_Runtime"
 local CLIENT_RUNTIME_FOLDER_NAME = "Client"
 local VISUALS_FOLDER_NAME = "Visuals"

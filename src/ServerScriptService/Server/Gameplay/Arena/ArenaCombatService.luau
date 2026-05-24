@@ -19,7 +19,11 @@ local root = nil
 local tankSpawnResetService = nil
 local playerWalletService = nil
 local upgradeChoiceEvent = nil
+local reviveRequestEvent = nil
+local freeRespawnRequestEvent = nil
 local upgradeChoiceConnection = nil
+local reviveRequestConnection = nil
+local freeRespawnRequestConnection = nil
 
 local callbacks = {
 	setPlayerMode = nil,
@@ -393,6 +397,137 @@ local function resetParticipantArenaModifiers(participant)
 	setArenaModifier(participant, "ArenaShieldActive", false)
 end
 
+local function getReviveConfig()
+	return BattleArenaConfig.Revive or {}
+end
+
+local function isReviveEnabled()
+	return getReviveConfig().Enabled == true
+end
+
+local function getMaxRevivesPerRun()
+	return math.max(0, math.floor(tonumber(getReviveConfig().MaxRevivesPerRun) or 0))
+end
+
+local function getReviveCost(session)
+	local reviveConfig = getReviveConfig()
+	local reviveCount = math.max(0, math.floor(tonumber(session ~= nil and session.ReviveCount) or 0))
+	local baseCost = tonumber(reviveConfig.CostBase)
+		or tonumber(reviveConfig.CostBaseBolts)
+		or 5
+	local perRevive = tonumber(reviveConfig.CostPerRevive)
+		or tonumber(reviveConfig.CostAdditiveBolts)
+		or 0
+	local multiplier = tonumber(reviveConfig.CostMultiplier) or 1
+	local scaledCost = (baseCost + perRevive * reviveCount) * (multiplier ^ reviveCount)
+
+	return math.max(1, math.floor(scaledCost + 0.5))
+end
+
+local function getReviveRestoreHpPercent()
+	local reviveConfig = getReviveConfig()
+	local percent = tonumber(reviveConfig.RestoreHpPercent)
+		or tonumber(reviveConfig.ReviveHpPercent)
+		or 0.5
+
+	return math.clamp(percent, 0.05, 1)
+end
+
+local function isFreeRespawnEnabled()
+	return getReviveConfig().FreeRespawnEnabled == true
+end
+
+local function shouldFreeRespawnResetRun()
+	return getReviveConfig().FreeRespawnResetsRun ~= false
+end
+
+local function getFreeRespawnRestoreHpPercent()
+	local percent = tonumber(getReviveConfig().FreeRespawnRestoreHpPercent) or 1
+
+	return math.clamp(percent, 0.05, 1)
+end
+
+local function canOfferRevive(session)
+	return isReviveEnabled()
+		and session ~= nil
+		and session.IsBotSession ~= true
+		and session.Player ~= nil
+		and (tonumber(session.ReviveCount) or 0) < getMaxRevivesPerRun()
+end
+
+local function canOfferFreeRespawn(session)
+	return isFreeRespawnEnabled()
+		and session ~= nil
+		and session.IsBotSession ~= true
+		and session.Player ~= nil
+end
+
+local function canAffordRevive(session)
+	if session == nil or session.Player == nil or playerWalletService == nil then
+		return false
+	end
+
+	local getBalance = playerWalletService.getBoltsBalance
+
+	if getBalance == nil then
+		return false
+	end
+
+	return getBalance(session.Player) >= getReviveCost(session)
+end
+
+local function clearRevivePending(session)
+	if session == nil then
+		return
+	end
+
+	session.RevivePending = false
+	session.ReviveCost = 0
+	session.ReviveLastError = ""
+end
+
+local function clearFreeRespawnPending(session)
+	if session == nil then
+		return
+	end
+
+	session.FreeRespawnPending = false
+	session.FreeRespawnLastError = ""
+end
+
+local function resetReviveRunState(session)
+	if session == nil then
+		return
+	end
+
+	session.ReviveCount = 0
+	clearRevivePending(session)
+	clearFreeRespawnPending(session)
+end
+
+local function beginRevivePending(session)
+	if not canOfferRevive(session) then
+		return false
+	end
+
+	session.RevivePending = true
+	session.ReviveCost = getReviveCost(session)
+	session.ReviveLastError = ""
+
+	return true
+end
+
+local function beginFreeRespawnPending(session)
+	if not canOfferFreeRespawn(session) then
+		return false
+	end
+
+	session.FreeRespawnPending = true
+	session.FreeRespawnLastError = ""
+
+	return true
+end
+
 local function setPlayerArenaDefaults(player)
 	if player == nil then
 		return
@@ -415,6 +550,13 @@ local function setPlayerArenaDefaults(player)
 	player:SetAttribute("ArenaSessionSoftEndsAt", 0)
 	player:SetAttribute("ArenaSessionBolts", 0)
 	player:SetAttribute("ArenaLastSummary", "")
+	player:SetAttribute("ArenaRevivePending", false)
+	player:SetAttribute("ArenaReviveCost", 0)
+	player:SetAttribute("ArenaRevivesUsed", 0)
+	player:SetAttribute("ArenaMaxRevives", getMaxRevivesPerRun())
+	player:SetAttribute("ArenaCanRevive", false)
+	player:SetAttribute("ArenaReviveLastError", "")
+	player:SetAttribute("ArenaFreeRespawnAvailable", false)
 	player:SetAttribute("ArenaDamageMultiplier", 1)
 	player:SetAttribute("ArenaFireRateMultiplier", 1)
 	player:SetAttribute("ArenaMoveSpeedMultiplier", 1)
@@ -446,6 +588,13 @@ local function publishSessionAttributes(session)
 	player:SetAttribute("ArenaSessionSoftEndsAt", session.SoftEndsAt or 0)
 	player:SetAttribute("ArenaSessionBolts", session.EarnedBolts or 0)
 	player:SetAttribute("ArenaLastSummary", session.LastSummary or "")
+	player:SetAttribute("ArenaRevivePending", session.RevivePending == true)
+	player:SetAttribute("ArenaReviveCost", session.RevivePending == true and getReviveCost(session) or 0)
+	player:SetAttribute("ArenaRevivesUsed", math.max(0, math.floor(tonumber(session.ReviveCount) or 0)))
+	player:SetAttribute("ArenaMaxRevives", getMaxRevivesPerRun())
+	player:SetAttribute("ArenaCanRevive", session.RevivePending == true and canAffordRevive(session))
+	player:SetAttribute("ArenaReviveLastError", tostring(session.ReviveLastError or ""))
+	player:SetAttribute("ArenaFreeRespawnAvailable", session.FreeRespawnPending == true)
 	player:SetAttribute("ArenaDamageMultiplier", session.DamageMultiplier)
 	player:SetAttribute("ArenaFireRateMultiplier", session.FireRateMultiplier)
 	player:SetAttribute("ArenaMoveSpeedMultiplier", session.MoveSpeedMultiplier)
@@ -496,6 +645,24 @@ local function getUpgradeMaxStacks(upgradeId)
 	return math.max(1, math.floor(tonumber(definition.MaxStacks) or 1))
 end
 
+local function isBlockedByOwnedUpgrade(session, blockedUpgradeIds)
+	if typeof(blockedUpgradeIds) == "string" then
+		return hasUpgrade(session, blockedUpgradeIds)
+	end
+
+	if typeof(blockedUpgradeIds) ~= "table" then
+		return false
+	end
+
+	for _, blockedUpgradeId in ipairs(blockedUpgradeIds) do
+		if typeof(blockedUpgradeId) == "string" and hasUpgrade(session, blockedUpgradeId) then
+			return true
+		end
+	end
+
+	return false
+end
+
 local function isUpgradeChoiceValid(session, upgradeId)
 	if session == nil or typeof(upgradeId) ~= "string" then
 		return false
@@ -504,6 +671,32 @@ local function isUpgradeChoiceValid(session, upgradeId)
 	local definition = getUpgradeDefinition(upgradeId)
 
 	if definition == nil then
+		return false
+	end
+
+	if definition.Enabled == false or definition.FutureOnly == true then
+		return false
+	end
+
+	local minArenaLevel = tonumber(definition.MinArenaLevel)
+
+	if minArenaLevel ~= nil and session.ArenaLevel < minArenaLevel then
+		return false
+	end
+
+	local maxOfferLevel = tonumber(definition.MaxOfferLevel)
+
+	if maxOfferLevel ~= nil and session.ArenaLevel > maxOfferLevel then
+		return false
+	end
+
+	local offerAfterLevel = tonumber(definition.OfferAfterLevel)
+
+	if offerAfterLevel ~= nil and session.ArenaLevel <= offerAfterLevel then
+		return false
+	end
+
+	if isBlockedByOwnedUpgrade(session, definition.BlocksUpgrade) then
 		return false
 	end
 
@@ -599,16 +792,70 @@ end
 
 local function getLevelThreshold(level)
 	local thresholds = BattleArenaConfig.LevelThresholds or {}
+	local numericLevel = math.max(1, math.floor(tonumber(level) or 1))
+	local explicitThreshold = tonumber(thresholds[numericLevel])
 
-	return tonumber(thresholds[level])
+	if explicitThreshold ~= nil then
+		return explicitThreshold
+	end
+
+	local highestLevel = 1
+	local highestThreshold = 0
+
+	for thresholdLevel, threshold in pairs(thresholds) do
+		local parsedLevel = tonumber(thresholdLevel)
+		local parsedThreshold = tonumber(threshold)
+
+		if parsedLevel ~= nil
+			and parsedThreshold ~= nil
+			and parsedLevel > highestLevel
+		then
+			highestLevel = parsedLevel
+			highestThreshold = parsedThreshold
+		end
+	end
+
+	if numericLevel <= highestLevel then
+		return nil
+	end
+
+	local postMaxLevelXPStep = math.max(1, math.floor(tonumber(BattleArenaConfig.PostMaxLevelXPStep) or 350))
+
+	return highestThreshold + (numericLevel - highestLevel) * postMaxLevelXPStep
 end
 
 local function getNextLevelThreshold(level)
 	return getLevelThreshold((tonumber(level) or 1) + 1)
 end
 
+local function getMaxArenaLevel()
+	local maxArenaLevel = tonumber(BattleArenaConfig.MaxArenaLevel)
+
+	if maxArenaLevel == nil or maxArenaLevel <= 0 then
+		return math.huge
+	end
+
+	return math.max(1, math.floor(maxArenaLevel))
+end
+
+local function getMaxUpgradeLevel()
+	local maxUpgradeLevel = tonumber(BattleArenaConfig.MaxUpgradeLevel)
+		or tonumber(BattleArenaConfig.CoreBuildLevel)
+		or 5
+
+	return math.max(1, math.floor(maxUpgradeLevel))
+end
+
+local function shouldGrantLevelUpgradeOffer(arenaLevel)
+	return (tonumber(arenaLevel) or 1) <= getMaxUpgradeLevel()
+end
+
 local function updateNextLevelXP(session)
-	session.NextLevelXP = getNextLevelThreshold(session.ArenaLevel)
+	if session.ArenaLevel >= getMaxArenaLevel() then
+		session.NextLevelXP = nil
+	else
+		session.NextLevelXP = getNextLevelThreshold(session.ArenaLevel)
+	end
 end
 
 local function clearPendingUpgradeOffer(session)
@@ -695,7 +942,7 @@ local function addArenaXP(session, amount, reason)
 
 	session.ArenaXP += xpAmount
 
-	local maxLevel = math.max(1, math.floor(tonumber(BattleArenaConfig.MaxArenaLevel) or 5))
+	local maxLevel = getMaxArenaLevel()
 
 	while session.ArenaLevel < maxLevel do
 		local nextThreshold = getNextLevelThreshold(session.ArenaLevel)
@@ -705,7 +952,10 @@ local function addArenaXP(session, amount, reason)
 		end
 
 		session.ArenaLevel += 1
-		session.UnclaimedLevelUpOffers += 1
+
+		if shouldGrantLevelUpgradeOffer(session.ArenaLevel) then
+			session.UnclaimedLevelUpOffers += 1
+		end
 	end
 
 	updateNextLevelXP(session)
@@ -786,6 +1036,7 @@ local function resetArenaRun(session)
 	session.UpgradeIds = {}
 	session.ForcedUpgrades = {}
 	session.UnclaimedLevelUpOffers = 0
+	resetReviveRunState(session)
 	session.ReflectShieldCharges = 0
 	session.SpawnShieldUntil = 0
 	session.ShieldToken = (session.ShieldToken or 0) + 1
@@ -820,6 +1071,12 @@ local function makeSession(player, participant)
 		PendingUpgradeOffer = nil,
 		PendingUpgradeOfferId = "",
 		PendingUpgradeOfferSource = "",
+		ReviveCount = 0,
+		RevivePending = false,
+		ReviveCost = 0,
+		ReviveLastError = "",
+		FreeRespawnPending = false,
+		FreeRespawnLastError = "",
 		DamageMultiplier = 1,
 		FireRateMultiplier = 1,
 		MoveSpeedMultiplier = 1,
@@ -856,6 +1113,12 @@ local function makeBotSession(participant)
 		PendingUpgradeOffer = nil,
 		PendingUpgradeOfferId = "",
 		PendingUpgradeOfferSource = "",
+		ReviveCount = 0,
+		RevivePending = false,
+		ReviveCost = 0,
+		ReviveLastError = "",
+		FreeRespawnPending = false,
+		FreeRespawnLastError = "",
 		DamageMultiplier = 1,
 		FireRateMultiplier = 1,
 		MoveSpeedMultiplier = 1,
@@ -875,6 +1138,8 @@ function ArenaCombatService.init(options)
 	tankSpawnResetService = options.tankSpawnResetService
 	playerWalletService = options.playerWalletService
 	upgradeChoiceEvent = options.upgradeChoiceEvent
+	reviveRequestEvent = options.reviveRequestEvent
+	freeRespawnRequestEvent = options.freeRespawnRequestEvent
 	callbacks.setPlayerMode = options.setPlayerMode
 	callbacks.clearPlayerInput = options.clearPlayerInput
 	callbacks.restoreTankColors = options.restoreTankColors
@@ -884,9 +1149,31 @@ function ArenaCombatService.init(options)
 		upgradeChoiceConnection = nil
 	end
 
+	if reviveRequestConnection ~= nil then
+		reviveRequestConnection:Disconnect()
+		reviveRequestConnection = nil
+	end
+
+	if freeRespawnRequestConnection ~= nil then
+		freeRespawnRequestConnection:Disconnect()
+		freeRespawnRequestConnection = nil
+	end
+
 	if upgradeChoiceEvent ~= nil then
 		upgradeChoiceConnection = upgradeChoiceEvent.OnServerEvent:Connect(function(player, payload)
 			ArenaCombatService.HandleUpgradeChoice(player, payload)
+		end)
+	end
+
+	if reviveRequestEvent ~= nil then
+		reviveRequestConnection = reviveRequestEvent.OnServerEvent:Connect(function(player)
+			ArenaCombatService.HandleReviveRequest(player)
+		end)
+	end
+
+	if freeRespawnRequestEvent ~= nil then
+		freeRespawnRequestConnection = freeRespawnRequestEvent.OnServerEvent:Connect(function(player)
+			ArenaCombatService.HandleFreeRespawnRequest(player)
 		end)
 	end
 end
@@ -1374,7 +1661,8 @@ function ArenaCombatService.HandleUpgradeChoice(player, payload)
 	return true
 end
 
-function ArenaCombatService.RespawnPlayer(player)
+function ArenaCombatService.RespawnPlayer(player, options)
+	options = options or {}
 	local session = sessionsByPlayer[player]
 
 	if session == nil or player == nil or player.Parent ~= Players then
@@ -1390,6 +1678,14 @@ function ArenaCombatService.RespawnPlayer(player)
 	TankParticipantRegistry.setParticipantModelVisible(participant, true)
 	TankParticipantRegistry.resetParticipantHealth(participant)
 
+	local restoreHpPercent = tonumber(options.RestoreHpPercent)
+
+	if restoreHpPercent ~= nil then
+		local maxHealth = TankParticipantRegistry.getParticipantMaxHealth(participant)
+		local restoredHealth = math.max(1, math.floor(maxHealth * math.clamp(restoreHpPercent, 0.05, 1) + 0.5))
+		TankParticipantRegistry.setParticipantHealth(participant, restoredHealth)
+	end
+
 	if callbacks.restoreTankColors ~= nil then
 		callbacks.restoreTankColors(participant)
 	end
@@ -1398,12 +1694,109 @@ function ArenaCombatService.RespawnPlayer(player)
 	setPlayerMode(player, participant, ArenaCombatService.MODE_IN_BATTLE_ARENA)
 	player:SetAttribute("ArenaRespawnAt", 0)
 	player:SetAttribute("ArenaStatus", "Active")
+	clearRevivePending(session)
+	clearFreeRespawnPending(session)
 	clearPlayerInput(player)
 	applySessionUpgrades(session)
 	grantSpawnReflectShield(session, "Respawn")
+	publishSessionAttributes(session)
 	print("[ARENA] respawned " .. player.Name)
 
 	return true
+end
+
+function ArenaCombatService.HandleReviveRequest(player)
+	local session = sessionsByPlayer[player]
+
+	if session == nil
+		or player == nil
+		or player.Parent ~= Players
+		or session.Player ~= player
+		or session.IsBotSession == true
+	then
+		return false
+	end
+
+	if session.RevivePending ~= true then
+		session.ReviveLastError = "NotPending"
+		publishSessionAttributes(session)
+		return false
+	end
+
+	if session.Participant == nil or player:GetAttribute("PlayerMode") ~= ArenaCombatService.MODE_ARENA_RESPAWNING then
+		session.ReviveLastError = "InvalidState"
+		publishSessionAttributes(session)
+		return false
+	end
+
+	if not canOfferRevive(session) then
+		session.ReviveLastError = "LimitReached"
+		publishSessionAttributes(session)
+		return false
+	end
+
+	if playerWalletService == nil or playerWalletService.trySpendBolts == nil then
+		session.ReviveLastError = "WalletUnavailable"
+		publishSessionAttributes(session)
+		return false
+	end
+
+	local cost = getReviveCost(session)
+	local spent = playerWalletService.trySpendBolts(player, cost, "BattleArenaRevive")
+
+	if not spent then
+		session.ReviveLastError = "NotEnoughBolts"
+		session.ReviveCost = cost
+		publishSessionAttributes(session)
+		return false
+	end
+
+	session.ReviveCount = math.max(0, math.floor(tonumber(session.ReviveCount) or 0)) + 1
+	session.ReviveCost = 0
+	session.ReviveLastError = ""
+
+	return ArenaCombatService.RespawnPlayer(player, {
+		RestoreHpPercent = getReviveRestoreHpPercent(),
+	})
+end
+
+function ArenaCombatService.HandleFreeRespawnRequest(player)
+	local session = sessionsByPlayer[player]
+
+	if session == nil
+		or player == nil
+		or player.Parent ~= Players
+		or session.Player ~= player
+		or session.IsBotSession == true
+	then
+		return false
+	end
+
+	if session.FreeRespawnPending ~= true
+		or session.Participant == nil
+		or player:GetAttribute("PlayerMode") ~= ArenaCombatService.MODE_ARENA_RESPAWNING
+	then
+		session.FreeRespawnLastError = "InvalidState"
+		publishSessionAttributes(session)
+		return false
+	end
+
+	if not canOfferFreeRespawn(session) then
+		session.FreeRespawnLastError = "Unavailable"
+		publishSessionAttributes(session)
+		return false
+	end
+
+	if shouldFreeRespawnResetRun() then
+		resetArenaRun(session)
+	else
+		clearRevivePending(session)
+		clearFreeRespawnPending(session)
+	end
+
+	return ArenaCombatService.RespawnPlayer(player, {
+		RestoreHpPercent = getFreeRespawnRestoreHpPercent(),
+	})
 end
 
 local function updateArenaSummary(session)
@@ -1479,7 +1872,12 @@ function ArenaCombatService.OnParticipantKilled(killerParticipant, victimPartici
 
 	local victimPlayer = victimSession.Player
 	victimSession.Deaths += 1
-	resetArenaRun(victimSession)
+	local revivePending = beginRevivePending(victimSession)
+	local freeRespawnPending = beginFreeRespawnPending(victimSession)
+
+	if not revivePending and not freeRespawnPending then
+		resetArenaRun(victimSession)
+	end
 
 	local killerSession = nil
 
@@ -1506,14 +1904,20 @@ function ArenaCombatService.OnParticipantKilled(killerParticipant, victimPartici
 
 	victimSession.RespawnToken += 1
 	local token = victimSession.RespawnToken
-	local respawnDelay = math.max(0, tonumber(BattleArenaConfig.RespawnDelay) or 0)
-	local respawnAt = getServerTimeNow() + respawnDelay
+	local deathChoicePending = revivePending or freeRespawnPending
+	local respawnDelay = deathChoicePending and 0 or math.max(0, tonumber(BattleArenaConfig.RespawnDelay) or 0)
+	local respawnAt = deathChoicePending and 0 or getServerTimeNow() + respawnDelay
 
 	setPlayerMode(victimPlayer, victimParticipant, ArenaCombatService.MODE_ARENA_RESPAWNING)
 	victimPlayer:SetAttribute("ArenaStatus", "Destroyed")
 	victimPlayer:SetAttribute("ArenaRespawnDelay", respawnDelay)
 	victimPlayer:SetAttribute("ArenaRespawnAt", respawnAt)
 	clearPlayerInput(victimPlayer)
+
+	if deathChoicePending then
+		publishSessionAttributes(victimSession)
+		return
+	end
 
 	task.delay(respawnDelay, function()
 		local currentSession = sessionsByPlayer[victimPlayer]

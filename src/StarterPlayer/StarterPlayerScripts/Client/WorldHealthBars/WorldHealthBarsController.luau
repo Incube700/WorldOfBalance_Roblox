@@ -93,11 +93,11 @@ function WorldHealthBarsController:Discover()
 	end
 end
 
-function WorldHealthBarsController:Step()
+function WorldHealthBarsController:Step(dt)
 	local invalidModels = {}
 
 	for model, record in pairs(self.RecordsByModel) do
-		if not record:Step() then
+		if not record:Step(dt) then
 			table.insert(invalidModels, model)
 		end
 	end
@@ -125,14 +125,18 @@ function WorldHealthBarsController:Stop()
 end
 
 function WorldHealthBarsController:Start()
+	if self.Config.ENABLED == false then
+		return
+	end
+
 	self:CreateGuiFolder()
 
 	if not self.AnchorService:Start() then
 		return
 	end
 
-	self.HeartbeatConnection = RunService.Heartbeat:Connect(function()
-		self:Step()
+	self.HeartbeatConnection = RunService.Heartbeat:Connect(function(dt)
+		self:Step(dt)
 	end)
 
 	while self.GuiFolder.Parent ~= nil do

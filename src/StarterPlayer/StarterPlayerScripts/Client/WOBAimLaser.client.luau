@@ -22,6 +22,8 @@ local DEBUG_AIM_LASER = false
 local LASER_TARGET_REFRESH_INTERVAL = 0.5
 local playerTank = nil
 local loggedOwnedTankId = nil
+local smoothedStartPosition = nil
+local smoothedEndPosition = nil
 
 local function getOrCreateFolder(parent, name)
 	local folder = parent:FindFirstChild(name)
@@ -258,6 +260,40 @@ local function setLaserVisible(isVisible)
 	beam.Enabled = isVisible
 end
 
+local function hideLaser()
+	smoothedStartPosition = nil
+	smoothedEndPosition = nil
+	setLaserVisible(false)
+end
+
+local function getVisualSmoothingAlpha(deltaTime)
+	if AimAssistConfig.AimLaserVisualSmoothingEnabled ~= true then
+		return 1
+	end
+
+	local speed = math.max(0, tonumber(AimAssistConfig.AimLaserVisualSmoothingSpeed) or 30)
+
+	if speed <= 0 then
+		return 1
+	end
+
+	return 1 - math.exp(-speed * math.max(0, tonumber(deltaTime) or 0))
+end
+
+local function smoothLaserPoint(previousPosition, targetPosition, deltaTime)
+	if typeof(previousPosition) ~= "Vector3" then
+		return targetPosition
+	end
+
+	local snapDistance = math.max(0, tonumber(AimAssistConfig.AimLaserVisualSnapDistance) or 120)
+
+	if snapDistance > 0 and (previousPosition - targetPosition).Magnitude > snapDistance then
+		return targetPosition
+	end
+
+	return previousPosition:Lerp(targetPosition, getVisualSmoothingAlpha(deltaTime))
+end
+
 local function isAimLaserEnabledForLocalPlayer()
 	local mode = localPlayer:GetAttribute("PlayerMode")
 
@@ -276,28 +312,28 @@ local function isPlayerTankAbleToAim()
 		and playerTank:GetAttribute("CanShoot") ~= false
 end
 
-local function updateLaser()
+local function updateLaser(deltaTime)
 	if not isAimLaserEnabledForLocalPlayer() then
-		setLaserVisible(false)
+		hideLaser()
 		return
 	end
 
 	local muzzlePart = getMuzzlePart()
 
 	if muzzlePart == nil then
-		setLaserVisible(false)
+		hideLaser()
 		return
 	end
 
 	if not isPlayerTankAbleToAim() then
-		setLaserVisible(false)
+		hideLaser()
 		return
 	end
 
 	local direction = getFlatDirection(muzzlePart)
 
 	if direction == nil then
-		setLaserVisible(false)
+		hideLaser()
 		return
 	end
 
@@ -320,12 +356,15 @@ local function updateLaser()
 	end
 
 	if (endPosition - origin).Magnitude < 0.5 then
-		setLaserVisible(false)
+		hideLaser()
 		return
 	end
 
-	startPart.Position = origin
-	endPart.Position = endPosition
+	smoothedStartPosition = smoothLaserPoint(smoothedStartPosition, origin, deltaTime)
+	smoothedEndPosition = smoothLaserPoint(smoothedEndPosition, endPosition, deltaTime)
+
+	startPart.Position = smoothedStartPosition
+	endPart.Position = smoothedEndPosition
 
 	setLaserVisible(true)
 end

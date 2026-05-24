@@ -78,6 +78,9 @@ function TankHealthBarRecord.new(model, context)
 		ReloadBack = context.Factory:FindDescendant(billboard, "ReloadBack", "Frame"),
 		ReloadBar = context.Factory:FindDescendant(billboard, "ReloadBar", "Frame"),
 		Connections = {},
+		-- Smoothed world position for the anchor Part (nil until first Step).
+		-- Only used when Config.SMOOTHING_ENABLED is true.
+		SmoothedPosition = nil,
 	}, TankHealthBarRecord)
 
 	record:Connect()
@@ -148,13 +151,18 @@ function TankHealthBarRecord:Update()
 	self.Factory:ConfigureBillboard(self.Billboard)
 
 	-- WORLD_OFFSET.Z is a world-space Z shift that appears sideways in a top-down
-	-- camera. For Attachment anchors we remap it to StudsOffset.Y (camera-space up),
-	-- so the bar is pushed toward the top of the screen regardless of world orientation.
+	-- camera. Remap it to StudsOffset.Y (camera-space up) so the bar is pushed
+	-- toward the top of the screen regardless of world orientation.
 	-- StudsOffsetWorldSpace stays zero — no rotation artifacts.
-	-- The fallback Part anchor bakes WORLD_OFFSET into its world position already,
-	-- so its billboard uses zero here to avoid doubling the offset.
+	--
+	-- Three anchor cases:
+	--   Attachment inside Body  → camera-space StudsOffset (automatic world tracking)
+	--   Smoothed floating Part  → camera-space StudsOffset (code lerps world position)
+	--   Legacy non-smoothed Part → zero StudsOffset (WORLD_OFFSET baked into Part.Position)
 	self.Billboard.StudsOffsetWorldSpace = Vector3.zero
-	if self.AnchorPart ~= nil and self.AnchorPart:IsA("Attachment") then
+	local useCameraSpaceOffset = (self.AnchorPart ~= nil and self.AnchorPart:IsA("Attachment"))
+		or self.Config.SMOOTHING_ENABLED
+	if useCameraSpaceOffset then
 		self.Billboard.StudsOffset = Vector3.new(0, math.abs(self.Config.WORLD_OFFSET.Z), 0)
 	else
 		self.Billboard.StudsOffset = Vector3.zero
@@ -179,7 +187,7 @@ function TankHealthBarRecord:Update()
 	return true
 end
 
-function TankHealthBarRecord:Step()
+function TankHealthBarRecord:Step(dt)
 	if self.Model.Parent == nil or self.AnchorPart == nil then
 		return false
 	end
@@ -188,7 +196,29 @@ function TankHealthBarRecord:Step()
 		return true
 	end
 
-	self:UpdateAnchor()
+	if self.Config.SMOOTHING_ENABLED and self.AnchorPart:IsA("BasePart") then
+		-- Lerp the floating anchor Part toward the raw body center each frame.
+		-- This decouples the bar's visual position from the server replication tick
+		-- so it glides smoothly even when the body teleports at ~20 fps.
+		local rawCenter = self.AnchorService:GetRawCenter(self.Model)
+		if rawCenter ~= nil then
+			local target = rawCenter + self.Config.HEIGHT_OFFSET
+			local safeDt = typeof(dt) == "number" and math.max(0, dt) or (1 / 60)
+			if self.SmoothedPosition == nil then
+				-- First frame: snap to avoid sliding in from origin.
+				self.SmoothedPosition = target
+			else
+				local alpha = math.min(1, self.Config.POSITION_SMOOTHING_SPEED * safeDt)
+				self.SmoothedPosition = self.SmoothedPosition:Lerp(target, alpha)
+			end
+			self.AnchorPart.Position = self.SmoothedPosition
+		end
+	else
+		-- Non-smoothed path: Attachment follows body automatically; Part gets
+		-- its world position updated via UpdateAnchor (legacy behaviour).
+		self:UpdateAnchor()
+	end
+
 	self:UpdateReloadBar()
 
 	return true

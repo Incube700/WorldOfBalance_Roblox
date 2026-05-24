@@ -20,6 +20,8 @@ local HudWidgetFactory = require(hudModules:WaitForChild("HudWidgetFactory"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local returnToMenuRequestEvent = remotes:WaitForChild("ReturnToMenuRequestEvent")
 local upgradeChoiceEvent = remotes:WaitForChild("UpgradeChoiceEvent")
+local arenaReviveRequestEvent = remotes:WaitForChild("ArenaReviveRequestEvent")
+local arenaFreeRespawnRequestEvent = remotes:WaitForChild("ArenaFreeRespawnRequestEvent")
 
 local localPlayer = Players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
@@ -37,8 +39,10 @@ local ACTION_Z_INDEX = 20
 local POPUP_Z_INDEX = 30
 
 local mobileHudConfig = BattleArenaConfig.MobileHud or {}
+local reviveConfig = BattleArenaConfig.Revive or {}
 local mobileHudCompact = mobileHudConfig.Compact ~= false
 local mobileUseMenuForReturn = mobileHudConfig.UseMenuForReturn ~= false
+local paidReviveEnabled = reviveConfig.Enabled == true
 
 local existingGui = playerGui:FindFirstChild(GUI_NAME)
 
@@ -290,8 +294,8 @@ end
 
 local deathPanel = makePanel(
 	"DeathPanel",
-	UDim2.new(0.5, -150, 0.5, -82),
-	UDim2.new(0, 300, 0, 164)
+	UDim2.new(0.5, -160, 0.5, -150),
+	UDim2.new(0, 320, 0, 300)
 )
 
 local destroyedLabel = makeLabel(
@@ -327,9 +331,51 @@ local deathSummaryLabel = makeLabel(
 deathSummaryLabel.TextXAlignment = Enum.TextXAlignment.Center
 deathSummaryLabel.TextColor3 = Color3.fromRGB(255, 225, 120)
 
+local deathReviveButton = Instance.new("TextButton")
+deathReviveButton.Name = "DeathReviveButton"
+deathReviveButton.Position = UDim2.new(0.14, 0, 0, 124)
+deathReviveButton.Size = UDim2.new(0.72, 0, 0, 38)
+deathReviveButton.Parent = deathPanel
+styleButton(deathReviveButton, "REVIVE - 5 BOLTS")
+deathReviveButton.BackgroundColor3 = Color3.fromRGB(55, 150, 96)
+deathReviveButton.TextColor3 = Color3.fromRGB(248, 255, 248)
+
+local deathReviveSubtitle = makeLabel(
+	deathPanel,
+	"DeathReviveSubtitle",
+	UDim2.new(0, 18, 0, 164),
+	UDim2.new(1, -36, 0, 18),
+	12,
+	Enum.Font.GothamMedium
+)
+deathReviveSubtitle.Text = "Keep level and upgrades"
+deathReviveSubtitle.TextXAlignment = Enum.TextXAlignment.Center
+deathReviveSubtitle.TextColor3 = Color3.fromRGB(195, 230, 205)
+
+local deathFreeRespawnButton = Instance.new("TextButton")
+deathFreeRespawnButton.Name = "DeathFreeRespawnButton"
+deathFreeRespawnButton.Position = UDim2.new(0.14, 0, 0, 190)
+deathFreeRespawnButton.Size = UDim2.new(0.72, 0, 0, 38)
+deathFreeRespawnButton.Parent = deathPanel
+styleButton(deathFreeRespawnButton, "RESPAWN - FREE")
+deathFreeRespawnButton.BackgroundColor3 = Color3.fromRGB(250, 204, 21)
+deathFreeRespawnButton.TextColor3 = Color3.fromRGB(13, 17, 23)
+
+local deathFreeRespawnSubtitle = makeLabel(
+	deathPanel,
+	"DeathFreeRespawnSubtitle",
+	UDim2.new(0, 18, 0, 230),
+	UDim2.new(1, -36, 0, 18),
+	12,
+	Enum.Font.GothamMedium
+)
+deathFreeRespawnSubtitle.Text = "Lose current run powers"
+deathFreeRespawnSubtitle.TextXAlignment = Enum.TextXAlignment.Center
+deathFreeRespawnSubtitle.TextColor3 = Color3.fromRGB(255, 235, 166)
+
 local deathReturnButton = Instance.new("TextButton")
 deathReturnButton.Name = "DeathReturnToLobbyButton"
-deathReturnButton.Position = UDim2.new(0.18, 0, 1, -52)
+deathReturnButton.Position = UDim2.new(0.24, 0, 0, 258)
 deathReturnButton.Size = UDim2.new(0.64, 0, 0, 38)
 deathReturnButton.Parent = deathPanel
 styleButton(deathReturnButton)
@@ -492,13 +538,21 @@ local function applyDesktopLayout()
 	menuButton.Visible = layout.MenuButtonVisible
 	setMenuPopupOpen(false)
 
-	deathPanel.Position = layout.DeathPanel.Position
-	deathPanel.Size = layout.DeathPanel.Size
-	applyLabelLayout(destroyedLabel, layout.DestroyedLabel)
-	applyLabelLayout(respawnLabel, layout.RespawnLabel)
-	applyLabelLayout(deathSummaryLabel, layout.DeathSummaryLabel)
-	deathReturnButton.Position = layout.DeathReturnButton.Position
-	deathReturnButton.Size = layout.DeathReturnButton.Size
+	deathPanel.Position = UDim2.new(0.5, -160, 0.5, -150)
+	deathPanel.Size = UDim2.fromOffset(320, 300)
+	setTextLayout(destroyedLabel, UDim2.new(0, 18, 0, 16), UDim2.new(1, -36, 0, 42), layout.DestroyedLabel.TextSize)
+	setTextLayout(respawnLabel, UDim2.new(0, 18, 0, 62), UDim2.new(1, -36, 0, 28), layout.RespawnLabel.TextSize)
+	setTextLayout(deathSummaryLabel, UDim2.new(0, 18, 0, 92), UDim2.new(1, -36, 0, 26), layout.DeathSummaryLabel.TextSize)
+	deathReviveButton.Position = UDim2.new(0.14, 0, 0, 124)
+	deathReviveButton.Size = UDim2.new(0.72, 0, 0, 38)
+	setTextLayout(deathReviveSubtitle, UDim2.new(0, 18, 0, 164), UDim2.new(1, -36, 0, 18), 12)
+	deathFreeRespawnButton.Position = UDim2.new(0.14, 0, 0, 190)
+	deathFreeRespawnButton.Size = UDim2.new(0.72, 0, 0, 38)
+	deathFreeRespawnButton.TextSize = 16
+	setTextLayout(deathFreeRespawnSubtitle, UDim2.new(0, 18, 0, 230), UDim2.new(1, -36, 0, 18), 12)
+	deathReturnButton.Position = UDim2.new(0.24, 0, 0, 258)
+	deathReturnButton.Size = UDim2.new(0.52, 0, 0, 30)
+	deathReturnButton.TextSize = 13
 
 	local camera = Workspace.CurrentCamera
 	local viewportSize = camera ~= nil and camera.ViewportSize or Vector2.new(1024, 768)
@@ -583,13 +637,22 @@ local function applyMobileLayout(viewportSize)
 	menuButton.Text = m.MenuButton.Text
 	menuButton.TextSize = m.MenuButton.TextSize
 
-	deathPanel.Position = m.DeathPanel.Position
-	deathPanel.Size = m.DeathPanel.Size
-	setTextLayout(destroyedLabel, m.DestroyedLabel.Position, m.DestroyedLabel.Size, m.DestroyedLabel.TextSize)
-	setTextLayout(respawnLabel, m.RespawnLabel.Position, m.RespawnLabel.Size, m.RespawnLabel.TextSize)
-	setTextLayout(deathSummaryLabel, m.DeathSummaryLabel.Position, m.DeathSummaryLabel.Size, m.DeathSummaryLabel.TextSize)
-	deathReturnButton.Position = m.DeathReturnButton.Position
-	deathReturnButton.Size = m.DeathReturnButton.Size
+	deathPanel.Position = UDim2.new(0.5, -144, 0.5, -132)
+	deathPanel.Size = UDim2.new(0, 288, 0, 264)
+	setTextLayout(destroyedLabel, UDim2.new(0, 16, 0, 12), UDim2.new(1, -32, 0, 34), m.DestroyedLabel.TextSize)
+	setTextLayout(respawnLabel, UDim2.new(0, 16, 0, 50), UDim2.new(1, -32, 0, 24), m.RespawnLabel.TextSize)
+	setTextLayout(deathSummaryLabel, UDim2.new(0, 16, 0, 76), UDim2.new(1, -32, 0, 22), m.DeathSummaryLabel.TextSize)
+	deathReviveButton.Position = UDim2.new(0.13, 0, 0, 102)
+	deathReviveButton.Size = UDim2.new(0.74, 0, 0, 34)
+	deathReviveButton.TextSize = 13
+	setTextLayout(deathReviveSubtitle, UDim2.new(0, 16, 0, 137), UDim2.new(1, -32, 0, 16), 11)
+	deathFreeRespawnButton.Position = UDim2.new(0.13, 0, 0, 158)
+	deathFreeRespawnButton.Size = UDim2.new(0.74, 0, 0, 34)
+	deathFreeRespawnButton.TextSize = 13
+	setTextLayout(deathFreeRespawnSubtitle, UDim2.new(0, 16, 0, 193), UDim2.new(1, -32, 0, 16), 11)
+	deathReturnButton.Position = UDim2.new(0.24, 0, 0, 222)
+	deathReturnButton.Size = UDim2.new(0.52, 0, 0, 28)
+	deathReturnButton.TextSize = 11
 
 	upgradeHud:SetLayout({
 		IsMobile = true,
@@ -784,28 +847,81 @@ local function updateOverlay()
 	end
 
 	updateHealth(ownedTank, mobileLayout)
-	upgradeHud:SetVisible(true)
-	upgradeHud:SetOffer(currentUpgradeOffer)
-	upgradeHud:SetActiveUpgradeIds(upgrades)
-	upgradeHud:SetShieldState(getShieldHudState())
-
 	local mode = localPlayer:GetAttribute("PlayerMode")
 	local isDead = mode == MODE_ARENA_RESPAWNING
 		or (ownedTank ~= nil and ownedTank:GetAttribute("IsDead") == true)
 		or localPlayer:GetAttribute("IsDead") == true
 
+	upgradeHud:SetVisible(not isDead)
+	upgradeHud:SetOffer(isDead and nil or currentUpgradeOffer)
+	upgradeHud:SetActiveUpgradeIds(upgrades)
+	upgradeHud:SetShieldState(getShieldHudState())
+
 	deathPanel.Visible = isDead
 
 	if isDead then
+		local revivePending = localPlayer:GetAttribute("ArenaRevivePending") == true
+		local reviveCost = math.max(0, math.floor(tonumber(localPlayer:GetAttribute("ArenaReviveCost")) or 0))
+		local canRevive = localPlayer:GetAttribute("ArenaCanRevive") == true
+		local reviveError = tostring(localPlayer:GetAttribute("ArenaReviveLastError") or "")
+		local freeRespawnAvailable = localPlayer:GetAttribute("ArenaFreeRespawnAvailable") == true
+		local revivesUsed = math.max(0, math.floor(tonumber(localPlayer:GetAttribute("ArenaRevivesUsed")) or 0))
+		local maxRevives = math.max(0, math.floor(tonumber(localPlayer:GetAttribute("ArenaMaxRevives")) or 0))
+		local paidLimitReached = paidReviveEnabled and maxRevives > 0 and revivesUsed >= maxRevives
 		local respawnAt = localPlayer:GetAttribute("ArenaRespawnAt")
 		local seconds = 0
 
-		if typeof(respawnAt) == "number" and respawnAt > 0 then
+		if typeof(respawnAt) == "number" and respawnAt > 0 and not revivePending then
 			seconds = math.max(0, math.ceil(respawnAt - getServerTimeNow()))
 		end
 
-		respawnLabel.Text = "Respawn in " .. tostring(seconds) .. "..."
+		deathReviveButton.Visible = paidReviveEnabled and (revivePending or paidLimitReached)
+		deathReviveButton.Active = canRevive
+		deathReviveButton.AutoButtonColor = canRevive
+		deathReviveSubtitle.Visible = deathReviveButton.Visible
+		deathFreeRespawnButton.Visible = freeRespawnAvailable
+		deathFreeRespawnButton.Active = freeRespawnAvailable
+		deathFreeRespawnButton.AutoButtonColor = freeRespawnAvailable
+		deathFreeRespawnSubtitle.Visible = freeRespawnAvailable
+
+		if revivePending or freeRespawnAvailable then
+			respawnLabel.Text = canRevive and "Choose how to continue" or "Free respawn available"
+
+			if paidLimitReached or reviveError == "LimitReached" then
+				respawnLabel.Text = "No paid revives left"
+			elseif reviveError == "WalletUnavailable" then
+				respawnLabel.Text = "Wallet unavailable"
+			end
+
+			if paidLimitReached then
+				deathReviveButton.Text = "MAX REVIVES"
+			else
+				deathReviveButton.Text = canRevive
+					and ("REVIVE - " .. tostring(reviveCost) .. " BOLTS")
+					or ("NEED " .. tostring(reviveCost) .. " BOLTS")
+			end
+
+			deathReviveButton.BackgroundColor3 = canRevive
+				and Color3.fromRGB(55, 150, 96)
+				or Color3.fromRGB(74, 85, 104)
+			deathReviveSubtitle.Text = "Keep level and upgrades"
+			deathFreeRespawnButton.Text = "RESPAWN - FREE"
+			deathFreeRespawnButton.BackgroundColor3 = Color3.fromRGB(250, 204, 21)
+			deathFreeRespawnSubtitle.Text = "Lose current run powers"
+		else
+			respawnLabel.Text = "Respawn in " .. tostring(seconds) .. "..."
+			deathReviveButton.Visible = false
+			deathReviveButton.Active = false
+			deathReviveSubtitle.Visible = false
+			deathFreeRespawnButton.Visible = false
+			deathFreeRespawnButton.Active = false
+			deathFreeRespawnSubtitle.Visible = false
+		end
+
 		deathSummaryLabel.Text = tostring(localPlayer:GetAttribute("ArenaLastSummary") or "")
+	else
+		deathReviveButton.Active = false
+		deathFreeRespawnButton.Active = false
 	end
 end
 
@@ -823,6 +939,20 @@ resumeButton.Activated:Connect(function()
 end)
 popupReturnButton.Activated:Connect(requestReturnToLobby)
 deathReturnButton.Activated:Connect(requestReturnToLobby)
+deathReviveButton.Activated:Connect(function()
+	if localPlayer:GetAttribute("ArenaCanRevive") ~= true then
+		return
+	end
+
+	arenaReviveRequestEvent:FireServer()
+end)
+deathFreeRespawnButton.Activated:Connect(function()
+	if localPlayer:GetAttribute("ArenaFreeRespawnAvailable") ~= true then
+		return
+	end
+
+	arenaFreeRespawnRequestEvent:FireServer()
+end)
 
 upgradeChoiceEvent.OnClientEvent:Connect(function(payload)
 	if typeof(payload) ~= "table" or typeof(payload.OfferId) ~= "string" then
@@ -856,6 +986,13 @@ localPlayer:GetAttributeChangedSignal("ArenaSessionSoftEndsAt"):Connect(updateOv
 localPlayer:GetAttributeChangedSignal("ArenaSessionBolts"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("ArenaLastSummary"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("ArenaRespawnAt"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaRevivePending"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaReviveCost"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaCanRevive"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaReviveLastError"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaRevivesUsed"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaMaxRevives"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaFreeRespawnAvailable"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("CurrentHealth"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("MaxHealth"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("IsDead"):Connect(updateOverlay)

@@ -3,8 +3,15 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local configs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
+local PerformanceConfig = require(configs:WaitForChild("PerformanceConfig"))
 local ProjectileVisualConfig = require(configs:WaitForChild("ProjectileVisualConfig"))
 local projectileVisual = ProjectileVisualConfig.ProjectileTypeVisuals.PrototypeRicochetShell
+
+local diagnosticsConfig = PerformanceConfig.Diagnostics or {}
+
+if diagnosticsConfig.ProjectileVfxEnabled == false then
+	return
+end
 
 local root = Workspace:WaitForChild("WOB_Generated")
 local runtime = root:WaitForChild("Runtime", 20)

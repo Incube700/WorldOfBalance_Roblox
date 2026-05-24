@@ -6,7 +6,14 @@ local Players = game:GetService("Players")
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local combatFeedbackEvent = remotes:WaitForChild("CombatFeedbackEvent")
 local configs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
+local PerformanceConfig = require(configs:WaitForChild("PerformanceConfig"))
 local TankArmorConfig = require(configs:WaitForChild("TankArmorConfig"))
+
+local diagnosticsConfig = PerformanceConfig.Diagnostics or {}
+
+if diagnosticsConfig.FloatingCombatTextEnabled == false then
+	return
+end
 
 local root = Workspace:WaitForChild("WOB_Generated")
 local localPlayer = Players.LocalPlayer

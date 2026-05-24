@@ -11,6 +11,7 @@ local WeaponConfig = require(configs:WaitForChild("WeaponConfig"))
 local WeaponSafetyConfig = require(configs:WaitForChild("WeaponSafetyConfig"))
 local VfxConfig = require(configs:WaitForChild("VfxConfig"))
 local DebugCombatConfig = require(configs:WaitForChild("DebugCombatConfig"))
+local PerformanceConfig = require(configs:WaitForChild("PerformanceConfig"))
 
 local TankParticipantRegistry = require(script.Parent.Parent:WaitForChild("TankParticipantRegistry"))
 local ProjectileCollisionService = require(script.Parent:WaitForChild("ProjectileCollisionService"))
@@ -29,6 +30,24 @@ local deathExplosionConfig = VfxConfig.DeathExplosion
 local burningTankConfig = VfxConfig.BurningTank
 local ricochetConfig = VfxConfig.Ricochet
 local shieldVfxConfig = VfxConfig.Shield or {}
+
+local function getDiagnosticsConfig()
+	return PerformanceConfig.Diagnostics or {}
+end
+
+local function isMuzzleVfxEnabled()
+	local diagnosticsConfig = getDiagnosticsConfig()
+
+	return diagnosticsConfig.ProjectileVfxEnabled ~= false
+		and diagnosticsConfig.MuzzleFlashEnabled ~= false
+end
+
+local function isImpactVfxEnabled()
+	local diagnosticsConfig = getDiagnosticsConfig()
+
+	return diagnosticsConfig.ProjectileVfxEnabled ~= false
+		and diagnosticsConfig.ImpactVfxEnabled ~= false
+end
 
 local PROJECTILE_SPEED = projectileConfig.Speed
 local PROJECTILE_DAMAGE = projectileConfig.Damage or projectileConfig.BaseDamage or projectileConfig.MaxDamage
@@ -418,6 +437,10 @@ local function createFlash(position, config, name, direction, skipParticleBurst)
 end
 
 local function createMuzzleFlash(position, direction)
+	if not isMuzzleVfxEnabled() then
+		return
+	end
+
 	local flatDirection = Vector3.new(direction.X, 0, direction.Z)
 	if flatDirection.Magnitude < 0.001 then
 		flatDirection = Vector3.new(0, 0, -1)
@@ -517,6 +540,7 @@ local function getVfxDirection(direction)
 end
 
 local function createImpactBurst(position, direction, config, effectName)
+	if not isImpactVfxEnabled() then return false end
 	if config == nil or config.Enabled ~= true then return false end
 	local effectDirection = getVfxDirection(direction)
 	local templateHandled = CombatVfxService.playVfxTemplate(
@@ -586,6 +610,10 @@ local function createImpactFlash(position)
 end
 
 local function createRicochetVfx(position, normal)
+	if not isImpactVfxEnabled() then
+		return false
+	end
+
 	local direction = typeof(normal) == "Vector3" and normal or Vector3.yAxis
 
 	local templateHandled = CombatVfxService.playVfxTemplate(
@@ -609,6 +637,10 @@ local function createRicochetVfx(position, normal)
 end
 
 local function createShieldReflectVfx(position, normal)
+	if not isImpactVfxEnabled() then
+		return false
+	end
+
 	local direction = typeof(normal) == "Vector3" and normal or Vector3.yAxis
 	local reflectConfig = shieldVfxConfig.Reflect
 
@@ -671,6 +703,10 @@ local function createProceduralDeathExplosion(position, config)
 end
 
 local function createDeathExplosion(position)
+	if not isImpactVfxEnabled() then
+		return false
+	end
+
 	if deathExplosionConfig == nil or deathExplosionConfig.Enabled ~= true then
 		return false
 	end
@@ -690,6 +726,10 @@ local function createDeathExplosion(position)
 end
 
 local function createBurningTank(position)
+	if not isImpactVfxEnabled() then
+		return false
+	end
+
 	if burningTankConfig == nil or burningTankConfig.Enabled ~= true then
 		return false
 	end

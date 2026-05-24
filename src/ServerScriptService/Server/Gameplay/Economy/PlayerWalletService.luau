@@ -31,12 +31,34 @@ local function sanitizeCurrencyValue(value)
 	return math.max(0, math.floor(numberValue))
 end
 
+local function sanitizeCurrencyDelta(value)
+	local numberValue = tonumber(value)
+
+	if numberValue == nil then
+		return 0
+	end
+
+	if numberValue >= 0 then
+		return math.floor(numberValue)
+	end
+
+	return math.ceil(numberValue)
+end
+
 local function sanitizeBolts(value)
 	return sanitizeCurrencyValue(value)
 end
 
 local function sanitizeCrystals(value)
 	return sanitizeCurrencyValue(value)
+end
+
+local function sanitizeBoltsDelta(value)
+	return sanitizeCurrencyDelta(value)
+end
+
+local function sanitizeCrystalsDelta(value)
+	return sanitizeCurrencyDelta(value)
 end
 
 local function sanitizeWalletData(value)
@@ -87,7 +109,7 @@ local function getUnsavedBolts(player)
 end
 
 local function getVisibleBolts(player)
-	return getLoadedBolts(player) + getUnsavedBolts(player)
+	return math.max(0, getLoadedBolts(player) + getUnsavedBolts(player))
 end
 
 local function getLoadedCrystals(player)
@@ -103,7 +125,7 @@ local function getUnsavedCrystals(player)
 end
 
 local function getVisibleCrystals(player)
-	return getLoadedCrystals(player) + getUnsavedCrystals(player)
+	return math.max(0, getLoadedCrystals(player) + getUnsavedCrystals(player))
 end
 
 local function setWalletAttributes(player)
@@ -122,13 +144,19 @@ end
 
 local REWARD_SEQUENCE_ATTRIBUTE = "LastBoltsRewardSequence"
 
-local function setFallbackAttributes(player, preservedUnsavedBolts, preservedUnsavedCrystals)
-	loadedBoltsByUserId[player.UserId] = 0
+local function setFallbackAttributes(
+	player,
+	preservedLoadedBolts,
+	preservedUnsavedBolts,
+	preservedLoadedCrystals,
+	preservedUnsavedCrystals
+)
+	loadedBoltsByUserId[player.UserId] = sanitizeBolts(preservedLoadedBolts)
 	sessionBoltsByUserId[player.UserId] = 0
-	unsavedBoltsByUserId[player.UserId] = sanitizeBolts(preservedUnsavedBolts)
-	loadedCrystalsByUserId[player.UserId] = 0
+	unsavedBoltsByUserId[player.UserId] = sanitizeBoltsDelta(preservedUnsavedBolts)
+	loadedCrystalsByUserId[player.UserId] = sanitizeCrystals(preservedLoadedCrystals)
 	sessionCrystalsByUserId[player.UserId] = 0
-	unsavedCrystalsByUserId[player.UserId] = sanitizeCrystals(preservedUnsavedCrystals)
+	unsavedCrystalsByUserId[player.UserId] = sanitizeCrystalsDelta(preservedUnsavedCrystals)
 
 	setWalletAttributes(player)
 	player:SetAttribute(attributes.LastRewardAmount, 0)
@@ -150,10 +178,12 @@ function PlayerWalletService.loadPlayer(player)
 		}, false
 	end
 
+	local preservedLoadedBolts = getLoadedBolts(player)
 	local preservedUnsavedBolts = getUnsavedBolts(player)
+	local preservedLoadedCrystals = getLoadedCrystals(player)
 	local preservedUnsavedCrystals = getUnsavedCrystals(player)
 
-	setFallbackAttributes(player, preservedUnsavedBolts, preservedUnsavedCrystals)
+	setFallbackAttributes(player, preservedLoadedBolts, preservedUnsavedBolts, preservedLoadedCrystals, preservedUnsavedCrystals)
 
 	local store, storeError = getDataStore()
 
@@ -192,7 +222,7 @@ function PlayerWalletService.loadPlayer(player)
 
 	setWalletAttributes(player)
 	player:SetAttribute("WalletLoaded", true)
-	player:SetAttribute("WalletLastSaveSucceeded", currentUnsavedBolts <= 0 and currentUnsavedCrystals <= 0)
+	player:SetAttribute("WalletLastSaveSucceeded", currentUnsavedBolts == 0 and currentUnsavedCrystals == 0)
 
 	return walletData, true
 end
@@ -230,6 +260,44 @@ function PlayerWalletService.addBolts(player, amount, reason)
 
 	return true, PlayerWalletService.getBoltsBalance(player)
 end
+
+function PlayerWalletService.trySpendBolts(player, amount, reason)
+	if player == nil then
+		return false, 0
+	end
+
+	local spendAmount = sanitizeBolts(amount)
+
+	if spendAmount <= 0 then
+		return false, PlayerWalletService.getBoltsBalance(player)
+	end
+
+	local currentBalance = PlayerWalletService.getBoltsBalance(player)
+
+	if currentBalance < spendAmount then
+		return false, currentBalance
+	end
+
+	local userId = player.UserId
+	unsavedBoltsByUserId[userId] = getUnsavedBolts(player) - spendAmount
+
+	setWalletAttributes(player)
+	player:SetAttribute("WalletLastSaveSucceeded", false)
+
+	print(
+		("[WALLET] %s -%d %s reason=%s total=%d"):format(
+			player.Name,
+			spendAmount,
+			CurrencyConfig.DisplayName,
+			tostring(reason or "Spend"),
+			PlayerWalletService.getBoltsBalance(player)
+		)
+	)
+
+	return true, PlayerWalletService.getBoltsBalance(player)
+end
+
+PlayerWalletService.TrySpendBolts = PlayerWalletService.trySpendBolts
 
 function PlayerWalletService.addCrystals(player, amount, reason)
 	if player == nil then
@@ -292,7 +360,7 @@ function PlayerWalletService.savePlayer(player)
 	local pendingBoltsDelta = getUnsavedBolts(player)
 	local pendingCrystalsDelta = getUnsavedCrystals(player)
 
-	if pendingBoltsDelta <= 0 and pendingCrystalsDelta <= 0 then
+	if pendingBoltsDelta == 0 and pendingCrystalsDelta == 0 then
 		player:SetAttribute("WalletLastSaveSucceeded", true)
 		return true
 	end
@@ -309,8 +377,8 @@ function PlayerWalletService.savePlayer(player)
 	local success, result = pcall(function()
 		savedWalletData = store:UpdateAsync(getPlayerKey(player), function(oldValue)
 			local walletData = sanitizeWalletData(oldValue)
-			walletData.Bolts += pendingBoltsDelta
-			walletData.Crystals += pendingCrystalsDelta
+			walletData.Bolts = math.max(0, walletData.Bolts + pendingBoltsDelta)
+			walletData.Crystals = math.max(0, walletData.Crystals + pendingCrystalsDelta)
 			return walletData
 		end)
 	end)
@@ -325,8 +393,8 @@ function PlayerWalletService.savePlayer(player)
 
 	local currentUnsavedBolts = getUnsavedBolts(player)
 	local currentUnsavedCrystals = getUnsavedCrystals(player)
-	local remainingUnsavedBolts = math.max(0, currentUnsavedBolts - pendingBoltsDelta)
-	local remainingUnsavedCrystals = math.max(0, currentUnsavedCrystals - pendingCrystalsDelta)
+	local remainingUnsavedBolts = currentUnsavedBolts - pendingBoltsDelta
+	local remainingUnsavedCrystals = currentUnsavedCrystals - pendingCrystalsDelta
 
 	loadedBoltsByUserId[player.UserId] = savedWalletData.Bolts
 	unsavedBoltsByUserId[player.UserId] = remainingUnsavedBolts
@@ -345,11 +413,11 @@ function PlayerWalletService.removePlayer(player)
 		return
 	end
 
-	if getUnsavedBolts(player) > 0 or getUnsavedCrystals(player) > 0 then
+	if getUnsavedBolts(player) ~= 0 or getUnsavedCrystals(player) ~= 0 then
 		PlayerWalletService.savePlayer(player)
 	end
 
-	if getUnsavedBolts(player) > 0 or getUnsavedCrystals(player) > 0 then
+	if getUnsavedBolts(player) ~= 0 or getUnsavedCrystals(player) ~= 0 then
 		warn("[WALLET] Keeping unsaved wallet delta in memory for " .. player.Name)
 		return
 	end

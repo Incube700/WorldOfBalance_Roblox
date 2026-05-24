@@ -4,7 +4,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
 local configs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
+local PerformanceConfig = require(configs:WaitForChild("PerformanceConfig"))
 local ProjectileVisualConfig = require(configs:WaitForChild("ProjectileVisualConfig"))
+
+local diagnosticsConfig = PerformanceConfig.Diagnostics or {}
+
+if diagnosticsConfig.ProjectileVfxEnabled == false or diagnosticsConfig.ImpactVfxEnabled == false then
+	return
+end
 
 local root = Workspace:WaitForChild("WOB_Generated")
 local localPlayer = Players.LocalPlayer

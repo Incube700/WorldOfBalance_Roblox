@@ -121,28 +121,33 @@ function HealthBarAnchorService:CreateAnchor(model)
 		return nil
 	end
 
-	-- Prefer an Attachment inside the Body part so the billboard follows the
-	-- tank smoothly without needing per-frame position updates.
-	local bodyPart = getBodyPart(model)
+	-- When smoothing is disabled, prefer an Attachment inside the Body part.
+	-- The billboard adorns the Attachment, which follows the Body automatically —
+	-- no per-frame position writes needed.
+	if not self.Config.SMOOTHING_ENABLED then
+		local bodyPart = getBodyPart(model)
 
-	if bodyPart ~= nil then
-		local existing = bodyPart:FindFirstChild("HealthBarAnchor")
-		if existing ~= nil then
-			existing:Destroy()
+		if bodyPart ~= nil then
+			local existing = bodyPart:FindFirstChild("HealthBarAnchor")
+			if existing ~= nil then
+				existing:Destroy()
+			end
+
+			local attachment = Instance.new("Attachment")
+			attachment.Name = "HealthBarAnchor"
+			-- Use only HEIGHT_OFFSET in local body space. WORLD_OFFSET was a world-space
+			-- hack for the old floating Part anchor and rotates with the tank when applied
+			-- to an Attachment, causing the bar to appear to the side instead of above.
+			attachment.Position = self.Config.HEIGHT_OFFSET
+			attachment.Parent = bodyPart
+
+			return attachment
 		end
-
-		local attachment = Instance.new("Attachment")
-		attachment.Name = "HealthBarAnchor"
-		-- Use only HEIGHT_OFFSET in local body space. WORLD_OFFSET was a world-space
-		-- hack for the old floating Part anchor and rotates with the tank when applied
-		-- to an Attachment, causing the bar to appear to the side instead of above.
-		attachment.Position = self.Config.HEIGHT_OFFSET
-		attachment.Parent = bodyPart
-
-		return attachment
 	end
 
-	-- Fallback: invisible Part in the anchor folder (used when no Body part exists).
+	-- Smoothing enabled (or no Body found): use a floating Part in the anchor folder.
+	-- TankHealthBarRecord:Step(dt) lerps this Part's world Position each Heartbeat so
+	-- the billboard glides rather than jumping with the server replication tick.
 	local anchor = Instance.new("Part")
 	anchor.Name = "HealthBarAnchor_" .. model.Name
 	anchor.Anchored = true
@@ -152,6 +157,13 @@ function HealthBarAnchorService:CreateAnchor(model)
 	anchor.Transparency = 1
 	anchor.Size = Vector3.new(0.2, 0.2, 0.2)
 	anchor.Parent = self.AnchorFolder
+
+	-- Snap to initial world position so the billboard appears at a sensible
+	-- location immediately, before the first smoothed Step runs.
+	local initialCenter = getAnchorPosition(model)
+	if initialCenter ~= nil then
+		anchor.Position = initialCenter + self.Config.HEIGHT_OFFSET
+	end
 
 	return anchor
 end
@@ -169,7 +181,13 @@ function HealthBarAnchorService:UpdateAnchor(model, anchor)
 		return
 	end
 
-	-- Legacy Part fallback: reposition in world space every frame.
+	if self.Config.SMOOTHING_ENABLED then
+		-- Smoothed floating Part: position is managed by TankHealthBarRecord:Step(dt).
+		-- Do not overwrite it here or the lerp gets snapped on every attribute change.
+		return
+	end
+
+	-- Non-smoothed Part fallback: reposition in world space.
 	local center = getAnchorPosition(model)
 
 	if center == nil then
@@ -177,6 +195,12 @@ function HealthBarAnchorService:UpdateAnchor(model, anchor)
 	end
 
 	anchor.Position = center + self.Config.HEIGHT_OFFSET + self.Config.WORLD_OFFSET
+end
+
+-- Returns the raw world-space center of the model's body/hull/PrimaryPart.
+-- Used by TankHealthBarRecord:Step(dt) as the smoothing target.
+function HealthBarAnchorService:GetRawCenter(model)
+	return getAnchorPosition(model)
 end
 
 function HealthBarAnchorService:CleanupAnchor(anchor)
