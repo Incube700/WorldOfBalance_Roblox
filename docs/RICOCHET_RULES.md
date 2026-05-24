@@ -93,7 +93,7 @@ Projectile:
 - `PenetrationPower = 70`
 - legacy `Penetration = 45` remains for compatibility
 - `MaxRicochets = 3`
-- `BounceSpeedMultiplier = 0.78`
+- `BounceSpeedMultiplier = 0.72`
 - `DamageMultiplierPerBounce = 0.75`
 - `MinProjectileSpeed = 5`
 

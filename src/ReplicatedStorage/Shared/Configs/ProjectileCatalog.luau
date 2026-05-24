@@ -3,18 +3,19 @@
 local DEFAULT_RICOCHET_SHELL = table.freeze({
 	Id = "DefaultRicochetShell",
 	BehaviorType = "Ricochet",
-	Speed = 160,
+	Speed = 180,
 	Radius = 0.6,
 	BaseDamage = 110,
 	Damage = 110,
 	MaxDamage = 110,
+	-- Armor resolver reads PenetrationPower first; Penetration remains a legacy alias.
 	PenetrationPower = 70,
 	Penetration = 45,
 	MaxRicochets = 3,
-	BounceSpeedMultiplier = 0.78,
+	BounceSpeedMultiplier = 0.72,
 	DamageMultiplierPerBounce = 0.75,
 	MinProjectileSpeed = 5,
-	Lifetime = 4,
+	Lifetime = 3.6,
 
 	Raycast = table.freeze({
 		FilterType = "Exclude",
