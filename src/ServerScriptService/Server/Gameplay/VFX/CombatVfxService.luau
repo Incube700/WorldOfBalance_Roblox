@@ -51,6 +51,29 @@ local function getConfiguredTemplateNames(config)
 	return names
 end
 
+local function findTemplateByPath(rootInstance, templateName)
+	if rootInstance == nil or not isNonEmptyString(templateName) then
+		return nil
+	end
+
+	if string.find(templateName, "/", 1, true) == nil then
+		return rootInstance:FindFirstChild(templateName)
+			or rootInstance:FindFirstChild(templateName, true)
+	end
+
+	local current = rootInstance
+
+	for segment in string.gmatch(templateName, "[^/]+") do
+		current = current:FindFirstChild(segment)
+
+		if current == nil then
+			return nil
+		end
+	end
+
+	return current
+end
+
 local function getFlatDirection(direction)
 	if typeof(direction) ~= "Vector3" then
 		return Vector3.new(0, 0, -1)
@@ -191,7 +214,7 @@ function CombatVfxService.findVfxTemplate(templateName, effectName, warnIfMissin
 		return nil
 	end
 
-	local template = templatesFolder:FindFirstChild(templateName)
+	local template = findTemplateByPath(templatesFolder, templateName)
 
 	if template == nil and warnIfMissing ~= false then
 		warnOnce(

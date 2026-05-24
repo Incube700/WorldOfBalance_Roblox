@@ -95,6 +95,32 @@ local function getParticipantModel(participant)
 	return participant.PhysicalModel or participant.Model
 end
 
+local function getParticipantPosition(participant)
+	local model = getParticipantModel(participant)
+
+	if model == nil then
+		return nil
+	end
+
+	local body = model:FindFirstChild("Body", true)
+		or model:FindFirstChild("Hull", true)
+		or model.PrimaryPart
+
+	if body ~= nil and body:IsA("BasePart") then
+		return body.Position
+	end
+
+	local success, pivot = pcall(function()
+		return model:GetPivot()
+	end)
+
+	if success then
+		return pivot.Position
+	end
+
+	return nil
+end
+
 local function applyProjectileRicochet(projectile, hitPosition, hitNormal, options)
 	options = options or {}
 	local nextDirection = options.Direction
@@ -115,6 +141,54 @@ local function applyProjectileRicochet(projectile, hitPosition, hitNormal, optio
 	end
 end
 
+local function getShieldReflectDirection(projectile, targetParticipant, hitPosition, hitNormal)
+	local ownerPosition = getParticipantPosition(projectile.OwnerParticipant)
+
+	if projectile.OwnerParticipant ~= targetParticipant
+		and typeof(ownerPosition) == "Vector3"
+		and typeof(hitPosition) == "Vector3"
+	then
+		local toOwner = ownerPosition - hitPosition
+		local flatToOwner = Vector3.new(toOwner.X, 0, toOwner.Z)
+
+		if flatToOwner.Magnitude >= 0.001 then
+			return flatToOwner.Unit
+		end
+	end
+
+	if typeof(projectile.Direction) == "Vector3" and projectile.Direction.Magnitude >= 0.001 then
+		return (-projectile.Direction).Unit
+	end
+
+	if typeof(hitNormal) == "Vector3" and hitNormal.Magnitude >= 0.001 then
+		return hitNormal.Unit
+	end
+
+	return Vector3.new(0, 0, -1)
+end
+
+local function applyShieldProjectileReflect(projectile, targetParticipant, hitPosition, hitNormal)
+	local nextDirection = getShieldReflectDirection(projectile, targetParticipant, hitPosition, hitNormal)
+	local reflectCount = (tonumber(projectile.ShieldReflectCount) or 0) + 1
+	local reflectedAt = os.clock()
+
+	projectile.Direction = nextDirection
+	projectile.Position = hitPosition + nextDirection * PROJECTILE_RICOCHET_OFFSET
+	projectile.PreviousPosition = projectile.Position
+	projectile.NextPosition = projectile.Position
+	projectile.CanHitOwner = true
+	projectile.ShieldReflectCount = reflectCount
+	projectile.LastReflectedByTankId = targetParticipant ~= nil and targetParticipant.TankId or nil
+	projectile.LastShieldReflectAt = reflectedAt
+
+	if projectile.Part ~= nil then
+		projectile.Part.CFrame = CFrame.lookAt(projectile.Position, projectile.Position + projectile.Direction, Vector3.yAxis)
+		projectile.Part:SetAttribute("ShieldReflectCount", reflectCount)
+		projectile.Part:SetAttribute("LastReflectedByTankId", projectile.LastReflectedByTankId)
+		projectile.Part:SetAttribute("LastShieldReflectAt", reflectedAt)
+	end
+end
+
 function ProjectileCombatService.handleProjectileTankHit(projectile, targetParticipant, hitPosition, hitNormal, armorZone, options)
 	options = options or {}
 	local roundState = options.roundState or {}
@@ -127,6 +201,8 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 	local sendCombatFeedback = dependencies.sendCombatFeedback
 	local damageParticipant = dependencies.damageParticipant
 	local canDamageParticipant = dependencies.canDamageParticipant
+	local tryConsumeReflectShield = dependencies.tryConsumeReflectShield
+	local createShieldReflectVfx = dependencies.createShieldReflectVfx
 
 	if roundState.Ended or getParticipantIsDead(targetParticipant) then
 		destroyProjectile(projectile)
@@ -152,6 +228,38 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 		projectile.LastHitResult = ProjectileHitResult.TankRicochet
 		applyProjectileRicochet(projectile, hitPosition, hitNormal, { NoStats = true })
 		printBounce(projectile)
+		return false
+	end
+
+	local reflectedByShield = false
+	local shieldFeedback = nil
+
+	if tryConsumeReflectShield ~= nil then
+		reflectedByShield, shieldFeedback = tryConsumeReflectShield(projectile, targetParticipant)
+	end
+
+	if reflectedByShield then
+		projectile.LastHitResult = ProjectileHitResult.ShieldReflect
+		applyShieldProjectileReflect(projectile, targetParticipant, hitPosition, hitNormal)
+
+		if createShieldReflectVfx ~= nil then
+			createShieldReflectVfx(hitPosition, hitNormal)
+		elseif createRicochetVfx ~= nil then
+			createRicochetVfx(hitPosition, hitNormal)
+		end
+
+		shieldFeedback = shieldFeedback or {}
+		sendCombatFeedback(
+			"ShieldReflect",
+			hitPosition,
+			shieldFeedback.Text or "REFLECT",
+			shieldFeedback.Color or Color3.fromRGB(116, 210, 255),
+			{
+				Lifetime = tonumber(shieldFeedback.Lifetime) or 0.6,
+				RiseDistance = tonumber(shieldFeedback.RiseDistance) or 2.2,
+			}
+		)
+
 		return false
 	end
 

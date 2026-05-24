@@ -794,6 +794,7 @@ ProjectileCombatService.init({
 	createNoPenVfx = function(pos, normal) ProjectileService.getVFXHelpers().createNoPenVfx(pos, normal) end,
 	createSelfHitVfx = function(pos, normal) ProjectileService.getVFXHelpers().createSelfHitVfx(pos, normal) end,
 	createRicochetVfx = function(pos, normal) ProjectileService.getVFXHelpers().createRicochetVfx(pos, normal) end,
+	createShieldReflectVfx = function(pos, normal) ProjectileService.getVFXHelpers().createShieldReflectVfx(pos, normal) end,
 	destroyProjectile = function(proj) ProjectileService.destroyProjectile(proj) end,
 	sendCombatFeedback = function(ftype, pos, text, color, options)
 		sendCombatFeedbackPayload(ftype, pos, text, color, false, options)
@@ -801,6 +802,9 @@ ProjectileCombatService.init({
 	damageParticipant = damageParticipant,
 	canDamageParticipant = function(projectile, targetParticipant)
 		return LobbyService.canDamageParticipant(projectile, targetParticipant)
+	end,
+	tryConsumeReflectShield = function(projectile, targetParticipant)
+		return ArenaCombatService.TryConsumeReflectShield(projectile, targetParticipant)
 	end,
 })
 

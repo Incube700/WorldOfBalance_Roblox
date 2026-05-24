@@ -696,6 +696,25 @@ local function updateHealth(ownedTank, mobileLayout)
 	end
 end
 
+local function getShieldHudState()
+	local charges = math.max(0, math.floor(tonumber(localPlayer:GetAttribute("ArenaReflectShieldCharges")) or 0))
+	local spawnShieldUntil = math.max(0, tonumber(localPlayer:GetAttribute("ArenaSpawnShieldUntil")) or 0)
+	local spawnShieldActive = spawnShieldUntil > getServerTimeNow()
+	local active = localPlayer:GetAttribute("ArenaShieldActive") == true
+
+	if charges > 0 or spawnShieldActive then
+		active = true
+	elseif spawnShieldUntil > 0 then
+		active = false
+	end
+
+	return {
+		Active = active,
+		Charges = charges,
+		SpawnShieldUntil = spawnShieldUntil,
+	}
+end
+
 local function updateOverlay()
 	local visible = isArenaMode()
 	screenGui.Enabled = visible
@@ -704,6 +723,7 @@ local function updateOverlay()
 		setMenuPopupOpen(false)
 		upgradeHud:SetVisible(false)
 		upgradeHud:SetOffer(nil)
+		upgradeHud:SetShieldState({ Active = false })
 		return
 	end
 
@@ -767,6 +787,7 @@ local function updateOverlay()
 	upgradeHud:SetVisible(true)
 	upgradeHud:SetOffer(currentUpgradeOffer)
 	upgradeHud:SetActiveUpgradeIds(upgrades)
+	upgradeHud:SetShieldState(getShieldHudState())
 
 	local mode = localPlayer:GetAttribute("PlayerMode")
 	local isDead = mode == MODE_ARENA_RESPAWNING
@@ -821,6 +842,9 @@ localPlayer:GetAttributeChangedSignal("ArenaKills"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("ArenaDeaths"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("ArenaStreak"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("ArenaUpgradeIds"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaReflectShieldCharges"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaSpawnShieldUntil"):Connect(updateOverlay)
+localPlayer:GetAttributeChangedSignal("ArenaShieldActive"):Connect(updateOverlay)
 localPlayer:GetAttributeChangedSignal("ArenaPendingUpgradeOfferId"):Connect(function()
 	if tostring(localPlayer:GetAttribute("ArenaPendingUpgradeOfferId") or "") == "" then
 		currentUpgradeOffer = nil

@@ -1,8 +1,19 @@
 local BattleArenaUpgradeHud = {}
 BattleArenaUpgradeHud.__index = BattleArenaUpgradeHud
 BattleArenaUpgradeHud._warnedMissingTemplate = false
+BattleArenaUpgradeHud._warnedInvalidTemplate = false
+BattleArenaUpgradeHud._warnedTemplateVisualChildren = false
 
 local UPGRADE_ICON_SLOT_COUNT = 5
+
+local function warnTemplateIssueOnce(flagName, message)
+	if BattleArenaUpgradeHud[flagName] then
+		return
+	end
+
+	BattleArenaUpgradeHud[flagName] = true
+	warn(message)
+end
 
 local function addCorner(parent, radius)
 	local corner = Instance.new("UICorner")
@@ -126,6 +137,14 @@ local function getDescription(choice)
 	return description
 end
 
+local function isTextGui(instance)
+	return instance ~= nil and (instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox"))
+end
+
+local function isChoiceRoot(instance)
+	return instance ~= nil and (instance:IsA("Frame") or instance:IsA("TextButton"))
+end
+
 function BattleArenaUpgradeHud.new(params)
 	assert(typeof(params) == "table", "BattleArenaUpgradeHud.new requires params")
 	assert(params.Parent ~= nil, "BattleArenaUpgradeHud.new requires params.Parent")
@@ -140,14 +159,30 @@ function BattleArenaUpgradeHud.new(params)
 	self._viewportSize = Vector2.new(1024, 768)
 	self._offer = nil
 	self._activeUpgradeIds = ""
+	self._shieldState = {
+		Active = false,
+		Charges = 0,
+		SpawnShieldUntil = 0,
+	}
+	self._usesTemplate = false
+	self._templateLayoutOwned = false
+	self._templateLayouts = nil
+	self._activeTemplateLayout = nil
+	self._paidReflectSlot = nil
 
 	local templateClone = self:_tryLoadTemplate()
-	if templateClone ~= nil then
-		self:_bindTemplate(templateClone)
+	if templateClone ~= nil and self:_bindTemplate(templateClone) then
+		self._usesTemplate = true
+		self._templateLayoutOwned = true
 	else
-		if not BattleArenaUpgradeHud._warnedMissingTemplate then
-			BattleArenaUpgradeHud._warnedMissingTemplate = true
-			warn("[WOB] BattleArenaUpgradeBeltTemplate not found in ReplicatedStorage — using scripted fallback")
+		self._usesTemplate = false
+		self._templateLayoutOwned = false
+
+		if templateClone == nil then
+			warnTemplateIssueOnce(
+				"_warnedMissingTemplate",
+				"[WOB] BattleArenaUpgradeBeltTemplate not found in ReplicatedStorage — using scripted fallback"
+			)
 		end
 		self:_createRoot()
 		self:_createOfferPanel()
@@ -311,123 +346,304 @@ function BattleArenaUpgradeHud:_tryLoadTemplate()
 end
 
 function BattleArenaUpgradeHud:_bindTemplate(clone)
-	clone.ZIndex = self._zIndex
+	local visualWarnings = {}
+
+	if clone == nil or not clone:IsA("Frame") then
+		warnTemplateIssueOnce(
+			"_warnedInvalidTemplate",
+			"[WOB] BattleArenaUpgradeBeltTemplate is invalid (BattleArenaUpgradeBeltTemplate must be a Frame) — using scripted fallback"
+		)
+		return false
+	end
+
+	local function bindPaidReflectSlot(choices, layoutName)
+		local card = choices:FindFirstChild("PaidReflectChoice") or choices:FindFirstChild("Choice4")
+
+		if card == nil then
+			return nil
+		end
+
+		if not isChoiceRoot(card) then
+			table.insert(visualWarnings, layoutName .. ".PaidReflectChoice is not a Frame or TextButton")
+			return nil
+		end
+
+		local button = card:FindFirstChild("Button")
+
+		if button ~= nil and not button:IsA("TextButton") then
+			table.insert(visualWarnings, layoutName .. ".PaidReflectChoice.Button is not a TextButton")
+			button = nil
+		elseif button == nil and card:IsA("TextButton") then
+			button = card
+		end
+
+		local icon = card:FindFirstChild("Icon")
+		local title = card:FindFirstChild("Title")
+		local costLabel = card:FindFirstChild("CostLabel")
+
+		if icon ~= nil and not isTextGui(icon) then
+			table.insert(visualWarnings, layoutName .. ".PaidReflectChoice.Icon is not text")
+			icon = nil
+		end
+
+		if title ~= nil and not isTextGui(title) then
+			table.insert(visualWarnings, layoutName .. ".PaidReflectChoice.Title is not text")
+			title = nil
+		end
+
+		if costLabel ~= nil and not isTextGui(costLabel) then
+			table.insert(visualWarnings, layoutName .. ".PaidReflectChoice.CostLabel is not text")
+			costLabel = nil
+		end
+
+		if icon ~= nil then
+			icon.Text = "🛡"
+		end
+
+		if title ~= nil then
+			title.Text = "REFLECT"
+		end
+
+		if costLabel ~= nil then
+			costLabel.Text = "10"
+		end
+
+		card.Visible = false
+		card:SetAttribute("UpgradeId", nil)
+
+		if button ~= nil then
+			button.Active = false
+			button:SetAttribute("UpgradeId", nil)
+		end
+
+		return {
+			Card = card,
+			Button = button,
+			Icon = icon,
+			Title = title,
+			CostLabel = costLabel,
+		}
+	end
+
+	local function bindTemplateLayout(layoutRoot, layoutName)
+		local invalidReasons = {}
+		local templateChoices = {}
+		local iconSlots = {}
+		local belt = layoutRoot ~= nil and layoutRoot:FindFirstChild("UpgradeChoiceBelt") or nil
+
+		if layoutRoot == nil or not layoutRoot:IsA("GuiObject") then
+			table.insert(invalidReasons, layoutName .. " layout root must be a GuiObject")
+		end
+
+		if belt == nil or not belt:IsA("Frame") then
+			table.insert(invalidReasons, layoutName .. " missing Frame UpgradeChoiceBelt")
+		end
+
+		local choices = belt ~= nil and belt:FindFirstChild("Choices") or nil
+		if choices == nil or not choices:IsA("Frame") then
+			table.insert(invalidReasons, layoutName .. " missing Frame UpgradeChoiceBelt.Choices")
+		end
+
+		local iconStrip = layoutRoot ~= nil and layoutRoot:FindFirstChild("ActiveIcons") or nil
+		if iconStrip == nil or not iconStrip:IsA("Frame") then
+			table.insert(invalidReasons, layoutName .. " missing Frame ActiveIcons")
+		end
+
+		local title = belt ~= nil and belt:FindFirstChild("TitleLabel") or nil
+		if not isTextGui(title) then
+			table.insert(visualWarnings, layoutName .. ".UpgradeChoiceBelt.TitleLabel is missing or not text")
+			title = nil
+		end
+
+		local subtitle = belt ~= nil and belt:FindFirstChild("Subtitle") or nil
+		if not isTextGui(subtitle) then
+			table.insert(visualWarnings, layoutName .. ".UpgradeChoiceBelt.Subtitle is missing or not text")
+			subtitle = nil
+		end
+
+		if choices ~= nil and choices:IsA("Frame") then
+			for index = 1, 3 do
+				local choiceName = "Choice" .. tostring(index)
+				local card = choices:FindFirstChild(choiceName)
+
+				if not isChoiceRoot(card) then
+					table.insert(invalidReasons, layoutName .. " missing Frame or TextButton UpgradeChoiceBelt.Choices." .. choiceName)
+				else
+					local button = nil
+					local templateButton = card:FindFirstChild("Button")
+
+					if templateButton ~= nil then
+						if templateButton:IsA("TextButton") then
+							button = templateButton
+						else
+							table.insert(visualWarnings, layoutName .. ".UpgradeChoiceBelt.Choices." .. choiceName .. ".Button is not a TextButton")
+						end
+					end
+
+					if button == nil and card:IsA("TextButton") then
+						button = card
+					end
+
+					if button == nil then
+						table.insert(invalidReasons, layoutName .. " missing clickable Button for UpgradeChoiceBelt.Choices." .. choiceName)
+					end
+
+					local icon = card:FindFirstChild("Icon")
+					if not isTextGui(icon) then
+						table.insert(visualWarnings, layoutName .. ".UpgradeChoiceBelt.Choices." .. choiceName .. ".Icon is missing or not text")
+						icon = nil
+					end
+
+					local name = card:FindFirstChild("Title")
+					if not isTextGui(name) then
+						table.insert(visualWarnings, layoutName .. ".UpgradeChoiceBelt.Choices." .. choiceName .. ".Title is missing or not text")
+						name = nil
+					end
+
+					local effect = card:FindFirstChild("Effect")
+					if effect ~= nil and not isTextGui(effect) then
+						table.insert(visualWarnings, layoutName .. ".UpgradeChoiceBelt.Choices." .. choiceName .. ".Effect is not text")
+						effect = nil
+					end
+
+					table.insert(templateChoices, {
+						Card = card,
+						Icon = icon,
+						Name = name,
+						Effect = effect,
+						Button = button,
+						UpgradeId = nil,
+					})
+				end
+			end
+		end
+
+		if iconStrip ~= nil and iconStrip:IsA("Frame") then
+			for index = 1, UPGRADE_ICON_SLOT_COUNT do
+				local slotName = "Slot" .. tostring(index)
+				local slot = iconStrip:FindFirstChild(slotName)
+
+				if isTextGui(slot) then
+					table.insert(iconSlots, slot)
+				else
+					table.insert(visualWarnings, layoutName .. ".ActiveIcons." .. slotName .. " is missing or not text")
+				end
+			end
+		end
+
+		local overflow = iconStrip ~= nil and iconStrip:FindFirstChild("Overflow") or nil
+		if not isTextGui(overflow) then
+			table.insert(visualWarnings, layoutName .. ".ActiveIcons.Overflow is missing or not text")
+			overflow = nil
+		end
+
+		if #invalidReasons > 0 then
+			return nil, invalidReasons
+		end
+
+		return {
+			Root = layoutRoot,
+			OfferPanel = belt,
+			Title = title,
+			Subtitle = subtitle,
+			ChoiceCards = templateChoices,
+			IconStrip = iconStrip,
+			IconSlots = iconSlots,
+			Overflow = overflow,
+			PaidReflectSlot = choices ~= nil and bindPaidReflectSlot(choices, layoutName) or nil,
+		}, nil
+	end
+
+	local desktopRoot = clone:FindFirstChild("DesktopLayout")
+	local mobileRoot = clone:FindFirstChild("MobileLayout")
+	local templateLayouts = nil
+	local invalidReasons = {}
+
+	if desktopRoot ~= nil or mobileRoot ~= nil then
+		local desktopLayout, desktopInvalidReasons = bindTemplateLayout(desktopRoot, "DesktopLayout")
+		local mobileLayout, mobileInvalidReasons = bindTemplateLayout(mobileRoot, "MobileLayout")
+
+		if desktopLayout ~= nil and mobileLayout ~= nil then
+			templateLayouts = {
+				Desktop = desktopLayout,
+				Mobile = mobileLayout,
+			}
+		else
+			if desktopInvalidReasons ~= nil then
+				for _, reason in ipairs(desktopInvalidReasons) do
+					table.insert(invalidReasons, reason)
+				end
+			end
+
+			if mobileInvalidReasons ~= nil then
+				for _, reason in ipairs(mobileInvalidReasons) do
+					table.insert(invalidReasons, reason)
+				end
+			end
+		end
+	else
+		local defaultLayout, defaultInvalidReasons = bindTemplateLayout(clone, "DefaultLayout")
+
+		if defaultLayout ~= nil then
+			templateLayouts = {
+				Desktop = defaultLayout,
+				Mobile = defaultLayout,
+			}
+		elseif defaultInvalidReasons ~= nil then
+			for _, reason in ipairs(defaultInvalidReasons) do
+				table.insert(invalidReasons, reason)
+			end
+		end
+	end
+
+	if #invalidReasons > 0 or templateLayouts == nil then
+		warnTemplateIssueOnce(
+			"_warnedInvalidTemplate",
+			"[WOB] BattleArenaUpgradeBeltTemplate is invalid (" .. table.concat(invalidReasons, "; ") .. ") — using scripted fallback"
+		)
+		clone:Destroy()
+		return false
+	end
+
+	if #visualWarnings > 0 then
+		warnTemplateIssueOnce(
+			"_warnedTemplateVisualChildren",
+			"[WOB] BattleArenaUpgradeBeltTemplate has missing optional visual children: "
+				.. table.concat(visualWarnings, "; ")
+		)
+	end
+
 	clone.Parent = self._parent
 	self._root = clone
+	self._templateLayouts = templateLayouts
 
-	local belt = clone:FindFirstChild("UpgradeChoiceBelt")
-	self._offerPanel = belt
-	self._title = belt:FindFirstChild("TitleLabel")
-	self._subtitle = belt:FindFirstChild("Subtitle")
+	local connectedLayouts = {}
 
-	-- Apply visual decorators if the template did not include them
-	if not belt:FindFirstChildOfClass("UICorner") then
-		addCorner(belt, UDim.new(0, 8))
-	end
-	if not belt:FindFirstChildOfClass("UIStroke") then
-		addStroke(belt, Color3.fromRGB(250, 204, 21), 0.3, 1)
-	end
-
-	local choices = belt:FindFirstChild("Choices")
-	self._choiceCards = {}
-
-	for index = 1, 3 do
-		local card = choices and choices:FindFirstChild("Choice" .. tostring(index))
-		if card == nil then break end
-
-		-- Re-parent to belt so existing layout offset math is correct
-		card.Parent = belt
-
-		-- Ensure Icon label exists
-		local iconInst = card:FindFirstChild("Icon")
-		if iconInst == nil then
-			iconInst = makeLabel(card, "Icon", 24, Enum.Font.GothamBold, self._zIndex + 2)
-			iconInst.Text = "★"
+	for _, layoutState in pairs(templateLayouts) do
+		if connectedLayouts[layoutState] then
+			continue
 		end
 
-		-- Ensure Name/Title label exists (template calls it "Title")
-		local nameInst = card:FindFirstChild("Title")
-		if nameInst == nil then
-			nameInst = makeLabel(card, "Title", 10, Enum.Font.GothamBold, self._zIndex + 2)
-			nameInst.Text = "UPG"
-		end
+		connectedLayouts[layoutState] = true
+		layoutState.Root.Visible = false
 
-		-- Ensure Effect label exists (optional in template)
-		local effectInst = card:FindFirstChild("Effect")
-		if effectInst == nil then
-			effectInst = makeLabel(card, "Effect", 11, Enum.Font.GothamMedium, self._zIndex + 2)
-			effectInst.TextColor3 = Color3.fromRGB(178, 238, 205)
-			effectInst.TextXAlignment = Enum.TextXAlignment.Left
-			effectInst.Visible = false
-		end
+		for index = 1, 3 do
+			local entry = layoutState.ChoiceCards[index]
 
-		-- Ensure transparent full-size Button exists
-		local buttonInst = card:FindFirstChildOfClass("TextButton")
-		if buttonInst == nil then
-			buttonInst = Instance.new("TextButton")
-			buttonInst.Name = "Button"
-			buttonInst.BackgroundTransparency = 1
-			buttonInst.BorderSizePixel = 0
-			buttonInst.Text = ""
-			buttonInst.AutoButtonColor = false
-			buttonInst.Active = true
-			buttonInst.ZIndex = self._zIndex + 3
-			buttonInst.Position = UDim2.fromScale(0, 0)
-			buttonInst.Size = UDim2.fromScale(1, 1)
-			buttonInst.Parent = card
-		end
-
-		-- Visual decorators for card
-		if not card:FindFirstChildOfClass("UICorner") then
-			addCorner(card, UDim.new(0, 7))
-		end
-		if not card:FindFirstChildOfClass("UIStroke") then
-			addStroke(card, Color3.fromRGB(249, 115, 22), 0.42, 1)
-		end
-
-		local entry = {
-			Card = card,
-			Icon = iconInst,
-			Name = nameInst,
-			Effect = effectInst,
-			Button = buttonInst,
-			UpgradeId = nil,
-		}
-
-		buttonInst.Activated:Connect(function()
-			if typeof(entry.UpgradeId) ~= "string" or entry.UpgradeId == "" then
-				return
-			end
-			if self._onChoiceSelected ~= nil then
-				self._onChoiceSelected(entry.UpgradeId)
-			end
-		end)
-
-		table.insert(self._choiceCards, entry)
-	end
-
-	local iconStrip = clone:FindFirstChild("ActiveIcons")
-	self._iconStrip = iconStrip
-	self._iconSlots = {}
-
-	if iconStrip ~= nil then
-		for index = 1, UPGRADE_ICON_SLOT_COUNT do
-			local slot = iconStrip:FindFirstChild("Slot" .. tostring(index))
-			if slot ~= nil then
-				if not slot:FindFirstChildOfClass("UICorner") then
-					addCorner(slot, UDim.new(0, 6))
+			entry.Button.Activated:Connect(function()
+				if typeof(entry.UpgradeId) ~= "string" or entry.UpgradeId == "" then
+					return
 				end
-				if not slot:FindFirstChildOfClass("UIStroke") then
-					addStroke(slot, Color3.fromRGB(250, 204, 21), 0.58, 1)
+				if self._onChoiceSelected ~= nil then
+					self._onChoiceSelected(entry.UpgradeId)
 				end
-				table.insert(self._iconSlots, slot)
-			end
-		end
-		self._overflow = iconStrip:FindFirstChild("Overflow")
-		if self._overflow ~= nil and not self._overflow:FindFirstChildOfClass("UICorner") then
-			addCorner(self._overflow, UDim.new(0, 6))
+			end)
 		end
 	end
+
+	self:_selectTemplateLayout(templateLayouts.Desktop)
+
+	return true
 end
 
 function BattleArenaUpgradeHud:SetVisible(isVisible)
@@ -454,6 +670,16 @@ function BattleArenaUpgradeHud:SetActiveUpgradeIds(upgradeIds)
 	self:_render()
 end
 
+function BattleArenaUpgradeHud:SetShieldState(shieldState)
+	shieldState = typeof(shieldState) == "table" and shieldState or {}
+	self._shieldState = {
+		Active = shieldState.Active == true,
+		Charges = math.max(0, math.floor(tonumber(shieldState.Charges) or 0)),
+		SpawnShieldUntil = math.max(0, tonumber(shieldState.SpawnShieldUntil) or 0),
+	}
+	self:_render()
+end
+
 function BattleArenaUpgradeHud:Destroy()
 	if self._root ~= nil then
 		self._root:Destroy()
@@ -462,10 +688,51 @@ function BattleArenaUpgradeHud:Destroy()
 end
 
 function BattleArenaUpgradeHud:_applyLayout()
+	if self._usesTemplate then
+		self:_applyTemplateLayoutState()
+		return
+	end
+
 	if self._isMobile then
 		self:_applyMobileLayout()
 	else
 		self:_applyDesktopLayout()
+	end
+end
+
+function BattleArenaUpgradeHud:_selectTemplateLayout(layoutState)
+	if layoutState == nil then
+		return
+	end
+
+	self._activeTemplateLayout = layoutState
+	self._offerPanel = layoutState.OfferPanel
+	self._title = layoutState.Title
+	self._subtitle = layoutState.Subtitle
+	self._choiceCards = layoutState.ChoiceCards
+	self._iconStrip = layoutState.IconStrip
+	self._iconSlots = layoutState.IconSlots
+	self._overflow = layoutState.Overflow
+	self._paidReflectSlot = layoutState.PaidReflectSlot
+
+	local seenLayouts = {}
+
+	for _, candidateLayout in pairs(self._templateLayouts or {}) do
+		if not seenLayouts[candidateLayout] then
+			seenLayouts[candidateLayout] = true
+			candidateLayout.Root.Visible = candidateLayout == layoutState
+		end
+	end
+end
+
+function BattleArenaUpgradeHud:_applyTemplateLayoutState()
+	if self._root ~= nil then
+		self._root:SetAttribute("IsMobileLayout", self._isMobile)
+	end
+
+	if self._templateLayouts ~= nil then
+		local layoutState = self._isMobile and self._templateLayouts.Mobile or self._templateLayouts.Desktop
+		self:_selectTemplateLayout(layoutState)
 	end
 end
 
@@ -566,6 +833,14 @@ function BattleArenaUpgradeHud:_applyDesktopLayout()
 end
 
 function BattleArenaUpgradeHud:_layoutIconStrip(config)
+	if self._templateLayoutOwned then
+		return
+	end
+
+	if self._iconStrip == nil or self._overflow == nil then
+		return
+	end
+
 	local slotSize = config.SlotSize
 	local gap = config.Gap
 	local stripWidth = UPGRADE_ICON_SLOT_COUNT * slotSize + (UPGRADE_ICON_SLOT_COUNT - 1) * gap
@@ -603,6 +878,7 @@ function BattleArenaUpgradeHud:_render()
 	self._root.Visible = self._visible
 	self._offerPanel.Visible = hasOffer
 	self._offerPanel.Active = hasOffer
+	self:_renderPaidReflectSlot()
 
 	if hasOffer then
 		self:_renderOffer()
@@ -612,14 +888,47 @@ function BattleArenaUpgradeHud:_render()
 	end
 end
 
+function BattleArenaUpgradeHud:_renderPaidReflectSlot()
+	local slot = self._paidReflectSlot
+
+	if slot == nil then
+		return
+	end
+
+	slot.Card.Visible = false
+	slot.Card:SetAttribute("UpgradeId", nil)
+
+	if slot.Button ~= nil then
+		slot.Button.Active = false
+		slot.Button:SetAttribute("UpgradeId", nil)
+	end
+
+	if slot.Icon ~= nil then
+		slot.Icon.Text = "🛡"
+	end
+
+	if slot.Title ~= nil then
+		slot.Title.Text = "REFLECT"
+	end
+
+	if slot.CostLabel ~= nil then
+		slot.CostLabel.Text = "10"
+	end
+end
+
 function BattleArenaUpgradeHud:_renderOffer()
 	local offer = self._offer
 	local choices = offer.Choices or {}
 	local source = tostring(offer.Source or "LevelUp")
 	local arenaLevel = tonumber(offer.ArenaLevel) or 1
 
-	self._title.Text = source == "SupplyCrate" and "SUPPLY" or "LEVEL UP"
-	self._subtitle.Text = "Arena Level " .. tostring(math.floor(arenaLevel)) .. " upgrade"
+	if self._title ~= nil then
+		self._title.Text = source == "SupplyCrate" and "SUPPLY" or "LEVEL UP"
+	end
+
+	if self._subtitle ~= nil then
+		self._subtitle.Text = "Arena Level " .. tostring(math.floor(arenaLevel)) .. " upgrade"
+	end
 
 	for index, entry in ipairs(self._choiceCards) do
 		local choice = choices[index]
@@ -628,34 +937,82 @@ function BattleArenaUpgradeHud:_renderOffer()
 			local choiceId = tostring(choice.Id or "")
 			entry.UpgradeId = choiceId
 			entry.Card.Visible = true
-			entry.Icon.Text = getUpgradeIcon(choiceId)
-			entry.Name.Text = self._isMobile and getShortUpgradeTitle(choice) or tostring(choice.Title or choice.Id or "Upgrade")
-			entry.Effect.Text = getDescription(choice)
+			entry.Card:SetAttribute("UpgradeId", choiceId)
+			entry.Button.Active = true
+			entry.Button:SetAttribute("UpgradeId", choiceId)
+
+			if entry.Icon ~= nil then
+				entry.Icon.Text = getUpgradeIcon(choiceId)
+			end
+
+			if entry.Name ~= nil then
+				entry.Name.Text = self._isMobile and getShortUpgradeTitle(choice) or tostring(choice.Title or choice.Id or "Upgrade")
+			end
+
+			if entry.Effect ~= nil then
+				entry.Effect.Text = getDescription(choice)
+			end
 		else
 			entry.UpgradeId = nil
 			entry.Card.Visible = false
-			entry.Name.Text = ""
-			entry.Effect.Text = ""
+			entry.Card:SetAttribute("UpgradeId", nil)
+			entry.Button.Active = false
+			entry.Button:SetAttribute("UpgradeId", nil)
+
+			if entry.Name ~= nil then
+				entry.Name.Text = ""
+			end
+
+			if entry.Effect ~= nil then
+				entry.Effect.Text = ""
+			end
 		end
 	end
 end
 
 function BattleArenaUpgradeHud:_renderIconStrip()
 	local ids = splitUpgradeIds(self._activeUpgradeIds)
-	local visible = self._visible and #ids > 0
+	local displayIds = {}
+	local hasShieldIcon = false
+
+	for _, upgradeId in ipairs(ids) do
+		if upgradeId == "ReflectShield" then
+			hasShieldIcon = true
+		else
+			table.insert(displayIds, upgradeId)
+		end
+	end
+
+	if self._shieldState.Active == true then
+		if hasShieldIcon then
+			table.insert(displayIds, "ReflectShield")
+		else
+			table.insert(displayIds, 1, "ReflectShield")
+		end
+	end
+
+	local visible = self._visible and #displayIds > 0
 
 	self._iconStrip.Visible = visible
 
 	if not visible then
+		for _, slot in ipairs(self._iconSlots) do
+			slot.Visible = false
+		end
+
+		if self._overflow ~= nil then
+			self._overflow.Visible = false
+		end
+
 		return
 	end
 
-	local displayCount = math.min(#ids, UPGRADE_ICON_SLOT_COUNT)
-	local overflow = #ids - displayCount
+	local displayCount = math.min(#displayIds, UPGRADE_ICON_SLOT_COUNT)
+	local overflow = #displayIds - displayCount
 
 	for index, slot in ipairs(self._iconSlots) do
 		if index <= displayCount then
-			slot.Text = getUpgradeIcon(ids[index])
+			slot.Text = getUpgradeIcon(displayIds[index])
 			slot.Visible = true
 		else
 			slot.Visible = false
@@ -663,9 +1020,11 @@ function BattleArenaUpgradeHud:_renderIconStrip()
 	end
 
 	if overflow > 0 then
-		self._overflow.Text = "+" .. tostring(overflow)
-		self._overflow.Visible = true
-	else
+		if self._overflow ~= nil then
+			self._overflow.Text = "+" .. tostring(overflow)
+			self._overflow.Visible = true
+		end
+	elseif self._overflow ~= nil then
 		self._overflow.Visible = false
 	end
 end

@@ -3,6 +3,7 @@ local ProjectileHitResult = table.freeze({
 	TankPenetration = "TankPenetration",
 	TankNoPen = "TankNoPen",
 	TankRicochet = "TankRicochet",
+	ShieldReflect = "ShieldReflect",
 	Expired = "Expired",
 	NoHit = "NoHit",
 })

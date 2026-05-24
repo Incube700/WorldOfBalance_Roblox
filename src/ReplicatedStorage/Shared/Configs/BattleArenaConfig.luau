@@ -52,6 +52,14 @@ local BattleArenaConfig = table.freeze({
 	RicochetUpBonus = 1,
 	RepairHealAmount = 30,
 
+	ReflectShield = table.freeze({
+		SpawnDurationSeconds = 3.0,
+		UpgradeGrantCharges = 1,
+		MaxCharges = 3,
+		ReflectText = "REFLECT",
+		MaxReflectsPerProjectile = 1,
+	}),
+
 	UpgradePool = table.freeze({
 		DamageUp = table.freeze({
 			Title = "Damage Up",
@@ -88,6 +96,11 @@ local BattleArenaConfig = table.freeze({
 			Title = "Repair",
 			Description = "Restore 30 HP immediately.",
 			Immediate = true,
+		}),
+		ReflectShield = table.freeze({
+			Title = "Reflect Shield",
+			Description = "Reflect the next incoming shell.",
+			MaxStacks = 3,
 		}),
 	}),
 })

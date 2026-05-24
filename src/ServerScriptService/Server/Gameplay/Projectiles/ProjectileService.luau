@@ -28,6 +28,7 @@ local impactVfxConfig = VfxConfig.Impact or {}
 local deathExplosionConfig = VfxConfig.DeathExplosion
 local burningTankConfig = VfxConfig.BurningTank
 local ricochetConfig = VfxConfig.Ricochet
+local shieldVfxConfig = VfxConfig.Shield or {}
 
 local PROJECTILE_SPEED = projectileConfig.Speed
 local PROJECTILE_DAMAGE = projectileConfig.Damage or projectileConfig.BaseDamage or projectileConfig.MaxDamage
@@ -607,6 +608,17 @@ local function createRicochetVfx(position, normal)
 	return false
 end
 
+local function createShieldReflectVfx(position, normal)
+	local direction = typeof(normal) == "Vector3" and normal or Vector3.yAxis
+	local reflectConfig = shieldVfxConfig.Reflect
+
+	if createImpactBurst(position, direction, reflectConfig, "ShieldReflect") then
+		return true
+	end
+
+	return createRicochetVfx(position, direction)
+end
+
 local function createProceduralDeathExplosion(position, config)
 	if config == nil or config.Enabled ~= true or config.UseProceduralFallback ~= true then
 		return false
@@ -1031,6 +1043,7 @@ function ProjectileService.getVFXHelpers()
 		createNoPenVfx = createNoPenVfx,
 		createSelfHitVfx = createSelfHitVfx,
 		createRicochetVfx = createRicochetVfx,
+		createShieldReflectVfx = createShieldReflectVfx,
 		createDeathExplosion = createDeathExplosion,
 		createBurningTank = createBurningTank,
 		destroyProjectile = ProjectileService.destroyProjectile,

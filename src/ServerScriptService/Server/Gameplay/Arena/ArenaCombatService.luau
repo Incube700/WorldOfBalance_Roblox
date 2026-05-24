@@ -43,6 +43,7 @@ local UPGRADE_ORDER = {
 	"DoubleShot",
 	"TripleSpread",
 	"RicochetUp",
+	"ReflectShield",
 	"Repair",
 }
 
@@ -237,6 +238,143 @@ local function setArenaModifier(participant, attributeName, value)
 	setAttributeOnParticipantModels(participant, attributeName, value)
 end
 
+local function getReflectShieldConfig()
+	return BattleArenaConfig.ReflectShield or {}
+end
+
+local function getReflectShieldMaxCharges()
+	return math.max(0, math.floor(tonumber(getReflectShieldConfig().MaxCharges) or 3))
+end
+
+local function getReflectShieldSpawnDuration()
+	return math.max(0, tonumber(getReflectShieldConfig().SpawnDurationSeconds) or 3)
+end
+
+local function isSpawnShieldActive(session, now)
+	if session == nil then
+		return false
+	end
+
+	local serverTime = typeof(now) == "number" and now or getServerTimeNow()
+	local spawnShieldUntil = tonumber(session.SpawnShieldUntil)
+
+	return spawnShieldUntil ~= nil and serverTime < spawnShieldUntil
+end
+
+local function hasReflectShieldCharge(session)
+	return session ~= nil and (tonumber(session.ReflectShieldCharges) or 0) > 0
+end
+
+local function isAnyReflectShieldActive(session, now)
+	return isSpawnShieldActive(session, now) or hasReflectShieldCharge(session)
+end
+
+local function publishShieldAttributes(session, now)
+	if session == nil then
+		return
+	end
+
+	local serverTime = typeof(now) == "number" and now or getServerTimeNow()
+	local charges = math.clamp(
+		math.floor(tonumber(session.ReflectShieldCharges) or 0),
+		0,
+		getReflectShieldMaxCharges()
+	)
+	local spawnShieldUntil = math.max(0, tonumber(session.SpawnShieldUntil) or 0)
+	local player = session.Player
+	local participant = session.Participant
+
+	session.ReflectShieldCharges = charges
+	session.SpawnShieldUntil = spawnShieldUntil
+	local shieldActive = isAnyReflectShieldActive(session, serverTime)
+
+	if player ~= nil then
+		player:SetAttribute("ArenaReflectShieldCharges", charges)
+		player:SetAttribute("ArenaSpawnShieldUntil", spawnShieldUntil)
+		player:SetAttribute("ArenaShieldActive", shieldActive)
+	end
+
+	if participant ~= nil then
+		participant.ArenaReflectShieldCharges = charges
+		participant.ArenaSpawnShieldUntil = spawnShieldUntil
+		participant.ArenaShieldActive = shieldActive
+		setAttributeOnParticipantModels(participant, "ArenaReflectShieldCharges", charges)
+		setAttributeOnParticipantModels(participant, "ArenaSpawnShieldUntil", spawnShieldUntil)
+		setAttributeOnParticipantModels(participant, "ArenaShieldActive", shieldActive)
+	end
+end
+
+local function republishShieldAttributesSoon(session)
+	task.defer(function()
+		local currentSession = session ~= nil
+			and (
+				(session.Player ~= nil and sessionsByPlayer[session.Player])
+				or sessionsByParticipant[session.Participant]
+			)
+			or nil
+
+		if currentSession == session then
+			publishShieldAttributes(session)
+		end
+	end)
+end
+
+local function scheduleSpawnShieldExpiry(session)
+	if session == nil then
+		return
+	end
+
+	local duration = getReflectShieldSpawnDuration()
+
+	if duration <= 0 then
+		return
+	end
+
+	session.ShieldToken = (session.ShieldToken or 0) + 1
+	local shieldToken = session.ShieldToken
+
+	task.delay(duration, function()
+		if session.ShieldToken ~= shieldToken then
+			return
+		end
+
+		local currentSession = session.Player ~= nil
+			and sessionsByPlayer[session.Player]
+			or sessionsByParticipant[session.Participant]
+
+		if currentSession ~= session then
+			return
+		end
+
+		local now = getServerTimeNow()
+
+		if (tonumber(session.SpawnShieldUntil) or 0) <= now then
+			session.SpawnShieldUntil = 0
+			publishShieldAttributes(session, now)
+		end
+	end)
+end
+
+local function grantSpawnReflectShield(session, _reason)
+	if session == nil then
+		return
+	end
+
+	local duration = getReflectShieldSpawnDuration()
+
+	if duration <= 0 then
+		session.SpawnShieldUntil = 0
+		publishShieldAttributes(session)
+		return
+	end
+
+	local now = getServerTimeNow()
+	session.SpawnShieldUntil = now + duration
+	publishShieldAttributes(session, now)
+	scheduleSpawnShieldExpiry(session)
+	republishShieldAttributesSoon(session)
+end
+
 local function resetParticipantArenaModifiers(participant)
 	if participant == nil then
 		return
@@ -250,6 +388,9 @@ local function resetParticipantArenaModifiers(participant)
 	setArenaModifier(participant, "ArenaDoubleShotLateralOffset", 0)
 	setArenaModifier(participant, "ArenaRicochetBonus", 0)
 	setArenaModifier(participant, "ArenaUpgradeIds", "")
+	setArenaModifier(participant, "ArenaReflectShieldCharges", 0)
+	setArenaModifier(participant, "ArenaSpawnShieldUntil", 0)
+	setArenaModifier(participant, "ArenaShieldActive", false)
 end
 
 local function setPlayerArenaDefaults(player)
@@ -279,6 +420,9 @@ local function setPlayerArenaDefaults(player)
 	player:SetAttribute("ArenaMoveSpeedMultiplier", 1)
 	player:SetAttribute("ArenaProjectileCount", 1)
 	player:SetAttribute("ArenaRicochetBonus", 0)
+	player:SetAttribute("ArenaReflectShieldCharges", 0)
+	player:SetAttribute("ArenaSpawnShieldUntil", 0)
+	player:SetAttribute("ArenaShieldActive", false)
 end
 
 local function publishSessionAttributes(session)
@@ -307,6 +451,7 @@ local function publishSessionAttributes(session)
 	player:SetAttribute("ArenaMoveSpeedMultiplier", session.MoveSpeedMultiplier)
 	player:SetAttribute("ArenaProjectileCount", session.ProjectileCount)
 	player:SetAttribute("ArenaRicochetBonus", session.RicochetBonus)
+	publishShieldAttributes(session)
 end
 
 local function hasUpgrade(session, upgradeId)
@@ -597,6 +742,20 @@ local function applyRepairUpgrade(session)
 	TankParticipantRegistry.setParticipantHealth(participant, math.min(maxHealth, currentHealth + healAmount))
 end
 
+local function grantReflectShieldUpgradeCharge(session)
+	if session == nil then
+		return
+	end
+
+	local grantCharges = math.max(0, math.floor(tonumber(getReflectShieldConfig().UpgradeGrantCharges) or 1))
+
+	session.ReflectShieldCharges = math.clamp(
+		(tonumber(session.ReflectShieldCharges) or 0) + grantCharges,
+		0,
+		getReflectShieldMaxCharges()
+	)
+end
+
 local function applyChosenUpgrade(session, upgradeId)
 	if upgradeId == "Repair" then
 		applyRepairUpgrade(session)
@@ -605,6 +764,11 @@ local function applyChosenUpgrade(session, upgradeId)
 	end
 
 	table.insert(session.UpgradeIds, upgradeId)
+
+	if upgradeId == "ReflectShield" then
+		grantReflectShieldUpgradeCharge(session)
+	end
+
 	applySessionUpgrades(session)
 
 	return true
@@ -622,6 +786,9 @@ local function resetArenaRun(session)
 	session.UpgradeIds = {}
 	session.ForcedUpgrades = {}
 	session.UnclaimedLevelUpOffers = 0
+	session.ReflectShieldCharges = 0
+	session.SpawnShieldUntil = 0
+	session.ShieldToken = (session.ShieldToken or 0) + 1
 	clearPendingUpgradeOffer(session)
 	resetParticipantArenaModifiers(session.Participant)
 	applySessionUpgrades(session)
@@ -635,6 +802,7 @@ local function makeSession(player, participant)
 		Participant = participant,
 		SessionId = "Arena_" .. tostring(player.UserId) .. "_" .. tostring(math.floor(os.clock() * 1000)),
 		RespawnToken = 0,
+		ShieldToken = 0,
 		StartedAt = startedAt,
 		SoftEndsAt = getSessionSoftEndAt(startedAt),
 		Score = 0,
@@ -659,6 +827,8 @@ local function makeSession(player, participant)
 		SpreadDegrees = 0,
 		DoubleShotLateralOffset = 0,
 		RicochetBonus = 0,
+		ReflectShieldCharges = 0,
+		SpawnShieldUntil = 0,
 	}
 end
 
@@ -668,6 +838,7 @@ local function makeBotSession(participant)
 		Participant = participant,
 		SessionId = "ArenaBot_" .. tostring(participant ~= nil and participant.TankId or "Unknown"),
 		RespawnToken = 0,
+		ShieldToken = 0,
 		StartedAt = 0,
 		SoftEndsAt = 0,
 		Score = 0,
@@ -692,6 +863,8 @@ local function makeBotSession(participant)
 		SpreadDegrees = 0,
 		DoubleShotLateralOffset = 0,
 		RicochetBonus = 0,
+		ReflectShieldCharges = 0,
+		SpawnShieldUntil = 0,
 		IsBotSession = true,
 	}
 end
@@ -829,6 +1002,7 @@ function ArenaCombatService.EnterArena(player)
 	tankSpawnResetService.applySpawnToParticipant(participant, getArenaSpawnTransform(player))
 	clearPlayerInput(player)
 	applySessionUpgrades(session)
+	grantSpawnReflectShield(session, "EnterArena")
 	print("[ARENA] player entered battle arena " .. player.Name .. " -> " .. participant.TankId)
 
 	return true
@@ -1226,6 +1400,7 @@ function ArenaCombatService.RespawnPlayer(player)
 	player:SetAttribute("ArenaStatus", "Active")
 	clearPlayerInput(player)
 	applySessionUpgrades(session)
+	grantSpawnReflectShield(session, "Respawn")
 	print("[ARENA] respawned " .. player.Name)
 
 	return true
@@ -1360,6 +1535,64 @@ function ArenaCombatService.CanDamageParticipant(projectile, targetParticipant)
 	local targetSession = sessionsByParticipant[targetParticipant]
 
 	return ownerSession ~= nil and targetSession ~= nil
+end
+
+function ArenaCombatService.TryConsumeReflectShield(projectile, targetParticipant)
+	if projectile == nil or targetParticipant == nil or projectile.NoDamage == true then
+		return false, nil
+	end
+
+	local ownerSession = sessionsByParticipant[projectile.OwnerParticipant]
+	local targetSession = sessionsByParticipant[targetParticipant]
+
+	if ownerSession == nil or targetSession == nil then
+		return false, nil
+	end
+
+	local reflectConfig = getReflectShieldConfig()
+	local maxReflectsPerProjectile = math.max(
+		0,
+		math.floor(tonumber(reflectConfig.MaxReflectsPerProjectile) or 1)
+	)
+
+	if (tonumber(projectile.ShieldReflectCount) or 0) >= maxReflectsPerProjectile then
+		return false, nil
+	end
+
+	local now = getServerTimeNow()
+
+	if (tonumber(targetSession.SpawnShieldUntil) or 0) > 0
+		and (tonumber(targetSession.SpawnShieldUntil) or 0) <= now
+	then
+		targetSession.SpawnShieldUntil = 0
+	end
+
+	local spawnShieldActive = isSpawnShieldActive(targetSession, now)
+	local shieldCharges = math.clamp(
+		math.floor(tonumber(targetSession.ReflectShieldCharges) or 0),
+		0,
+		getReflectShieldMaxCharges()
+	)
+
+	if not spawnShieldActive and not hasReflectShieldCharge(targetSession) then
+		publishShieldAttributes(targetSession, now)
+		return false, nil
+	end
+
+	if spawnShieldActive then
+		targetSession.SpawnShieldUntil = 0
+	else
+		targetSession.ReflectShieldCharges = math.max(0, shieldCharges - 1)
+	end
+
+	publishShieldAttributes(targetSession, now)
+
+	return true, {
+		Text = tostring(reflectConfig.ReflectText or "REFLECT"),
+		Color = Color3.fromRGB(116, 210, 255),
+		Lifetime = 0.6,
+		RiseDistance = 2.2,
+	}
 end
 
 function ArenaCombatService.IsArenaProjectile(projectile)

@@ -124,6 +124,10 @@ local animatedButtons = {}
 local activeShellPanel = SHELL_PANEL_HIDDEN
 local resultPanelWasVisible = false
 local DEBUG_SHELL = false
+local POPUP_OVERLAY_Z_INDEX = 20
+local POPUP_CONTENT_Z_INDEX = 21
+local POPUP_CLOSE_Z_INDEX = 30
+local POPUP_CLOSE_BUTTON_SIZE = 40
 
 local COLORS = {
 	Overlay = Color3.fromRGB(7, 9, 13),
@@ -156,6 +160,24 @@ local function getOrCreate(parent, className, name)
 
 	if existing ~= nil then
 		return existing
+	end
+
+	local instance = Instance.new(className)
+	instance.Name = name
+	instance.Parent = parent
+
+	return instance
+end
+
+local function getOrCreateOfClass(parent, className, name)
+	local existing = parent:FindFirstChild(name)
+
+	if existing ~= nil then
+		if existing:IsA(className) then
+			return existing
+		end
+
+		existing:Destroy()
 	end
 
 	local instance = Instance.new(className)
@@ -338,6 +360,15 @@ local function styleButton(button, text, enabled, accentColor)
 	bindButtonAnimation(button)
 end
 
+local function stylePopupCloseButton(button)
+	styleButton(button, "×", true, COLORS.Red)
+	button.AnchorPoint = Vector2.new(1, 0)
+	button.Position = UDim2.new(1, -14, 0, 14)
+	button.Size = UDim2.new(0, POPUP_CLOSE_BUTTON_SIZE, 0, POPUP_CLOSE_BUTTON_SIZE)
+	button.TextSize = 24
+	button.ZIndex = POPUP_CLOSE_Z_INDEX
+end
+
 local function styleOverlayPanel(panel)
 	if not panel:IsA("Frame") then
 		return
@@ -348,6 +379,8 @@ local function styleOverlayPanel(panel)
 	panel.BackgroundColor3 = COLORS.Overlay
 	panel.BackgroundTransparency = 0.08
 	panel.BorderSizePixel = 0
+	panel.Active = false
+	panel.ZIndex = POPUP_OVERLAY_Z_INDEX
 end
 
 local function createMenu(screenGui)
@@ -451,17 +484,21 @@ local function createResultScreen(screenGui)
 	local content = getOrCreate(panel, "Frame", "ResultContent")
 	content.AnchorPoint = Vector2.new(0.5, 0.5)
 	content.Position = UDim2.new(0.5, 0, 0.5, 0)
-	content.Size = UDim2.new(0.9, 0, 0, 330)
+	content.Size = UDim2.new(0.9, 0, 0.7, 0)
 	content.BackgroundColor3 = Color3.fromRGB(12, 16, 18)
 	content.BackgroundTransparency = 0.08
 	content.BorderSizePixel = 0
+	content.ZIndex = POPUP_CONTENT_Z_INDEX
 	addCorner(content, UDim.new(0, 8))
 	addStroke(content, Color3.fromRGB(75, 115, 104), 0.25, 1)
-	addSizeConstraint(content, Vector2.new(300, 280), Vector2.new(440, 360))
+	addSizeConstraint(content, Vector2.new(280, 280), Vector2.new(440, 360))
+
+	local closeButton = getOrCreate(content, "TextButton", "ResultCloseButton")
+	stylePopupCloseButton(closeButton)
 
 	local title = getOrCreate(content, "TextLabel", "ResultTitleLabel")
 	title.Position = UDim2.new(0.08, 0, 0, 26)
-	title.Size = UDim2.new(0.84, 0, 0, 48)
+	title.Size = UDim2.new(0.62, 0, 0, 48)
 	styleLabel(title, "RESULT", 30, Color3.fromRGB(241, 255, 247))
 	title.Font = Enum.Font.GothamBlack
 
@@ -534,25 +571,37 @@ local function createStatsPanel(screenGui)
 	local content = getOrCreate(panel, "Frame", "StatsContent")
 	content.AnchorPoint = Vector2.new(0.5, 0.5)
 	content.Position = UDim2.new(0.5, 0, 0.5, 0)
-	content.Size = UDim2.new(0.9, 0, 0, 610)
+	content.Size = UDim2.new(0.9, 0, 0.76, 0)
 	content.BackgroundColor3 = COLORS.Panel
 	content.BackgroundTransparency = 0.08
 	content.BorderSizePixel = 0
+	content.ZIndex = POPUP_CONTENT_Z_INDEX
 	addCorner(content, UDim.new(0, 8))
 	addStroke(content, COLORS.Border, 0.22, 1)
-	addSizeConstraint(content, Vector2.new(300, 430), Vector2.new(560, 630))
+	addSizeConstraint(content, Vector2.new(280, 260), Vector2.new(560, 610))
+
+	local closeButton = getOrCreate(content, "TextButton", "StatsCloseButton")
+	stylePopupCloseButton(closeButton)
 
 	local title = getOrCreate(content, "TextLabel", "StatsTitleLabel")
-	title.Position = UDim2.new(0.08, 0, 0, 24)
-	title.Size = UDim2.new(0.84, 0, 0, 52)
+	title.Position = UDim2.new(0.08, 0, 0, 20)
+	title.Size = UDim2.new(0.62, 0, 0, 48)
 	styleLabel(title, "STATS", 30, COLORS.Text)
 	title.Font = Enum.Font.GothamBlack
 
-	local list = getOrCreate(content, "Frame", "StatsList")
-	list.Position = UDim2.new(0.1, 0, 0, 96)
-	list.Size = UDim2.new(0.8, 0, 0, 410)
+	local list = getOrCreateOfClass(content, "ScrollingFrame", "StatsList")
+	list.Position = UDim2.new(0.08, 0, 0, 84)
+	list.Size = UDim2.new(0.84, 0, 1, -176)
 	list.BackgroundTransparency = 1
 	list.BorderSizePixel = 0
+	list.Active = true
+	list.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	list.CanvasSize = UDim2.new(0, 0, 0, 0)
+	list.ClipsDescendants = true
+	list.ScrollingDirection = Enum.ScrollingDirection.Y
+	list.ScrollBarImageColor3 = COLORS.Muted
+	list.ScrollBarThickness = 6
+	list.ZIndex = POPUP_CONTENT_Z_INDEX + 1
 
 	local layout = list:FindFirstChildOfClass("UIListLayout") or Instance.new("UIListLayout")
 	layout.Padding = UDim.new(0, 4)
@@ -564,14 +613,14 @@ local function createStatsPanel(screenGui)
 	end
 
 	local emptyLabel = getOrCreate(content, "TextLabel", "StatsEmptyLabel")
-	emptyLabel.Position = UDim2.new(0.1, 0, 0, 104)
-	emptyLabel.Size = UDim2.new(0.8, 0, 0, 70)
+	emptyLabel.Position = UDim2.new(0.08, 0, 0, 96)
+	emptyLabel.Size = UDim2.new(0.84, 0, 0, 70)
 	styleLabel(emptyLabel, "No stats yet", 18, COLORS.Muted)
 	emptyLabel.Font = Enum.Font.GothamBold
 	emptyLabel.Visible = false
 
 	local backButton = getOrCreate(content, "TextButton", "StatsBackButton")
-	backButton.Position = UDim2.new(0.28, 0, 1, -88)
+	backButton.Position = UDim2.new(0.28, 0, 1, -72)
 	backButton.Size = UDim2.new(0.44, 0, 0, 52)
 	styleButton(backButton, "BACK", true, COLORS.Yellow)
 
@@ -723,6 +772,14 @@ local function updateStaticShellText()
 		if backToMenuButton ~= nil and backToMenuButton:IsA("TextButton") then
 			backToMenuButton.Text = "MENU"
 		end
+
+		for _, closeButtonName in ipairs({ "ResultCloseButton", "StatsCloseButton" }) do
+			local closeButton = findDescendant(screenGui, closeButtonName)
+
+			if closeButton ~= nil and closeButton:IsA("TextButton") then
+				closeButton.Text = "×"
+			end
+		end
 	end
 end
 
@@ -758,12 +815,25 @@ local function createShellGui()
 
 	if resultPanel == nil or not resultPanel:IsA("Frame") then
 		resultPanel = createResultScreen(screenGui)
+	elseif findDescendant(resultPanel, "ResultCloseButton") == nil then
+		resultPanel = createResultScreen(screenGui)
 	end
 
 	local statsPanel = screenGui:FindFirstChild(STATS_PANEL_NAME)
 
 	if statsPanel == nil or not statsPanel:IsA("Frame") then
 		statsPanel = createStatsPanel(screenGui)
+	else
+		local statsCloseButton = findDescendant(statsPanel, "StatsCloseButton")
+		local statsList = findDescendant(statsPanel, "StatsList")
+
+		if statsCloseButton == nil
+			or not statsCloseButton:IsA("TextButton")
+			or statsList == nil
+			or not statsList:IsA("ScrollingFrame")
+		then
+			statsPanel = createStatsPanel(screenGui)
+		end
 	end
 
 	local settingsPanel = screenGui:FindFirstChild(SETTINGS_PANEL_NAME)
@@ -785,8 +855,10 @@ local function createShellGui()
 	local statsButton = findDescendant(menuPanel, "StatsButton")
 	local settingsButton = findDescendant(menuPanel, "SettingsButton")
 	local menuCloseButton = findDescendant(menuPanel, "CloseButton")
+	local resultCloseButton = findDescendant(resultPanel, "ResultCloseButton")
 	local playAgainButton = findDescendant(resultPanel, "PlayAgainButton")
 	local backToMenuButton = findDescendant(resultPanel, "BackToMenuButton") or findDescendant(resultPanel, "MenuButton")
+	local statsCloseButton = findDescendant(statsPanel, "StatsCloseButton")
 	local statsBackButton = findDescendant(statsPanel, "StatsBackButton")
 	local settingsBackButton = findDescendant(settingsPanel, "SettingsBackButton")
 
@@ -800,19 +872,28 @@ local function createShellGui()
 
 	if playAgainButton == nil
 		or not playAgainButton:IsA("TextButton")
+		or resultCloseButton == nil
+		or not resultCloseButton:IsA("TextButton")
 		or backToMenuButton == nil
 		or not backToMenuButton:IsA("TextButton")
 		or not hasAllResultStatLabels()
 	then
 		resultPanel = createResultScreen(screenGui)
 		bindResultStatLabels(resultPanel)
+		resultCloseButton = findDescendant(resultPanel, "ResultCloseButton")
 		playAgainButton = findDescendant(resultPanel, "PlayAgainButton")
 		backToMenuButton = findDescendant(resultPanel, "BackToMenuButton") or findDescendant(resultPanel, "MenuButton")
 	end
 
-	if statsBackButton == nil or not statsBackButton:IsA("TextButton") or not hasAllTotalStatLabels() then
+	if statsCloseButton == nil
+		or not statsCloseButton:IsA("TextButton")
+		or statsBackButton == nil
+		or not statsBackButton:IsA("TextButton")
+		or not hasAllTotalStatLabels()
+	then
 		statsPanel = createStatsPanel(screenGui)
 		bindTotalStatLabels(statsPanel)
+		statsCloseButton = findDescendant(statsPanel, "StatsCloseButton")
 		statsBackButton = findDescendant(statsPanel, "StatsBackButton")
 	end
 
@@ -835,6 +916,10 @@ local function createShellGui()
 		warn("[SHELL] BackToMenuButton/MenuButton not found under " .. resultPanel:GetFullName())
 	end
 
+	if resultCloseButton == nil or not resultCloseButton:IsA("TextButton") then
+		warn("[SHELL] ResultCloseButton not found under " .. resultPanel:GetFullName())
+	end
+
 	if statsButton == nil or not statsButton:IsA("TextButton") then
 		warn("[SHELL] StatsButton not found under " .. menuPanel:GetFullName())
 	end
@@ -845,6 +930,10 @@ local function createShellGui()
 
 	if statsBackButton == nil or not statsBackButton:IsA("TextButton") then
 		warn("[SHELL] StatsBackButton not found under " .. statsPanel:GetFullName())
+	end
+
+	if statsCloseButton == nil or not statsCloseButton:IsA("TextButton") then
+		warn("[SHELL] StatsCloseButton not found under " .. statsPanel:GetFullName())
 	end
 
 	if settingsBackButton == nil or not settingsBackButton:IsA("TextButton") then
@@ -863,8 +952,10 @@ local function createShellGui()
 		MenuCloseButton = menuCloseButton,
 		LobbyMenuButton = lobbyMenuButton,
 		LobbyHintLabel = lobbyHintLabel,
+		ResultCloseButton = resultCloseButton,
 		PlayAgainButton = playAgainButton,
 		BackToMenuButton = backToMenuButton,
+		StatsCloseButton = statsCloseButton,
 		StatsBackButton = statsBackButton,
 		SettingsBackButton = settingsBackButton,
 	}
@@ -1337,6 +1428,15 @@ local function setGameplayHudVisible(isVisible)
 	end
 end
 
+local function setPanelVisible(panel, isVisible)
+	if panel == nil or not panel:IsA("GuiObject") then
+		return
+	end
+
+	panel.Visible = isVisible
+	panel.Active = isVisible
+end
+
 local function applyShellState(state)
 	local mode = getLocalPlayerMode()
 	local isLobby = isLobbyMode(mode)
@@ -1358,25 +1458,18 @@ local function applyShellState(state)
 		local lobbyMenuButton = findDescendant(screenGui, "LobbyMenuButton")
 		local lobbyHintLabel = findDescendant(screenGui, "LobbyHintLabel")
 
-		if menuPanel ~= nil and menuPanel:IsA("GuiObject") then
-			menuPanel.Visible = isMenuOpen
-		end
+		setPanelVisible(menuPanel, isMenuOpen)
 
 		if resultPanel ~= nil and resultPanel:IsA("GuiObject") then
-			resultPanel.Visible = isResult
+			setPanelVisible(resultPanel, isResult)
 
 			if shouldAnimateResultPanel then
 				animateResultPanel(resultPanel)
 			end
 		end
 
-		if statsPanel ~= nil and statsPanel:IsA("GuiObject") then
-			statsPanel.Visible = isStatsOpen
-		end
-
-		if settingsPanel ~= nil and settingsPanel:IsA("GuiObject") then
-			settingsPanel.Visible = isSettingsOpen
-		end
+		setPanelVisible(statsPanel, isStatsOpen)
+		setPanelVisible(settingsPanel, isSettingsOpen)
 
 		if lobbyMenuButton ~= nil and lobbyMenuButton:IsA("GuiObject") then
 			lobbyMenuButton.Visible = showLobbyControls
@@ -1458,6 +1551,23 @@ local function closeLobbyMenu()
 	applyShellState(root:GetAttribute("GameState") or GAME_STATE_MENU)
 end
 
+local function closeStatsPanel()
+	activeShellPanel = SHELL_PANEL_HIDDEN
+	applyShellState(root:GetAttribute("GameState") or GAME_STATE_MENU)
+end
+
+local function hideResultPanelLocally()
+	for _, screenGui in ipairs(getShellScreenGuis()) do
+		setPanelVisible(findDescendant(screenGui, RESULT_PANEL_NAME), false)
+	end
+end
+
+local function closeResultPanel()
+	activeShellPanel = SHELL_PANEL_HIDDEN
+	hideResultPanelLocally()
+	returnToMenuRequestEvent:FireServer()
+end
+
 local function openLobbyMenu()
 	activeShellPanel = SHELL_PANEL_MENU
 	applyShellState(root:GetAttribute("GameState") or GAME_STATE_MENU)
@@ -1495,6 +1605,7 @@ local function bindShellButtons(screenGui)
 	end
 
 	if resultPanel ~= nil then
+		connectActionButton(findDescendant(resultPanel, "ResultCloseButton"), "[SHELL] ResultClose clicked", closeResultPanel)
 		connectActionButton(
 			findDescendant(resultPanel, "PlayAgainButton"),
 			"[SHELL] PlayAgain clicked",
@@ -1509,10 +1620,8 @@ local function bindShellButtons(screenGui)
 	end
 
 	if statsPanel ~= nil then
-		connectActionButton(findDescendant(statsPanel, "StatsBackButton"), "[SHELL] StatsBack clicked", function()
-			activeShellPanel = SHELL_PANEL_HIDDEN
-			applyShellState(root:GetAttribute("GameState") or GAME_STATE_MENU)
-		end)
+		connectActionButton(findDescendant(statsPanel, "StatsCloseButton"), "[SHELL] StatsClose clicked", closeStatsPanel)
+		connectActionButton(findDescendant(statsPanel, "StatsBackButton"), "[SHELL] StatsBack clicked", closeStatsPanel)
 	end
 
 	if settingsPanel ~= nil then
@@ -1553,6 +1662,10 @@ if shell.LobbyMenuButton ~= nil and shell.LobbyMenuButton:IsA("TextButton") then
 	connectActionButton(shell.LobbyMenuButton, "[SHELL] LobbyMenu clicked", openLobbyMenu)
 end
 
+if shell.ResultCloseButton ~= nil and shell.ResultCloseButton:IsA("TextButton") then
+	connectActionButton(shell.ResultCloseButton, "[SHELL] ResultClose clicked", closeResultPanel)
+end
+
 if shell.PlayAgainButton ~= nil and shell.PlayAgainButton:IsA("TextButton") then
 	connectActionButton(shell.PlayAgainButton, "[SHELL] PlayAgain clicked", requestRematch)
 end
@@ -1561,11 +1674,12 @@ if shell.BackToMenuButton ~= nil and shell.BackToMenuButton:IsA("TextButton") th
 	connectRemoteButton(shell.BackToMenuButton, "[SHELL] BackToMenu clicked", GAME_STATE_MENU, returnToMenuRequestEvent)
 end
 
+if shell.StatsCloseButton ~= nil and shell.StatsCloseButton:IsA("TextButton") then
+	connectActionButton(shell.StatsCloseButton, "[SHELL] StatsClose clicked", closeStatsPanel)
+end
+
 if shell.StatsBackButton ~= nil and shell.StatsBackButton:IsA("TextButton") then
-	connectActionButton(shell.StatsBackButton, "[SHELL] StatsBack clicked", function()
-		activeShellPanel = SHELL_PANEL_HIDDEN
-		applyShellState(root:GetAttribute("GameState") or GAME_STATE_MENU)
-	end)
+	connectActionButton(shell.StatsBackButton, "[SHELL] StatsBack clicked", closeStatsPanel)
 end
 
 if shell.SettingsBackButton ~= nil and shell.SettingsBackButton:IsA("TextButton") then
