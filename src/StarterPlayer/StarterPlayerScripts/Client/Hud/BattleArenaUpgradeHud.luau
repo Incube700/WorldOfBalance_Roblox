@@ -4,6 +4,10 @@ BattleArenaUpgradeHud._warnedMissingTemplate = false
 BattleArenaUpgradeHud._warnedInvalidTemplate = false
 BattleArenaUpgradeHud._warnedTemplateVisualChildren = false
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local sharedConfigs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
+local UpgradeIconConfig = require(sharedConfigs:WaitForChild("UpgradeIconConfig"))
+
 local UPGRADE_ICON_SLOT_COUNT = 5
 
 local function warnTemplateIssueOnce(flagName, message)
@@ -70,32 +74,46 @@ local function splitUpgradeIds(upgradeIds)
 	return ids
 end
 
-local function getUpgradeIcon(upgradeId)
+local function getUpgradeIconConfig(upgradeId)
 	if typeof(upgradeId) ~= "string" then
-		return "★"
+		return nil
 	end
 
-	local lower = string.lower(upgradeId)
+	local icons = UpgradeIconConfig.Icons
 
-	if string.find(lower, "firerate") or string.find(lower, "fire_rate") or string.find(lower, "reload") then
-		return "⚡"
-	elseif string.find(lower, "damage") or string.find(lower, "heavy") then
-		return "💥"
-	elseif string.find(lower, "ricochet") or string.find(lower, "bounce") then
-		return "🔁"
-	elseif string.find(lower, "repair") or string.find(lower, "armor") or string.find(lower, "hp") or string.find(lower, "health") then
-		return "🛡"
-	elseif string.find(lower, "speed") or string.find(lower, "turbo") or string.find(lower, "move") then
-		return "🏎"
-	elseif string.find(lower, "shield") then
-		return "🔵"
-	elseif string.find(lower, "triple") or string.find(lower, "double") or string.find(lower, "explosion") or string.find(lower, "bigboom") then
-		return "🔥"
-	elseif string.find(lower, "bolt") or string.find(lower, "reward") or string.find(lower, "magnet") then
-		return "🧲"
-	else
-		return "★"
+	if typeof(icons) ~= "table" then
+		return nil
 	end
+
+	return icons[upgradeId]
+end
+
+local function getUpgradeIconImage(upgradeId)
+	local iconConfig = getUpgradeIconConfig(upgradeId)
+	local image = iconConfig ~= nil and iconConfig.Image or nil
+
+	if typeof(image) == "string" and image ~= "" then
+		return image
+	end
+
+	return nil
+end
+
+local function getUpgradeIconFallbackText(upgradeId)
+	local iconConfig = getUpgradeIconConfig(upgradeId)
+	local fallbackText = iconConfig ~= nil and iconConfig.FallbackText or nil
+
+	if typeof(fallbackText) == "string" and fallbackText ~= "" then
+		return fallbackText
+	end
+
+	fallbackText = UpgradeIconConfig.FallbackText
+
+	if typeof(fallbackText) == "string" and fallbackText ~= "" then
+		return fallbackText
+	end
+
+	return "★"
 end
 
 local function getShortUpgradeTitle(choice)
@@ -141,8 +159,168 @@ local function isTextGui(instance)
 	return instance ~= nil and (instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox"))
 end
 
+local function isImageGui(instance)
+	return instance ~= nil and instance:IsA("ImageLabel")
+end
+
+local function isIconGui(instance)
+	return isTextGui(instance) or isImageGui(instance)
+end
+
 local function isChoiceRoot(instance)
 	return instance ~= nil and (instance:IsA("Frame") or instance:IsA("TextButton"))
+end
+
+local function getIconImageName(iconGui)
+	if iconGui ~= nil and iconGui.Name == "Icon" then
+		return "IconImage"
+	end
+
+	return tostring(iconGui ~= nil and iconGui.Name or "Icon") .. "IconImage"
+end
+
+local function findIconImage(iconGui)
+	if iconGui == nil or not iconGui:IsA("GuiObject") then
+		return nil
+	end
+
+	if isImageGui(iconGui) then
+		return iconGui
+	end
+
+	local parent = iconGui.Parent
+
+	if parent == nil then
+		return nil
+	end
+
+	local imageName = getIconImageName(iconGui)
+	local image = parent:FindFirstChild(imageName)
+
+	if image ~= nil and not image:IsA("ImageLabel") then
+		image:Destroy()
+		image = nil
+	end
+
+	return image
+end
+
+local function syncIconImageLayout(image, sourceGui)
+	if image == nil or sourceGui == nil then
+		return
+	end
+
+	image.AnchorPoint = sourceGui.AnchorPoint
+	image.Position = sourceGui.Position
+	image.Size = sourceGui.Size
+	image.Rotation = sourceGui.Rotation
+	image.BackgroundTransparency = 1
+	image.BorderSizePixel = 0
+	image.Active = false
+	image.Selectable = false
+	image.ScaleType = Enum.ScaleType.Fit
+	image.ZIndex = sourceGui.ZIndex + 1
+end
+
+local function getOrCreateIconImage(iconGui)
+	if iconGui == nil or not iconGui:IsA("GuiObject") then
+		return nil
+	end
+
+	if isImageGui(iconGui) then
+		iconGui.BackgroundTransparency = 1
+		iconGui.BorderSizePixel = 0
+		iconGui.Active = false
+		iconGui.Selectable = false
+		iconGui.ScaleType = Enum.ScaleType.Fit
+		return iconGui
+	end
+
+	local parent = iconGui.Parent
+
+	if parent == nil then
+		return nil
+	end
+
+	local imageName = getIconImageName(iconGui)
+	local image = parent:FindFirstChild(imageName)
+
+	if image ~= nil and not image:IsA("ImageLabel") then
+		image:Destroy()
+		image = nil
+	end
+
+	local nestedImage = iconGui:FindFirstChild("IconImage")
+
+	if image == nil and nestedImage ~= nil and nestedImage:IsA("ImageLabel") then
+		image = nestedImage
+		image.Name = imageName
+		image.Parent = parent
+	elseif nestedImage ~= nil and nestedImage:IsA("ImageLabel") and nestedImage ~= image then
+		nestedImage.Visible = false
+	end
+
+	if image == nil then
+		image = Instance.new("ImageLabel")
+		image.Name = imageName
+		image.Parent = parent
+	end
+
+	syncIconImageLayout(image, iconGui)
+
+	return image
+end
+
+local function applyUpgradeIcon(iconGui, upgradeId)
+	if iconGui == nil then
+		return
+	end
+
+	local imageId = getUpgradeIconImage(upgradeId)
+	local fallbackText = getUpgradeIconFallbackText(upgradeId)
+	local image = getOrCreateIconImage(iconGui)
+
+	if image ~= nil then
+		image.Image = imageId or ""
+		image.Visible = imageId ~= nil
+	end
+
+	if isTextGui(iconGui) then
+		iconGui.Text = imageId ~= nil and "" or fallbackText
+		iconGui.Visible = imageId == nil
+	elseif isImageGui(iconGui) then
+		iconGui.Image = imageId or ""
+		iconGui.Visible = imageId ~= nil
+	end
+end
+
+local function clearUpgradeIcon(iconGui)
+	if iconGui == nil then
+		return
+	end
+
+	if isTextGui(iconGui) then
+		iconGui.Text = ""
+	end
+
+	local image = findIconImage(iconGui)
+
+	if image ~= nil and image:IsA("ImageLabel") then
+		image.Image = ""
+		image.Visible = false
+	end
+
+	local nestedImage = iconGui:IsA("GuiObject") and iconGui:FindFirstChild("IconImage") or nil
+
+	if nestedImage ~= nil and nestedImage:IsA("ImageLabel") and nestedImage ~= image then
+		nestedImage.Image = ""
+		nestedImage.Visible = false
+	end
+
+	if isImageGui(iconGui) then
+		iconGui.Image = ""
+		iconGui.Visible = false
+	end
 end
 
 function BattleArenaUpgradeHud.new(params)
@@ -378,12 +556,19 @@ function BattleArenaUpgradeHud:_bindTemplate(clone)
 		end
 
 		local icon = card:FindFirstChild("Icon")
+		local iconImage = card:FindFirstChild("IconImage")
 		local title = card:FindFirstChild("Title")
 		local costLabel = card:FindFirstChild("CostLabel")
 
-		if icon ~= nil and not isTextGui(icon) then
-			table.insert(visualWarnings, layoutName .. ".PaidReflectChoice.Icon is not text")
+		if icon ~= nil and not isIconGui(icon) then
+			table.insert(visualWarnings, layoutName .. ".PaidReflectChoice.Icon is not a supported icon gui")
 			icon = nil
+		end
+
+		if icon == nil and isImageGui(iconImage) then
+			icon = iconImage
+		elseif icon ~= nil then
+			getOrCreateIconImage(icon)
 		end
 
 		if title ~= nil and not isTextGui(title) then
@@ -397,7 +582,7 @@ function BattleArenaUpgradeHud:_bindTemplate(clone)
 		end
 
 		if icon ~= nil then
-			icon.Text = "🛡"
+			applyUpgradeIcon(icon, "ReflectShield")
 		end
 
 		if title ~= nil then
@@ -489,9 +674,16 @@ function BattleArenaUpgradeHud:_bindTemplate(clone)
 					end
 
 					local icon = card:FindFirstChild("Icon")
-					if not isTextGui(icon) then
-						table.insert(visualWarnings, layoutName .. ".UpgradeChoiceBelt.Choices." .. choiceName .. ".Icon is missing or not text")
-						icon = nil
+					local iconImage = card:FindFirstChild("IconImage")
+					if not isIconGui(icon) then
+						if isImageGui(iconImage) then
+							icon = iconImage
+						else
+							table.insert(visualWarnings, layoutName .. ".UpgradeChoiceBelt.Choices." .. choiceName .. ".Icon is missing or not a supported icon gui")
+							icon = nil
+						end
+					elseif icon ~= nil then
+						getOrCreateIconImage(icon)
 					end
 
 					local name = card:FindFirstChild("Title")
@@ -523,10 +715,10 @@ function BattleArenaUpgradeHud:_bindTemplate(clone)
 				local slotName = "Slot" .. tostring(index)
 				local slot = iconStrip:FindFirstChild(slotName)
 
-				if isTextGui(slot) then
+				if isIconGui(slot) then
 					table.insert(iconSlots, slot)
 				else
-					table.insert(visualWarnings, layoutName .. ".ActiveIcons." .. slotName .. " is missing or not text")
+					table.insert(visualWarnings, layoutName .. ".ActiveIcons." .. slotName .. " is missing or not a supported icon gui")
 				end
 			end
 		end
@@ -747,78 +939,104 @@ function BattleArenaUpgradeHud:_applyMobileLayout()
 	local rowX = math.floor((panelWidth - rowWidth) * 0.5)
 
 	self._offerPanel.AnchorPoint = Vector2.new(0.5, 1)
-	self._offerPanel.Position = UDim2.new(0.5, 0, 1, -104)
+	self._offerPanel.Position = UDim2.new(0.5, 0, 1, -96)
 	self._offerPanel.Size = UDim2.fromOffset(panelWidth, panelHeight)
 
-	self._title.Position = UDim2.fromOffset(8, 4)
-	self._title.Size = UDim2.new(1, -16, 0, 18)
-	self._title.TextSize = 13
+	if self._title ~= nil then
+		self._title.Position = UDim2.fromOffset(8, 4)
+		self._title.Size = UDim2.new(1, -16, 0, 18)
+		self._title.TextSize = 13
+	end
 
-	self._subtitle.Visible = false
+	if self._subtitle ~= nil then
+		self._subtitle.Visible = false
+	end
 
 	for index, entry in ipairs(self._choiceCards) do
 		local x = rowX + (index - 1) * (buttonSize + buttonGap)
 		entry.Card.Position = UDim2.fromOffset(x, 24)
 		entry.Card.Size = UDim2.fromOffset(buttonSize, buttonSize)
-		entry.Icon.Position = UDim2.fromOffset(0, 4)
-		entry.Icon.Size = UDim2.new(1, 0, 0, math.floor(buttonSize * 0.56))
-		entry.Icon.TextSize = math.floor(buttonSize * 0.42)
+		if entry.Icon ~= nil then
+			entry.Icon.Position = UDim2.fromOffset(0, 4)
+			entry.Icon.Size = UDim2.new(1, 0, 0, math.floor(buttonSize * 0.56))
+			if isTextGui(entry.Icon) then
+				entry.Icon.TextSize = math.floor(buttonSize * 0.42)
+			end
+		end
 
-		entry.Name.Position = UDim2.new(0, 3, 1, -20)
-		entry.Name.Size = UDim2.new(1, -6, 0, 17)
-		entry.Name.TextSize = math.max(8, math.floor(buttonSize * 0.16))
-		entry.Name.TextXAlignment = Enum.TextXAlignment.Center
+		if entry.Name ~= nil then
+			entry.Name.Position = UDim2.new(0, 3, 1, -20)
+			entry.Name.Size = UDim2.new(1, -6, 0, 17)
+			entry.Name.TextSize = math.max(8, math.floor(buttonSize * 0.16))
+			entry.Name.TextXAlignment = Enum.TextXAlignment.Center
+		end
 
-		entry.Effect.Visible = false
+		if entry.Effect ~= nil then
+			entry.Effect.Visible = false
+		end
 		entry.Button.Position = UDim2.fromScale(0, 0)
 		entry.Button.Size = UDim2.fromScale(1, 1)
 	end
 
 	self:_layoutIconStrip({
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -96),
+		Position = UDim2.new(0.5, 0, 1, -88),
 		SlotSize = 32,
 		Gap = 4,
 	})
 end
 
 function BattleArenaUpgradeHud:_applyDesktopLayout()
-	local panelWidth = 380
-	local panelHeight = 260
-	local cardHeight = 58
+	local panelWidth = 428
+	local panelHeight = 140
+	local cardHeight = 72
 	local cardGap = 6
+	local cardWidth = math.floor((panelWidth - 28 - cardGap * 2) / 3)
 
 	self._offerPanel.AnchorPoint = Vector2.new(0.5, 0)
 	self._offerPanel.Position = UDim2.new(0.5, 0, 0, 106)
 	self._offerPanel.Size = UDim2.fromOffset(panelWidth, panelHeight)
 
-	self._title.Position = UDim2.fromOffset(14, 10)
-	self._title.Size = UDim2.new(1, -28, 0, 26)
-	self._title.TextSize = 16
+	if self._title ~= nil then
+		self._title.Position = UDim2.fromOffset(14, 8)
+		self._title.Size = UDim2.new(1, -28, 0, 22)
+		self._title.TextSize = 15
+	end
 
-	self._subtitle.Visible = true
-	self._subtitle.Position = UDim2.fromOffset(14, 36)
-	self._subtitle.Size = UDim2.new(1, -28, 0, 20)
-	self._subtitle.TextSize = 12
+	if self._subtitle ~= nil then
+		self._subtitle.Visible = true
+		self._subtitle.Position = UDim2.fromOffset(14, 30)
+		self._subtitle.Size = UDim2.new(1, -28, 0, 18)
+		self._subtitle.TextSize = 11
+	end
 
 	for index, entry in ipairs(self._choiceCards) do
-		local y = 62 + (index - 1) * (cardHeight + cardGap)
-		entry.Card.Position = UDim2.fromOffset(14, y)
-		entry.Card.Size = UDim2.fromOffset(panelWidth - 28, cardHeight)
+		local x = 14 + (index - 1) * (cardWidth + cardGap)
+		entry.Card.Position = UDim2.fromOffset(x, 54)
+		entry.Card.Size = UDim2.fromOffset(cardWidth, cardHeight)
 
-		entry.Icon.Position = UDim2.fromOffset(0, 0)
-		entry.Icon.Size = UDim2.fromOffset(50, cardHeight)
-		entry.Icon.TextSize = 22
+		if entry.Icon ~= nil then
+			entry.Icon.Position = UDim2.fromOffset(0, 4)
+			entry.Icon.Size = UDim2.new(1, 0, 0, 34)
+			if isTextGui(entry.Icon) then
+				entry.Icon.TextSize = 24
+			end
+		end
 
-		entry.Name.Position = UDim2.fromOffset(54, 4)
-		entry.Name.Size = UDim2.new(1, -58, 0, 26)
-		entry.Name.TextSize = 14
-		entry.Name.TextXAlignment = Enum.TextXAlignment.Left
+		if entry.Name ~= nil then
+			entry.Name.Position = UDim2.fromOffset(5, 40)
+			entry.Name.Size = UDim2.new(1, -10, 0, 17)
+			entry.Name.TextSize = 11
+			entry.Name.TextXAlignment = Enum.TextXAlignment.Center
+		end
 
-		entry.Effect.Visible = true
-		entry.Effect.Position = UDim2.fromOffset(54, 30)
-		entry.Effect.Size = UDim2.new(1, -58, 0, 22)
-		entry.Effect.TextSize = 11
+		if entry.Effect ~= nil then
+			entry.Effect.Visible = true
+			entry.Effect.Position = UDim2.fromOffset(5, 56)
+			entry.Effect.Size = UDim2.new(1, -10, 0, 13)
+			entry.Effect.TextSize = 8
+			entry.Effect.TextXAlignment = Enum.TextXAlignment.Center
+		end
 
 		entry.Button.Position = UDim2.fromScale(0, 0)
 		entry.Button.Size = UDim2.fromScale(1, 1)
@@ -853,7 +1071,9 @@ function BattleArenaUpgradeHud:_layoutIconStrip(config)
 	for index, slot in ipairs(self._iconSlots) do
 		slot.Position = UDim2.fromOffset((index - 1) * (slotSize + gap), 0)
 		slot.Size = UDim2.fromOffset(slotSize, slotSize)
-		slot.TextSize = math.max(12, math.floor(slotSize * 0.52))
+		if isTextGui(slot) then
+			slot.TextSize = math.max(12, math.floor(slotSize * 0.52))
+		end
 	end
 
 	self._overflow.Position = UDim2.fromOffset(UPGRADE_ICON_SLOT_COUNT * (slotSize + gap), 0)
@@ -904,7 +1124,7 @@ function BattleArenaUpgradeHud:_renderPaidReflectSlot()
 	end
 
 	if slot.Icon ~= nil then
-		slot.Icon.Text = "🛡"
+		applyUpgradeIcon(slot.Icon, "ReflectShield")
 	end
 
 	if slot.Title ~= nil then
@@ -942,7 +1162,7 @@ function BattleArenaUpgradeHud:_renderOffer()
 			entry.Button:SetAttribute("UpgradeId", choiceId)
 
 			if entry.Icon ~= nil then
-				entry.Icon.Text = getUpgradeIcon(choiceId)
+				applyUpgradeIcon(entry.Icon, choiceId)
 			end
 
 			if entry.Name ~= nil then
@@ -961,6 +1181,10 @@ function BattleArenaUpgradeHud:_renderOffer()
 
 			if entry.Name ~= nil then
 				entry.Name.Text = ""
+			end
+
+			if entry.Icon ~= nil then
+				clearUpgradeIcon(entry.Icon)
 			end
 
 			if entry.Effect ~= nil then
@@ -1012,9 +1236,10 @@ function BattleArenaUpgradeHud:_renderIconStrip()
 
 	for index, slot in ipairs(self._iconSlots) do
 		if index <= displayCount then
-			slot.Text = getUpgradeIcon(displayIds[index])
+			applyUpgradeIcon(slot, displayIds[index])
 			slot.Visible = true
 		else
+			clearUpgradeIcon(slot)
 			slot.Visible = false
 		end
 	end

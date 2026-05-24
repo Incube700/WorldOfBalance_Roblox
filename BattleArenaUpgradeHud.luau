@@ -1,6 +1,10 @@
 local BattleArenaUpgradeHud = {}
 BattleArenaUpgradeHud.__index = BattleArenaUpgradeHud
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local sharedConfigs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
+local UpgradeIconConfig = require(sharedConfigs:WaitForChild("UpgradeIconConfig"))
+
 local UPGRADE_ICON_SLOT_COUNT = 5
 
 local function addCorner(parent, radius)
@@ -58,32 +62,46 @@ local function splitUpgradeIds(upgradeIds)
 	return ids
 end
 
-local function getUpgradeIcon(upgradeId)
+local function getUpgradeIconConfig(upgradeId)
 	if typeof(upgradeId) ~= "string" then
-		return "★"
+		return nil
 	end
 
-	local lower = string.lower(upgradeId)
+	local icons = UpgradeIconConfig.Icons
 
-	if string.find(lower, "firerate") or string.find(lower, "fire_rate") or string.find(lower, "reload") then
-		return "⚡"
-	elseif string.find(lower, "damage") or string.find(lower, "heavy") then
-		return "💥"
-	elseif string.find(lower, "ricochet") or string.find(lower, "bounce") then
-		return "🔁"
-	elseif string.find(lower, "repair") or string.find(lower, "armor") or string.find(lower, "hp") or string.find(lower, "health") then
-		return "🛡"
-	elseif string.find(lower, "speed") or string.find(lower, "turbo") or string.find(lower, "move") then
-		return "🏎"
-	elseif string.find(lower, "shield") then
-		return "🔵"
-	elseif string.find(lower, "triple") or string.find(lower, "double") or string.find(lower, "explosion") or string.find(lower, "bigboom") then
-		return "🔥"
-	elseif string.find(lower, "bolt") or string.find(lower, "reward") or string.find(lower, "magnet") then
-		return "🧲"
-	else
-		return "★"
+	if typeof(icons) ~= "table" then
+		return nil
 	end
+
+	return icons[upgradeId]
+end
+
+local function getUpgradeIconImage(upgradeId)
+	local iconConfig = getUpgradeIconConfig(upgradeId)
+	local image = iconConfig ~= nil and iconConfig.Image or nil
+
+	if typeof(image) == "string" and image ~= "" then
+		return image
+	end
+
+	return nil
+end
+
+local function getUpgradeIconFallbackText(upgradeId)
+	local iconConfig = getUpgradeIconConfig(upgradeId)
+	local fallbackText = iconConfig ~= nil and iconConfig.FallbackText or nil
+
+	if typeof(fallbackText) == "string" and fallbackText ~= "" then
+		return fallbackText
+	end
+
+	fallbackText = UpgradeIconConfig.FallbackText
+
+	if typeof(fallbackText) == "string" and fallbackText ~= "" then
+		return fallbackText
+	end
+
+	return "★"
 end
 
 local function getShortUpgradeTitle(choice)
@@ -123,6 +141,165 @@ local function getDescription(choice)
 	end
 
 	return description
+end
+
+local function isTextGui(instance)
+	return instance ~= nil and (instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox"))
+end
+
+local function isImageGui(instance)
+	return instance ~= nil and instance:IsA("ImageLabel")
+end
+
+local function getIconImageName(iconGui)
+	if iconGui ~= nil and iconGui.Name == "Icon" then
+		return "IconImage"
+	end
+
+	return tostring(iconGui ~= nil and iconGui.Name or "Icon") .. "IconImage"
+end
+
+local function findIconImage(iconGui)
+	if iconGui == nil or not iconGui:IsA("GuiObject") then
+		return nil
+	end
+
+	if isImageGui(iconGui) then
+		return iconGui
+	end
+
+	local parent = iconGui.Parent
+
+	if parent == nil then
+		return nil
+	end
+
+	local image = parent:FindFirstChild(getIconImageName(iconGui))
+
+	if image ~= nil and not image:IsA("ImageLabel") then
+		image:Destroy()
+		image = nil
+	end
+
+	return image
+end
+
+local function syncIconImageLayout(image, sourceGui)
+	if image == nil or sourceGui == nil then
+		return
+	end
+
+	image.AnchorPoint = sourceGui.AnchorPoint
+	image.Position = sourceGui.Position
+	image.Size = sourceGui.Size
+	image.Rotation = sourceGui.Rotation
+	image.BackgroundTransparency = 1
+	image.BorderSizePixel = 0
+	image.Active = false
+	image.Selectable = false
+	image.ScaleType = Enum.ScaleType.Fit
+	image.ZIndex = sourceGui.ZIndex + 1
+end
+
+local function getOrCreateIconImage(iconGui)
+	if iconGui == nil or not iconGui:IsA("GuiObject") then
+		return nil
+	end
+
+	if isImageGui(iconGui) then
+		iconGui.BackgroundTransparency = 1
+		iconGui.BorderSizePixel = 0
+		iconGui.Active = false
+		iconGui.Selectable = false
+		iconGui.ScaleType = Enum.ScaleType.Fit
+		return iconGui
+	end
+
+	local parent = iconGui.Parent
+
+	if parent == nil then
+		return nil
+	end
+
+	local imageName = getIconImageName(iconGui)
+	local image = parent:FindFirstChild(imageName)
+
+	if image ~= nil and not image:IsA("ImageLabel") then
+		image:Destroy()
+		image = nil
+	end
+
+	local nestedImage = iconGui:FindFirstChild("IconImage")
+
+	if image == nil and nestedImage ~= nil and nestedImage:IsA("ImageLabel") then
+		image = nestedImage
+		image.Name = imageName
+		image.Parent = parent
+	elseif nestedImage ~= nil and nestedImage:IsA("ImageLabel") and nestedImage ~= image then
+		nestedImage.Visible = false
+	end
+
+	if image == nil then
+		image = Instance.new("ImageLabel")
+		image.Name = imageName
+		image.Parent = parent
+	end
+
+	syncIconImageLayout(image, iconGui)
+
+	return image
+end
+
+local function applyUpgradeIcon(iconGui, upgradeId)
+	if iconGui == nil then
+		return
+	end
+
+	local imageId = getUpgradeIconImage(upgradeId)
+	local fallbackText = getUpgradeIconFallbackText(upgradeId)
+	local image = getOrCreateIconImage(iconGui)
+
+	if image ~= nil then
+		image.Image = imageId or ""
+		image.Visible = imageId ~= nil
+	end
+
+	if isTextGui(iconGui) then
+		iconGui.Text = imageId ~= nil and "" or fallbackText
+		iconGui.Visible = imageId == nil
+	elseif isImageGui(iconGui) then
+		iconGui.Image = imageId or ""
+		iconGui.Visible = imageId ~= nil
+	end
+end
+
+local function clearUpgradeIcon(iconGui)
+	if iconGui == nil then
+		return
+	end
+
+	if isTextGui(iconGui) then
+		iconGui.Text = ""
+	end
+
+	local image = findIconImage(iconGui)
+
+	if image ~= nil and image:IsA("ImageLabel") then
+		image.Image = ""
+		image.Visible = false
+	end
+
+	local nestedImage = iconGui:IsA("GuiObject") and iconGui:FindFirstChild("IconImage") or nil
+
+	if nestedImage ~= nil and nestedImage:IsA("ImageLabel") and nestedImage ~= image then
+		nestedImage.Image = ""
+		nestedImage.Visible = false
+	end
+
+	if isImageGui(iconGui) then
+		iconGui.Image = ""
+		iconGui.Visible = false
+	end
 end
 
 function BattleArenaUpgradeHud.new(params)
@@ -331,7 +508,7 @@ function BattleArenaUpgradeHud:_applyMobileLayout()
 	local rowX = math.floor((panelWidth - rowWidth) * 0.5)
 
 	self._offerPanel.AnchorPoint = Vector2.new(0.5, 1)
-	self._offerPanel.Position = UDim2.new(0.5, 0, 1, -104)
+	self._offerPanel.Position = UDim2.new(0.5, 0, 1, -96)
 	self._offerPanel.Size = UDim2.fromOffset(panelWidth, panelHeight)
 
 	self._title.Position = UDim2.fromOffset(8, 4)
@@ -360,49 +537,51 @@ function BattleArenaUpgradeHud:_applyMobileLayout()
 
 	self:_layoutIconStrip({
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -96),
+		Position = UDim2.new(0.5, 0, 1, -88),
 		SlotSize = 32,
 		Gap = 4,
 	})
 end
 
 function BattleArenaUpgradeHud:_applyDesktopLayout()
-	local panelWidth = 380
-	local panelHeight = 260
-	local cardHeight = 58
+	local panelWidth = 428
+	local panelHeight = 140
+	local cardHeight = 72
 	local cardGap = 6
+	local cardWidth = math.floor((panelWidth - 28 - cardGap * 2) / 3)
 
 	self._offerPanel.AnchorPoint = Vector2.new(0.5, 0)
 	self._offerPanel.Position = UDim2.new(0.5, 0, 0, 106)
 	self._offerPanel.Size = UDim2.fromOffset(panelWidth, panelHeight)
 
-	self._title.Position = UDim2.fromOffset(14, 10)
-	self._title.Size = UDim2.new(1, -28, 0, 26)
-	self._title.TextSize = 16
+	self._title.Position = UDim2.fromOffset(14, 8)
+	self._title.Size = UDim2.new(1, -28, 0, 22)
+	self._title.TextSize = 15
 
 	self._subtitle.Visible = true
-	self._subtitle.Position = UDim2.fromOffset(14, 36)
-	self._subtitle.Size = UDim2.new(1, -28, 0, 20)
-	self._subtitle.TextSize = 12
+	self._subtitle.Position = UDim2.fromOffset(14, 30)
+	self._subtitle.Size = UDim2.new(1, -28, 0, 18)
+	self._subtitle.TextSize = 11
 
 	for index, entry in ipairs(self._choiceCards) do
-		local y = 62 + (index - 1) * (cardHeight + cardGap)
-		entry.Card.Position = UDim2.fromOffset(14, y)
-		entry.Card.Size = UDim2.fromOffset(panelWidth - 28, cardHeight)
+		local x = 14 + (index - 1) * (cardWidth + cardGap)
+		entry.Card.Position = UDim2.fromOffset(x, 54)
+		entry.Card.Size = UDim2.fromOffset(cardWidth, cardHeight)
 
-		entry.Icon.Position = UDim2.fromOffset(0, 0)
-		entry.Icon.Size = UDim2.fromOffset(50, cardHeight)
-		entry.Icon.TextSize = 22
+		entry.Icon.Position = UDim2.fromOffset(0, 4)
+		entry.Icon.Size = UDim2.new(1, 0, 0, 34)
+		entry.Icon.TextSize = 24
 
-		entry.Name.Position = UDim2.fromOffset(54, 4)
-		entry.Name.Size = UDim2.new(1, -58, 0, 26)
-		entry.Name.TextSize = 14
-		entry.Name.TextXAlignment = Enum.TextXAlignment.Left
+		entry.Name.Position = UDim2.fromOffset(5, 40)
+		entry.Name.Size = UDim2.new(1, -10, 0, 17)
+		entry.Name.TextSize = 11
+		entry.Name.TextXAlignment = Enum.TextXAlignment.Center
 
 		entry.Effect.Visible = true
-		entry.Effect.Position = UDim2.fromOffset(54, 30)
-		entry.Effect.Size = UDim2.new(1, -58, 0, 22)
-		entry.Effect.TextSize = 11
+		entry.Effect.Position = UDim2.fromOffset(5, 56)
+		entry.Effect.Size = UDim2.new(1, -10, 0, 13)
+		entry.Effect.TextSize = 8
+		entry.Effect.TextXAlignment = Enum.TextXAlignment.Center
 
 		entry.Button.Position = UDim2.fromScale(0, 0)
 		entry.Button.Size = UDim2.fromScale(1, 1)
@@ -479,12 +658,13 @@ function BattleArenaUpgradeHud:_renderOffer()
 			local choiceId = tostring(choice.Id or "")
 			entry.UpgradeId = choiceId
 			entry.Card.Visible = true
-			entry.Icon.Text = getUpgradeIcon(choiceId)
+			applyUpgradeIcon(entry.Icon, choiceId)
 			entry.Name.Text = self._isMobile and getShortUpgradeTitle(choice) or tostring(choice.Title or choice.Id or "Upgrade")
 			entry.Effect.Text = getDescription(choice)
 		else
 			entry.UpgradeId = nil
 			entry.Card.Visible = false
+			clearUpgradeIcon(entry.Icon)
 			entry.Name.Text = ""
 			entry.Effect.Text = ""
 		end
@@ -506,9 +686,10 @@ function BattleArenaUpgradeHud:_renderIconStrip()
 
 	for index, slot in ipairs(self._iconSlots) do
 		if index <= displayCount then
-			slot.Text = getUpgradeIcon(ids[index])
+			applyUpgradeIcon(slot, ids[index])
 			slot.Visible = true
 		else
+			clearUpgradeIcon(slot)
 			slot.Visible = false
 		end
 	end

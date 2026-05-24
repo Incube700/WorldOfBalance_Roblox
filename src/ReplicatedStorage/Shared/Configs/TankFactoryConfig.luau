@@ -44,8 +44,8 @@ TankFactoryConfig.DefaultLoadout = table.freeze({
 })
 
 TankFactoryConfig.DefaultStats = table.freeze({
-	MaxHealth = 100,
-	Health = 100,
+	MaxHealth = 300,
+	Health = 300,
 })
 
 function TankFactoryConfig.GetDynamicPlayerTankId(playerOrUserId)
