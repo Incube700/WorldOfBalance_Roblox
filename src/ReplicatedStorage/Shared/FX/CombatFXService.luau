@@ -128,6 +128,14 @@ local function getInstancePath(instance)
 	return instance:GetFullName()
 end
 
+local function formatVector3(value)
+	if typeof(value) ~= "Vector3" then
+		return tostring(value)
+	end
+
+	return ("(%.2f, %.2f, %.2f)"):format(value.X, value.Y, value.Z)
+end
+
 local function getPlayableChildren(categoryFolder)
 	local playableChildren = {}
 
@@ -345,6 +353,65 @@ local function collectBaseParts(rootInstance)
 	return parts
 end
 
+local function getAxisAlignedBoundsCFrame(rootInstance)
+	local parts = collectBaseParts(rootInstance)
+
+	if #parts == 0 then
+		return nil
+	end
+
+	local minX = math.huge
+	local minY = math.huge
+	local minZ = math.huge
+	local maxX = -math.huge
+	local maxY = -math.huge
+	local maxZ = -math.huge
+
+	for _, part in ipairs(parts) do
+		local halfSize = part.Size * 0.5
+
+		for _, xSign in ipairs({ -1, 1 }) do
+			for _, ySign in ipairs({ -1, 1 }) do
+				for _, zSign in ipairs({ -1, 1 }) do
+					local corner = part.CFrame:PointToWorldSpace(Vector3.new(
+						halfSize.X * xSign,
+						halfSize.Y * ySign,
+						halfSize.Z * zSign
+					))
+
+					minX = math.min(minX, corner.X)
+					minY = math.min(minY, corner.Y)
+					minZ = math.min(minZ, corner.Z)
+					maxX = math.max(maxX, corner.X)
+					maxY = math.max(maxY, corner.Y)
+					maxZ = math.max(maxZ, corner.Z)
+				end
+			end
+		end
+	end
+
+	return CFrame.new((minX + maxX) * 0.5, (minY + maxY) * 0.5, (minZ + maxZ) * 0.5)
+end
+
+local function getVisualBoundsCFrame(rootInstance)
+	if rootInstance == nil then
+		return nil
+	end
+
+	if rootInstance:IsA("Model") then
+		local ok, boundsCFrame = pcall(function()
+			local cframe = rootInstance:GetBoundingBox()
+			return cframe
+		end)
+
+		if ok and typeof(boundsCFrame) == "CFrame" then
+			return boundsCFrame
+		end
+	end
+
+	return getAxisAlignedBoundsCFrame(rootInstance)
+end
+
 local function createHolder(cframe, name)
 	local holder = Instance.new("Part")
 	holder.Name = name or "GameplayFXHolder"
@@ -367,31 +434,35 @@ end
 
 local function pivotBasePartContainer(rootInstance, cframe)
 	local parts = collectBaseParts(rootInstance)
-	local firstPart = parts[1]
+	local sourceCFrame = getVisualBoundsCFrame(rootInstance)
 
-	if firstPart == nil then
-		return false
+	if #parts == 0 or sourceCFrame == nil then
+		return false, nil, nil
 	end
 
-	local delta = cframe * firstPart.CFrame:Inverse()
+	local delta = cframe * sourceCFrame:Inverse()
 
 	for _, part in ipairs(parts) do
 		part.CFrame = delta * part.CFrame
 	end
 
-	return true
+	return true, sourceCFrame, delta
 end
 
 local function pivotCloneToCFrame(rootInstance, cframe)
-	if rootInstance:IsA("Model") then
-		rootInstance:PivotTo(cframe)
-		return true
-	elseif rootInstance:IsA("BasePart") then
-		rootInstance.CFrame = cframe
-		return true
+	local pivoted, sourceCFrame, delta = pivotBasePartContainer(rootInstance, cframe)
+
+	if pivoted then
+		return true, sourceCFrame, delta
 	end
 
-	return pivotBasePartContainer(rootInstance, cframe)
+	if rootInstance:IsA("Model") then
+		local sourcePivot = rootInstance:GetPivot()
+		rootInstance:PivotTo(cframe)
+		return true, sourcePivot, cframe * sourcePivot:Inverse()
+	end
+
+	return false, nil, nil
 end
 
 local function getEffectCFrame(positionOrCFrame, options, effectDefinition)
@@ -507,42 +578,40 @@ local function mountCloneAt(clone, cframe, effectKey)
 		attachment.Name = "GameplayFXAttachment"
 		attachment.Parent = holder
 		clone.Parent = attachment
-		return holder
+		return holder, nil, holder.CFrame, nil
 	end
 
 	if clone:IsA("Beam") or clone:IsA("Trail") then
 		local holder = createHolder(cframe, holderName)
 		clone.Parent = holder
-		return holder
+		return holder, nil, holder.CFrame, nil
 	end
 
 	if clone:IsA("Attachment") then
 		local holder = createHolder(cframe, holderName)
 		clone.Parent = holder
-		return holder
+		return holder, nil, holder.CFrame, nil
 	end
 
 	if clone:IsA("Sound") or isLightInstance(clone) then
 		local holder = createHolder(cframe, holderName)
 		clone.Parent = holder
-		return holder
+		return holder, nil, holder.CFrame, nil
 	end
 
 	clone.Name = holderName
 	clone.Parent = getRuntimeFolder()
 	prepareBaseParts(clone, true)
 
-	if clone:IsA("Model") then
-		clone:PivotTo(cframe)
-	elseif clone:IsA("BasePart") then
-		clone.CFrame = cframe
-	elseif not pivotBasePartContainer(clone, cframe) then
+	local pivoted, sourceCFrame, delta = pivotCloneToCFrame(clone, cframe)
+
+	if not pivoted then
 		local holder = createHolder(cframe, holderName .. "_Anchor")
 		clone.Parent = holder
-		return holder
+		return holder, nil, holder.CFrame, nil
 	end
 
-	return clone
+	return clone, sourceCFrame, getVisualBoundsCFrame(clone), delta
 end
 
 local function isAttachmentInsideRoot(rootInstance, attachment)
@@ -692,7 +761,7 @@ local function playClone(effectKey, template, effectDefinition, cframe, options)
 		options.ScaleMultiplier or effectDefinition.ScaleMultiplier,
 		options
 	)
-	local mounted = mountCloneAt(clone, cframe, effectKey)
+	local mounted, sourceCFrame, finalCFrame, delta = mountCloneAt(clone, cframe, effectKey)
 
 	if mounted == nil then
 		return nil, removedScripts, stoppedSounds, scaleApplied, nil
@@ -709,7 +778,7 @@ local function playClone(effectKey, template, effectDefinition, cframe, options)
 		CombatFXService.Cleanup(mounted, lifetime)
 	end
 
-	return mounted, removedScripts, stoppedSounds, scaleApplied, stats, lifetime
+	return mounted, removedScripts, stoppedSounds, scaleApplied, stats, lifetime, sourceCFrame, finalCFrame, delta
 end
 
 function CombatFXService.PlayAt(effectKey, positionOrCFrame, options)
@@ -731,11 +800,13 @@ function CombatFXService.PlayAt(effectKey, positionOrCFrame, options)
 
 	debugLog(
 		options,
-		("resolved key=%s source=%s template=%s templateName=%s lifetime=%s emit=%s yOffset=%s scale=%s"):format(
+		("resolved key=%s source=%s template=%s templateType=%s templateName=%s requested=%s lifetime=%s emit=%s yOffset=%s scale=%s"):format(
 			tostring(effectKey),
 			tostring(source or "canonical"),
 			getInstancePath(template),
+			template.ClassName,
 			tostring(effectDefinition.TemplateName or ""),
+			formatVector3(cframe.Position),
 			tostring(options.Lifetime or effectDefinition.Lifetime or effectDefinition.DefaultLifetime or 3),
 			tostring(options.EmitCount or effectDefinition.EmitCount or effectDefinition.DefaultEmitCount or 1),
 			tostring(options.YOffset or effectDefinition.YOffset or 0),
@@ -743,7 +814,7 @@ function CombatFXService.PlayAt(effectKey, positionOrCFrame, options)
 		)
 	)
 
-	local success, mounted, removedScripts, stoppedSounds, scaleApplied, stats, lifetime = pcall(function()
+	local success, mounted, removedScripts, stoppedSounds, scaleApplied, stats, lifetime, sourceCFrame, finalCFrame, delta = pcall(function()
 		return playClone(effectKey, template, effectDefinition, cframe, options)
 	end)
 
@@ -752,11 +823,19 @@ function CombatFXService.PlayAt(effectKey, positionOrCFrame, options)
 		return nil
 	end
 
+	local finalOffset = finalCFrame ~= nil and (finalCFrame.Position - cframe.Position) or nil
+	local appliedDelta = delta ~= nil and delta.Position or nil
+
 	debugLog(
 		options,
-		("played key=%s parent=%s lifetime=%.2f particles=%d bursts=%d beams=%d beamSkips=%d trails=%d trailSkips=%d scriptsRemoved=%d soundsStopped=%d scaleApplied=%s"):format(
+		("played key=%s parent=%s requested=%s sourcePivot=%s finalPivot=%s finalOffset=%s appliedDelta=%s lifetime=%.2f particles=%d bursts=%d beams=%d beamSkips=%d trails=%d trailSkips=%d scriptsRemoved=%d soundsStopped=%d scaleApplied=%s"):format(
 			tostring(effectKey),
 			getInstancePath(mounted.Parent),
+			formatVector3(cframe.Position),
+			formatVector3(sourceCFrame ~= nil and sourceCFrame.Position or nil),
+			formatVector3(finalCFrame ~= nil and finalCFrame.Position or nil),
+			formatVector3(finalOffset),
+			formatVector3(appliedDelta),
 			tonumber(lifetime) or 0,
 			stats.ParticleEmitters,
 			stats.ParticleBursts,

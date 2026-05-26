@@ -5,9 +5,10 @@
 Current runtime audio is client-owned by `WOBAudioController.client.luau`.
 The server sends existing `CombatFeedbackEvent` payloads, and the client resolves them through `AudioCatalog.luau`.
 
-Three release gameplay sounds currently have real `SoundId` values:
+Four release gameplay sounds currently have real `SoundId` values:
 
 - `Shoot` / `Shot`: `rbxassetid://139771888058836`
+- `ProjectileImpact`: `rbxassetid://871701190`
 - `RicochetImpact`: `rbxassetid://140602821561280`
 - `TankExplosion`: `rbxassetid://4810729508`
 
@@ -18,7 +19,7 @@ Imported FX template sounds are intentionally not used. Visual FX services mute/
 | Sound key | Found? | Current SoundId/source | Current hook | Works now? | Missing action |
 | --- | --- | --- | --- | --- | --- |
 | `Shoot` / `Shot` | Yes | `AudioCatalog.DefaultCannonShot` = `rbxassetid://139771888058836` | `ProjectileService.tryShoot` sends `Type = "Shot"` through `CombatFeedbackEvent`; `WOBAudioController` plays it. | Yes | None. |
-| `ProjectileImpact` | Catalog key prepared | `AudioCatalog.DefaultProjectileImpact`, empty `SoundId` | Damage feedback maps to `ProjectileImpact`; final wall impact has VFX but no audio-only event because no sound is configured. | No | Add a vetted impact `SoundId`; then wire final wall impact if needed. |
+| `ProjectileImpact` | Yes | `AudioCatalog.DefaultProjectileImpact` = `rbxassetid://871701190` | Damage feedback maps to `ProjectileImpact`; final wall impact can use the same catalog key when an audio feedback event is emitted. | Yes for damage hits | Optional: add a wall-impact audio-only event later if wall impact needs sound separate from ricochet. |
 | `RicochetImpact` | Yes | `AudioCatalog.DefaultRicochet` = `rbxassetid://140602821561280` | Wall ricochet sends `Type = "Ricochet"`; armor ricochet sends `Type = "ArmorRicochet"`; both map to `RicochetImpact`. | Yes | None. |
 | `TankExplosion` | Yes | `AudioCatalog.DefaultExplosion` = `rbxassetid://4810729508` | Tank death already sends `Type = "TankDestroyed"`; client maps it to `TankExplosion`. | Yes | None. |
 | `UpgradeSelect` | Catalog key prepared | `AudioCatalog.DefaultUpgradeSelect`, empty `SoundId` | Upgrade select visual hook exists in `ArenaCombatService`; no audio event is fired while sound id is empty. | No | Add a vetted UI/gameplay `SoundId`, then fire an audio-only event on accepted upgrade. |
@@ -87,12 +88,11 @@ No local `.mp3`, `.wav`, `.ogg`, `.flac`, `.m4a`, or `.aac` files were found in 
 
 Before wiring more events, add vetted `SoundId` values for:
 
-1. `DefaultProjectileImpact`
-2. `DefaultUpgradeSelect`
-3. `DefaultLevelUp`
-4. `DefaultReflectShield`
-5. `DefaultRepair`
-6. `DefaultEngineLoop` only if a proper loop controller is planned
+1. `DefaultUpgradeSelect`
+2. `DefaultLevelUp`
+3. `DefaultReflectShield`
+4. `DefaultRepair`
+5. `DefaultEngineLoop` only if a proper loop controller is planned
 
 Future manually imported audio should be saved under:
 
