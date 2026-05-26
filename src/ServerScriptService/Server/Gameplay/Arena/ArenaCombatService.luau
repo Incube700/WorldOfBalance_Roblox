@@ -8,6 +8,7 @@ local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
 local BattleArenaConfig = require(configs:WaitForChild("BattleArenaConfig"))
 local BattleArenaLoopConfig = require(configs:WaitForChild("BattleArenaLoopConfig"))
+local GameplayCombatFXService = require(shared:WaitForChild("FX"):WaitForChild("CombatFXService"))
 
 local ArenaLevelService = require(script.Parent:WaitForChild("ArenaLevelService"))
 local ArenaReviveService = require(script.Parent:WaitForChild("ArenaReviveService"))
@@ -51,6 +52,9 @@ local poiStateByInstance = {}
 local pickupAccumulator = 0
 local controlZoneAccumulator = 0
 local survivalAccumulator = 0
+local getParticipantPosition = nil
+local playArenaGameplayFX = nil
+local shieldVisualBySession = setmetatable({}, { __mode = "k" })
 
 local function getServerTimeNow()
 	local success, serverTime = pcall(function()
@@ -261,6 +265,116 @@ local function isAnyReflectShieldActive(session, now)
 	return isSpawnShieldActive(session, now) or hasReflectShieldCharge(session)
 end
 
+local function getShieldAnchorPart(participant)
+	if participant == nil then
+		return nil
+	end
+
+	local model = TankParticipantRegistry.getParticipantPhysicalModel(participant) or participant.Model
+
+	if model == nil then
+		return nil
+	end
+
+	local body = model:FindFirstChild("Body", true)
+		or model:FindFirstChild("Hull", true)
+		or model.PrimaryPart
+
+	if body ~= nil and body:IsA("BasePart") then
+		return body
+	end
+
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			return descendant
+		end
+	end
+
+	return nil
+end
+
+local function destroyShieldVisual(session)
+	local visual = shieldVisualBySession[session]
+	shieldVisualBySession[session] = nil
+
+	if visual ~= nil and visual.Parent ~= nil then
+		visual:Destroy()
+	end
+end
+
+local function createFallbackShieldVisual(anchorPart)
+	local maxAxis = math.max(anchorPart.Size.X, anchorPart.Size.Y, anchorPart.Size.Z)
+	local diameter = math.max(4, maxAxis * 1.55)
+	local shield = Instance.new("Part")
+	shield.Name = "ArenaReflectShieldVisual"
+	shield.Shape = Enum.PartType.Ball
+	shield.Size = Vector3.new(diameter, diameter, diameter)
+	shield.CFrame = anchorPart.CFrame
+	shield.Anchored = false
+	shield.CanCollide = false
+	shield.CanTouch = false
+	shield.CanQuery = false
+	shield.Massless = true
+	shield.CastShadow = false
+	shield.Material = Enum.Material.ForceField
+	shield.Color = Color3.fromRGB(92, 210, 255)
+	shield.Transparency = 0.58
+	shield.Parent = anchorPart
+
+	local weld = Instance.new("WeldConstraint")
+	weld.Name = "ArenaReflectShieldVisualWeld"
+	weld.Part0 = anchorPart
+	weld.Part1 = shield
+	weld.Parent = shield
+
+	return shield
+end
+
+local function updateShieldVisual(session, shieldActive)
+	if shieldActive ~= true then
+		destroyShieldVisual(session)
+		return
+	end
+
+	local participant = session ~= nil and session.Participant or nil
+
+	if participant == nil
+		or participant.IsActive ~= true
+		or TankParticipantRegistry.getParticipantIsDead(participant) == true
+	then
+		destroyShieldVisual(session)
+		return
+	end
+
+	local anchorPart = getShieldAnchorPart(participant)
+
+	if anchorPart == nil then
+		destroyShieldVisual(session)
+		return
+	end
+
+	local existingVisual = shieldVisualBySession[session]
+	if existingVisual ~= nil and existingVisual.Parent ~= nil and existingVisual:IsDescendantOf(anchorPart) then
+		return
+	end
+
+	destroyShieldVisual(session)
+
+	local visual = GameplayCombatFXService.AttachTo("ReflectShield", anchorPart, {
+		AttachMode = "Tank",
+		SkipCleanup = true,
+		EnableParticleEmitters = true,
+		EnableTrails = true,
+		ScaleMultiplier = 0.08,
+	})
+
+	if visual == nil then
+		visual = createFallbackShieldVisual(anchorPart)
+	end
+
+	shieldVisualBySession[session] = visual
+end
+
 local function publishShieldAttributes(session, now)
 	if session == nil then
 		return
@@ -294,6 +408,8 @@ local function publishShieldAttributes(session, now)
 		setAttributeOnParticipantModels(participant, "ArenaSpawnShieldUntil", spawnShieldUntil)
 		setAttributeOnParticipantModels(participant, "ArenaShieldActive", shieldActive)
 	end
+
+	updateShieldVisual(session, shieldActive)
 end
 
 local function republishShieldAttributesSoon(session)
@@ -472,6 +588,10 @@ local function createUpgradeOffer(session, source)
 	publishSessionAttributes(session)
 	fireUpgradeOffer(session)
 
+	if source == "LevelUp" and playArenaGameplayFX ~= nil then
+		playArenaGameplayFX(session, "LevelUp")
+	end
+
 	return true
 end
 
@@ -484,6 +604,10 @@ local function ensurePendingLevelOffer(session)
 
 	if result.Created == true then
 		fireUpgradeOffer(session)
+
+		if playArenaGameplayFX ~= nil then
+			playArenaGameplayFX(session, "LevelUp")
+		end
 	end
 end
 
@@ -514,8 +638,27 @@ local function addArenaXP(session, amount, reason)
 end
 
 local function applyChosenUpgrade(session, upgradeId)
+	local beforeHealth = nil
+
+	if upgradeId == "Repair" and session ~= nil and session.Participant ~= nil then
+		beforeHealth = TankParticipantRegistry.getParticipantHealth(session.Participant)
+	end
+
 	if upgradeEffectApplier:ApplyChosenUpgrade(session, upgradeId) then
 		publishSessionAttributes(session)
+
+		if playArenaGameplayFX ~= nil then
+			playArenaGameplayFX(session, "UpgradeSelect")
+
+			if upgradeId == "Repair" and beforeHealth ~= nil then
+				local afterHealth = TankParticipantRegistry.getParticipantHealth(session.Participant)
+
+				if afterHealth > beforeHealth then
+					playArenaGameplayFX(session, "Repair")
+				end
+			end
+		end
+
 		return true
 	end
 
@@ -535,6 +678,7 @@ local function resetArenaRun(session)
 	session.ReflectShieldCharges = 0
 	session.SpawnShieldUntil = 0
 	session.ShieldToken = (session.ShieldToken or 0) + 1
+	destroyShieldVisual(session)
 	clearPendingUpgradeOffer(session)
 	resetParticipantArenaModifiers(session.Participant)
 	applySessionUpgrades(session)
@@ -843,7 +987,7 @@ local function getParticipantModel(participant)
 	return TankParticipantRegistry.getParticipantPhysicalModel(participant) or participant.Model
 end
 
-local function getParticipantPosition(participant)
+getParticipantPosition = function(participant)
 	local model = getParticipantModel(participant)
 
 	if model == nil then
@@ -867,6 +1011,20 @@ local function getParticipantPosition(participant)
 	end
 
 	return nil
+end
+
+playArenaGameplayFX = function(session, effectKey, options)
+	if session == nil or session.Participant == nil then
+		return
+	end
+
+	local position = getParticipantPosition(session.Participant)
+
+	if typeof(position) ~= "Vector3" then
+		return
+	end
+
+	GameplayCombatFXService.PlayAt(effectKey, position, options)
 end
 
 local function isParticipantAlive(participant)
@@ -1251,6 +1409,7 @@ function ArenaCombatService.OnParticipantKilled(killerParticipant, victimPartici
 
 	local victimPlayer = victimSession.Player
 	victimSession.Deaths += 1
+	destroyShieldVisual(victimSession)
 	local revivePending = reviveService:BeginRevivePending(victimSession)
 	local freeRespawnPending = reviveService:BeginFreeRespawnPending(victimSession)
 

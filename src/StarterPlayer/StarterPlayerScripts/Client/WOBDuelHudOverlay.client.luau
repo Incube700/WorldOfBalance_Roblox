@@ -948,6 +948,17 @@ end
 
 local function updateReload()
 	local reloadState = getReloadState()
+	local hideScriptedReload = TRAINING_COMPACT_HUD and isTrainingHudMode()
+
+	if hideScriptedReload then
+		reloadPanel.Visible = false
+		playerReloadLabel.Visible = false
+		playerReloadTrack.Visible = false
+		return
+	end
+
+	reloadPanel.Visible = true
+
 	local progress = reloadState.Progress
 	reloadBarFill.Size = UDim2.new(progress, 0, 1, 0)
 

@@ -19,6 +19,7 @@ local ProjectileHitResult = require(script.Parent:WaitForChild("ProjectileHitRes
 local ProjectileCombatService = require(script.Parent.Parent:WaitForChild("Combat"):WaitForChild("ProjectileCombatService"))
 local MatchStatsService = require(script.Parent.Parent:WaitForChild("Stats"):WaitForChild("MatchStatsService"))
 local CombatVfxService = require(script.Parent.Parent:WaitForChild("VFX"):WaitForChild("CombatVfxService"))
+local GameplayCombatFXService = require(shared:WaitForChild("FX"):WaitForChild("CombatFXService"))
 
 local primaryWeaponConfig = WeaponConfig.PrimaryWeapon
 local projectileTypeId = primaryWeaponConfig.ProjectileTypeId or ProjectileCatalog.DefaultProjectileTypeId
@@ -47,6 +48,20 @@ local function isImpactVfxEnabled()
 
 	return diagnosticsConfig.ProjectileVfxEnabled ~= false
 		and diagnosticsConfig.ImpactVfxEnabled ~= false
+end
+
+local function playGameplayFXAt(effectKey, position, direction, options)
+	if typeof(position) ~= "Vector3" then
+		return false
+	end
+
+	options = options or {}
+
+	if typeof(direction) == "Vector3" then
+		options.Direction = direction
+	end
+
+	return GameplayCombatFXService.PlayAt(effectKey, position, options) ~= nil
 end
 
 local PROJECTILE_SPEED = projectileConfig.Speed
@@ -447,6 +462,11 @@ local function createMuzzleFlash(position, direction)
 	else
 		flatDirection = flatDirection.Unit
 	end
+
+	if playGameplayFXAt("MuzzleFlash", position, flatDirection) then
+		return
+	end
+
 	local muzzleTemplateHandled = CombatVfxService.playVfxTemplate(
 		position,
 		flatDirection,
@@ -539,10 +559,23 @@ local function getVfxDirection(direction)
 	return flatDirection.Unit
 end
 
+local gameplayImpactEffectKeyByName = {
+	DamageHit = "ProjectileImpact",
+	NoPen = "ProjectileImpact",
+	SelfHit = "ProjectileImpact",
+	WallImpact = "ProjectileImpact",
+}
+
 local function createImpactBurst(position, direction, config, effectName)
 	if not isImpactVfxEnabled() then return false end
 	if config == nil or config.Enabled ~= true then return false end
 	local effectDirection = getVfxDirection(direction)
+	local gameplayEffectKey = gameplayImpactEffectKeyByName[effectName]
+
+	if gameplayEffectKey ~= nil and playGameplayFXAt(gameplayEffectKey, position, effectDirection) then
+		return true
+	end
+
 	local templateHandled = CombatVfxService.playVfxTemplate(
 		position,
 		effectDirection,
@@ -616,6 +649,10 @@ local function createRicochetVfx(position, normal)
 
 	local direction = typeof(normal) == "Vector3" and normal or Vector3.yAxis
 
+	if playGameplayFXAt("RicochetImpact", position, direction) then
+		return true
+	end
+
 	local templateHandled = CombatVfxService.playVfxTemplate(
 		position,
 		direction,
@@ -643,6 +680,10 @@ local function createShieldReflectVfx(position, normal)
 
 	local direction = typeof(normal) == "Vector3" and normal or Vector3.yAxis
 	local reflectConfig = shieldVfxConfig.Reflect
+
+	if playGameplayFXAt("ReflectShield", position, direction) then
+		return true
+	end
 
 	if createImpactBurst(position, direction, reflectConfig, "ShieldReflect") then
 		return true
@@ -711,6 +752,10 @@ local function createDeathExplosion(position)
 		return false
 	end
 
+	if playGameplayFXAt("TankExplosion", position, Vector3.yAxis) then
+		return true
+	end
+
 	local templateHandled = CombatVfxService.playVfxTemplate(
 		position,
 		Vector3.yAxis,
@@ -754,13 +799,13 @@ local function createProjectilePart(position, direction)
 	part.CanTouch = false
 	part.CanQuery = false
 	part.CastShadow = false
-	part.Material = Enum.Material.Neon
-	part.Color = visualConfig.Color
+	part.Material = Enum.Material.SmoothPlastic
+	part.Color = Color3.fromRGB(12, 14, 18)
 	part.Parent = projectileFolder
 	local light = Instance.new("PointLight")
-	light.Brightness = visualConfig.LightBrightness or 2.4
-	light.Range = visualConfig.LightRange or 10
-	light.Color = visualConfig.LightColor or Color3.fromRGB(255, 220, 120)
+	light.Brightness = 0.7
+	light.Range = 6
+	light.Color = Color3.fromRGB(120, 190, 255)
 	light.Parent = part
 	local frontAttachment = Instance.new("Attachment")
 	frontAttachment.Name = "TrailFront"
@@ -774,18 +819,37 @@ local function createProjectilePart(position, direction)
 	trail.Name = "ProjectileTrail"
 	trail.Attachment0 = frontAttachment
 	trail.Attachment1 = backAttachment
-	trail.Color = ColorSequence.new(visualConfig.TrailColorStart, visualConfig.TrailColorEnd)
-	trail.Lifetime = visualConfig.TrailLifetime or 0.18
+	trail.Color = ColorSequence.new(Color3.fromRGB(140, 215, 255), Color3.fromRGB(25, 28, 36))
+	trail.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.08),
+		NumberSequenceKeypoint.new(0.55, 0.35),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	trail.Lifetime = 0.16
 	trail.MinLength = 0.05
-	trail.LightEmission = 1
+	trail.LightEmission = 0.75
 	trail.LightInfluence = 0
 	trail.FaceCamera = true
 	trail.WidthScale = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, visualConfig.TrailWidthStart or 1.6),
-		NumberSequenceKeypoint.new(0.6, visualConfig.TrailWidthMid or 0.85),
+		NumberSequenceKeypoint.new(0, 0.85),
+		NumberSequenceKeypoint.new(0.6, 0.42),
 		NumberSequenceKeypoint.new(1, 0),
 	})
 	trail.Parent = part
+	local projectileFxLifetime = PROJECTILE_LIFETIME + 0.5
+	local projectileVisual = GameplayCombatFXService.AttachTo("ProjectileVisual", part, {
+		AttachMode = "ProjectileVisual",
+		Lifetime = projectileFxLifetime,
+		Attachment0 = frontAttachment,
+		Attachment1 = backAttachment,
+		AllowExternalAttachments = true,
+		EnableParticleEmitters = true,
+		EnableTrails = true,
+	})
+	if projectileVisual ~= nil then
+		trail.Enabled = true
+	end
+
 	return part
 end
 

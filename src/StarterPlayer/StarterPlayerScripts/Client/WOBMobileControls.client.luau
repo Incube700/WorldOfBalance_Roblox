@@ -54,21 +54,53 @@ local ARCADE_SLOW_TURN_ANGLE = math.rad(45)
 local ARCADE_HARD_TURN_ANGLE = math.rad(120)
 local ARCADE_SLOW_TURN_THROTTLE_SCALE = 0.45
 local ARCADE_HARD_TURN_THROTTLE_SCALE = 0.15
-local LEFT_STICK_SIZE = 110
-local RIGHT_AIM_SIZE = 116
+local function getPositiveNumber(value, fallback)
+	local number = tonumber(value)
+
+	if number == nil or number <= 0 then
+		return fallback
+	end
+
+	return number
+end
+
+local function getOffsetButtonSize(size, fallback)
+	if typeof(size) ~= "UDim2" then
+		return fallback
+	end
+
+	if size.X.Scale ~= 0 or size.Y.Scale ~= 0 or size.X.Offset <= 0 or size.Y.Offset <= 0 then
+		return fallback
+	end
+
+	return size
+end
+
+local LEFT_STICK_SIZE = math.clamp(math.floor(getPositiveNumber(leftStickConfig.BaseSize, 110)), 96, 168)
+local LEFT_STICK_KNOB_SIZE = math.clamp(math.floor(getPositiveNumber(leftStickConfig.ThumbSize, 46)), 40, LEFT_STICK_SIZE - 28)
+local RIGHT_AIM_SIZE = math.clamp(math.floor(getPositiveNumber(rightAimStickConfig.BaseSize, 116)), 96, 168)
+local RIGHT_AIM_KNOB_SIZE = math.clamp(math.floor(getPositiveNumber(rightAimStickConfig.ThumbSize, 44)), 40, RIGHT_AIM_SIZE - 28)
 local FIRE_BUTTON_SIZE = 78
 local REVERSE_BUTTON_SIZE = 58
+local LEFT_STICK_INPUT_MAX_DISTANCE = 55
+local RIGHT_AIM_INPUT_MAX_DISTANCE = 58
 -- Gameplay touch layout convention:
 -- Move stays bottom-left, REV sits in the right thumb area without overlapping
 -- AIM/FIRE, Aim stays in the lower-right control area, Fire stays bottom-right,
 -- and Menu/Pause is owned by gameplay HUDs in the top-right safe area.
 
 local stickRadius = LEFT_STICK_SIZE / 2
-local stickMaxDistance = math.min(tonumber(leftStickConfig.MaxDistance) or stickRadius, stickRadius)
+local stickMaxDistance = math.min(
+	tonumber(leftStickConfig.MaxDistance) or LEFT_STICK_INPUT_MAX_DISTANCE,
+	LEFT_STICK_INPUT_MAX_DISTANCE
+)
 local stickDeadZone = math.clamp(tonumber(leftStickConfig.DeadZone) or 0.12, 0, 0.95)
 local leftStickLabel = tostring(leftStickConfig.Label or "MOVE")
 local rightAimRadius = RIGHT_AIM_SIZE / 2
-local rightAimMaxDistance = math.min(tonumber(rightAimStickConfig.MaxDistance) or rightAimRadius, rightAimRadius)
+local rightAimMaxDistance = math.min(
+	tonumber(rightAimStickConfig.MaxDistance) or RIGHT_AIM_INPUT_MAX_DISTANCE,
+	RIGHT_AIM_INPUT_MAX_DISTANCE
+)
 local rightAimDeadZone = math.clamp(tonumber(rightAimStickConfig.DeadZone) or 0.08, 0, 0.95)
 local rightAimEnabled = rightAimStickConfig.Enabled ~= false
 local rightAimVisible = rightAimEnabled and rightAimStickConfig.Visible ~= false
@@ -78,6 +110,10 @@ local aimTapMoveTolerancePixels = math.max(0, tonumber(rightAimStickConfig.TapMo
 local aimPlaneY = tonumber(aimAreaConfig.AimPlaneY) or CameraConfig.Input.AimPlaneY or 0
 local aimMinXScale = math.clamp(tonumber(aimAreaConfig.MinXScale) or 0.45, 0, 1)
 local fireButtonLabel = tostring(fireButtonConfig.Label or "FIRE")
+local fireButtonSize = getOffsetButtonSize(
+	fireButtonConfig.Size,
+	UDim2.fromOffset(FIRE_BUTTON_SIZE, FIRE_BUTTON_SIZE)
+)
 local reverseButtonLabel = tostring(reverseButtonConfig.Label or "REV")
 local reverseButtonSize = reverseButtonConfig.Size or UDim2.fromOffset(REVERSE_BUTTON_SIZE, REVERSE_BUTTON_SIZE)
 local reverseButtonPosition = reverseButtonConfig.Position or UDim2.new(1, -95, 1, -128)
@@ -144,7 +180,7 @@ local leftStickKnob = Instance.new("Frame")
 leftStickKnob.Name = LEFT_STICK_KNOB_NAME
 leftStickKnob.AnchorPoint = Vector2.new(0.5, 0.5)
 leftStickKnob.Position = UDim2.fromOffset(stickRadius, stickRadius)
-leftStickKnob.Size = UDim2.fromOffset(46, 46)
+leftStickKnob.Size = UDim2.fromOffset(LEFT_STICK_KNOB_SIZE, LEFT_STICK_KNOB_SIZE)
 leftStickKnob.BackgroundColor3 = Color3.fromRGB(234, 255, 246)
 leftStickKnob.BackgroundTransparency = 0.26
 leftStickKnob.BorderSizePixel = 0
@@ -172,7 +208,7 @@ leftStickLabelText.Parent = leftStickBase
 local rightAimBase = Instance.new("Frame")
 rightAimBase.Name = RIGHT_AIM_BASE_NAME
 rightAimBase.AnchorPoint = Vector2.new(1, 1)
-rightAimBase.Position = UDim2.new(1, -120, 1, -38)
+rightAimBase.Position = UDim2.new(1, -144, 1, -44)
 rightAimBase.Size = UDim2.fromOffset(RIGHT_AIM_SIZE, RIGHT_AIM_SIZE)
 rightAimBase.BackgroundColor3 = Color3.fromRGB(14, 22, 31)
 rightAimBase.BackgroundTransparency = 0.48
@@ -194,7 +230,7 @@ local rightAimKnob = Instance.new("Frame")
 rightAimKnob.Name = RIGHT_AIM_KNOB_NAME
 rightAimKnob.AnchorPoint = Vector2.new(0.5, 0.5)
 rightAimKnob.Position = UDim2.fromOffset(rightAimRadius, rightAimRadius)
-rightAimKnob.Size = UDim2.fromOffset(44, 44)
+rightAimKnob.Size = UDim2.fromOffset(RIGHT_AIM_KNOB_SIZE, RIGHT_AIM_KNOB_SIZE)
 rightAimKnob.BackgroundColor3 = Color3.fromRGB(178, 234, 255)
 rightAimKnob.BackgroundTransparency = 0.24
 rightAimKnob.BorderSizePixel = 0
@@ -223,7 +259,7 @@ local fireButton = Instance.new("TextButton")
 fireButton.Name = FIRE_BUTTON_NAME
 fireButton.AnchorPoint = Vector2.new(1, 1)
 fireButton.Position = UDim2.new(1, -24, 1, -28)
-fireButton.Size = UDim2.fromOffset(FIRE_BUTTON_SIZE, FIRE_BUTTON_SIZE)
+fireButton.Size = fireButtonSize
 fireButton.BackgroundColor3 = Color3.fromRGB(194, 64, 54)
 fireButton.BackgroundTransparency = 0.18
 fireButton.BorderSizePixel = 0
@@ -373,6 +409,8 @@ local function applyResponsiveLayout()
 	leftStickBase.AnchorPoint = Vector2.new(0, 1)
 	leftStickBase.Size = UDim2.fromOffset(LEFT_STICK_SIZE, LEFT_STICK_SIZE)
 	leftStickBase.Position = UDim2.new(0, 28, 1, -30)
+	leftStickKnob.Size = UDim2.fromOffset(LEFT_STICK_KNOB_SIZE, LEFT_STICK_KNOB_SIZE)
+	leftStickKnob.Position = UDim2.fromOffset(stickRadius, stickRadius)
 
 	reverseButton.AnchorPoint = reverseButtonAnchorPoint
 	reverseButton.Size = reverseButtonSize
@@ -380,10 +418,12 @@ local function applyResponsiveLayout()
 
 	rightAimBase.AnchorPoint = Vector2.new(1, 1)
 	rightAimBase.Size = UDim2.fromOffset(RIGHT_AIM_SIZE, RIGHT_AIM_SIZE)
-	rightAimBase.Position = UDim2.new(1, -120, 1, -38)
+	rightAimBase.Position = UDim2.new(1, -144, 1, -44)
+	rightAimKnob.Size = UDim2.fromOffset(RIGHT_AIM_KNOB_SIZE, RIGHT_AIM_KNOB_SIZE)
+	rightAimKnob.Position = UDim2.fromOffset(rightAimRadius, rightAimRadius)
 
 	fireButton.AnchorPoint = Vector2.new(1, 1)
-	fireButton.Size = UDim2.fromOffset(FIRE_BUTTON_SIZE, FIRE_BUTTON_SIZE)
+	fireButton.Size = fireButtonSize
 	fireButton.Position = UDim2.new(1, -24, 1, -28)
 end
 

@@ -9,6 +9,18 @@ local sharedConfigs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Con
 local UpgradeIconConfig = require(sharedConfigs:WaitForChild("UpgradeIconConfig"))
 
 local UPGRADE_ICON_SLOT_COUNT = 5
+local MOBILE_SAFE_UPGRADE_TOP_Y_MIN = 136
+local MOBILE_SAFE_UPGRADE_TOP_Y_MAX = 158
+
+local function getMobileSafeUpgradeTopY(viewportSize)
+	local viewportHeight = viewportSize ~= nil and viewportSize.Y or 768
+
+	return math.clamp(
+		math.floor(viewportHeight * 0.18),
+		MOBILE_SAFE_UPGRADE_TOP_Y_MIN,
+		MOBILE_SAFE_UPGRADE_TOP_Y_MAX
+	)
+end
 
 local function warnTemplateIssueOnce(flagName, message)
 	if BattleArenaUpgradeHud[flagName] then
@@ -925,6 +937,18 @@ function BattleArenaUpgradeHud:_applyTemplateLayoutState()
 	if self._templateLayouts ~= nil then
 		local layoutState = self._isMobile and self._templateLayouts.Mobile or self._templateLayouts.Desktop
 		self:_selectTemplateLayout(layoutState)
+
+		if self._isMobile then
+			local safeTopY = getMobileSafeUpgradeTopY(self._viewportSize)
+
+			layoutState.OfferPanel.AnchorPoint = Vector2.new(0.5, 0)
+			layoutState.OfferPanel.Position = UDim2.new(0.5, 0, 0, safeTopY)
+
+			if layoutState.IconStrip ~= nil then
+				layoutState.IconStrip.AnchorPoint = Vector2.new(0.5, 0)
+				layoutState.IconStrip.Position = UDim2.new(0.5, 0, 0, safeTopY)
+			end
+		end
 	end
 end
 
@@ -937,9 +961,10 @@ function BattleArenaUpgradeHud:_applyMobileLayout()
 	buttonSize = math.clamp(buttonSize, 50, 66)
 	local rowWidth = buttonSize * 3 + buttonGap * 2
 	local rowX = math.floor((panelWidth - rowWidth) * 0.5)
+	local safeTopY = getMobileSafeUpgradeTopY(viewportSize)
 
-	self._offerPanel.AnchorPoint = Vector2.new(0.5, 1)
-	self._offerPanel.Position = UDim2.new(0.5, 0, 1, -96)
+	self._offerPanel.AnchorPoint = Vector2.new(0.5, 0)
+	self._offerPanel.Position = UDim2.new(0.5, 0, 0, safeTopY)
 	self._offerPanel.Size = UDim2.fromOffset(panelWidth, panelHeight)
 
 	if self._title ~= nil then
@@ -979,8 +1004,8 @@ function BattleArenaUpgradeHud:_applyMobileLayout()
 	end
 
 	self:_layoutIconStrip({
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -88),
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, safeTopY),
 		SlotSize = 32,
 		Gap = 4,
 	})

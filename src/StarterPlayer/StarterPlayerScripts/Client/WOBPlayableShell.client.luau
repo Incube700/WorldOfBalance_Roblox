@@ -433,12 +433,13 @@ local function createMenu(screenGui)
 	content.BackgroundColor3 = COLORS.Panel
 	content.BackgroundTransparency = 0.08
 	content.BorderSizePixel = 0
+	content.ZIndex = POPUP_CONTENT_Z_INDEX
 	addCorner(content, UDim.new(0, 8))
 	addStroke(content, COLORS.Border, 0.22, 1)
 	addPadding(content, 20)
 	addSizeConstraint(content, Vector2.new(300, 330), Vector2.new(460, 390))
 
-	for _, obsoleteName in ipairs({ "PlayButton", "DuelButton", "ArenaButton", "CloseButton" }) do
+	for _, obsoleteName in ipairs({ "PlayButton", "DuelButton", "ArenaButton" }) do
 		local obsoleteButton = content:FindFirstChild(obsoleteName)
 
 		if obsoleteButton ~= nil then
@@ -446,17 +447,22 @@ local function createMenu(screenGui)
 		end
 	end
 
+	local closeButton = getOrCreate(content, "TextButton", "CloseButton")
+	stylePopupCloseButton(closeButton)
+
 	local title = getOrCreate(content, "TextLabel", "TitleLabel")
 	title.Position = UDim2.new(0, 0, 0, 0)
-	title.Size = UDim2.new(1, 0, 0, 70)
+	title.Size = UDim2.new(1, -56, 0, 70)
 	styleLabel(title, "WORLD OF BALANCE", 32, COLORS.Text)
 	title.Font = Enum.Font.GothamBlack
+	title.ZIndex = POPUP_CONTENT_Z_INDEX + 1
 
 	local subtitle = getOrCreate(content, "TextLabel", "SubtitleLabel")
 	subtitle.Position = UDim2.new(0, 0, 0, 68)
 	subtitle.Size = UDim2.new(1, 0, 0, 34)
 	styleLabel(subtitle, "RICOCHET TANKS", 17, COLORS.Yellow)
 	subtitle.Font = Enum.Font.GothamBold
+	subtitle.ZIndex = POPUP_CONTENT_Z_INDEX + 1
 
 	local buttonNames = {
 		{ Name = "TrainingButton", Text = "TRAINING", Enabled = true, Y = 130, Accent = COLORS.Yellow },
@@ -469,6 +475,7 @@ local function createMenu(screenGui)
 		button.Position = UDim2.new(0.08, 0, 0, data.Y)
 		button.Size = UDim2.new(0.84, 0, 0, data.Name == "TrainingButton" and 58 or 52)
 		styleButton(button, data.Text, data.Enabled, data.Accent)
+		button.ZIndex = POPUP_CONTENT_Z_INDEX + 1
 	end
 
 	return panel
@@ -718,27 +725,41 @@ local function createSettingsPanel(screenGui)
 	content.BackgroundColor3 = COLORS.Panel
 	content.BackgroundTransparency = 0.08
 	content.BorderSizePixel = 0
+	content.ZIndex = POPUP_CONTENT_Z_INDEX
 	addCorner(content, UDim.new(0, 8))
 	addStroke(content, COLORS.Border, 0.22, 1)
 	addPadding(content, 18)
 	addSizeConstraint(content, Vector2.new(300, 300), Vector2.new(500, 360))
 
-	local title = getOrCreate(content, "TextLabel", "SettingsTitleLabel")
-	title.Position = UDim2.new(0.08, 0, 0, 22)
-	title.Size = UDim2.new(0.84, 0, 0, 44)
+	local header = getOrCreate(content, "Frame", "SettingsHeader")
+	header.Position = UDim2.fromOffset(0, 0)
+	header.Size = UDim2.new(1, 0, 0, POPUP_HEADER_HEIGHT)
+	header.BackgroundTransparency = 1
+	header.BorderSizePixel = 0
+	header.ZIndex = POPUP_CONTENT_Z_INDEX + 1
+
+	local closeButton = getOrCreateReparented(header, "TextButton", "SettingsCloseButton", content)
+	stylePopupCloseButton(closeButton)
+
+	local title = getOrCreateReparented(header, "TextLabel", "SettingsTitleLabel", content)
+	title.Position = UDim2.new(0.08, 0, 0, 3)
+	title.Size = UDim2.new(0.62, 0, 0, 48)
 	styleLabel(title, "SETTINGS", 28, COLORS.Text)
 	title.Font = Enum.Font.GothamBlack
+	title.ZIndex = header.ZIndex + 1
 
 	local body = getOrCreate(content, "TextLabel", "SettingsBodyLabel")
 	body.Position = UDim2.new(0.1, 0, 0, 86)
 	body.Size = UDim2.new(0.8, 0, 0, 118)
 	styleLabel(body, "Settings coming soon\nAudio and controls toggles are not wired yet.", 17, COLORS.Muted)
 	body.Font = Enum.Font.GothamBold
+	body.ZIndex = POPUP_CONTENT_Z_INDEX + 1
 
 	local backButton = getOrCreate(content, "TextButton", "SettingsBackButton")
 	backButton.Position = UDim2.new(0.28, 0, 1, -76)
 	backButton.Size = UDim2.new(0.44, 0, 0, 52)
 	styleButton(backButton, "BACK", true, COLORS.Yellow)
+	backButton.ZIndex = POPUP_CONTENT_Z_INDEX + 1
 
 	return panel
 end
@@ -920,7 +941,7 @@ local function updateStaticShellText()
 			backToMenuButton.Text = "MENU"
 		end
 
-		for _, closeButtonName in ipairs({ "StatsCloseButton" }) do
+		for _, closeButtonName in ipairs({ "CloseButton", "StatsCloseButton", "SettingsCloseButton" }) do
 			local closeButton = findDescendant(screenGui, closeButtonName)
 
 			if closeButton ~= nil and closeButton:IsA("TextButton") then
@@ -987,6 +1008,12 @@ local function createShellGui()
 
 	if settingsPanel == nil or not settingsPanel:IsA("Frame") then
 		settingsPanel = createSettingsPanel(screenGui)
+	else
+		local settingsCloseButton = findDescendant(settingsPanel, "SettingsCloseButton")
+
+		if settingsCloseButton == nil or not settingsCloseButton:IsA("TextButton") then
+			settingsPanel = createSettingsPanel(screenGui)
+		end
 	end
 
 	local lobbyMenuButton = findDescendant(screenGui, "LobbyMenuButton")
@@ -1006,9 +1033,14 @@ local function createShellGui()
 	local backToMenuButton = findDescendant(resultPanel, "BackToMenuButton") or findDescendant(resultPanel, "MenuButton")
 	local statsCloseButton = findDescendant(statsPanel, "StatsCloseButton")
 	local statsBackButton = findDescendant(statsPanel, "StatsBackButton")
+	local settingsCloseButton = findDescendant(settingsPanel, "SettingsCloseButton")
 	local settingsBackButton = findDescendant(settingsPanel, "SettingsBackButton")
 
-	if trainingButton == nil or not trainingButton:IsA("TextButton") then
+	if trainingButton == nil
+		or not trainingButton:IsA("TextButton")
+		or menuCloseButton == nil
+		or not menuCloseButton:IsA("TextButton")
+	then
 		menuPanel = createMenu(screenGui)
 		trainingButton = findDescendant(menuPanel, "TrainingButton")
 		statsButton = findDescendant(menuPanel, "StatsButton")
@@ -1040,8 +1072,13 @@ local function createShellGui()
 		statsBackButton = findDescendant(statsPanel, "StatsBackButton")
 	end
 
-	if settingsBackButton == nil or not settingsBackButton:IsA("TextButton") then
+	if settingsCloseButton == nil
+		or not settingsCloseButton:IsA("TextButton")
+		or settingsBackButton == nil
+		or not settingsBackButton:IsA("TextButton")
+	then
 		settingsPanel = createSettingsPanel(screenGui)
+		settingsCloseButton = findDescendant(settingsPanel, "SettingsCloseButton")
 		settingsBackButton = findDescendant(settingsPanel, "SettingsBackButton")
 	end
 
@@ -1067,6 +1104,10 @@ local function createShellGui()
 		warn("[SHELL] SettingsButton not found under " .. menuPanel:GetFullName())
 	end
 
+	if menuCloseButton == nil or not menuCloseButton:IsA("TextButton") then
+		warn("[SHELL] CloseButton not found under " .. menuPanel:GetFullName())
+	end
+
 	if statsBackButton == nil or not statsBackButton:IsA("TextButton") then
 		warn("[SHELL] StatsBackButton not found under " .. statsPanel:GetFullName())
 	end
@@ -1077,6 +1118,10 @@ local function createShellGui()
 
 	if settingsBackButton == nil or not settingsBackButton:IsA("TextButton") then
 		warn("[SHELL] SettingsBackButton not found under " .. settingsPanel:GetFullName())
+	end
+
+	if settingsCloseButton == nil or not settingsCloseButton:IsA("TextButton") then
+		warn("[SHELL] SettingsCloseButton not found under " .. settingsPanel:GetFullName())
 	end
 
 	return {
@@ -1095,6 +1140,7 @@ local function createShellGui()
 		BackToMenuButton = backToMenuButton,
 		StatsCloseButton = statsCloseButton,
 		StatsBackButton = statsBackButton,
+		SettingsCloseButton = settingsCloseButton,
 		SettingsBackButton = settingsBackButton,
 	}
 end
@@ -1546,6 +1592,14 @@ local function shouldHideLargeReloadPanel()
 		return false
 	end
 
+	if worldHealthBarsConfig.ShowReloadBar ~= true then
+		return false
+	end
+
+	if combatHudConfig.HideLargeReloadPanelWhenWorldReloadEnabled == false then
+		return false
+	end
+
 	if combatHudConfig.CompactReload ~= true then
 		return false
 	end
@@ -1553,6 +1607,10 @@ local function shouldHideLargeReloadPanel()
 	local mode = getLocalPlayerMode()
 
 	if mode == PLAYER_MODE_IN_BATTLE_ARENA or mode == PLAYER_MODE_ARENA_RESPAWNING then
+		return true
+	end
+
+	if mode == PLAYER_MODE_IN_MATCH and root:GetAttribute("MatchMode") == "Training" then
 		return true
 	end
 
@@ -1752,9 +1810,17 @@ local function closeLobbyMenu()
 	applyShellState(root:GetAttribute("GameState") or GAME_STATE_MENU)
 end
 
-local function closeStatsPanel()
-	activeShellPanel = SHELL_PANEL_HIDDEN
+local function closeShellSubPanel()
+	activeShellPanel = SHELL_PANEL_MENU
 	applyShellState(root:GetAttribute("GameState") or GAME_STATE_MENU)
+end
+
+local function closeStatsPanel()
+	closeShellSubPanel()
+end
+
+local function closeSettingsPanel()
+	closeShellSubPanel()
 end
 
 local function openLobbyMenu()
@@ -1812,10 +1878,8 @@ local function bindShellButtons(screenGui)
 	end
 
 	if settingsPanel ~= nil then
-		connectActionButton(findDescendant(settingsPanel, "SettingsBackButton"), "[SHELL] SettingsBack clicked", function()
-			activeShellPanel = SHELL_PANEL_HIDDEN
-			applyShellState(root:GetAttribute("GameState") or GAME_STATE_MENU)
-		end)
+		connectActionButton(findDescendant(settingsPanel, "SettingsCloseButton"), "[SHELL] SettingsClose clicked", closeSettingsPanel)
+		connectActionButton(findDescendant(settingsPanel, "SettingsBackButton"), "[SHELL] SettingsBack clicked", closeSettingsPanel)
 	end
 
 	connectActionButton(findDescendant(screenGui, "LobbyMenuButton"), "[SHELL] LobbyMenu clicked", openLobbyMenu)
@@ -1862,10 +1926,11 @@ if shell.StatsCloseButton ~= nil and shell.StatsCloseButton:IsA("TextButton") th
 end
 
 if shell.SettingsBackButton ~= nil and shell.SettingsBackButton:IsA("TextButton") then
-	connectActionButton(shell.SettingsBackButton, "[SHELL] SettingsBack clicked", function()
-		activeShellPanel = SHELL_PANEL_HIDDEN
-		applyShellState(root:GetAttribute("GameState") or GAME_STATE_MENU)
-	end)
+	connectActionButton(shell.SettingsBackButton, "[SHELL] SettingsBack clicked", closeSettingsPanel)
+end
+
+if shell.SettingsCloseButton ~= nil and shell.SettingsCloseButton:IsA("TextButton") then
+	connectActionButton(shell.SettingsCloseButton, "[SHELL] SettingsClose clicked", closeSettingsPanel)
 end
 
 root:GetAttributeChangedSignal("GameState"):Connect(function()
