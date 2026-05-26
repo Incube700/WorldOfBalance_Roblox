@@ -148,7 +148,7 @@ local function attachGlow(projectile)
 		projectileVisual.GroundGlowSize.Z * CORE_SCALE
 	)
 	setVisualPhysics(coreGlow)
-	coreGlow.Color = Color3.fromRGB(255, 240, 160)
+	coreGlow.Color = projectileVisual.GroundGlowCoreColor or Color3.fromRGB(110, 170, 220)
 	coreGlow.Transparency = math.clamp(projectileVisual.GroundGlowTransparency + CORE_TRANSPARENCY_OFFSET, 0, 1)
 	coreGlow.Parent = glowFolder
 

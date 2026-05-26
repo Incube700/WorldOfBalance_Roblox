@@ -304,7 +304,7 @@ end
 
 local function createFallbackShieldVisual(anchorPart)
 	local maxAxis = math.max(anchorPart.Size.X, anchorPart.Size.Y, anchorPart.Size.Z)
-	local diameter = math.max(4, maxAxis * 1.55)
+	local diameter = math.max(4.5, maxAxis * 1.75)
 	local shield = Instance.new("Part")
 	shield.Name = "ArenaReflectShieldVisual"
 	shield.Shape = Enum.PartType.Ball
@@ -317,8 +317,8 @@ local function createFallbackShieldVisual(anchorPart)
 	shield.Massless = true
 	shield.CastShadow = false
 	shield.Material = Enum.Material.ForceField
-	shield.Color = Color3.fromRGB(92, 210, 255)
-	shield.Transparency = 0.58
+	shield.Color = Color3.fromRGB(92, 225, 255)
+	shield.Transparency = 0.42
 	shield.Parent = anchorPart
 
 	local weld = Instance.new("WeldConstraint")
@@ -326,6 +326,16 @@ local function createFallbackShieldVisual(anchorPart)
 	weld.Part0 = anchorPart
 	weld.Part1 = shield
 	weld.Parent = shield
+
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "ArenaReflectShieldVisualHighlight"
+	highlight.Adornee = shield
+	highlight.FillColor = Color3.fromRGB(92, 225, 255)
+	highlight.OutlineColor = Color3.fromRGB(255, 245, 160)
+	highlight.FillTransparency = 0.82
+	highlight.OutlineTransparency = 0.08
+	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+	highlight.Parent = shield
 
 	return shield
 end
@@ -354,25 +364,16 @@ local function updateShieldVisual(session, shieldActive)
 	end
 
 	local existingVisual = shieldVisualBySession[session]
-	if existingVisual ~= nil and existingVisual.Parent ~= nil and existingVisual:IsDescendantOf(anchorPart) then
+	if existingVisual ~= nil
+		and existingVisual.Parent ~= nil
+		and existingVisual.Name == "ArenaReflectShieldVisual"
+		and existingVisual:IsDescendantOf(anchorPart)
+	then
 		return
 	end
 
 	destroyShieldVisual(session)
-
-	local visual = GameplayCombatFXService.AttachTo("ReflectShield", anchorPart, {
-		AttachMode = "Tank",
-		SkipCleanup = true,
-		EnableParticleEmitters = true,
-		EnableTrails = true,
-		ScaleMultiplier = 0.08,
-	})
-
-	if visual == nil then
-		visual = createFallbackShieldVisual(anchorPart)
-	end
-
-	shieldVisualBySession[session] = visual
+	shieldVisualBySession[session] = createFallbackShieldVisual(anchorPart)
 end
 
 local function publishShieldAttributes(session, now)

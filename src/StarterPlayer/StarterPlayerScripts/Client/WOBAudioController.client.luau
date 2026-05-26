@@ -21,6 +21,8 @@ local lastRewardSequence = tonumber(localPlayer:GetAttribute("LastBoltsRewardSeq
 local lastCrystalRewardSequence = tonumber(localPlayer:GetAttribute("LastCrystalsRewardSequence")) or 0
 local lastRoundResult = nil
 local rng = Random.new()
+local playedSoundTimes = {}
+local lastPlayedByCategory = {}
 
 local function getOrCreateFolder(parent, name)
 	local folder = parent:FindFirstChild(name)
@@ -85,6 +87,31 @@ local function canPlay(soundDefinition)
 		and soundDefinition.SoundId ~= ""
 end
 
+local function canPlayNow(category, soundDefinition)
+	local now = os.clock()
+	local maxSoundsPerSecond = math.max(1, math.floor(tonumber(AudioConfig.MaxSoundsPerSecond) or 24))
+
+	while #playedSoundTimes > 0 and now - playedSoundTimes[1] > 1 do
+		table.remove(playedSoundTimes, 1)
+	end
+
+	if #playedSoundTimes >= maxSoundsPerSecond then
+		return false
+	end
+
+	local throttleSeconds = math.max(0, tonumber(soundDefinition.ThrottleSeconds) or 0)
+	local lastPlayedAt = lastPlayedByCategory[category]
+
+	if throttleSeconds > 0 and typeof(lastPlayedAt) == "number" and now - lastPlayedAt < throttleSeconds then
+		return false
+	end
+
+	table.insert(playedSoundTimes, now)
+	lastPlayedByCategory[category] = now
+
+	return true
+end
+
 local function getVolume(soundDefinition, is2D)
 	local channelVolume = is2D and (AudioConfig.UIVolume or 1) or (AudioConfig.CombatVolume or 1)
 	return (AudioConfig.MasterVolume or 1) * channelVolume * (soundDefinition.Volume or 1)
@@ -139,6 +166,10 @@ local function play2DSound(category, payload)
 		return
 	end
 
+	if not canPlayNow(category, soundDefinition) then
+		return
+	end
+
 	local sound = Instance.new("Sound")
 	sound.Name = "WOB_" .. tostring(soundKey)
 	configureSound(sound, soundDefinition, true)
@@ -160,6 +191,10 @@ local function play3DSound(category, worldPosition, payload)
 
 	if soundDefinition.Is2D == true or typeof(worldPosition) ~= "Vector3" then
 		play2DSound(category, payload)
+		return
+	end
+
+	if not canPlayNow(category, soundDefinition) then
 		return
 	end
 
@@ -204,13 +239,21 @@ local function chooseSoundCategory(payload)
 	if payloadType == "Shot" then
 		return "Shot"
 	elseif payloadType == "Ricochet" or payloadType == "ArmorRicochet" then
-		return "Ricochet"
+		return "RicochetImpact"
 	elseif payloadType == "Damage" then
-		return "Hit"
+		return "ProjectileImpact"
 	elseif payloadType == "NoPenetration" then
 		return "NoPenetration"
 	elseif payloadType == "TankDestroyed" then
-		return "TankDestroyed"
+		return "TankExplosion"
+	elseif payloadType == "ShieldReflect" then
+		return "ReflectShield"
+	elseif payloadType == "UpgradeSelect" then
+		return "UpgradeSelect"
+	elseif payloadType == "LevelUp" then
+		return "LevelUp"
+	elseif payloadType == "Repair" then
+		return "Repair"
 	elseif payloadType == "BlockedShot" or payloadType == "BarrelBlocked" then
 		return "BarrelBlocked"
 	end
@@ -218,13 +261,15 @@ local function chooseSoundCategory(payload)
 	if string.find(text, "BARREL BLOCKED", 1, true) ~= nil then
 		return "BarrelBlocked"
 	elseif string.find(text, "RICOCHET", 1, true) ~= nil then
-		return "Ricochet"
+		return "RicochetImpact"
 	elseif string.find(text, "NO PEN", 1, true) ~= nil or string.find(text, "NO PENETRATION", 1, true) ~= nil then
 		return "NoPenetration"
+	elseif string.find(text, "REFLECT", 1, true) ~= nil then
+		return "ReflectShield"
 	elseif string.find(text, "DESTROYED", 1, true) ~= nil then
-		return "TankDestroyed"
+		return "TankExplosion"
 	elseif string.find(text, "HIT", 1, true) ~= nil or string.match(text, "^%-?%d+") ~= nil then
-		return "Hit"
+		return "ProjectileImpact"
 	end
 
 	return nil

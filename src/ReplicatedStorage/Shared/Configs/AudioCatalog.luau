@@ -1,10 +1,18 @@
 local AudioCatalog = table.freeze({
 	DefaultSoundIds = table.freeze({
 		Shot = "DefaultCannonShot",
+		ProjectileImpact = "DefaultProjectileImpact",
 		Ricochet = "DefaultRicochet",
-		Hit = "DefaultHit",
+		RicochetImpact = "DefaultRicochet",
+		Hit = "DefaultProjectileImpact",
 		NoPenetration = "DefaultNoPenetration",
+		TankExplosion = "DefaultExplosion",
 		TankDestroyed = "DefaultExplosion",
+		UpgradeSelect = "DefaultUpgradeSelect",
+		LevelUp = "DefaultLevelUp",
+		ReflectShield = "DefaultReflectShield",
+		Repair = "DefaultRepair",
+		EngineLoop = "DefaultEngineLoop",
 		BarrelBlocked = "DefaultBarrelBlocked",
 		BoltReward = "DefaultBoltReward",
 		CrystalReward = "DefaultBoltReward",
@@ -21,6 +29,7 @@ local AudioCatalog = table.freeze({
 			Volume = 0.7,
 			PlaybackSpeed = 1,
 			RollOffMaxDistance = 140,
+			ThrottleSeconds = 0.05,
 			Is2D = false,
 		}),
 
@@ -31,16 +40,18 @@ local AudioCatalog = table.freeze({
 			Volume = 1,
 			PlaybackSpeed = 1,
 			RollOffMaxDistance = 220,
+			ThrottleSeconds = 0.08,
 			Is2D = false,
 		}),
 
-		DefaultHit = table.freeze({
-			Category = "Hit",
-			SoundId = "",
-			DisplayName = "Default Hit",
+		DefaultProjectileImpact = table.freeze({
+			Category = "ProjectileImpact",
+			SoundId = "rbxassetid://871701190",
+			DisplayName = "Default Projectile Impact",
 			Volume = 0.65,
 			PlaybackSpeed = 1,
 			RollOffMaxDistance = 110,
+			ThrottleSeconds = 0.05,
 			Is2D = false,
 		}),
 
@@ -51,16 +62,66 @@ local AudioCatalog = table.freeze({
 			Volume = 0.7,
 			PlaybackSpeed = 1,
 			RollOffMaxDistance = 110,
+			ThrottleSeconds = 0.08,
 			Is2D = false,
 		}),
 
 		DefaultExplosion = table.freeze({
 			Category = "TankDestroyed",
-			SoundId = "",
+			SoundId = "rbxassetid://4810729508",
 			DisplayName = "Default Explosion",
 			Volume = 0.9,
 			PlaybackSpeed = 1,
 			RollOffMaxDistance = 160,
+			ThrottleSeconds = 0.2,
+			Is2D = false,
+		}),
+
+		DefaultUpgradeSelect = table.freeze({
+			Category = "UpgradeSelect",
+			SoundId = "",
+			DisplayName = "Default Upgrade Select",
+			Volume = 0.55,
+			PlaybackSpeed = 1,
+			Is2D = true,
+		}),
+
+		DefaultLevelUp = table.freeze({
+			Category = "LevelUp",
+			SoundId = "",
+			DisplayName = "Default Level Up",
+			Volume = 0.65,
+			PlaybackSpeed = 1,
+			Is2D = true,
+		}),
+
+		DefaultReflectShield = table.freeze({
+			Category = "ReflectShield",
+			SoundId = "",
+			DisplayName = "Default Reflect Shield",
+			Volume = 0.75,
+			PlaybackSpeed = 1,
+			RollOffMaxDistance = 130,
+			ThrottleSeconds = 0.12,
+			Is2D = false,
+		}),
+
+		DefaultRepair = table.freeze({
+			Category = "Repair",
+			SoundId = "",
+			DisplayName = "Default Repair",
+			Volume = 0.6,
+			PlaybackSpeed = 1,
+			Is2D = true,
+		}),
+
+		DefaultEngineLoop = table.freeze({
+			Category = "EngineLoop",
+			SoundId = "",
+			DisplayName = "Default Engine Loop",
+			Volume = 0.35,
+			PlaybackSpeed = 1,
+			RollOffMaxDistance = 90,
 			Is2D = false,
 		}),
 

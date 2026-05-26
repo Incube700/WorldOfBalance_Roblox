@@ -799,56 +799,48 @@ local function createProjectilePart(position, direction)
 	part.CanTouch = false
 	part.CanQuery = false
 	part.CastShadow = false
-	part.Material = Enum.Material.SmoothPlastic
-	part.Color = Color3.fromRGB(12, 14, 18)
+	part.Material = visualConfig.Material or Enum.Material.Neon
+	part.Color = visualConfig.Color or Color3.fromRGB(255, 235, 140)
+	part.Transparency = 0
 	part.Parent = projectileFolder
 	local light = Instance.new("PointLight")
-	light.Brightness = 0.7
-	light.Range = 6
-	light.Color = Color3.fromRGB(120, 190, 255)
+	light.Brightness = visualConfig.LightBrightness or 1
+	light.Range = visualConfig.LightRange or 6
+	light.Color = visualConfig.Color or Color3.fromRGB(255, 235, 140)
 	light.Parent = part
+	local trailHalfLength = math.max(0.45, visualConfig.Size * 0.55)
 	local frontAttachment = Instance.new("Attachment")
-	frontAttachment.Name = "TrailFront"
-	frontAttachment.Position = Vector3.new(0, 0, visualConfig.TrailFrontOffset or -0.65)
+	frontAttachment.Name = "TrailAttachment0"
+	frontAttachment.Position = Vector3.new(0, 0, visualConfig.TrailFrontOffset or -trailHalfLength)
 	frontAttachment.Parent = part
 	local backAttachment = Instance.new("Attachment")
-	backAttachment.Name = "TrailBack"
-	backAttachment.Position = Vector3.new(0, 0, visualConfig.TrailBackOffset or 0.65)
+	backAttachment.Name = "TrailAttachment1"
+	backAttachment.Position = Vector3.new(0, 0, visualConfig.TrailBackOffset or trailHalfLength)
 	backAttachment.Parent = part
 	local trail = Instance.new("Trail")
 	trail.Name = "ProjectileTrail"
 	trail.Attachment0 = frontAttachment
 	trail.Attachment1 = backAttachment
-	trail.Color = ColorSequence.new(Color3.fromRGB(140, 215, 255), Color3.fromRGB(25, 28, 36))
-	trail.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.08),
-		NumberSequenceKeypoint.new(0.55, 0.35),
-		NumberSequenceKeypoint.new(1, 1),
-	})
-	trail.Lifetime = 0.16
-	trail.MinLength = 0.05
-	trail.LightEmission = 0.75
+	trail.Color = visualConfig.TrailColor
+		or ColorSequence.new(Color3.fromRGB(255, 235, 140), Color3.fromRGB(255, 95, 40))
+	trail.Transparency = visualConfig.TrailTransparency
+		or NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.12),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+	trail.Lifetime = visualConfig.TrailLifetime or 0.18
+	trail.MinLength = visualConfig.TrailMinLength or 0.05
+	trail.LightEmission = 1
 	trail.LightInfluence = 0
 	trail.FaceCamera = true
-	trail.WidthScale = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.85),
-		NumberSequenceKeypoint.new(0.6, 0.42),
-		NumberSequenceKeypoint.new(1, 0),
-	})
+	trail.WidthScale = visualConfig.TrailWidth
+		or NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1.1),
+			NumberSequenceKeypoint.new(0.6, 0.55),
+			NumberSequenceKeypoint.new(1, 0),
+		})
+	trail.Enabled = true
 	trail.Parent = part
-	local projectileFxLifetime = PROJECTILE_LIFETIME + 0.5
-	local projectileVisual = GameplayCombatFXService.AttachTo("ProjectileVisual", part, {
-		AttachMode = "ProjectileVisual",
-		Lifetime = projectileFxLifetime,
-		Attachment0 = frontAttachment,
-		Attachment1 = backAttachment,
-		AllowExternalAttachments = true,
-		EnableParticleEmitters = true,
-		EnableTrails = true,
-	})
-	if projectileVisual ~= nil then
-		trail.Enabled = true
-	end
 
 	return part
 end
