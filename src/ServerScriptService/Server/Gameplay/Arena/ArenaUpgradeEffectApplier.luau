@@ -54,6 +54,9 @@ function ArenaUpgradeEffectApplier:ResetParticipantArenaModifiers(participant)
 	setArenaModifier(self._tankParticipantRegistry, participant, "ArenaSpreadDegrees", 0)
 	setArenaModifier(self._tankParticipantRegistry, participant, "ArenaDoubleShotLateralOffset", 0)
 	setArenaModifier(self._tankParticipantRegistry, participant, "ArenaRicochetBonus", 0)
+	-- Etap 1 new modifiers.
+	setArenaModifier(self._tankParticipantRegistry, participant, "ArenaPierceEnemies", 0)
+	setArenaModifier(self._tankParticipantRegistry, participant, "ArenaLifestealPerKill", 0)
 	setArenaModifier(self._tankParticipantRegistry, participant, "ArenaUpgradeIds", "")
 	setArenaModifier(self._tankParticipantRegistry, participant, "ArenaReflectShieldCharges", 0)
 	setArenaModifier(self._tankParticipantRegistry, participant, "ArenaSpawnShieldUntil", 0)
@@ -66,19 +69,36 @@ function ArenaUpgradeEffectApplier:ApplySessionUpgrades(session)
 	end
 
 	local participant = session.Participant
-	local damageStacks = self._upgradeOfferService:CountUpgradeStacks(session, "DamageUp")
-	local moveSpeedStacks = self._upgradeOfferService:CountUpgradeStacks(session, "MoveSpeedUp")
+	local offer = self._upgradeOfferService
+	local damageStacks = offer:CountUpgradeStacks(session, "DamageUp")
+	local moveSpeedStacks = offer:CountUpgradeStacks(session, "MoveSpeedUp")
+	local fireRateStacks = offer:CountUpgradeStacks(session, "FireRateUp")
+	local ricochetStacks = offer:CountUpgradeStacks(session, "RicochetUp")
+	local overchargeStacks = offer:CountUpgradeStacks(session, "Overcharge")
+	local piercingStacks = offer:CountUpgradeStacks(session, "Piercing")
+	local lifestealStacks = offer:CountUpgradeStacks(session, "Lifesteal")
+
 	local damageStep = (tonumber(self._config.DamageUpMultiplier) or 1.2) - 1
 	local moveSpeedStep = (tonumber(self._config.MoveSpeedMultiplier) or 1.1) - 1
+	-- FireRateMultiplier is a per-stack COOLDOWN multiplier (<1 = faster). Multiplying it per
+	-- stack compounds the speed-up; Overcharge adds a per-stack penalty multiplier (>1 = slower).
+	local fireRatePerStack = tonumber(self._config.FireRateMultiplier) or 0.88
+	local overchargeDamageBonus = tonumber(self._config.OverchargeDamageBonus) or 0.18
+	local overchargeFirePenalty = tonumber(self._config.OverchargeFireRatePenalty) or 0.12
+	local pierceePerStack = math.max(0, math.floor(tonumber(self._config.PiercingEnemiesPerStack) or 1))
+	local lifestealPerStack = math.max(0, tonumber(self._config.LifestealHealPerKill) or 0)
 
-	session.DamageMultiplier = 1 + damageStep * damageStacks
-	session.FireRateMultiplier = self._upgradeOfferService:HasUpgrade(session, "FireRateUp")
-			and self._config.FireRateMultiplier
-		or 1
+	-- Damage: DamageUp stacks + Overcharge bonus (additive).
+	session.DamageMultiplier = 1 + damageStep * damageStacks + overchargeDamageBonus * overchargeStacks
+
+	-- Fire rate cooldown: faster per FireRateUp stack, slower per Overcharge stack.
+	local cooldownMultiplier = (fireRatePerStack ^ fireRateStacks) * ((1 + overchargeFirePenalty) ^ overchargeStacks)
+	session.FireRateMultiplier = math.clamp(cooldownMultiplier, 0.2, 3)
+
 	session.MoveSpeedMultiplier = 1 + moveSpeedStep * moveSpeedStacks
-	session.RicochetBonus = self._upgradeOfferService:HasUpgrade(session, "RicochetUp")
-			and (tonumber(self._config.RicochetUpBonus) or 1)
-		or 0
+	session.RicochetBonus = (tonumber(self._config.RicochetUpBonus) or 1) * ricochetStacks
+	session.PierceEnemies = pierceePerStack * piercingStacks
+	session.LifestealPerKill = lifestealPerStack * lifestealStacks
 
 	if self._upgradeOfferService:HasUpgrade(session, "TripleSpread") then
 		session.ProjectileCount = 3
@@ -106,6 +126,8 @@ function ArenaUpgradeEffectApplier:ApplySessionUpgrades(session)
 		session.DoubleShotLateralOffset
 	)
 	setArenaModifier(self._tankParticipantRegistry, participant, "ArenaRicochetBonus", session.RicochetBonus)
+	setArenaModifier(self._tankParticipantRegistry, participant, "ArenaPierceEnemies", session.PierceEnemies)
+	setArenaModifier(self._tankParticipantRegistry, participant, "ArenaLifestealPerKill", session.LifestealPerKill)
 	setArenaModifier(
 		self._tankParticipantRegistry,
 		participant,

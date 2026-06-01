@@ -51,6 +51,41 @@ local MobileControlsConfig = table.freeze({
 		Enabled = false,
 	}),
 
+	-- Joystick comfort tuning (applies to BOTH sticks, all modes; desktop unaffected).
+	-- VisualScale/TouchAreaScale enlarge the stick circle and the drag range. When
+	-- FloatingEnabled is true, touching anywhere in a stick's activation zone snaps that
+	-- stick's base under the finger; releasing returns it to its home corner.
+	-- TEMPORARILY back to defaults: no floating sticks, original size. Restores the standard
+	-- mobile control feel everywhere while the scheme is reconsidered. Re-enable later by
+	-- raising the scales / setting FloatingEnabled = true (code is unchanged).
+	Joystick = table.freeze({
+		VisualScale = 1, -- original stick size
+		TouchAreaScale = 1, -- original drag range
+		FloatingEnabled = false, -- fixed-position sticks (classic)
+		-- Ignore touches above this fraction of the screen height when picking up a floating
+		-- stick, so the top HUD / upgrade cards are never hijacked.
+		FloatingActivationMinYScale = 0.32,
+	}),
+
+	-- BattleArena-only arcade mobile control preset (arcade arena pass).
+	-- Left side steers FORWARD (tank body turns toward the drag and drives forward);
+	-- right side steers REVERSE (body rotates toward the drag while backing away). The
+	-- separate FIRE button always shoots along the tank BODY forward vector -- there is no
+	-- turret and no auto-aim, so manual body aim wins (you can aim at a wall to ricochet).
+	-- These settings ONLY take effect while PlayerMode == "InBattleArena". When
+	-- DuelUsesClassicControls is true, Duel/PvP keeps the classic Move + Aim-stick + REV
+	-- button scheme unchanged. Lobby is always unchanged.
+	-- TEMPORARILY DISABLED: arcade preset is off so BattleArena uses the same classic mobile
+	-- controls as everywhere else, while the control scheme is being reconsidered. Flip
+	-- Enabled back to true to re-activate the BattleArena arcade preset (code is unchanged).
+	BattleArenaArcade = table.freeze({
+		Enabled = false, -- BattleArenaArcadeMobileControlsEnabled
+		ForwardIndicatorEnabled = true, -- green forward arrow
+		ReverseIndicatorEnabled = true, -- red reverse arrow
+		DuelUsesClassicControls = true, -- leave Duel/PvP controls untouched
+		ReverseStraightThrottle = 1, -- straight-back throttle when reverse touched without a drag direction
+	}),
+
 	Debug = false,
 })
 

@@ -1,13 +1,38 @@
 -- Visual-only arena polish for release screenshots.
 -- This script does not change collision, movement, projectile, or gameplay state.
+--
+-- UPDATE 0.2.x AUTHORING WORKFLOW -- OFF BY DEFAULT.
+-- This pass used to recolor the WHOLE map (Map + BattleArena + world Baseplate) in place
+-- at runtime and generate neon grid/boundary/accent geometry, so Studio Edit Mode did
+-- NOT match Play Mode and hand-authoring colours/walls was impossible. That behaviour is
+-- now gated behind WeaponCatalog.Flags.Update02ArenaLayerEnabled AND
+-- WeaponCatalog.Flags.RuntimeVisualPolishEnabled (both default FALSE):
+--
+--   * RuntimeVisualPolishEnabled = false (default): this script does NOTHING at runtime.
+--     Style the arena in Studio Edit Mode with
+--     tools/studio/ApplyArenaVisualStyle.commandbar.luau; what you save is what players see.
+--   * RuntimeVisualPolishEnabled = true: polish runs, but ONLY on containers explicitly
+--     tagged WOBArenaRole + WOBAllowVisualPolish == true (when ApplyOnlyToTaggedArena), and
+--     NEVER on a Duel/Lobby container (unless AllowDuelVisualPolish == true). Unknown/untagged
+--     roles fail closed (skipped). The world Baseplate is never touched.
 
 local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local configs = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs")
+local WeaponCatalog = require(configs:WaitForChild("WeaponCatalog"))
+
+local ROLE_ATTRS = WeaponCatalog.RoleAttributes
+local ROLES = WeaponCatalog.Roles
 
 local ROOT_NAME = "WOB_Generated"
 local RUNTIME_ROOT_NAME = "WOB_Runtime"
 local VISUAL_FOLDER_NAME = "ArenaVisualPolish"
 local RESCAN_DELAY_SECONDS = 0.75
 
+-- Candidate container names under WOB_Generated. Tagging (role attributes) is the real
+-- gate; these names just bound the search so we never iterate the whole Workspace.
 local ARENA_CONTAINER_NAMES = {
 	"Map",
 	"BattleArena",
@@ -17,6 +42,40 @@ local ARENA_CONTAINER_NAME_SET = {
 	Map = true,
 	BattleArena = true,
 }
+
+local function studioWarn(message)
+	if RunService:IsStudio() then
+		warn("[ARENA VISUAL] " .. message)
+	end
+end
+
+-- Whether the runtime polish pass is allowed to run at all.
+local function isRuntimePolishEnabled()
+	return WeaponCatalog.isUpdate02ArenaLayerEnabled()
+		and WeaponCatalog.Flags.RuntimeVisualPolishEnabled == true
+end
+
+-- Fail-closed role gate: a container may be styled only when it carries a known role and
+-- (when ApplyOnlyToTaggedArena) explicitly allows visual polish. Duel/Lobby are refused
+-- unless AllowDuelVisualPolish is set. Unknown/untagged roles are skipped.
+local function mayStyleContainer(container)
+	local role = container:GetAttribute(ROLE_ATTRS.Role)
+
+	if WeaponCatalog.Flags.ApplyOnlyToTaggedArena == true then
+		if typeof(role) ~= "string" then
+			return false, "untagged (no WOBArenaRole)"
+		end
+		if container:GetAttribute(ROLE_ATTRS.AllowVisualPolish) ~= true then
+			return false, ("role=%s but WOBAllowVisualPolish~=true"):format(role)
+		end
+	end
+
+	if (role == ROLES.Duel or role == ROLES.Lobby) and WeaponCatalog.Flags.AllowDuelVisualPolish ~= true then
+		return false, ("role=%s is Duel/Lobby (AllowDuelVisualPolish=false)"):format(role)
+	end
+
+	return true, nil
+end
 
 local GRID_SPACING = 32
 local GRID_LINE_WIDTH = 0.18
@@ -587,6 +646,8 @@ local function applyVisualPolishToContainer(visualRoot, container)
 	return #floorParts, #wallParts, #coverParts, floorOverlayCount, neonAccentCount
 end
 
+-- Returns only containers that PASS the fail-closed role gate. Never includes the world
+-- Baseplate, Duel, Lobby, or any untagged container (when ApplyOnlyToTaggedArena).
 local function getArenaContainers(root)
 	local containers = {}
 
@@ -594,14 +655,13 @@ local function getArenaContainers(root)
 		local container = root:FindFirstChild(containerName)
 
 		if container ~= nil then
-			table.insert(containers, container)
+			local ok, reason = mayStyleContainer(container)
+			if ok then
+				table.insert(containers, container)
+			else
+				studioWarn(("Skipped container '%s': %s."):format(container.Name, tostring(reason)))
+			end
 		end
-	end
-
-	local baseplate = Workspace:FindFirstChild("Baseplate")
-
-	if baseplate ~= nil and baseplate:IsA("BasePart") then
-		table.insert(containers, baseplate)
 	end
 
 	return containers
@@ -682,6 +742,15 @@ local function connectContainer(container)
 end
 
 local function startArenaVisualPolish()
+	-- OFF BY DEFAULT (Update 0.2.x emergency stabilization). When disabled the runtime makes
+	-- ZERO visual changes: no recolor, no generated geometry, no neon, no DescendantAdded/
+	-- ChildAdded listeners. This returns immediately so the arena looks in Play Mode exactly
+	-- as authored in Studio Edit Mode.
+	if not isRuntimePolishEnabled() then
+		print("[ARENA VISUAL] disabled by config")
+		return
+	end
+
 	local root = Workspace:WaitForChild(ROOT_NAME, 30)
 
 	if root == nil then

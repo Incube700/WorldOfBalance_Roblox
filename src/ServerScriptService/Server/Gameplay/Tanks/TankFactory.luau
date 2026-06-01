@@ -75,6 +75,15 @@ local function applyFactoryAttributes(model, participant, request, loadout, stat
 	setModelAttribute(model, "SkinId", loadout.SkinId)
 	setModelAttribute(model, "LoadoutSkinId", loadout.SkinId)
 
+	-- Display name shown on the world HP bar / lobby nameplate. Players use their name; bots
+	-- are labelled "BOT" so the HP bar can tell them apart.
+	local displayName = participant.OwnerName
+	if displayName == nil or displayName == "" then
+		displayName = participant.IsBot == true and "BOT" or ""
+	end
+	setModelAttribute(model, "OwnerDisplayName", displayName)
+	setModelAttribute(model, "IsBotTank", participant.IsBot == true)
+
 	if loadout.UpgradeLevels ~= nil then
 		setModelAttribute(model, "HasUpgradeLevels", true)
 	end

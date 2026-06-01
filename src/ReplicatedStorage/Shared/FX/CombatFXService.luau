@@ -7,6 +7,18 @@ local Workspace = game:GetService("Workspace")
 
 local GameplayFXCatalog = require(script.Parent:WaitForChild("GameplayFXCatalog"))
 
+-- VFX consolidation (Update 0.2.x): single flat base folder + switchable variants.
+-- VfxRegistry lives in the main VFX folder. We resolve from it FIRST, then fall back to the
+-- legacy Assets/FX/Gameplay/<FolderName> tree so nothing breaks while assets are migrated.
+local vfxRegistryOk, VfxRegistry = pcall(function()
+	local assets = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Assets")
+	return require(assets:WaitForChild("VFX"):WaitForChild("VfxRegistry"))
+end)
+
+if not vfxRegistryOk then
+	VfxRegistry = nil
+end
+
 local TEMPORARY_FX_FOLDER_NAME = "WOB_TemporaryFX"
 
 local function isDebugEnabled(options)
@@ -185,6 +197,16 @@ local function resolveTemplate(effectKey, options)
 		return nil, nil, "unknown effect key"
 	end
 
+	-- PRIMARY: single consolidated flat folder via VfxRegistry (the active switchable variant).
+	if VfxRegistry ~= nil then
+		local template = VfxRegistry.resolveActiveTemplate(effectKey)
+		if isPlayableTemplate(template) then
+			debugLog(options, ("resolved %s from VfxRegistry flat folder"):format(tostring(effectKey)))
+			return template, effectDefinition, nil, "registry"
+		end
+	end
+
+	-- FALLBACK: legacy Assets/FX/Gameplay/<FolderName> tree (kept until fully migrated).
 	local gameplayFolder, gameplayFolderError = getGameplayFolder()
 	if gameplayFolder == nil then
 		return nil, effectDefinition, gameplayFolderError

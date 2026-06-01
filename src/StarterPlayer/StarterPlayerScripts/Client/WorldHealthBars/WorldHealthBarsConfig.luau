@@ -53,6 +53,7 @@ local WorldHealthBarsConfig = {
 		"ReloadDuration",
 		"ReloadProgress",
 		"ReloadReady",
+		"OwnerDisplayName",
 	},
 }
 

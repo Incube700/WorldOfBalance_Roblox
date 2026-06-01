@@ -87,6 +87,23 @@ function HealthBarBillboardFactory:CreateFallbackBillboard()
 	root.Size = UDim2.fromScale(1, 1)
 	root.Parent = billboard
 
+	-- Player name label, sits just above the bars.
+	local playerName = Instance.new("TextLabel")
+	playerName.Name = "PlayerName"
+	playerName.BackgroundTransparency = 1
+	playerName.BorderSizePixel = 0
+	playerName.AnchorPoint = Vector2.new(0.5, 1)
+	playerName.Position = UDim2.new(0.5, 0, 0, -2)
+	playerName.Size = UDim2.new(1, 20, 0, 12)
+	playerName.Font = Enum.Font.GothamBold
+	playerName.TextScaled = true
+	playerName.TextColor3 = Color3.fromRGB(240, 246, 255)
+	playerName.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	playerName.TextStrokeTransparency = 0.4
+	playerName.Text = ""
+	playerName.Visible = false
+	playerName.Parent = root
+
 	local barsRoot = Instance.new("Frame")
 	barsRoot.Name = "BarsRoot"
 	barsRoot.BackgroundTransparency = 1
@@ -263,13 +280,9 @@ function HealthBarBillboardFactory:CreateBillboard()
 	self:ConfigureBillboard(billboard)
 	self:ConfigureBillboardLayout(billboard)
 
-	local playerName = self:FindDescendant(billboard, "PlayerName", "TextLabel")
 	local hpText = self:FindDescendant(billboard, "HpText", "TextLabel")
 
-	if playerName ~= nil then
-		playerName.Visible = false
-	end
-
+	-- PlayerName label is kept and filled by TankHealthBarRecord (shows owner / "BOT").
 	if hpText ~= nil then
 		hpText.Visible = false
 	end

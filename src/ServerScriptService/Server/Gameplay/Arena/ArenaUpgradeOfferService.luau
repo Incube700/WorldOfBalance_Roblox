@@ -3,6 +3,8 @@ local HttpService = game:GetService("HttpService")
 local ArenaUpgradeOfferService = {}
 ArenaUpgradeOfferService.__index = ArenaUpgradeOfferService
 
+-- Etap 1: ReflectShield removed from the level-up pool (spawn-protection shield still exists
+-- separately). Three new upgrades added: Lifesteal, Piercing, Overcharge.
 local UPGRADE_ORDER = {
 	"DamageUp",
 	"FireRateUp",
@@ -10,8 +12,9 @@ local UPGRADE_ORDER = {
 	"DoubleShot",
 	"TripleSpread",
 	"RicochetUp",
-	"ReflectShield",
-	"Repair",
+	"Lifesteal",
+	"Piercing",
+	"Overcharge",
 }
 
 function ArenaUpgradeOfferService.new(config, levelService)

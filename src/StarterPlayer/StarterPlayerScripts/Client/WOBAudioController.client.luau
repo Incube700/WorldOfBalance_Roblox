@@ -62,6 +62,14 @@ local function getRuntimeVfxFolder()
 	return runtimeVfxFolder or Workspace
 end
 
+-- Etap 3: if a specialised category has no SoundId yet, fall back to its base category so
+-- the event still gets a sound (per-weapon shots -> generic Shot, etc.).
+local CATEGORY_FALLBACK = {
+	ShotRocket = "Shot",
+	ShotMachineGun = "Shot",
+	ShotRailGun = "Shot",
+}
+
 local function resolveSoundDefinition(category, payload)
 	if typeof(category) ~= "string" or category == "" then
 		return nil, nil
@@ -72,6 +80,19 @@ local function resolveSoundDefinition(category, payload)
 	local sounds = AudioCatalog.Sounds or {}
 	local soundKey = defaultSoundIds[category]
 	local soundDefinition = soundKey ~= nil and sounds[soundKey] or nil
+
+	-- If this category resolves to an empty-id sound, try its fallback category instead.
+	local hasId = soundDefinition ~= nil
+		and typeof(soundDefinition.SoundId) == "string"
+		and soundDefinition.SoundId ~= ""
+
+	if not hasId and CATEGORY_FALLBACK[category] ~= nil then
+		local fbKey = defaultSoundIds[CATEGORY_FALLBACK[category]]
+		local fbDef = fbKey ~= nil and sounds[fbKey] or nil
+		if fbDef ~= nil then
+			return fbKey, fbDef
+		end
+	end
 
 	if soundDefinition == nil then
 		return nil, nil
@@ -237,7 +258,19 @@ local function chooseSoundCategory(payload)
 	local text = upperText(payload.Text)
 
 	if payloadType == "Shot" then
+		-- Per-weapon shot variant when the payload names a weapon (falls back to Shot if its
+		-- SoundId is empty, handled in resolveSoundDefinition).
+		local weapon = tostring(payload.WeaponId or "")
+		if weapon == "Rocket" then
+			return "ShotRocket"
+		elseif weapon == "MachineGun" then
+			return "ShotMachineGun"
+		elseif weapon == "RailGun" then
+			return "ShotRailGun"
+		end
 		return "Shot"
+	elseif payloadType == "Pickup" or payloadType == "PickupCollect" then
+		return "PickupCollect"
 	elseif payloadType == "Ricochet" or payloadType == "ArmorRicochet" then
 		return "RicochetImpact"
 	elseif payloadType == "Damage" then

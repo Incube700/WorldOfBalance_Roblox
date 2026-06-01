@@ -2,6 +2,8 @@ local ProjectileService = {}
 
 local Workspace = game:GetService("Workspace")
 local Debris = game:GetService("Debris")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
@@ -100,6 +102,9 @@ local callbacks = {
 	sendBlockedShotFeedback = nil,
 	sendCombatFeedback = nil,
 	onShotFired = nil,
+	-- Update 0.2 temporary-weapon hooks (optional; nil-safe at every call site).
+	onWeaponShotConsumed = nil, -- (participant) after a temp-weapon shot fires.
+	onProjectileExploded = nil, -- (projectile, position) for Rocket area damage + FX.
 }
 
 function ProjectileService.init(orchestratorRoot, projFolder, effectsFolder, options)
@@ -342,12 +347,13 @@ local function sendBlockedShotFeedback(participant, position)
 	end
 end
 
-local function sendProjectileFeedback(feedbackType, position, text, color, audioOnly)
+local function sendProjectileFeedback(feedbackType, position, text, color, audioOnly, weaponId)
 	if callbacks.sendCombatFeedback == nil then
 		return
 	end
 
-	callbacks.sendCombatFeedback(feedbackType, position, text, color, audioOnly == true)
+	-- weaponId (optional, Etap 3) lets the client play a per-weapon shot sound.
+	callbacks.sendCombatFeedback(feedbackType, position, text, color, audioOnly == true, weaponId)
 end
 
 local function hasTexture(config)
@@ -787,12 +793,20 @@ local function createBurningTank(position)
 	)
 end
 
-local function createProjectilePart(position, direction)
+local function createProjectilePart(position, direction, visualOverride, visualScale)
 	local visualConfig = shotVfxConfig.Projectile
+	-- visualOverride (temporary pickup weapons only) recolors/resizes the shell so
+	-- the active weapon is obvious. nil override = default cannon visuals, unchanged.
+	-- visualScale (>= 1) is a subtle upgrade-driven size/brightness bump (default 1).
+	visualScale = math.clamp(tonumber(visualScale) or 1, 1, 1.5)
+	local overrideColor = visualOverride ~= nil and visualOverride.ProjectileColor or nil
+	local overrideRadius = visualOverride ~= nil and tonumber(visualOverride.ProjectileRadius) or nil
+	local partSize = (overrideRadius ~= nil and (overrideRadius * 2) or visualConfig.Size) * visualScale
+	local partColor = overrideColor or visualConfig.Color or Color3.fromRGB(255, 235, 140)
 	local part = Instance.new("Part")
 	part.Name = "Projectile"
 	part.Shape = Enum.PartType.Ball
-	part.Size = Vector3.new(visualConfig.Size, visualConfig.Size, visualConfig.Size)
+	part.Size = Vector3.new(partSize, partSize, partSize)
 	part.CFrame = CFrame.lookAt(position, position + direction, Vector3.yAxis)
 	part.Anchored = true
 	part.CanCollide = false
@@ -800,13 +814,13 @@ local function createProjectilePart(position, direction)
 	part.CanQuery = false
 	part.CastShadow = false
 	part.Material = visualConfig.Material or Enum.Material.Neon
-	part.Color = visualConfig.Color or Color3.fromRGB(255, 235, 140)
+	part.Color = partColor
 	part.Transparency = 0
 	part.Parent = projectileFolder
 	local light = Instance.new("PointLight")
-	light.Brightness = visualConfig.LightBrightness or 1
-	light.Range = visualConfig.LightRange or 6
-	light.Color = visualConfig.Color or Color3.fromRGB(255, 235, 140)
+	light.Brightness = (visualConfig.LightBrightness or 1) * visualScale
+	light.Range = (visualConfig.LightRange or 6) * visualScale
+	light.Color = overrideColor or visualConfig.Color or Color3.fromRGB(255, 235, 140)
 	light.Parent = part
 	local trailHalfLength = math.max(0.45, visualConfig.Size * 0.55)
 	local frontAttachment = Instance.new("Attachment")
@@ -936,15 +950,72 @@ end
 
 function ProjectileService.createProjectile(ownerParticipant, origin, direction, options)
 	options = options or {}
+	local weaponOverride = options.WeaponOverride
 	local flatDirection = Vector3.new(direction.X, 0, direction.Z).Unit
-	local projectilePart = createProjectilePart(origin, flatDirection)
+	-- Subtle upgrade feedback: the shell grows/brightens a touch with the damage multiplier
+	-- (caps at +25% size) so a buffed tank's shots read as "heavier". Default = 1.0 (unchanged).
+	local dmgMult = getArenaNumberModifier(ownerParticipant, "ArenaDamageMultiplier", 1)
+	local visualScale = math.clamp(1 + (dmgMult - 1) * 0.25, 1, 1.25)
+	local projectilePart = createProjectilePart(origin, flatDirection, weaponOverride, visualScale)
 	local ownerTankModel = TankParticipantRegistry.getParticipantPhysicalModel(ownerParticipant)
 	local noDamage = callbacks.isNoDamageProjectile ~= nil and callbacks.isNoDamageProjectile(ownerParticipant) == true
 	local noStats = noDamage
 	local ricochetBonus = math.max(0, math.floor(getArenaNumberModifier(ownerParticipant, "ArenaRicochetBonus", 0)))
 
+	-- Etap 1 Piercing run upgrade: lets the DEFAULT cannon pass through N enemies. A weapon
+	-- override with its own PierceEnemies (e.g. Phase Shot) takes precedence and is unchanged.
+	local upgradePierce = math.max(0, math.floor(getArenaNumberModifier(ownerParticipant, "ArenaPierceEnemies", 0)))
+	local pierceEnemies, pierceEnemyLimit
+	if weaponOverride ~= nil and weaponOverride.PierceEnemies == true then
+		pierceEnemies = true
+		pierceEnemyLimit = tonumber(weaponOverride.PierceEnemyLimit)
+	elseif upgradePierce > 0 then
+		pierceEnemies = true
+		pierceEnemyLimit = upgradePierce
+	else
+		pierceEnemies = false
+		pierceEnemyLimit = nil
+	end
+
+	-- Penetration BONUS (added to the shell's base pen by the armor resolver). The Piercing
+	-- run upgrade and armor-piercing weapons (RailGun) raise pen so the shell can cross the
+	-- armor threshold (e.g. punch the front plate). It does NOT ignore the gate.
+	local pierceBonus = 0
+	if upgradePierce > 0 then
+		pierceBonus += 12 * upgradePierce
+	end
+	-- Weapon pen modifier (can be NEGATIVE, e.g. MachineGun/Shotgun pellets are weak vs armor).
+	if weaponOverride ~= nil and tonumber(weaponOverride.PenetrationBonus) ~= nil then
+		pierceBonus += tonumber(weaponOverride.PenetrationBonus)
+	end
+
 	if callbacks.shouldRecordShot ~= nil then
 		noStats = callbacks.shouldRecordShot(ownerParticipant) ~= true
+	end
+
+	-- Temporary pickup weapons LAYER on top of run upgrades. The default cannon
+	-- (weaponOverride == nil) keeps every value below exactly as before.
+	-- MaxBounces starts from the default + the player's ricochet upgrade bonus, so
+	-- temporary weapons inherit run progression unless they explicitly opt out via
+	-- OverrideMaxRicochets = true (e.g., Phase Shot disables ricochet). Weapons can
+	-- also add a MaxRicochetsBonus on top of the upgraded base.
+	local projectileSpeed = PROJECTILE_SPEED
+	local projectileLifetime = PROJECTILE_LIFETIME
+	local maxBounces = PROJECTILE_MAX_BOUNCES + ricochetBonus
+	local projectileAcceleration = nil
+	local projectileMaxSpeed = nil
+
+	if weaponOverride ~= nil then
+		projectileSpeed = tonumber(weaponOverride.ProjectileSpeed) or projectileSpeed
+		projectileLifetime = tonumber(weaponOverride.ProjectileLifetime) or projectileLifetime
+		projectileAcceleration = tonumber(weaponOverride.ProjectileAcceleration)
+		projectileMaxSpeed = tonumber(weaponOverride.ProjectileMaxSpeed)
+
+		if weaponOverride.OverrideMaxRicochets == true then
+			maxBounces = math.max(0, math.floor(tonumber(weaponOverride.MaxRicochets) or 0))
+		elseif tonumber(weaponOverride.MaxRicochetsBonus) ~= nil then
+			maxBounces = math.max(0, maxBounces + math.floor(weaponOverride.MaxRicochetsBonus))
+		end
 	end
 
 	projectilePart:SetAttribute("OwnerTankId", ownerParticipant.TankId)
@@ -970,18 +1041,23 @@ function ProjectileService.createProjectile(ownerParticipant, origin, direction,
 		PreviousPosition = origin,
 		NextPosition = origin,
 		Direction = flatDirection,
-		Speed = PROJECTILE_SPEED,
+		Speed = projectileSpeed,
 		BaseDamage = PROJECTILE_DAMAGE,
 		Damage = PROJECTILE_DAMAGE * (tonumber(options.DamageMultiplier) or 1),
 		PenetrationPower = PROJECTILE_PENETRATION_POWER,
 		Penetration = PROJECTILE_LEGACY_PENETRATION,
+		PenetrationBonus = pierceBonus,
+		-- Ramping floor for pierce: 2 dmg at 1 stack, 4 at 2, ... so a pellet that only just
+		-- crosses the front plate still chips a small, growing amount.
+		PierceDamageFloor = upgradePierce > 0 and (2 * upgradePierce) or 0,
+		PiercesWalls = weaponOverride ~= nil and weaponOverride.PiercesWalls == true,
 		BounceCount = 0,
-		MaxBounces = PROJECTILE_MAX_BOUNCES + ricochetBonus,
+		MaxBounces = maxBounces,
 		BounceSpeedMultiplier = PROJECTILE_BOUNCE_SPEED_MULTIPLIER,
 		DamageMultiplierPerBounce = PROJECTILE_DAMAGE_MULTIPLIER,
 		MinSpeed = PROJECTILE_MIN_SPEED,
 		LifeTime = 0,
-		MaxLifeTime = PROJECTILE_LIFETIME,
+		MaxLifeTime = projectileLifetime,
 		LastHitResult = ProjectileHitResult.NoHit,
 		Part = projectilePart,
 		Destroyed = false,
@@ -989,12 +1065,25 @@ function ProjectileService.createProjectile(ownerParticipant, origin, direction,
 		MatchId = ownerParticipant.MatchId,
 		NoDamage = noDamage,
 		NoStats = noStats,
+		-- Temporary-weapon-only fields (nil/false for the default cannon).
+		WeaponOverrideId = weaponOverride ~= nil and weaponOverride.Id or nil,
+		ExplosionRadius = weaponOverride ~= nil and tonumber(weaponOverride.ExplosionRadius) or nil,
+		ExplosionDamage = weaponOverride ~= nil and tonumber(weaponOverride.ExplosionDamage) or nil,
+		PierceEnemies = pierceEnemies,
+		PierceHitCooldownSeconds = weaponOverride ~= nil and tonumber(weaponOverride.PierceHitCooldownSeconds) or 0.3,
+		-- How many enemies the shell can pass through before destroying. Phase Shot sets its
+		-- own limit; otherwise the Piercing run upgrade (ArenaPierceEnemies) applies.
+		PierceEnemyLeft = pierceEnemyLimit,
+		PierceHitTimes = {},
+		-- Rocket-style acceleration. nil for non-accelerating shells (default cannon).
+		Acceleration = projectileAcceleration,
+		MaxSpeed = projectileMaxSpeed,
 	}
 	table.insert(projectiles, projectile)
 	createMuzzleFlash(origin, flatDirection)
 end
 
-function ProjectileService.tryShoot(participant, direction)
+function ProjectileService.tryShoot(participant, direction, options_isChargedShot)
 	if participant == nil
 		or participant.IsControllable == false
 		or participant.CanShoot == false
@@ -1015,10 +1104,98 @@ function ProjectileService.tryShoot(participant, direction)
 	local flatDirection = Vector3.new(direction.X, 0, direction.Z)
 	if flatDirection.Magnitude < 0.001 then return false end
 	local currentTime = os.clock()
+	-- Temporary pickup weapon (nil for the default cannon -> behavior unchanged).
+	local weaponOverride = participant.TempWeapon ~= nil and participant.TempWeapon.Config or nil
 	local cooldownMultiplier = math.max(0.05, getArenaNumberModifier(participant, "ArenaFireRateMultiplier", 1))
-	local cooldown = (participant.WeaponConfig.ShootCooldown or SHOOT_COOLDOWN) * cooldownMultiplier
+	local baseCooldown = participant.WeaponConfig.ShootCooldown or SHOOT_COOLDOWN
+	if weaponOverride ~= nil and tonumber(weaponOverride.ShootCooldown) ~= nil then
+		baseCooldown = weaponOverride.ShootCooldown
+	end
+	local cooldown = baseCooldown * cooldownMultiplier
 	local lastShotTime = participant.LastShotTime or 0
-	if currentTime - lastShotTime < cooldown then return false end
+	-- bypassGates (true) is used by charge-up and burst FOLLOW-UP shots so they skip the
+	-- cooldown + charge gates the first trigger already paid.
+	if not options_isChargedShot and currentTime - lastShotTime < cooldown then
+		return false
+	end
+
+	-- Charge-up weapons (RailGun): first trigger starts a charge; the actual shot fires
+	-- after ChargeSeconds. While charging, further pulls are ignored. If the tank dies or
+	-- is disarmed mid-charge, the delayed shot self-cancels (re-checks state below).
+	local chargeSeconds = weaponOverride ~= nil and tonumber(weaponOverride.ChargeSeconds) or nil
+	if chargeSeconds ~= nil and chargeSeconds > 0 and participant.WeaponCharging ~= true and not options_isChargedShot then
+		participant.WeaponCharging = true
+		participant.LastShotTime = currentTime -- gate re-triggers during charge
+		sendProjectileFeedback("Charge", participant.ShootPoint.Position, "", Color3.fromRGB(120, 220, 255), true)
+
+		-- Charge visual: a glowing blue orb at the muzzle that grows over the charge time,
+		-- so the player and enemies can read the incoming RailGun shot. Pure visual, anchored.
+		local shootPoint = participant.ShootPoint
+		local chargeOrb = Instance.new("Part")
+		chargeOrb.Name = "RailGunCharge"
+		chargeOrb.Shape = Enum.PartType.Ball
+		chargeOrb.Size = Vector3.new(0.4, 0.4, 0.4)
+		chargeOrb.Anchored = true
+		chargeOrb.CanCollide = false
+		chargeOrb.CanQuery = false
+		chargeOrb.CanTouch = false
+		chargeOrb.CastShadow = false
+		chargeOrb.Material = Enum.Material.Neon
+		chargeOrb.Color = Color3.fromRGB(120, 220, 255)
+		chargeOrb.CFrame = CFrame.new(shootPoint.Position)
+		chargeOrb.Parent = projectileFolder
+		local chargeLight = Instance.new("PointLight")
+		chargeLight.Color = Color3.fromRGB(120, 220, 255)
+		chargeLight.Range = 8
+		chargeLight.Brightness = 2
+		chargeLight.Parent = chargeOrb
+		local growTween = TweenService:Create(
+			chargeOrb,
+			TweenInfo.new(chargeSeconds, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{ Size = Vector3.new(2.2, 2.2, 2.2) }
+		)
+		growTween:Play()
+		-- Keep it stuck to the muzzle while charging.
+		local followConn
+		followConn = RunService.Heartbeat:Connect(function()
+			if chargeOrb.Parent == nil or shootPoint == nil or shootPoint.Parent == nil then
+				if followConn then followConn:Disconnect() end
+				return
+			end
+			chargeOrb.CFrame = CFrame.new(shootPoint.Position)
+		end)
+
+		local capturedDir = flatDirection.Unit
+		task.delay(chargeSeconds, function()
+			participant.WeaponCharging = false
+			if followConn then followConn:Disconnect() end
+			if chargeOrb.Parent ~= nil then
+				chargeOrb:Destroy()
+			end
+			-- Fire the real shot now (bypass the charge gate via the bypass flag).
+			ProjectileService.tryShoot(participant, capturedDir, true)
+		end)
+		return false
+	end
+
+	-- BURST weapons (MachineGun): one trigger fires BurstCount shells one-after-another (a
+	-- stream, not a spread). The first shell fires now via the normal flow below; the rest
+	-- are scheduled as bypass follow-ups. Only the FIRST (non-bypass) trigger schedules them.
+	local burstCount = weaponOverride ~= nil and math.floor(tonumber(weaponOverride.BurstCount) or 0) or 0
+	if burstCount >= 2 and not options_isChargedShot then
+		local interval = math.max(0.02, tonumber(weaponOverride.BurstIntervalSeconds) or 0.07)
+		local spread = math.max(0, tonumber(weaponOverride.BurstSpreadDegrees) or 0)
+		local baseDir = flatDirection.Unit
+		for i = 1, burstCount - 1 do
+			task.delay(interval * i, function()
+				if participant == nil or TankParticipantRegistry.getParticipantIsDead(participant) then
+					return
+				end
+				local jitter = spread > 0 and (math.random() * 2 - 1) * spread or 0
+				ProjectileService.tryShoot(participant, rotateFlatDirection(baseDir, jitter), true)
+			end)
+		end
+	end
 
 	local isMuzzleBlocked, obstaclePart, blockedPosition, blockedReason = getMuzzleObstruction(participant)
 
@@ -1037,15 +1214,60 @@ function ProjectileService.tryShoot(participant, direction)
 		callbacks.onShotFired(participant, flatDirection.Unit)
 	end
 	local damageMultiplier = math.max(0, getArenaNumberModifier(participant, "ArenaDamageMultiplier", 1))
+	if weaponOverride ~= nil and tonumber(weaponOverride.DamageMultiplier) ~= nil then
+		damageMultiplier = damageMultiplier * weaponOverride.DamageMultiplier
+	end
 	local shotOrigin = participant.ShootPoint.Position
-	for _, shot in ipairs(getShotPattern(participant, participant.ShootPoint.Position, flatDirection.Unit)) do
+	local shots = getShotPattern(participant, participant.ShootPoint.Position, flatDirection.Unit)
+
+	-- Fan expansion (e.g., MachineGun): a weapon with FanCount > 1 turns EACH base shot
+	-- into a spread of FanCount projectiles across FanSpreadDegrees. Because the base shots
+	-- already include the multishot pattern, Double Shot (2 base shots) naturally becomes
+	-- TWO fans, Triple Shot becomes three, etc. The MaxProjectilesPerTrigger cap below then
+	-- bounds the total so the server is never flooded.
+	local fanCount = weaponOverride ~= nil and math.floor(tonumber(weaponOverride.FanCount) or 0) or 0
+	if fanCount >= 2 then
+		local fanSpread = math.max(0, tonumber(weaponOverride.FanSpreadDegrees) or 0)
+		local expanded = {}
+		for _, shot in ipairs(shots) do
+			-- Evenly distribute fanCount directions across [-fanSpread/2, +fanSpread/2].
+			local span = fanSpread
+			local step = fanCount > 1 and (span / (fanCount - 1)) or 0
+			local startAngle = -span * 0.5
+			for i = 0, fanCount - 1 do
+				local angle = startAngle + step * i
+				table.insert(expanded, {
+					Origin = shot.Origin,
+					Direction = rotateFlatDirection(shot.Direction, angle),
+				})
+			end
+		end
+		shots = expanded
+	end
+
+	-- Optional per-trigger projectile cap (e.g., MachineGun caps multishot to keep
+	-- server-side projectile count bounded even with upgrades). When omitted, all
+	-- upgraded shots fire (one trigger pull = 1 ammo, supports rocket + multishot).
+	local maxPerTrigger = weaponOverride ~= nil and tonumber(weaponOverride.MaxProjectilesPerTrigger) or nil
+	if maxPerTrigger ~= nil then
+		while #shots > maxPerTrigger do
+			table.remove(shots)
+		end
+	end
+	for _, shot in ipairs(shots) do
 		ProjectileService.createProjectile(participant, shot.Origin, shot.Direction, {
 			DamageMultiplier = damageMultiplier,
+			WeaponOverride = weaponOverride,
 		})
 	end
-	sendProjectileFeedback("Shot", shotOrigin, "", Color3.fromRGB(255, 230, 150), true)
+	local shotWeaponId = weaponOverride ~= nil and weaponOverride.Id or "DefaultCannon"
+	sendProjectileFeedback("Shot", shotOrigin, "", Color3.fromRGB(255, 230, 150), true, shotWeaponId)
 	if callbacks.shouldRecordShot == nil or callbacks.shouldRecordShot(participant) == true then
 		MatchStatsService.recordShotFired(participant)
+	end
+	-- Decrement temporary-weapon ammo (reverts to default cannon when depleted).
+	if weaponOverride ~= nil and callbacks.onWeaponShotConsumed ~= nil then
+		callbacks.onWeaponShotConsumed(participant)
 	end
 	return true
 end
@@ -1065,9 +1287,19 @@ function ProjectileService.updateProjectiles(deltaTime)
 
 		if projectile.LifeTime >= projectile.MaxLifeTime then
 			projectile.LastHitResult = ProjectileHitResult.Expired
+			if projectile.ExplosionRadius ~= nil and callbacks.onProjectileExploded ~= nil then
+				callbacks.onProjectileExploded(projectile, projectile.Position)
+			end
 			ProjectileService.destroyProjectile(projectile)
 			table.remove(projectiles, i)
 			continue
+		end
+
+		-- Apply per-projectile acceleration (Rocket starts slow, accelerates over its
+		-- flight). Default cannon shells have Acceleration == nil and are unchanged.
+		if projectile.Acceleration ~= nil then
+			local cap = projectile.MaxSpeed or projectile.Speed
+			projectile.Speed = math.min(cap, projectile.Speed + projectile.Acceleration * deltaTime)
 		end
 
 		local result, nextPosition = ProjectileCollisionService.CastSweptRay(
@@ -1096,6 +1328,18 @@ function ProjectileService.updateProjectiles(deltaTime)
 			end
 
 			if targetParticipant ~= nil then
+				if projectile.ExplosionRadius ~= nil then
+					-- Explosive shells (Rocket) deal area damage on contact and skip the
+					-- normal armor/ricochet flow entirely.
+					projectile.LastHitResult = ProjectileHitResult.WallRicochet
+					if callbacks.onProjectileExploded ~= nil then
+						callbacks.onProjectileExploded(projectile, result.Position)
+					end
+					ProjectileService.destroyProjectile(projectile)
+					table.remove(projectiles, i)
+					continue
+				end
+
 				local roundState = callbacks.getRoundStateForProjectile ~= nil
 					and callbacks.getRoundStateForProjectile(projectile)
 					or callbacks.getRoundState()
@@ -1108,10 +1352,38 @@ function ProjectileService.updateProjectiles(deltaTime)
 					{ roundState = roundState }
 				)
 
-				if destroyed then table.remove(projectiles, i) end
+				if destroyed then
+					table.remove(projectiles, i)
+				elseif projectile.PierceEnemies == true then
+					-- Phase Shot passed through the enemy: advance past the hit point so
+					-- the next sweep starts on the far side of the tank.
+					projectile.Position = result.Position + projectile.Direction * 5
+					if projectile.Part then
+						projectile.Part.CFrame = CFrame.lookAt(
+							projectile.Position,
+							projectile.Position + projectile.Direction,
+							Vector3.yAxis
+						)
+					end
+				end
+			elseif projectile.PiercesWalls == true then
+				-- RailGun beam: ignore the wall entirely, advance past it and keep flying.
+				projectile.Position = result.Position + projectile.Direction * 5
+				if projectile.Part then
+					projectile.Part.CFrame = CFrame.lookAt(
+						projectile.Position,
+						projectile.Position + projectile.Direction,
+						Vector3.yAxis
+					)
+				end
 			elseif projectile.BounceCount >= projectile.MaxBounces then
 				projectile.LastHitResult = ProjectileHitResult.WallRicochet
-				createWallImpactVfx(result.Position, result.Normal)
+				if projectile.ExplosionRadius ~= nil and callbacks.onProjectileExploded ~= nil then
+					-- Rocket reached a wall with no bounces left -> explode there.
+					callbacks.onProjectileExploded(projectile, result.Position)
+				else
+					createWallImpactVfx(result.Position, result.Normal)
+				end
 				ProjectileService.destroyProjectile(projectile)
 				table.remove(projectiles, i)
 			else

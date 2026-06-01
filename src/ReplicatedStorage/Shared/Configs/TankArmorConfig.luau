@@ -16,12 +16,14 @@ local TankArmorConfig = table.freeze({
 				RicochetAngleDegrees = 60,
 			}),
 			Side = table.freeze({
-				Armor = 55,
+				-- Low side armor so rapid low-damage weapons (MG/Shotgun pellets, ~33-37 base)
+				-- still chip real damage on the flank instead of flooring to 1.
+				Armor = 18,
 				DamageMultiplier = 0.9,
 				RicochetAngleDegrees = 62,
 			}),
 			Rear = table.freeze({
-				Armor = 35,
+				Armor = 6,
 				DamageMultiplier = 1.15,
 				RicochetAngleDegrees = 65,
 			}),

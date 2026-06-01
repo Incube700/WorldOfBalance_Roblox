@@ -40,7 +40,10 @@ local HudConfig = table.freeze({
 		HideTopHpPanelsInDuel = true,
 		DeadHideDelay = 1.0,
 		DiscoveryInterval = 1.0,
-		MaxDistance = 120,
+		-- Distance (studs) from camera before a world HP bar is culled. The BattleArena
+		-- camera sits ~147 studs above the tank (higher-camera preset), so 120 was clipping
+		-- the bars out of view. Raised so they stay visible from the higher arena camera.
+		MaxDistance = 260,
 		-- Client-only visual smoothing for world-space HP/reload bar position.
 		-- Uses a lerp toward the raw tank body position each Heartbeat so bars
 		-- don't jitter when server-replicated parts update at network tick rate.

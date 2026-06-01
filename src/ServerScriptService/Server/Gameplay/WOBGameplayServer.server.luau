@@ -22,8 +22,11 @@ local TankArmorConfig = require(configs:WaitForChild("TankArmorConfig"))
 
 -- Services
 local MatchStatsService = require(script.Parent:WaitForChild("Stats"):WaitForChild("MatchStatsService"))
+local AchievementService = require(script.Parent:WaitForChild("Stats"):WaitForChild("AchievementService"))
+local WinnerPodiumService = require(script.Parent:WaitForChild("Stats"):WaitForChild("WinnerPodiumService"))
 local PlayerWalletService = require(script.Parent:WaitForChild("Economy"):WaitForChild("PlayerWalletService"))
 local KillRewardService = require(script.Parent:WaitForChild("Economy"):WaitForChild("KillRewardService"))
+local CosmeticShopService = require(script.Parent:WaitForChild("Economy"):WaitForChild("CosmeticShopService"))
 local MatchRewardService = require(script.Parent:WaitForChild("Economy"):WaitForChild("MatchRewardService"))
 local TankMovementService = require(script.Parent:WaitForChild("Movement"):WaitForChild("TankMovementService"))
 local TankParticipantRegistry = require(script.Parent:WaitForChild("TankParticipantRegistry"))
@@ -38,11 +41,18 @@ local TankRole = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankR
 local TankStatsProfile = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankStatsProfile"))
 local TankTemplateProvider = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankTemplateProvider"))
 local TankStatsProvider = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankStatsProvider"))
+local TankCustomizationService = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankCustomizationService"))
 local PlayerPossessionService = require(script.Parent:WaitForChild("Players"):WaitForChild("PlayerPossessionService"))
 local LobbyService = require(script.Parent:WaitForChild("Lobby"):WaitForChild("LobbyService"))
 local ArenaCombatService = require(script.Parent:WaitForChild("Arena"):WaitForChild("ArenaCombatService"))
 local BotService = require(script.Parent:WaitForChild("Bots"):WaitForChild("BotService"))
 local TrainingBotService = require(script.Parent:WaitForChild("Bots"):WaitForChild("TrainingBotService"))
+-- Update 0.2: temporary pickup weapons + ground pickups + breakable cover + maze.
+local TemporaryWeaponService = require(script.Parent:WaitForChild("Weapons"):WaitForChild("TemporaryWeaponService"))
+local ArenaPickupService = require(script.Parent:WaitForChild("Pickups"):WaitForChild("ArenaPickupService"))
+local BreakableCoverService = require(script.Parent:WaitForChild("Pickups"):WaitForChild("BreakableCoverService"))
+local ArenaMazeService = require(script.Parent:WaitForChild("Arena"):WaitForChild("ArenaMazeService"))
+local ArenaSessionLifecycle = require(script.Parent:WaitForChild("Arena"):WaitForChild("ArenaSessionLifecycle"))
 
 local primaryWeaponConfig = WeaponConfig.PrimaryWeapon
 local movementConfig = TankConfig.Movement or {}
@@ -106,6 +116,15 @@ local debugRemoveBotRequestEvent = getOrCreateRemoteEvent("DebugRemoveBotRequest
 local upgradeChoiceEvent = getOrCreateRemoteEvent("UpgradeChoiceEvent")
 local arenaReviveRequestEvent = getOrCreateRemoteEvent("ArenaReviveRequestEvent")
 local arenaFreeRespawnRequestEvent = getOrCreateRemoteEvent("ArenaFreeRespawnRequestEvent")
+-- Etap 2: kill-feed broadcast. Server fires { Killer, Victim, Weapon } to all clients; a
+-- client overlay shows "Killer ⚔ Victim". Display only -- no gameplay effect.
+local killFeedEvent = getOrCreateRemoteEvent("KillFeedEvent")
+-- Etap 4: achievement unlock toast (server -> one client). Display only.
+local achievementToastEvent = getOrCreateRemoteEvent("AchievementToastEvent")
+-- Shop remotes: client buys/equips, server pushes the catalog+ownership snapshot back.
+local shopBuyEvent = getOrCreateRemoteEvent("ShopBuyEvent")
+local shopEquipEvent = getOrCreateRemoteEvent("ShopEquipEvent")
+local shopSyncEvent = getOrCreateRemoteEvent("ShopSyncEvent")
 
 -- Folders
 local root = Workspace:WaitForChild("WOB_Generated")
@@ -389,6 +408,8 @@ TankMovementService.init({
 	body = (playerParticipant ~= nil and playerParticipant.Body) or (dummyParticipant ~= nil and dummyParticipant.Body) or nil,
 	tankModels = tankMovementIgnoredModels,
 	runtime = runtime,
+	-- Workspace/WOB_Runtime holds the cloned ActiveArenaLayout walls (Update 0.2.x).
+	arenaRuntimeRoot = wobRuntime,
 	tankMovementRaycastParams = tankMovementRaycastParams,
 	tankMovementOverlapParams = tankMovementOverlapParams,
 	collisionBoxSize = TankConfig.Movement.CollisionBoxSize,
@@ -422,6 +443,8 @@ local function getOrCreatePlayerParticipantForPlayer(player)
 		SpawnName = "LobbySpawn",
 		IsActive = true,
 		StatsProfileId = TankStatsProfile.DuelNormalized,
+		-- Shop: spawn with the player's equipped skin (defaults to "Default" if none).
+		Loadout = { SkinId = CosmeticShopService.getEquippedSkin(player) },
 	})
 
 	refreshTankMovementRaycastFilter()
@@ -613,6 +636,7 @@ local function sendCombatFeedbackPayload(feedbackType, pos, text, color, audioOn
 	if typeof(options) == "table" then
 		payload.Lifetime = options.Lifetime
 		payload.RiseDistance = options.RiseDistance
+		payload.WeaponId = options.WeaponId -- Etap 3: lets the client pick a per-weapon shot sound.
 	end
 
 	combatFeedbackEvent:FireAllClients(payload)
@@ -723,6 +747,64 @@ local function damageParticipant(participant, amount, sourceProjectile)
 	return true
 end
 
+-- Update 0.2: floating world-text feedback for pickups and weapon state changes.
+-- Reuses the existing CombatFeedbackEvent billboard pipeline (no new remotes, no
+-- screen-space HUD clutter).
+local function notifyWeaponEvent(participant, text, color)
+	local position = getParticipantVfxPosition(participant)
+
+	if position == nil or text == nil then
+		return
+	end
+
+	sendCombatFeedbackPayload(
+		"PickupNotice",
+		position + Vector3.new(0, 5, 0),
+		text,
+		color or Color3.fromRGB(180, 240, 255),
+		false,
+		{ Lifetime = 1.4, RiseDistance = 3 }
+	)
+end
+
+-- Update 0.2: Rocket area-of-effect explosion. Damages live enemies within radius
+-- (owner excluded, normal damage rules respected via LobbyService) and breaks nearby
+-- cover props. Default-weapon projectiles never call this (no ExplosionRadius).
+local function explodeProjectile(projectile, position)
+	if typeof(position) ~= "Vector3" then
+		return
+	end
+
+	local vfxHelpers = ProjectileService.getVFXHelpers()
+	vfxHelpers.createDeathExplosion(position)
+	sendCombatFeedbackPayload("Explosion", position, "", Color3.fromRGB(255, 150, 60), true)
+
+	local radius = math.max(1, tonumber(projectile.ExplosionRadius) or 0)
+	local damage = math.max(0, tonumber(projectile.ExplosionDamage) or 0)
+
+	if damage > 0 then
+		for _, participant in ipairs(TankParticipantRegistry.getParticipants()) do
+			if participant ~= projectile.OwnerParticipant
+				and not TankParticipantRegistry.getParticipantIsDead(participant)
+				and LobbyService.canDamageParticipant(projectile, participant) == true
+			then
+				local participantPosition = getParticipantVfxPosition(participant)
+
+				if participantPosition ~= nil and (participantPosition - position).Magnitude <= radius then
+					damageParticipant(participant, damage, projectile)
+				end
+			end
+		end
+	end
+
+	BreakableCoverService.breakNear(position, radius)
+end
+
+-- Init temporary-weapon tracking (ammo, grant, reset) before projectiles use it.
+TemporaryWeaponService.init({
+	notify = notifyWeaponEvent,
+})
+
 -- Init Projectile Service
 ProjectileService.init(root, projectileFolder, vfxFolder, {
 	getGameState = function() return RoundMatchService.getGameState() end,
@@ -750,11 +832,18 @@ ProjectileService.init(root, projectileFolder, vfxFolder, {
 			})
 		end
 	end,
-	sendCombatFeedback = function(ftype, pos, text, color, audioOnly)
-		sendCombatFeedbackPayload(ftype, pos, text, color, audioOnly)
+	sendCombatFeedback = function(ftype, pos, text, color, audioOnly, weaponId)
+		sendCombatFeedbackPayload(ftype, pos, text, color, audioOnly, weaponId ~= nil and { WeaponId = weaponId } or nil)
 	end,
 	onShotFired = function(participant, shotDirection)
 		applyShotRecoil(participant, shotDirection)
+	end,
+	-- Update 0.2 temporary-weapon hooks.
+	onWeaponShotConsumed = function(participant)
+		TemporaryWeaponService.consumeShot(participant)
+	end,
+	onProjectileExploded = function(projectile, position)
+		explodeProjectile(projectile, position)
 	end,
 })
 
@@ -778,11 +867,79 @@ local function collectMapTargets()
 end
 ProjectileService.setMapRaycastTargets(collectMapTargets())
 
+-- Update 0.2 (fix pass): pickup/maze/breakable services are now ARENA-SCOPED. They
+-- are initialized here but NOT started at boot. ArenaSessionLifecycle starts them
+-- only when an arena session is actually active and tears them down on session end,
+-- so nothing appears in the lobby and everything is cleaned on exit/reset/new run.
+ArenaPickupService.init({
+	tankParticipantRegistry = TankParticipantRegistry,
+	temporaryWeaponService = TemporaryWeaponService,
+	notify = notifyWeaponEvent,
+	-- Etap 5: Shield pickup grants ReflectShield charges to the arena session.
+	grantReflectShieldCharges = function(participant, amount)
+		return ArenaCombatService.GrantReflectShieldCharges(participant, amount)
+	end,
+	playPickupFX = function(position)
+		ProjectileService.getVFXHelpers().createImpactFlash(position)
+		-- Etap 3: pickup-collected sound (display/audio only, reuses the feedback pipeline).
+		if typeof(position) == "Vector3" then
+			sendCombatFeedbackPayload("Pickup", position, "", Color3.fromRGB(180, 235, 255), true)
+		end
+	end,
+})
+
+ArenaSessionLifecycle.init({
+	mazeService = ArenaMazeService,
+	pickupService = ArenaPickupService,
+	breakableService = BreakableCoverService,
+	-- Maze walls spawned at runtime must also become projectile bounce surfaces.
+	-- collectMapTargets() rebuilds the include list from the current TankMovement
+	-- obstacle parts, which auto-invalidates when descendants of the arena root are
+	-- added/removed.
+	refreshProjectileTargets = function()
+		ProjectileService.setMapRaycastTargets(collectMapTargets())
+	end,
+})
+
 KillRewardService.init({
 	playerWalletService = PlayerWalletService,
 	roundMatchService = RoundMatchService,
 	lobbyService = LobbyService,
 	tankParticipantRegistry = TankParticipantRegistry,
+})
+
+-- Etap 4: leaderstats (Bolts / Kills / Best Level) + achievements + best-level record.
+AchievementService.init({
+	toastEvent = achievementToastEvent,
+	grantBolts = function(player, amount, reason)
+		PlayerWalletService.addBolts(player, amount, reason)
+	end,
+	getBoltsBalance = function(player)
+		return PlayerWalletService.getBoltsBalance(player)
+	end,
+})
+
+-- Etap 5: global winner podiums in the lobby (Arena Champion / Duel King).
+WinnerPodiumService.init()
+
+-- Shop: buy/equip tank skins with Bolts.
+CosmeticShopService.init({
+	buyEvent = shopBuyEvent,
+	equipEvent = shopEquipEvent,
+	syncEvent = shopSyncEvent,
+	trySpendBolts = function(player, amount, reason)
+		return PlayerWalletService.trySpendBolts(player, amount, reason)
+	end,
+	getBoltsBalance = function(player)
+		return PlayerWalletService.getBoltsBalance(player)
+	end,
+	applySkinToCurrentTank = function(player, skinId)
+		local participant = PlayerPossessionService.getPlayerParticipantByPlayer(player)
+		local model = participant ~= nil and TankParticipantRegistry.getParticipantPhysicalModel(participant) or nil
+		if model ~= nil then
+			TankCustomizationService.applySkin(model, skinId)
+		end
+	end,
 })
 
 MatchRewardService.init({
@@ -812,6 +969,13 @@ ProjectileCombatService.init({
 
 -- Init RoundMatch Service
 RoundMatchService.init(root, {
+	-- Update 0.2.x: forward GameState transitions AND the match mode to the arena
+	-- runtime. The lifecycle uses the mode to keep Duel (PvP) clean -- only Training
+	-- spawns the maze/pickups/breakables. updateMatchMode() runs in onConfigureParticipants
+	-- (before setGameState("Playing")), so getMatchMode() is current when this fires.
+	onGameStateChanged = function(gameState)
+		ArenaSessionLifecycle.onGameStateChanged(gameState, RoundMatchService.getMatchMode())
+	end,
 	onDestroyAllProjectiles = function() ProjectileService.destroyAllProjectiles() end,
 	onConfigureParticipants = function()
 		RoundMatchService.updateMatchMode()
@@ -838,6 +1002,20 @@ RoundMatchService.init(root, {
 	getSpawnTransforms = function() return TankSpawnResetService.getAllSpawnTransforms() end,
 	onFinalMatchRewards = function(activeMatch, matchState)
 		MatchRewardService.awardFinalMatchRewards(activeMatch, matchState)
+		-- Etap 5: Duel King podium counts COMPLETED DUELS per human player. PvP only.
+		if RoundMatchService.getMatchMode() == RoundMatchService.MATCH_MODE_PVP
+			and activeMatch ~= nil
+			and typeof(activeMatch.Participants) == "table"
+		then
+			local counted = {}
+			for _, participant in ipairs(activeMatch.Participants) do
+				local player = participant ~= nil and participant.OwnerPlayer or nil
+				if player ~= nil and not counted[player.UserId] then
+					counted[player.UserId] = true
+					WinnerPodiumService.submitDuelCompletion(player.Name)
+				end
+			end
+		end
 	end,
 	onMatchEnded = function(activeMatch)
 		LobbyService.onMatchEnded(activeMatch)
@@ -868,9 +1046,51 @@ ArenaCombatService.init({
 			TankSpawnResetService.restoreTankColors(participant.TankId)
 		end
 	end,
+	-- Update 0.2 (fix pass): arena session lifecycle hooks. These drive maze/pickup/
+	-- breakable spawn + teardown so nothing appears in the lobby.
+	arenaSessionStarted = function(_player)
+		-- Movement-bounds fix: clamp the tank to the actual BattleArena floor extents (not
+		-- the global world-default box, which cut off the lower part of the arena floor).
+		TankMovementService.applyBattleArenaMovementBounds()
+		ArenaSessionLifecycle.onBattleArenaEnter()
+	end,
+	arenaSessionEnded = function(_player)
+		TankMovementService.resetMovementBoundsToWorldDefault()
+		ArenaSessionLifecycle.onBattleArenaLeave()
+	end,
 	upgradeChoiceEvent = upgradeChoiceEvent,
 	reviveRequestEvent = arenaReviveRequestEvent,
 	freeRespawnRequestEvent = arenaFreeRespawnRequestEvent,
+	-- Etap 2: kill-feed broadcast. Resolves display names from the tank models and fires to
+	-- all clients. Display only.
+	broadcastKill = function(killerParticipant, victimParticipant, weaponId)
+		local function nameOf(participant)
+			if participant == nil then
+				return nil
+			end
+			local model = participant.Model
+			local n = model ~= nil and model:GetAttribute("OwnerDisplayName") or nil
+			if typeof(n) == "string" and n ~= "" then
+				return n
+			end
+			return participant.IsBot == true and "BOT" or tostring(participant.TankId)
+		end
+
+		killFeedEvent:FireAllClients({
+			Killer = nameOf(killerParticipant),
+			Victim = nameOf(victimParticipant),
+			Weapon = weaponId,
+		})
+	end,
+	-- Etap 4: achievement hooks.
+	onArenaKill = function(context)
+		AchievementService.onKill(context)
+	end,
+	onArenaLevel = function(player, level)
+		AchievementService.onArenaLevel(player, level)
+		-- Etap 5: submit to the global Arena Champion podium (record = highest level).
+		WinnerPodiumService.submit("Arena", player.Name, level)
+	end,
 })
 
 BotService.init({
@@ -1189,9 +1409,11 @@ shootRequestEvent.OnServerEvent:Connect(function(player, aimPosition)
 			return
 		end
 
+		local state = participant.ControlState
+
 		local origin = participant.ShootPoint.Position
 		local dir = typeof(aimPosition) == "Vector3" and (Vector3.new(aimPosition.X - origin.X, 0, aimPosition.Z - origin.Z)) or Vector3.new(0,0,-1)
-		local turretYaw = participant.ControlState ~= nil and participant.ControlState.TurretYaw or 0
+		local turretYaw = state ~= nil and state.TurretYaw or 0
 		local turretDirection = (CFrame.Angles(0, turretYaw, 0)).LookVector
 		local requestedDirection = dir.Magnitude > 0.1 and dir.Unit or turretDirection
 		ProjectileService.tryShoot(participant, SHOOT_USES_TURRET_FACING and turretDirection or requestedDirection)
@@ -1274,9 +1496,16 @@ RunService.Heartbeat:Connect(function(deltaTime)
 			)
 			state.Position = resolvedPos
 			state.BodyYaw = resolvedBodyYaw
+
+			-- Free turret aiming for ALL modes (BattleArena included): the barrel rotates
+			-- toward the aim point, independent of the body. (Reverted the BattleArena
+			-- cannon-forward lock so the dome/barrel turns in the arena again.)
 			local targetTurretYaw = getYawFromAimPosition(state.Position, input.AimPosition, state.TurretYaw)
 			state.TurretYaw = moveAngleTowards(state.TurretYaw, targetTurretYaw, TURRET_TURN_SPEED * deltaTime)
+
 			TankSpawnResetService.layoutTank(p.Model, state.Position, state.BodyYaw, state.TurretYaw)
+			-- Movement trail: only smoke when actually driving (speed above a small threshold).
+			TankSpawnResetService.setTrailActive(p, math.abs(tonumber(state.CurrentSpeed) or 0) > 2)
 
 			if shouldLogApply then
 				print(string.format("[SERVER] input applied to %s", p.TankId))
@@ -1284,6 +1513,7 @@ RunService.Heartbeat:Connect(function(deltaTime)
 		elseif p.ControlState ~= nil then
 			p.ControlState.CurrentSpeed = 0
 			p.ControlState.CurrentTurnRate = 0
+			TankSpawnResetService.setTrailActive(p, false)
 			p.ControlState.RecoilVelocity = Vector3.zero
 		end
 	end

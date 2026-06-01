@@ -73,6 +73,7 @@ function TankHealthBarRecord.new(model, context)
 		OnInvalid = context.OnInvalid,
 		Billboard = billboard,
 		AnchorPart = context.AnchorService:CreateAnchor(model),
+		PlayerNameLabel = context.Factory:FindDescendant(billboard, "PlayerName", "TextLabel"),
 		RedBar = context.Factory:FindDescendant(billboard, "RedBar", "Frame"),
 		GreenBar = context.Factory:FindDescendant(billboard, "GreenBar", "Frame"),
 		ReloadBack = context.Factory:FindDescendant(billboard, "ReloadBack", "Frame"),
@@ -183,8 +184,28 @@ function TankHealthBarRecord:Update()
 	end
 
 	self:UpdateReloadBar()
+	self:UpdatePlayerName()
 
 	return true
+end
+
+-- Shows the tank owner's name (or "BOT") above the bar. Reads OwnerDisplayName written by
+-- TankFactory; hides the label if empty. Visual only.
+function TankHealthBarRecord:UpdatePlayerName()
+	local label = self.PlayerNameLabel
+	if label == nil then
+		return
+	end
+
+	local name = self.Model:GetAttribute("OwnerDisplayName")
+	if typeof(name) == "string" and name ~= "" then
+		if label.Text ~= name then
+			label.Text = name
+		end
+		label.Visible = true
+	else
+		label.Visible = false
+	end
 end
 
 function TankHealthBarRecord:Step(dt)

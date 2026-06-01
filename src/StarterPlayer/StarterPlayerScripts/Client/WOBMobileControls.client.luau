@@ -46,6 +46,7 @@ local aimAreaConfig = MobileControlsConfig.AimArea or {}
 local rightAimStickConfig = MobileControlsConfig.RightAimStick or {}
 local fireButtonConfig = MobileControlsConfig.FireButton or {}
 local reverseButtonConfig = MobileControlsConfig.ReverseButton or {}
+local arcadeConfig = MobileControlsConfig.BattleArenaArcade or {}
 local primaryWeaponConfig = WeaponConfig.PrimaryWeapon or {}
 
 local STICK_RELEASE_MAGNITUDE = 0.1
@@ -76,14 +77,21 @@ local function getOffsetButtonSize(size, fallback)
 	return size
 end
 
-local LEFT_STICK_SIZE = math.clamp(math.floor(getPositiveNumber(leftStickConfig.BaseSize, 110)), 96, 168)
-local LEFT_STICK_KNOB_SIZE = math.clamp(math.floor(getPositiveNumber(leftStickConfig.ThumbSize, 46)), 40, LEFT_STICK_SIZE - 28)
-local RIGHT_AIM_SIZE = math.clamp(math.floor(getPositiveNumber(rightAimStickConfig.BaseSize, 116)), 96, 168)
-local RIGHT_AIM_KNOB_SIZE = math.clamp(math.floor(getPositiveNumber(rightAimStickConfig.ThumbSize, 44)), 40, RIGHT_AIM_SIZE - 28)
+-- Joystick comfort tuning (Task B). Scales enlarge the stick visuals and the drag range.
+local joystickConfig = MobileControlsConfig.Joystick or {}
+local JOYSTICK_VISUAL_SCALE = math.clamp(tonumber(joystickConfig.VisualScale) or 1, 1, 1.6)
+local JOYSTICK_TOUCH_AREA_SCALE = math.clamp(tonumber(joystickConfig.TouchAreaScale) or 1, 1, 1.6)
+local FLOATING_JOYSTICKS_ENABLED = joystickConfig.FloatingEnabled ~= false
+local FLOATING_ACTIVATION_MIN_Y_SCALE = math.clamp(tonumber(joystickConfig.FloatingActivationMinYScale) or 0.32, 0, 0.95)
+
+local LEFT_STICK_SIZE = math.floor(math.clamp(getPositiveNumber(leftStickConfig.BaseSize, 110), 96, 168) * JOYSTICK_VISUAL_SCALE)
+local LEFT_STICK_KNOB_SIZE = math.clamp(math.floor(getPositiveNumber(leftStickConfig.ThumbSize, 46) * JOYSTICK_VISUAL_SCALE), 40, LEFT_STICK_SIZE - 28)
+local RIGHT_AIM_SIZE = math.floor(math.clamp(getPositiveNumber(rightAimStickConfig.BaseSize, 116), 96, 168) * JOYSTICK_VISUAL_SCALE)
+local RIGHT_AIM_KNOB_SIZE = math.clamp(math.floor(getPositiveNumber(rightAimStickConfig.ThumbSize, 44) * JOYSTICK_VISUAL_SCALE), 40, RIGHT_AIM_SIZE - 28)
 local FIRE_BUTTON_SIZE = 78
 local REVERSE_BUTTON_SIZE = 58
-local LEFT_STICK_INPUT_MAX_DISTANCE = 55
-local RIGHT_AIM_INPUT_MAX_DISTANCE = 58
+local LEFT_STICK_INPUT_MAX_DISTANCE = math.floor(55 * JOYSTICK_TOUCH_AREA_SCALE)
+local RIGHT_AIM_INPUT_MAX_DISTANCE = math.floor(58 * JOYSTICK_TOUCH_AREA_SCALE)
 -- Gameplay touch layout convention:
 -- Move stays bottom-left, REV sits in the right thumb area without overlapping
 -- AIM/FIRE, Aim stays in the lower-right control area, Fire stays bottom-right,
@@ -314,6 +322,31 @@ local reverseButtonScale = Instance.new("UIScale")
 reverseButtonScale.Scale = 1
 reverseButtonScale.Parent = reverseButton
 
+-- Arcade-only directional intent arrows (client-side visual only; no remotes, no gameplay).
+-- Green = forward intent, red = reverse intent. Hidden unless the arcade preset is active
+-- AND the matching input is engaged.
+local function makeIntentArrow(name, color)
+	local arrow = Instance.new("TextLabel")
+	arrow.Name = name
+	arrow.AnchorPoint = Vector2.new(0.5, 0.5)
+	arrow.Size = UDim2.fromOffset(52, 52)
+	arrow.BackgroundTransparency = 1
+	arrow.Font = Enum.Font.GothamBlack
+	arrow.Text = "➤"
+	arrow.TextColor3 = color
+	arrow.TextSize = 46
+	arrow.TextStrokeColor3 = Color3.fromRGB(8, 12, 16)
+	arrow.TextStrokeTransparency = 0.35
+	arrow.Visible = false
+	arrow.Active = false
+	arrow.ZIndex = 6
+	arrow.Parent = screenGui
+	return arrow
+end
+
+local forwardArrow = makeIntentArrow("ForwardIntentArrow", Color3.fromRGB(63, 212, 108))
+local reverseArrow = makeIntentArrow("ReverseIntentArrow", Color3.fromRGB(235, 74, 74))
+
 local aimDebugOverlay = nil
 
 if MobileControlsConfig.Debug == true then
@@ -345,6 +378,14 @@ local shootEnabled = false
 local localCooldownUntil = 0
 local lastLayoutViewportSize = nil
 local applyCurrentMovementState = nil
+
+-- BattleArena arcade preset state (forward steer on left, reverse steer on right).
+local activeReverseStickTouch = nil
+local arcadeReverseActive = false
+local arcadeReverseNormalized = Vector2.zero
+local lastArcadeMode = nil
+local resetReverseStick = nil
+local applyArcadePresentation = nil
 
 local function hideDesktopHintIfNeeded(instance)
 	if not instance:IsA("TextLabel")
@@ -427,6 +468,38 @@ local function applyResponsiveLayout()
 	fireButton.Position = UDim2.new(1, -24, 1, -28)
 end
 
+-- ---------------------------------------------------------------------------
+-- Floating joysticks (Task B): a stick's base snaps under the finger on touch and
+-- returns to its home corner on release. Home positions mirror applyResponsiveLayout.
+-- ---------------------------------------------------------------------------
+local function resetLeftStickHome()
+	leftStickBase.AnchorPoint = Vector2.new(0, 1)
+	leftStickBase.Position = UDim2.new(0, 28, 1, -30)
+end
+
+local function resetRightStickHome()
+	rightAimBase.AnchorPoint = Vector2.new(1, 1)
+	rightAimBase.Position = UDim2.new(1, -144, 1, -44)
+end
+
+local function floatBaseToPoint(base, point)
+	base.AnchorPoint = Vector2.new(0.5, 0.5)
+	base.Position = UDim2.fromOffset(point.X, point.Y)
+end
+
+-- Activation zones: left half / right half of the screen, below the HUD-safe top band.
+local function isInLeftZone(point)
+	local viewportSize = getViewportSize()
+	return point.X < viewportSize.X * 0.5
+		and point.Y > viewportSize.Y * FLOATING_ACTIVATION_MIN_Y_SCALE
+end
+
+local function isInRightZone(point)
+	local viewportSize = getViewportSize()
+	return point.X >= viewportSize.X * 0.5
+		and point.Y > viewportSize.Y * FLOATING_ACTIVATION_MIN_Y_SCALE
+end
+
 local function getOwnedTank()
 	return TankModelResolver.findOwnedTank(root, localPlayer.UserId, true)
 end
@@ -457,6 +530,13 @@ local function isModeVisible()
 	end
 
 	return mode == nil and root:GetAttribute("GameState") == "Playing"
+end
+
+-- Arcade preset is BattleArena-only. Duel/PvP, Training, and Lobby never trigger it, so
+-- their controls stay exactly as before.
+local function isArcadeMode()
+	return arcadeConfig.Enabled ~= false
+		and localPlayer:GetAttribute("PlayerMode") == PLAYER_MODE_IN_BATTLE_ARENA
 end
 
 local function isRoundInputLocked()
@@ -574,6 +654,11 @@ local function resetMovementTouch()
 	activeMovementTouch = nil
 	activeMovementPoint = nil
 	lastMovementNormalized = Vector2.zero
+
+	if FLOATING_JOYSTICKS_ENABLED then
+		resetLeftStickHome()
+	end
+
 	resetMoveStickVisual()
 
 	if applyCurrentMovementState ~= nil then
@@ -588,6 +673,11 @@ local function resetAimTouch()
 	activeAimTouchStartPoint = nil
 	activeAimTouchStartTime = 0
 	activeAimTouchMoved = false
+
+	if FLOATING_JOYSTICKS_ENABLED and activeReverseStickTouch == nil then
+		resetRightStickHome()
+	end
+
 	resetAimStickVisual()
 end
 
@@ -601,11 +691,24 @@ local function updateVisibility()
 	controlsEnabled = canMove
 	shootEnabled = canShoot
 
+	local arcade = isArcadeMode()
+
+	-- Apply/clear arcade presentation (relabels right stick to REVERSE, hides the classic
+	-- REV button) only when the mode actually changes, to avoid per-frame churn.
+	if arcade ~= lastArcadeMode then
+		lastArcadeMode = arcade
+		if applyArcadePresentation ~= nil then
+			applyArcadePresentation(arcade)
+		end
+	end
+
 	screenGui.Enabled = visible
 	leftStickBase.Visible = visible
 	rightAimBase.Visible = visible and rightAimVisible
 	fireButton.Visible = visible
-	reverseButton.Visible = visible
+	-- In arcade mode the right stick IS the reverse control, so the classic REV button is
+	-- hidden. Duel/Training keep the REV button exactly as before.
+	reverseButton.Visible = visible and not arcade
 
 	if aimDebugOverlay ~= nil then
 		aimDebugOverlay.Visible = visible and MobileControlsConfig.Debug == true
@@ -617,6 +720,9 @@ local function updateVisibility()
 		resetReverseControl()
 		resetMovementTouch()
 		resetAimTouch()
+		if resetReverseStick ~= nil then
+			resetReverseStick()
+		end
 	end
 
 	if not visible or not canShoot then
@@ -793,6 +899,37 @@ applyCurrentMovementState = function()
 	local localStickX = math.clamp(lastMovementNormalized.X, -1, 1)
 	local isActive = magnitude >= STICK_RELEASE_MAGNITUDE
 
+	-- Arcade reverse-steer (BattleArena right stick). Backs the tank away while gently
+	-- rotating its body toward the drag direction (rear leads). No instant 180 flip: we only
+	-- emit a steer signal, the same mechanism the classic REV button uses, so collision and
+	-- movement bounds are untouched.
+	if arcadeReverseActive then
+		local reverseMagnitude = arcadeReverseNormalized.Magnitude
+
+		if reverseMagnitude < rightAimDeadZone then
+			-- No drag direction: straight back along the current facing.
+			local straight = -math.clamp(tonumber(arcadeConfig.ReverseStraightThrottle) or 1, 0, 1)
+			WOBClientInputState.setMobileMovement(straight, 0, true)
+			return
+		end
+
+		local dragDirection = getWorldDirectionFromStick(arcadeReverseNormalized)
+		local currentBodyYaw = getOwnedTankBodyYaw()
+		local steer = math.clamp(arcadeReverseNormalized.X, -1, 1)
+
+		if dragDirection ~= nil and currentBodyYaw ~= nil then
+			-- Want the tank to back TOWARD the drag, so its forward should point opposite.
+			local desiredForwardYaw = getYawFromFlatDirection(-dragDirection)
+			if desiredForwardYaw ~= nil then
+				local signedAngle = normalizeAngle(desiredForwardYaw - currentBodyYaw)
+				steer = -math.clamp(signedAngle / ARCADE_FULL_STEER_ANGLE, -1, 1)
+			end
+		end
+
+		WOBClientInputState.setMobileMovement(-math.clamp(reverseMagnitude, 0, 1), steer, true)
+		return
+	end
+
 	if reverseHeld then
 		local throttle = isActive and -math.clamp(magnitude, 0, 1) or -1
 		local steer = isActive and localStickX or 0
@@ -823,6 +960,102 @@ applyCurrentMovementState = function()
 
 	local throttle = math.clamp(magnitude * throttleScale, 0, 1)
 	WOBClientInputState.setMobileMovement(throttle, steer, true)
+end
+
+local function updateReverseStickFromPoint(point)
+	local center = rightAimBase.AbsolutePosition + rightAimBase.AbsoluteSize * 0.5
+	local delta = point - center
+	local distance = delta.Magnitude
+	local clamped = delta
+
+	if distance > rightAimMaxDistance and distance > 0 then
+		clamped = delta.Unit * rightAimMaxDistance
+	end
+
+	local normalized = Vector2.new(
+		rightAimMaxDistance > 0 and clamped.X / rightAimMaxDistance or 0,
+		rightAimMaxDistance > 0 and clamped.Y / rightAimMaxDistance or 0
+	)
+
+	rightAimKnob.Position = UDim2.fromOffset(rightAimRadius + clamped.X, rightAimRadius + clamped.Y)
+
+	arcadeReverseActive = true
+	arcadeReverseNormalized = normalized
+	applyCurrentMovementState()
+end
+
+-- Assigned to the forward-declared local so earlier functions (updateVisibility) can call it.
+resetReverseStick = function()
+	if activeReverseStickTouch == nil and not arcadeReverseActive then
+		return
+	end
+
+	activeReverseStickTouch = nil
+	arcadeReverseActive = false
+	arcadeReverseNormalized = Vector2.zero
+
+	if FLOATING_JOYSTICKS_ENABLED then
+		resetRightStickHome()
+	end
+
+	resetAimStickVisual()
+
+	if applyCurrentMovementState ~= nil then
+		applyCurrentMovementState()
+	end
+end
+
+-- Relabels/recolors the right stick as REVERSE in arcade mode and clears stale aim/reverse
+-- state. Restores the classic AIM styling otherwise. Visual only.
+applyArcadePresentation = function(isArcade)
+	resetReverseStick()
+	resetAimTouch()
+
+	if isArcade then
+		rightAimLabelText.Text = "REVERSE"
+		rightAimBaseStroke.Color = Color3.fromRGB(235, 74, 74)
+		rightAimKnob.BackgroundColor3 = Color3.fromRGB(255, 178, 178)
+		-- Arcade shoots along the body forward, so drop any latched aim point immediately.
+		WOBClientInputState.clearMobileAimWorldPoint()
+	else
+		rightAimLabelText.Text = rightAimLabel
+		rightAimBaseStroke.Color = Color3.fromRGB(122, 218, 255)
+		rightAimKnob.BackgroundColor3 = Color3.fromRGB(178, 234, 255)
+		forwardArrow.Visible = false
+		reverseArrow.Visible = false
+	end
+end
+
+local function updateArcadeIndicators()
+	local arcadeActive = isArcadeMode() and controlsVisible and controlsEnabled
+
+	local showForward = arcadeActive
+		and arcadeConfig.ForwardIndicatorEnabled ~= false
+		and not arcadeReverseActive
+		and lastMovementNormalized.Magnitude >= STICK_RELEASE_MAGNITUDE
+
+	forwardArrow.Visible = showForward
+	if showForward then
+		local n = lastMovementNormalized
+		forwardArrow.Rotation = math.deg(math.atan2(n.Y, n.X))
+		local c = leftStickBase.AbsolutePosition + leftStickBase.AbsoluteSize * 0.5
+		forwardArrow.Position = UDim2.fromOffset(c.X, c.Y - leftStickBase.AbsoluteSize.Y * 0.5 - 30)
+	end
+
+	local showReverse = arcadeActive
+		and arcadeConfig.ReverseIndicatorEnabled ~= false
+		and arcadeReverseActive
+
+	reverseArrow.Visible = showReverse
+	if showReverse then
+		local n = arcadeReverseNormalized
+		if n.Magnitude < 0.001 then
+			n = Vector2.new(0, 1) -- straight back: point the arrow down on screen.
+		end
+		reverseArrow.Rotation = math.deg(math.atan2(n.Y, n.X))
+		local c = rightAimBase.AbsolutePosition + rightAimBase.AbsoluteSize * 0.5
+		reverseArrow.Position = UDim2.fromOffset(c.X, c.Y - rightAimBase.AbsoluteSize.Y * 0.5 - 30)
+	end
 end
 
 local function updateMovementFromPoint(point)
@@ -912,21 +1145,40 @@ UserInputService.InputBegan:Connect(function(input, _gameProcessedEvent)
 		return
 	end
 
-	if controlsEnabled and activeMovementTouch == nil and isPointInsideGui(leftStickBase, point) then
+	-- Floating: pick up the LEFT stick anywhere in the left activation zone and snap its base
+	-- under the finger. Non-floating: keep the original "touch inside the base" behavior.
+	local leftStickHit = FLOATING_JOYSTICKS_ENABLED and isInLeftZone(point) or isPointInsideGui(leftStickBase, point)
+
+	if controlsEnabled and activeMovementTouch == nil and leftStickHit then
+		if FLOATING_JOYSTICKS_ENABLED then
+			floatBaseToPoint(leftStickBase, point)
+		end
 		activeMovementTouch = input
 		updateMovementFromPoint(point)
 		return
 	end
 
+	local rightStickHit = FLOATING_JOYSTICKS_ENABLED and isInRightZone(point) or isPointInsideGui(rightAimBase, point)
+
 	if controlsEnabled
 		and rightAimVisible
-		and activeAimTouch == nil
-		and isPointInsideGui(rightAimBase, point)
+		and rightStickHit
 	then
-		activeAimTouch = input
-		activeAimTouchStartPoint = point
-		activeAimTouchStartTime = os.clock()
-		activeAimTouchMoved = false
+		if FLOATING_JOYSTICKS_ENABLED then
+			floatBaseToPoint(rightAimBase, point)
+		end
+		if isArcadeMode() then
+			-- Arcade: the right stick is REVERSE steer, not aim.
+			if activeReverseStickTouch == nil then
+				activeReverseStickTouch = input
+				updateReverseStickFromPoint(point)
+			end
+		elseif activeAimTouch == nil then
+			activeAimTouch = input
+			activeAimTouchStartPoint = point
+			activeAimTouchStartTime = os.clock()
+			activeAimTouchMoved = false
+		end
 	end
 end)
 
@@ -936,6 +1188,12 @@ UserInputService.InputChanged:Connect(function(input)
 			updateMovementFromPoint(screenPointFromInput(input))
 		else
 			resetMovementTouch()
+		end
+	elseif input == activeReverseStickTouch then
+		if controlsEnabled and isArcadeMode() then
+			updateReverseStickFromPoint(screenPointFromInput(input))
+		else
+			resetReverseStick()
 		end
 	elseif input == activeAimTouch then
 		if controlsEnabled then
@@ -967,6 +1225,8 @@ UserInputService.InputEnded:Connect(function(input)
 		end
 
 		resetAimTouch()
+	elseif input == activeReverseStickTouch then
+		resetReverseStick()
 	elseif input == activeReverseInput then
 		setReverseHeld(false, nil)
 	end
@@ -976,9 +1236,17 @@ RunService.RenderStepped:Connect(function()
 	applyResponsiveLayout()
 	updateVisibility()
 
+	-- Arcade fires along the tank body forward: keep any stale aim point cleared so the
+	-- input controller falls back to the forward vector every frame.
+	if isArcadeMode() then
+		WOBClientInputState.clearMobileAimWorldPoint()
+	end
+
 	if activeMovementTouch ~= nil and controlsEnabled and activeMovementPoint ~= nil then
 		updateMovementFromPoint(activeMovementPoint)
 	end
+
+	updateArcadeIndicators()
 
 	if fireButtonConfig.CooldownVisual ~= false and os.clock() < localCooldownUntil then
 		local remaining = math.max(0, localCooldownUntil - os.clock())

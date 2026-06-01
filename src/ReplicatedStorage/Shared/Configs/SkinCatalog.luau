@@ -57,6 +57,41 @@ local SkinCatalog = table.freeze({
 			FeaturedLocked = true,
 		}),
 
+		-- Cheap starter skins so new players can buy something early.
+		Lime = table.freeze({
+			DisplayName = "Lime",
+			BodyColor = Color3.fromRGB(150, 220, 60),
+			TurretColor = Color3.fromRGB(190, 245, 110),
+			BarrelColor = Color3.fromRGB(40, 50, 30),
+			Material = Enum.Material.SmoothPlastic,
+			Price = 5,
+			Currency = "Bolts",
+			DuelSafe = true,
+		}),
+
+		Purple = table.freeze({
+			DisplayName = "Purple",
+			BodyColor = Color3.fromRGB(150, 90, 230),
+			TurretColor = Color3.fromRGB(190, 140, 250),
+			BarrelColor = Color3.fromRGB(40, 32, 55),
+			Material = Enum.Material.SmoothPlastic,
+			Price = 8,
+			Currency = "Bolts",
+			DuelSafe = true,
+		}),
+
+		Desert = table.freeze({
+			DisplayName = "Desert",
+			BodyColor = Color3.fromRGB(185, 150, 90),
+			TurretColor = Color3.fromRGB(215, 180, 110),
+			BarrelColor = Color3.fromRGB(55, 50, 45),
+			Material = Enum.Material.SmoothPlastic,
+			Price = 15,
+			Currency = "Bolts",
+			DuelSafe = true,
+		}),
+
+		-- Hidden test skins (not shown in the shop).
 		RedTest = table.freeze({
 			DisplayName = "Red Test",
 			AliasOf = "Red",
@@ -65,6 +100,7 @@ local SkinCatalog = table.freeze({
 			BarrelColor = Color3.fromRGB(45, 45, 50),
 			Material = Enum.Material.SmoothPlastic,
 			DuelSafe = true,
+			ShopHidden = true,
 		}),
 
 		DesertTest = table.freeze({
@@ -74,6 +110,7 @@ local SkinCatalog = table.freeze({
 			BarrelColor = Color3.fromRGB(55, 50, 45),
 			Material = Enum.Material.SmoothPlastic,
 			DuelSafe = true,
+			ShopHidden = true,
 		}),
 	}),
 })

@@ -217,13 +217,25 @@ function ArmorHitResolver.ResolveHit(params)
 		impactAngleDegrees,
 		armorConfig.EffectiveArmorMinCos
 	)
-	local penetrationPower = math.max(0, tonumber(params.PenetrationPower) or TankArmorConfig.Projectile.DefaultPenetrationPower)
+	-- Penetration power = shell's base pen + any bonus (Piercing upgrade / RailGun add to it,
+	-- they do NOT ignore the gate -- a stronger shell simply crosses the threshold).
+	-- PenetrationBonus may be negative (weak pellet weapons); clamp the SUM to >= 0.
+	local penetrationPower = math.max(0,
+		(tonumber(params.PenetrationPower) or TankArmorConfig.Projectile.DefaultPenetrationPower)
+			+ (tonumber(params.PenetrationBonus) or 0))
 	local ricochetAngle = tonumber(zoneConfig.RicochetAngleDegrees)
 		or tonumber(armorConfig.DefaultRicochetAngleDegrees)
 		or 60
 	local baseDamage = math.max(0, tonumber(params.BaseDamage) or 0)
-	local damageMultiplier = math.max(0, tonumber(zoneConfig.DamageMultiplier) or 1)
 	local ricochetDirection = RicochetMath.Reflect(projectileDirection, normal)
+
+	-- ARMOR MODEL (Сергей's design):
+	--   1. Steep ANGLE  -> ricochet (shell skips off), 0 damage.
+	--   2. PEN THRESHOLD -> penetrationPower must be >= effectiveArmor (armor/cos(angle)),
+	--      otherwise NoPen, 0 damage. A glancing angle makes armor "thicker" via 1/cos.
+	--   3. DAMAGE = (baseDamage - effectiveArmor), then scaled by how head-on the hit is
+	--      (straighter angle = closer to full, glancing = less). Example: 100 dmg vs 80
+	--      armor, dead-on -> ~20 damage. Pierce that just crossed the gate also gets cut.
 
 	if impactAngleDegrees >= ricochetAngle then
 		return {
@@ -248,12 +260,21 @@ function ArmorHitResolver.ResolveHit(params)
 		}
 	end
 
+	-- Penetrated: subtract armor from damage, then scale by hit angle (head-on = full).
+	-- MinDamageFloor lets a barely-penetrating shot (e.g. a pellet that only crossed the
+	-- front plate thanks to a Piercing stack) still chip a small, ramping amount: 2, 4, ...
+	local afterArmor = baseDamage - effectiveArmor
+	local angleRad = math.rad(math.clamp(impactAngleDegrees, 0, 89))
+	local angleFactor = math.clamp(math.cos(angleRad), 0.3, 1) -- 1 = dead-on, less when glancing
+	local minFloor = math.max(tonumber(armorConfig.MinPenetrationDamage) or 1, tonumber(params.MinDamageFloor) or 0)
+	local finalDamage = math.max(minFloor, afterArmor * angleFactor)
+
 	return {
 		Result = "Penetration",
 		Zone = zone,
 		ImpactAngleDegrees = impactAngleDegrees,
 		EffectiveArmor = effectiveArmor,
-		FinalDamage = math.max(tonumber(armorConfig.MinPenetrationDamage) or 1, baseDamage * damageMultiplier),
+		FinalDamage = finalDamage,
 		NormalWorld = normal,
 	}
 end

@@ -193,6 +193,22 @@ local function makeController(participant)
 	})
 end
 
+-- Per-spawn (not per-frame) log of where an arena bot was placed and from which source.
+local function logArenaSpawn(participant, spawnTransform)
+	if participant == nil or spawnTransform == nil then
+		return
+	end
+
+	local arena = spawnPlanner ~= nil and spawnPlanner.Root ~= nil and spawnPlanner.Root:FindFirstChild("BattleArena") or nil
+	local pos = spawnTransform.Position or Vector3.zero
+
+	print(("[ARENA SPAWN] Bot %s spawn=%s pos=(%.1f, %.1f, %.1f) arena=%s"):format(
+		tostring(participant.TankId),
+		tostring(spawnTransform.SourcePath or spawnTransform.Source or "?"),
+		pos.X, pos.Y, pos.Z,
+		arena ~= nil and arena:GetFullName() or "Workspace.WOB_Generated.BattleArena (missing)"))
+end
+
 local function activateBotRecord(record)
 	local participant = record.Participant
 	local spawnTransform = spawnPlanner:GetNextSpawnTransform()
@@ -212,6 +228,7 @@ local function activateBotRecord(record)
 	record.Active = true
 	record.RespawnAt = nil
 
+	logArenaSpawn(participant, spawnTransform)
 	debugLog("spawn:" .. participant.TankId, "[BOT] spawned id=" .. tostring(participant.TankId))
 end
 
@@ -237,6 +254,11 @@ local function createBotRecord()
 	if model ~= nil then
 		tankSpawnResetService.captureTankColors(participant.TankId, model)
 	end
+
+	-- Place the freshly-cloned bot at a BattleArena spawn immediately. Without this the clone
+	-- keeps the template's CFrame (which can sit near the Duel/Map area) until activation,
+	-- which is exactly the "bot appears near Duel" symptom. Arena-only source via spawnPlanner.
+	tankSpawnResetService.applySpawnToParticipant(participant, spawnTransform)
 
 	local record = {
 		TankId = tankId,

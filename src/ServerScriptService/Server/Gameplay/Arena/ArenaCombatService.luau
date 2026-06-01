@@ -613,6 +613,7 @@ local function ensurePendingLevelOffer(session)
 end
 
 local function addArenaXP(session, amount, reason)
+	local levelBefore = session ~= nil and (tonumber(session.ArenaLevel) or 1) or 1
 	local result = levelService:AddXP(session, amount)
 
 	if result.Added ~= true then
@@ -621,6 +622,16 @@ local function addArenaXP(session, amount, reason)
 
 	publishSessionAttributes(session)
 	ensurePendingLevelOffer(session)
+
+	-- Etap 4: notify achievements when the arena level actually increased (human players).
+	local levelAfter = tonumber(session.ArenaLevel) or levelBefore
+	if levelAfter > levelBefore
+		and callbacks.onArenaLevel ~= nil
+		and session.IsBotSession ~= true
+		and session.Player ~= nil
+	then
+		callbacks.onArenaLevel(session.Player, levelAfter)
+	end
 
 	if BattleArenaConfig.Debug == true then
 		local playerName = session.Player ~= nil and session.Player.Name or "Unknown"
@@ -724,6 +735,8 @@ local function makeSession(player, participant)
 		SpreadDegrees = 0,
 		DoubleShotLateralOffset = 0,
 		RicochetBonus = 0,
+		PierceEnemies = 0,
+		LifestealPerKill = 0,
 		ReflectShieldCharges = 0,
 		SpawnShieldUntil = 0,
 	}
@@ -766,6 +779,8 @@ local function makeBotSession(participant)
 		SpreadDegrees = 0,
 		DoubleShotLateralOffset = 0,
 		RicochetBonus = 0,
+		PierceEnemies = 0,
+		LifestealPerKill = 0,
 		ReflectShieldCharges = 0,
 		SpawnShieldUntil = 0,
 		IsBotSession = true,
@@ -785,6 +800,15 @@ function ArenaCombatService.init(options)
 	callbacks.setPlayerMode = options.setPlayerMode
 	callbacks.clearPlayerInput = options.clearPlayerInput
 	callbacks.restoreTankColors = options.restoreTankColors
+	-- Update 0.2: arena session lifecycle. Fires once per new session entry / exit.
+	-- Optional; nil-safe at every call site.
+	callbacks.arenaSessionStarted = options.arenaSessionStarted
+	callbacks.arenaSessionEnded = options.arenaSessionEnded
+	-- Etap 2: optional kill-feed broadcaster (killerParticipant, victimParticipant, weaponId).
+	callbacks.broadcastKill = options.broadcastKill
+	-- Etap 4: optional achievement hooks. onArenaKill(context), onArenaLevel(player, level).
+	callbacks.onArenaKill = options.onArenaKill
+	callbacks.onArenaLevel = options.onArenaLevel
 
 	if upgradeChoiceConnection ~= nil then
 		upgradeChoiceConnection:Disconnect()
@@ -860,6 +884,32 @@ function ArenaCombatService.GetActiveParticipants()
 	return participants
 end
 
+-- Etap 5: Shield pickup. Grants +N ReflectShield charges to the participant's arena session
+-- (clamped to MaxCharges). Returns true if at least one charge was actually added (so the
+-- pickup is only consumed when it does something). Used by ArenaPickupService.
+function ArenaCombatService.GrantReflectShieldCharges(participant, amount)
+	if participant == nil then
+		return false
+	end
+
+	local session = sessionRepository:GetByParticipant(participant)
+	if session == nil then
+		return false
+	end
+
+	local maxCharges = getReflectShieldMaxCharges()
+	local current = math.floor(tonumber(session.ReflectShieldCharges) or 0)
+
+	if current >= maxCharges then
+		return false -- already full; don't waste the pickup
+	end
+
+	local add = math.max(1, math.floor(tonumber(amount) or 1))
+	session.ReflectShieldCharges = math.clamp(current + add, 0, maxCharges)
+	publishShieldAttributes(session)
+	return true
+end
+
 function ArenaCombatService.RegisterBotParticipant(participant)
 	if participant == nil then
 		return nil
@@ -933,6 +983,11 @@ function ArenaCombatService.EnterArena(player)
 	grantSpawnReflectShield(session, "EnterArena")
 	print("[ARENA] player entered battle arena " .. player.Name .. " -> " .. participant.TankId)
 
+	-- Update 0.2: signal arena runtime so the maze/pickups/breakables spawn now.
+	if callbacks.arenaSessionStarted ~= nil then
+		callbacks.arenaSessionStarted(player)
+	end
+
 	return true
 end
 
@@ -970,6 +1025,11 @@ function ArenaCombatService.LeaveArena(player)
 	player:SetAttribute("ArenaSessionId", nil)
 	clearPlayerInput(player)
 	print("[ARENA] left " .. player.Name)
+
+	-- Update 0.2: signal arena runtime so it cleans up if no players remain.
+	if callbacks.arenaSessionEnded ~= nil then
+		callbacks.arenaSessionEnded(player)
+	end
 
 	return session.Participant
 end
@@ -1429,8 +1489,46 @@ function ArenaCombatService.OnParticipantKilled(killerParticipant, victimPartici
 		addArenaXP(killerSession, BattleArenaConfig.XPPerKill, "Kill")
 		killerSession.Kills += 1
 		killerSession.Streak += 1
+
+		-- Etap 1 Lifesteal upgrade: heal the killer per kill (0 if not taken).
+		local lifesteal = math.max(0, tonumber(killerSession.LifestealPerKill) or 0)
+		if lifesteal > 0 and killerParticipant ~= nil then
+			local hp = TankParticipantRegistry.getParticipantHealth(killerParticipant)
+			local maxHp = TankParticipantRegistry.getParticipantMaxHealth(killerParticipant)
+			if hp ~= nil and maxHp ~= nil then
+				TankParticipantRegistry.setParticipantHealth(killerParticipant, math.min(maxHp, hp + lifesteal))
+			end
+		end
+
 		rewardService:UpdateRunSummary(killerSession)
 		applySessionUpgrades(killerSession)
+	end
+
+	-- Etap 2/4: kill-feed broadcast + achievement hook (display/economy only).
+	local killWeaponId = nil
+	local killRicochet = false
+	if sourceProjectile ~= nil then
+		killWeaponId = sourceProjectile.WeaponOverrideId or "DefaultCannon"
+		killRicochet = (tonumber(sourceProjectile.BounceCount) or 0) > 0
+	end
+
+	if callbacks.broadcastKill ~= nil then
+		callbacks.broadcastKill(killerParticipant, victimParticipant, killWeaponId)
+	end
+
+	-- Etap 4: feed achievements for human killers only.
+	if callbacks.onArenaKill ~= nil
+		and killerSession ~= nil
+		and killerSession.IsBotSession ~= true
+		and killerSession.Player ~= nil
+	then
+		callbacks.onArenaKill({
+			Killer = killerSession.Player,
+			KillsInSession = tonumber(killerSession.Kills) or 0,
+			ArenaLevel = tonumber(killerSession.ArenaLevel) or 1,
+			RicochetKill = killRicochet,
+			WeaponId = killWeaponId,
+		})
 	end
 
 	rewardService:UpdateRunSummary(victimSession)

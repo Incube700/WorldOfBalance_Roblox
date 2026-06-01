@@ -9,6 +9,8 @@ local TankConfig = require(configs:WaitForChild("TankConfig"))
 local TankParticipantRegistry = require(script.Parent.Parent:WaitForChild("TankParticipantRegistry"))
 local TankArmorPartsService = require(script.Parent:WaitForChild("TankArmorPartsService"))
 local TankRole = require(script.Parent:WaitForChild("TankRole"))
+-- Update 0.2: clear any temporary pickup weapon when a tank respawns/resets.
+local TemporaryWeaponService = require(script.Parent.Parent:WaitForChild("Weapons"):WaitForChild("TemporaryWeaponService"))
 
 local PLAYER_INITIAL_POSITION = TankConfig.PlayerInitialState.Position
 local DUMMY_INITIAL_POSITION = TankConfig.DummyInitialState.Position
@@ -177,9 +179,120 @@ function TankSpawnResetService.getSpawnTransform(spawnName, fallbackPosition, fa
 	return transform
 end
 
+-- Training dummy spawn resolution, scoped to the Training field (the "Map" container) ONLY.
+-- Unlike getSpawnPart (which prefers the generic top-level WOB_Generated/SpawnPoints and is
+-- still used by Player/Player2 so Duel stays unchanged), this looks exclusively inside
+-- Map/SpawnPoints and accepts DummySpawn / TrainingDummySpawn / TrainingSpawn1. No global
+-- scan, no first-found folder, no hardcoded near-Duel fallback: if nothing is authored it
+-- falls back to the Training floor centre and warns. Throttled spawn log included.
+local TRAINING_DUMMY_SPAWN_NAMES = { "DummySpawn", "TrainingDummySpawn", "TrainingSpawn1" }
+local lastTrainingSpawnLogAt = 0
+
+local function getTrainingFloorCentre()
+	if map == nil then
+		return nil
+	end
+
+	local floor = map:FindFirstChild("Floor")
+	if floor == nil or not floor:IsA("BasePart") then
+		for _, descendant in ipairs(map:GetDescendants()) do
+			if descendant.Name == "Floor" and descendant:IsA("BasePart") then
+				floor = descendant
+				break
+			end
+		end
+	end
+
+	if floor ~= nil and floor:IsA("BasePart") then
+		return Vector3.new(floor.Position.X, 0, floor.Position.Z)
+	end
+
+	if map:IsA("Model") then
+		local okCenter, cf = pcall(function()
+			return (map:GetBoundingBox())
+		end)
+		if okCenter and typeof(cf) == "CFrame" then
+			return Vector3.new(cf.Position.X, 0, cf.Position.Z)
+		end
+	end
+
+	return nil
+end
+
+function TankSpawnResetService.getTrainingDummySpawnTransform(fallbackTargetPosition)
+	local fallbackYaw = getYawFromFlatDirection(fallbackTargetPosition - DUMMY_INITIAL_POSITION, 0)
+
+	-- Candidate spawn folders for the TRAINING field, in priority order (matches how the
+	-- working PlayerSpawn resolves -- top-level WOB_Generated/SpawnPoints FIRST):
+	--   1. WOB_Generated/SpawnPoints (shared top-level field folder; this is where the
+	--      authored DummySpawn / PlayerSpawn live)
+	--   2. Map/SpawnPoints (explicit Training/Duel field container, if used)
+	-- We deliberately do NOT look inside BattleArena/Lobby (those have their own routing) and
+	-- we only ever match an explicitly-named Training spawn part -- never "first part found".
+	local generatedRoot = map ~= nil and map.Parent or nil
+	local candidateFolders = {}
+
+	if generatedRoot ~= nil then
+		local topSpawns = generatedRoot:FindFirstChild("SpawnPoints")
+		if topSpawns ~= nil then
+			table.insert(candidateFolders, topSpawns)
+		end
+	end
+
+	if map ~= nil then
+		local mapSpawns = map:FindFirstChild("SpawnPoints")
+		if mapSpawns ~= nil then
+			table.insert(candidateFolders, mapSpawns)
+		end
+	end
+
+	local spawnPart = nil
+	for _, folder in ipairs(candidateFolders) do
+		for _, spawnName in ipairs(TRAINING_DUMMY_SPAWN_NAMES) do
+			local candidate = folder:FindFirstChild(spawnName)
+			if candidate ~= nil and candidate:IsA("BasePart") then
+				spawnPart = candidate
+				break
+			end
+		end
+		if spawnPart ~= nil then
+			break
+		end
+	end
+
+	local now = os.clock()
+	local shouldLog = now - lastTrainingSpawnLogAt > 1
+	if shouldLog then
+		lastTrainingSpawnLogAt = now
+	end
+
+	if spawnPart ~= nil then
+		local position = Vector3.new(spawnPart.Position.X, 0, spawnPart.Position.Z)
+		local yaw = getYawFromFlatDirection(spawnPart.CFrame.LookVector, fallbackYaw)
+		if shouldLog then
+			print(("[TRAINING SPAWN] Bot Training_Dummy spawn=%s pos=%s container=%s"):format(
+				spawnPart:GetFullName(),
+				formatVector3(position),
+				spawnPart.Parent ~= nil and spawnPart.Parent:GetFullName() or "?"))
+		end
+		return makeSpawnTransform(position, yaw, spawnPart:GetFullName())
+	end
+
+	-- No authored Training spawn: fall back to the Training floor centre, never near Duel.
+	local floorCentre = getTrainingFloorCentre()
+	if floorCentre ~= nil then
+		warn(("[TRAINING SPAWN] No DummySpawn/TrainingSpawn in %s/SpawnPoints; using Training floor centre %s as last-resort fallback."):format(
+			map ~= nil and map:GetFullName() or "Map", formatVector3(floorCentre)))
+		return makeSpawnTransform(floorCentre, fallbackYaw, "TrainingFloorCentreFallback")
+	end
+
+	warn("[TRAINING SPAWN] No Training spawn point and no Training floor found; cannot place dummy safely. Author Workspace.WOB_Generated.Map.SpawnPoints.DummySpawn.")
+	return makeSpawnTransform(DUMMY_INITIAL_POSITION, fallbackYaw, "TrainingFallback")
+end
+
 function TankSpawnResetService.getAllSpawnTransforms()
 	local playerTransform = TankSpawnResetService.getSpawnTransform("PlayerSpawn", PLAYER_INITIAL_POSITION, DUMMY_INITIAL_POSITION)
-	local dummyTransform = TankSpawnResetService.getSpawnTransform("DummySpawn", DUMMY_INITIAL_POSITION, PLAYER_INITIAL_POSITION)
+	local dummyTransform = TankSpawnResetService.getTrainingDummySpawnTransform(playerTransform.Position)
 	local player2Transform = TankSpawnResetService.getSpawnTransform("Player2Spawn", PLAYER2_INITIAL_POSITION, PLAYER_INITIAL_POSITION)
 
 	return {
@@ -319,6 +432,111 @@ function TankSpawnResetService.darkenTank(model)
 	end
 end
 
+-- Attaches the movement trail (TankTrailVFX) behind the tank body, once per model. The body
+-- parts are anchored and moved by CFrame every frame, so a separate clone Part would fall and
+-- emit while standing still. Instead we copy any ParticleEmitter/Trail/Beam from the template
+-- onto an ATTACHMENT inside the Body (attachments follow the part for free), start them
+-- DISABLED, and store them so setTrailActive() can turn them on only while the tank moves.
+function TankSpawnResetService.ensureMovementTrail(participant)
+	if participant == nil then
+		return
+	end
+	local body = participant.Body or findBasePart(participant.Model, "Body")
+	if body == nil then
+		return
+	end
+
+	-- Two trails — one under each track (left/right), so it reads as tank treads kicking up.
+	local existingLeft = body:FindFirstChild("WOBTankTrailAttachment_L")
+	if existingLeft == nil then
+		local vfxFolder = ReplicatedStorage:FindFirstChild("Shared")
+		vfxFolder = vfxFolder and vfxFolder:FindFirstChild("Assets")
+		vfxFolder = vfxFolder and vfxFolder:FindFirstChild("VFX")
+		local template = vfxFolder and vfxFolder:FindFirstChild("TankTrailVFX")
+
+		local emitters = {}
+
+		-- Builds one exhaust attachment at a side offset and copies the template emitters
+		-- (or a fallback smoke) onto it. Side = -1 (left) or +1 (right).
+		local function buildSide(side, suffix)
+			local attachment = Instance.new("Attachment")
+			attachment.Name = "WOBTankTrailAttachment_" .. suffix
+			attachment.Position = Vector3.new(
+				side * body.Size.X * 0.42, -- out to the track
+				-body.Size.Y * 0.25,
+				body.Size.Z * 0.5 -- behind
+			)
+			attachment.Parent = body
+
+			local added = 0
+			local function collect(inst)
+				if inst:IsA("ParticleEmitter") or inst:IsA("Trail") or inst:IsA("Beam") then
+					local copy = inst:Clone()
+					copy.Enabled = false
+					copy.Parent = attachment
+					table.insert(emitters, copy)
+					added += 1
+				end
+			end
+			if template ~= nil then
+				collect(template)
+				for _, d in ipairs(template:GetDescendants()) do
+					collect(d)
+				end
+			end
+
+			if added == 0 then
+				-- Fallback dust puff so the feature works even without the template.
+				local smoke = Instance.new("ParticleEmitter")
+				smoke.Name = "TankExhaust"
+				smoke.Texture = "rbxassetid://243660364"
+				smoke.Rate = 14
+				smoke.Lifetime = NumberRange.new(0.4, 0.8)
+				smoke.Speed = NumberRange.new(1, 3)
+				smoke.Size = NumberSequence.new(1.3)
+				smoke.Transparency = NumberSequence.new({
+					NumberSequenceKeypoint.new(0, 0.45),
+					NumberSequenceKeypoint.new(1, 1),
+				})
+				smoke.Enabled = false
+				smoke.Parent = attachment
+				table.insert(emitters, smoke)
+			end
+		end
+
+		buildSide(-1, "L")
+		buildSide(1, "R")
+		participant.TrailEmitters = emitters
+	elseif participant.TrailEmitters == nil then
+		-- Re-link emitters after a respawn that reused the model (both side attachments).
+		local emitters = {}
+		for _, suffix in ipairs({ "L", "R" }) do
+			local att = body:FindFirstChild("WOBTankTrailAttachment_" .. suffix)
+			if att ~= nil then
+				for _, d in ipairs(att:GetChildren()) do
+					if d:IsA("ParticleEmitter") or d:IsA("Trail") or d:IsA("Beam") then
+						table.insert(emitters, d)
+					end
+				end
+			end
+		end
+		participant.TrailEmitters = emitters
+	end
+end
+
+-- Enables/disables the movement-trail emitters. Called from the movement loop with the
+-- tank's current speed so the trail only shows when the tank is actually driving.
+function TankSpawnResetService.setTrailActive(participant, active)
+	if participant == nil or participant.TrailEmitters == nil then
+		return
+	end
+	for _, emitter in ipairs(participant.TrailEmitters) do
+		if emitter ~= nil and emitter.Parent ~= nil then
+			emitter.Enabled = active == true
+		end
+	end
+end
+
 function TankSpawnResetService.applySpawnToParticipant(participant, spawnState)
 	spawnState = normalizeSpawnStateHeight(spawnState)
 	participant.SpawnTransform = spawnState
@@ -348,8 +566,34 @@ function TankSpawnResetService.applySpawnToParticipant(participant, spawnState)
 		participant.WeaponState.LastShotTime = 0
 		participant.WeaponState.WeaponReadyAt = 0
 	end
-	
+	-- Update 0.2: revert to the default cannon on respawn / run reset / lobby exit.
+	TemporaryWeaponService.resetParticipant(participant, "Respawn")
+
 	TankSpawnResetService.layoutTank(participant.Model, spawnState.Position, spawnState.BodyYaw, spawnState.TurretYaw)
+	TankSpawnResetService.ensureMovementTrail(participant)
+
+	-- Diagnostic trace for the Training dummy ONLY (no spam: fires per placement, plus one
+	-- delayed sample to catch anything that moves it afterwards).
+	if participant.Role == TankRole.Dummy and participant.Model ~= nil then
+		local expected = spawnState.Position
+		local afterPivot = participant.Model:GetPivot().Position
+		print(("[TRAINING TRACE] selected spawn=%s cf=%s"):format(tostring(spawnState.Source), formatVector3(expected)))
+		print(("[TRAINING TRACE] after layoutTank pivot=%s"):format(formatVector3(afterPivot)))
+
+		local model = participant.Model
+		task.delay(0.1, function()
+			if model == nil or model.Parent == nil then
+				return
+			end
+			local finalPivot = model:GetPivot().Position
+			local delta = (Vector3.new(finalPivot.X, 0, finalPivot.Z) - Vector3.new(expected.X, 0, expected.Z)).Magnitude
+			print(("[TRAINING SPAWN FINAL] Bot Training_Dummy spawn=%s finalPivot=%s expected=%s delta=%.1f"):format(
+				tostring(spawnState.Source), formatVector3(finalPivot), formatVector3(expected), delta))
+			if delta > 12 then
+				warn(("[TRAINING SPAWN WARNING] Training_Dummy moved after spawn by %.1f studs."):format(delta))
+			end
+		end)
+	end
 end
 
 function TankSpawnResetService.configureActiveParticipants(matchMode, player2HasOwner, activeParticipants)

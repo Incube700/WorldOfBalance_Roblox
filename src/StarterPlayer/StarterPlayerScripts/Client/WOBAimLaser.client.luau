@@ -167,30 +167,46 @@ local function createAnchorPart(name)
 	return part
 end
 
-local startPart = createAnchorPart("WOBAimLaserStart")
-local endPart = createAnchorPart("WOBAimLaserEnd")
+-- Ricochet aim preview: the laser is drawn as several beam SEGMENTS that bounce off walls,
+-- so the player can see where a bounced shot will go. One segment per bounce + the final
+-- one. Segment count = max ricochets + 1 (extra ricochet upgrades just refresh the cap).
+local MAX_RICOCHET_SEGMENTS = math.max(1, (tonumber(AimAssistConfig.AimLaserMaxBounces)
+	or tonumber(AimAssistConfig.AimLaserBounces)
+	or 3) + 1)
 
-local startAttachment = Instance.new("Attachment")
-startAttachment.Name = "StartAttachment"
-startAttachment.Parent = startPart
+local segments = {}
 
-local endAttachment = Instance.new("Attachment")
-endAttachment.Name = "EndAttachment"
-endAttachment.Parent = endPart
+local function createSegment()
+	local p0 = createAnchorPart("WOBAimLaserA")
+	local p1 = createAnchorPart("WOBAimLaserB")
+	local a0 = Instance.new("Attachment")
+	a0.Parent = p0
+	local a1 = Instance.new("Attachment")
+	a1.Parent = p1
+	local beam = Instance.new("Beam")
+	beam.Attachment0 = a0
+	beam.Attachment1 = a1
+	beam.Color = ColorSequence.new(AimAssistConfig.AimLaserColor)
+	beam.Transparency = NumberSequence.new(AimAssistConfig.AimLaserTransparency)
+	beam.Width0 = AimAssistConfig.AimLaserWidth
+	beam.Width1 = AimAssistConfig.AimLaserWidth
+	beam.FaceCamera = true
+	beam.LightEmission = 1
+	beam.LightInfluence = 0
+	beam.Enabled = false
+	beam.Parent = p0
+	return { P0 = p0, P1 = p1, Beam = beam }
+end
 
-local beam = Instance.new("Beam")
-beam.Name = "WOBAimLaserBeam"
-beam.Attachment0 = startAttachment
-beam.Attachment1 = endAttachment
-beam.Color = ColorSequence.new(AimAssistConfig.AimLaserColor)
-beam.Transparency = NumberSequence.new(AimAssistConfig.AimLaserTransparency)
-beam.Width0 = AimAssistConfig.AimLaserWidth
-beam.Width1 = AimAssistConfig.AimLaserWidth
-beam.FaceCamera = true
-beam.LightEmission = 1
-beam.LightInfluence = 0
-beam.Enabled = false
-beam.Parent = startPart
+for _ = 1, MAX_RICOCHET_SEGMENTS do
+	table.insert(segments, createSegment())
+end
+
+local function hideAllSegments()
+	for _, seg in ipairs(segments) do
+		seg.Beam.Enabled = false
+	end
+end
 
 local shootPoint = nil
 local barrel = nil
@@ -256,14 +272,10 @@ local function getFlatDirection(muzzlePart)
 	return flatLook.Unit
 end
 
-local function setLaserVisible(isVisible)
-	beam.Enabled = isVisible
-end
-
 local function hideLaser()
 	smoothedStartPosition = nil
 	smoothedEndPosition = nil
-	setLaserVisible(false)
+	hideAllSegments()
 end
 
 local function getVisualSmoothingAlpha(deltaTime)
@@ -339,34 +351,78 @@ local function updateLaser(deltaTime)
 
 	local heightOffset = AimAssistConfig.AimLaserHeightOffset or 0
 	local origin = muzzlePart.Position + Vector3.new(0, heightOffset, 0)
-	local rayOrigin = origin + direction * 1.2
 
 	raycastParams.FilterDescendantsInstances = getLaserMapTargets()
 
-	local result = Workspace:Raycast(
-		rayOrigin,
-		direction * AimAssistConfig.AimLaserMaxDistance,
-		raycastParams
-	)
+	-- Trace the shot, reflecting off walls, drawing one beam segment per leg. Total length
+	-- across all legs is capped at AimLaserMaxDistance so a long bounce chain can't run forever.
+	local maxTotal = AimAssistConfig.AimLaserMaxDistance
+	local remaining = maxTotal
+	local segOrigin = origin + direction * 1.2
+	local segDir = direction
+	local usedSegments = 0
+	local drewAnything = false
 
-	local endPosition = rayOrigin + direction * AimAssistConfig.AimLaserMaxDistance
+	for i = 1, MAX_RICOCHET_SEGMENTS do
+		if remaining <= 1 then
+			break
+		end
 
-	if result ~= nil then
-		endPosition = result.Position
+		local result = Workspace:Raycast(segOrigin, segDir * remaining, raycastParams)
+		local segEnd
+		local hitWall = false
+
+		if result ~= nil then
+			segEnd = result.Position
+			-- Reflect only off walls/obstacles, not off tank hitboxes (those end the trace).
+			local inst = result.Instance
+			local isTank = inst ~= nil and inst:FindFirstAncestor("Hitboxes") ~= nil
+			hitWall = not isTank
+				and (inst:GetAttribute("WOBMovementObstacle") == true or isObstacleName(inst.Name))
+		else
+			segEnd = segOrigin + segDir * remaining
+		end
+
+		local segVec = segEnd - segOrigin
+		if segVec.Magnitude < 0.3 then
+			break
+		end
+
+		local seg = segments[i]
+		-- Smooth each endpoint toward its target for a calmer, less jittery laser.
+		local alpha = getVisualSmoothingAlpha(deltaTime)
+		seg.P0.Position = smoothLaserPoint(seg.P0.Position, segOrigin, deltaTime) or segOrigin
+		seg.P1.Position = smoothLaserPoint(seg.P1.Position, segEnd, deltaTime) or segEnd
+		local _ = alpha
+		seg.Beam.Enabled = true
+		usedSegments = i
+		drewAnything = true
+
+		remaining -= segVec.Magnitude
+
+		if not hitWall then
+			break -- hit a tank or reached max range: stop here
+		end
+
+		-- Reflect the direction off the wall normal and continue from just past the hit.
+		local n = result.Normal
+		local reflected = segDir - 2 * segDir:Dot(n) * n
+		local flat = Vector3.new(reflected.X, 0, reflected.Z)
+		if flat.Magnitude < 0.001 then
+			break
+		end
+		segDir = flat.Unit
+		segOrigin = segEnd + segDir * 0.2
 	end
 
-	if (endPosition - origin).Magnitude < 0.5 then
+	-- Hide unused segments from the pool.
+	for i = usedSegments + 1, MAX_RICOCHET_SEGMENTS do
+		segments[i].Beam.Enabled = false
+	end
+
+	if not drewAnything then
 		hideLaser()
-		return
 	end
-
-	smoothedStartPosition = smoothLaserPoint(smoothedStartPosition, origin, deltaTime)
-	smoothedEndPosition = smoothLaserPoint(smoothedEndPosition, endPosition, deltaTime)
-
-	startPart.Position = smoothedStartPosition
-	endPart.Position = smoothedEndPosition
-
-	setLaserVisible(true)
 end
 
 RunService.RenderStepped:Connect(updateLaser)

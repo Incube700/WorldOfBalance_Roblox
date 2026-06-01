@@ -19,6 +19,25 @@ local fieldOfView = topDownConfig.FieldOfView or 42
 local lookAtOffset = topDownConfig.LookAtOffset or Vector3.new(0, 0, 0)
 local upVector = topDownConfig.UpVector or Vector3.new(0, 0, -1)
 
+-- BattleArena higher-camera preset (arcade arena pass). Resolved from config; falls back to
+-- the TopDown values so a missing/partial preset can never break the default camera.
+local battleArenaCameraConfig = CameraConfig.BattleArena or {}
+local battleArenaHigherCameraEnabled = battleArenaCameraConfig.HigherCameraEnabled == true
+local battleArenaCameraHeight = cameraHeight * (tonumber(battleArenaCameraConfig.HeightMultiplier) or 1)
+local battleArenaFieldOfView = tonumber(battleArenaCameraConfig.FieldOfView) or fieldOfView
+local battleArenaLookAtOffset = typeof(battleArenaCameraConfig.LookAtOffset) == "Vector3" and battleArenaCameraConfig.LookAtOffset or lookAtOffset
+local battleArenaUpVector = typeof(battleArenaCameraConfig.UpVector) == "Vector3" and battleArenaCameraConfig.UpVector or upVector
+
+-- Returns the camera params for the current mode. BattleArena gets the higher preset;
+-- every other mode (Duel/PvP, Training, Lobby) is unchanged.
+local function getActiveCameraParams()
+	if battleArenaHigherCameraEnabled and localPlayer:GetAttribute("PlayerMode") == "InBattleArena" then
+		return battleArenaCameraHeight, battleArenaFieldOfView, battleArenaLookAtOffset, battleArenaUpVector
+	end
+
+	return cameraHeight, fieldOfView, lookAtOffset, upVector
+end
+
 local DEBUG_CAMERA = false
 local ownedTank = nil
 local isFollowing = false
@@ -141,15 +160,16 @@ local function updateCamera()
 	end
 
 	-- Форсируем Scriptable каждый кадр в режиме Playing
+	local activeHeight, activeFieldOfView, activeLookAtOffset, activeUpVector = getActiveCameraParams()
 	camera.CameraType = Enum.CameraType.Scriptable
-	camera.FieldOfView = fieldOfView
-	
+	camera.FieldOfView = activeFieldOfView
+
 	-- Убеждаемся, что фокус установлен
 	camera.CameraSubject = focusPart
 
-	local lookAt = focusPart.Position + lookAtOffset
-	local cameraPosition = lookAt + Vector3.new(0, cameraHeight, 0)
-	camera.CFrame = CFrame.lookAt(cameraPosition, lookAt, upVector)
+	local lookAt = focusPart.Position + activeLookAtOffset
+	local cameraPosition = lookAt + Vector3.new(0, activeHeight, 0)
+	camera.CFrame = CFrame.lookAt(cameraPosition, lookAt, activeUpVector)
 end
 
 -- Следим за добавлением потомков, чтобы быстрее найти танк при спавне/ремонте модели

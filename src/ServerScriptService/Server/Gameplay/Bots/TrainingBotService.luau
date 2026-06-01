@@ -134,6 +134,28 @@ local function getArenaBounds()
 		minZ, maxZ = maxZ, minZ
 	end
 
+	-- ROOT-CAUSE FIX: the configured bounds describe a BOX SIZE, but historically they were
+	-- absolute world coordinates centred on (0,0). That dragged the dummy back to the origin
+	-- box every frame, regardless of where DummySpawn was moved -- making the bot appear in
+	-- the wrong place / behind a wall. Anchor the box on the resolved Training dummy SPAWN
+	-- position so it stays around wherever the dummy actually spawned.
+	local spawnCenter = dummyParticipant ~= nil
+		and dummyParticipant.SpawnTransform ~= nil
+		and dummyParticipant.SpawnTransform.Position
+		or nil
+
+	if typeof(spawnCenter) == "Vector3" then
+		local halfX = (maxX - minX) * 0.5
+		local halfZ = (maxZ - minZ) * 0.5
+
+		return {
+			MinX = spawnCenter.X - halfX,
+			MaxX = spawnCenter.X + halfX,
+			MinZ = spawnCenter.Z - halfZ,
+			MaxZ = spawnCenter.Z + halfZ,
+		}
+	end
+
 	return {
 		MinX = minX,
 		MaxX = maxX,
@@ -545,6 +567,10 @@ local function applyBotMovement(deltaTime)
 	end
 
 	tankSpawnResetService.layoutTank(model, state.Position, state.BodyYaw, state.TurretYaw)
+	-- Movement trail for the bot: smoke only while it's actually driving.
+	if tankSpawnResetService.setTrailActive ~= nil then
+		tankSpawnResetService.setTrailActive(dummyParticipant, math.abs(tonumber(throttle) or 0) > 0.05)
+	end
 
 	return true
 end

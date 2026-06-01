@@ -19,6 +19,12 @@ local AudioCatalog = table.freeze({
 		ButtonClick = "DefaultButtonClick",
 		Win = "DefaultWin",
 		Lose = "DefaultLose",
+		-- Etap 3: per-weapon shot variants (fall back to Shot if their SoundId is empty) and
+		-- a pickup-collected sound.
+		ShotRocket = "RocketShot",
+		ShotMachineGun = "MachineGunShot",
+		ShotRailGun = "RailGunShot",
+		PickupCollect = "DefaultPickupCollect",
 	}),
 
 	Sounds = table.freeze({
@@ -168,6 +174,52 @@ local AudioCatalog = table.freeze({
 			Volume = 0.7,
 			PlaybackSpeed = 1,
 			Is2D = true,
+		}),
+
+		-- Etap 3 additions. SoundId left empty: drop in your rbxassetid to enable. While empty
+		-- the AudioController simply skips them (no error); per-weapon shots fall back to Shot.
+		RocketShot = table.freeze({
+			Category = "ShotRocket",
+			SoundId = "",
+			DisplayName = "Rocket Shot",
+			Volume = 0.75,
+			PlaybackSpeed = 1,
+			RollOffMaxDistance = 150,
+			ThrottleSeconds = 0.05,
+			Is2D = false,
+		}),
+
+		MachineGunShot = table.freeze({
+			Category = "ShotMachineGun",
+			SoundId = "",
+			DisplayName = "Machine Gun Shot",
+			Volume = 0.55,
+			PlaybackSpeed = 1,
+			RollOffMaxDistance = 130,
+			ThrottleSeconds = 0.04,
+			Is2D = false,
+		}),
+
+		RailGunShot = table.freeze({
+			Category = "ShotRailGun",
+			SoundId = "",
+			DisplayName = "Rail Gun Shot",
+			Volume = 0.8,
+			PlaybackSpeed = 1,
+			RollOffMaxDistance = 170,
+			ThrottleSeconds = 0.05,
+			Is2D = false,
+		}),
+
+		DefaultPickupCollect = table.freeze({
+			Category = "PickupCollect",
+			SoundId = "",
+			DisplayName = "Default Pickup Collect",
+			Volume = 0.6,
+			PlaybackSpeed = 1,
+			RollOffMaxDistance = 120,
+			ThrottleSeconds = 0.05,
+			Is2D = false,
 		}),
 	}),
 })

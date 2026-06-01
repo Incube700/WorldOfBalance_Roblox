@@ -51,6 +51,24 @@ UpgradeIconConfig.Icons = table.freeze({
 		FallbackText = "★",
 		FutureOnly = true,
 	}),
+
+	-- Etap 1 new upgrades. No imported PNG yet -> HUD shows the FallbackText letter.
+	-- Drop a PNG into UpgradeIcons/ and set Image = "rbxassetid://..." to use art instead.
+	Lifesteal = table.freeze({
+		Image = "",
+		SourceFile = "src/ReplicatedStorage/Shared/Assets/UI/UpgradeIcons/Lifesteal.png",
+		FallbackText = "♥",
+	}),
+	Piercing = table.freeze({
+		Image = "",
+		SourceFile = "src/ReplicatedStorage/Shared/Assets/UI/UpgradeIcons/Piercing.png",
+		FallbackText = "➹",
+	}),
+	Overcharge = table.freeze({
+		Image = "",
+		SourceFile = "src/ReplicatedStorage/Shared/Assets/UI/UpgradeIcons/Overcharge.png",
+		FallbackText = "⚡",
+	}),
 })
 
 return table.freeze(UpgradeIconConfig)

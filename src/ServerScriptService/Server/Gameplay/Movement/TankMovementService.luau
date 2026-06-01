@@ -10,6 +10,17 @@ local TANK_MOVEMENT_EPSILON = 0.03
 local TANK_UNSTICK_DISTANCE_EPSILON = 0.02
 local OBSTACLE_CACHE_SECONDS = 1
 
+-- BattleArena movement bounds are resolved from the explicitly-tagged BattleArena floor
+-- (Workspace/WOB_Generated/BattleArena/Floor) when an arena session begins, then reset to
+-- the configured world default on leave. NO Map/Duel/Baseplate/first/largest-floor guess.
+local GENERATED_ROOT_NAME = "WOB_Generated"
+local BATTLE_ARENA_CONTAINER_NAME = "BattleArena"
+local BATTLE_ARENA_FLOOR_NAME = "Floor"
+local ARENA_FLOOR_ATTR = "WOBArenaFloor"
+local ARENA_ROLE_ATTR = "WOBArenaRole"
+local BATTLE_ARENA_ROLE = "BattleArena"
+local WORLD_DEFAULT_BOUNDS_SOURCE = "WorldDefault (TankConfig.Movement)"
+
 local boundaryWallNames = {
 	Wall_North = true,
 	Wall_South = true,
@@ -41,6 +52,10 @@ local map = nil
 local body = nil
 local tankModels = {} -- table of models to ignore (playerTank, player2Tank, dummyTank)
 local runtime = nil
+-- Workspace/WOB_Runtime: holds the cloned ActiveArenaLayout (Update 0.2.x). Its walls
+-- live OUTSIDE WOB_Generated, so they must be scanned explicitly to count as movement
+-- obstacles and projectile bounce surfaces.
+local arenaRuntimeRoot = nil
 local tankMovementRaycastParams = nil
 local tankMovementOverlapParams = nil
 local collisionBoxSize = nil
@@ -50,6 +65,13 @@ local worldBoundsMinX = -240
 local worldBoundsMaxX = 240
 local worldBoundsMinZ = -240
 local worldBoundsMaxZ = 240
+-- Captured world default (set in init). resetMovementBoundsToWorldDefault() restores these
+-- so leaving the arena returns clamps to the configured Map/Lobby/Duel field bounds.
+local worldDefaultMinX = -240
+local worldDefaultMaxX = 240
+local worldDefaultMinZ = -240
+local worldDefaultMaxZ = 240
+local movementBoundsSource = WORLD_DEFAULT_BOUNDS_SOURCE
 local debugMovementCollisions = false
 
 local obstaclePartsCache = nil
@@ -63,6 +85,7 @@ function TankMovementService.init(params)
 	body = params.body
 	tankModels = params.tankModels or {}
 	runtime = params.runtime
+	arenaRuntimeRoot = params.arenaRuntimeRoot
 	tankMovementRaycastParams = params.tankMovementRaycastParams
 	tankMovementOverlapParams = params.tankMovementOverlapParams
 	collisionBoxSize = typeof(params.collisionBoxSize) == "Vector3" and params.collisionBoxSize or nil
@@ -74,6 +97,13 @@ function TankMovementService.init(params)
 	worldBoundsMaxZ = tonumber(params.worldBoundsMaxZ) or 240
 	debugMovementCollisions = params.debugCollision == true
 
+	-- Snapshot the configured world default so we can restore it when leaving BattleArena.
+	worldDefaultMinX = worldBoundsMinX
+	worldDefaultMaxX = worldBoundsMaxX
+	worldDefaultMinZ = worldBoundsMinZ
+	worldDefaultMaxZ = worldBoundsMaxZ
+	movementBoundsSource = WORLD_DEFAULT_BOUNDS_SOURCE
+
 	obstaclePartsCache = nil
 	obstaclePartsCacheTime = 0
 
@@ -83,6 +113,19 @@ function TankMovementService.init(params)
 		end)
 
 		root.DescendantRemoving:Connect(function()
+			obstaclePartsCache = nil
+		end)
+	end
+
+	-- The cloned ActiveArenaLayout is added/removed under WOB_Runtime, so invalidate the
+	-- obstacle cache on its descendant changes too -- otherwise newly-loaded maze walls
+	-- would not become movement obstacles / bounce surfaces until the 1s cache expired.
+	if arenaRuntimeRoot ~= nil then
+		arenaRuntimeRoot.DescendantAdded:Connect(function()
+			obstaclePartsCache = nil
+		end)
+
+		arenaRuntimeRoot.DescendantRemoving:Connect(function()
 			obstaclePartsCache = nil
 		end)
 	end
@@ -160,6 +203,16 @@ local function collectMovementObstacleRoots()
 			warnOnce("missingLobby", "[MOVEMENT] Workspace/WOB_Generated/Lobby not found; lobby railings cannot block tanks.")
 		elseif lobby:FindFirstChild("Railings") == nil then
 			warnOnce("missingLobbyRailings", "[MOVEMENT] Workspace/WOB_Generated/Lobby/Railings not found; lobby containment may be incomplete.")
+		end
+	end
+
+	-- Update 0.2.x: the cloned arena layout (walls / cover) lives under
+	-- WOB_Runtime/ArenaMode/ActiveArenaLayout (Duel-safe single subtree).
+	if arenaRuntimeRoot ~= nil then
+		local arenaMode = arenaRuntimeRoot:FindFirstChild("ArenaMode")
+		local activeLayout = arenaMode ~= nil and arenaMode:FindFirstChild("ActiveArenaLayout") or nil
+		if activeLayout ~= nil then
+			addSearchRoot(activeLayout)
 		end
 	end
 
@@ -464,6 +517,77 @@ function TankMovementService.clampTankPosition(position)
 		position.Y,
 		math.clamp(position.Z, worldBoundsMinZ, worldBoundsMaxZ)
 	)
+end
+
+-- Returns the active movement bounds (for diagnostics / tests).
+function TankMovementService.getMovementBounds()
+	return {
+		Source = movementBoundsSource,
+		MinX = worldBoundsMinX,
+		MaxX = worldBoundsMaxX,
+		MinZ = worldBoundsMinZ,
+		MaxZ = worldBoundsMaxZ,
+	}
+end
+
+-- Restore the configured world-default movement bounds (Map/Lobby/Duel field). Called when
+-- a BattleArena session ends so the clamp is no longer the arena-specific box.
+function TankMovementService.resetMovementBoundsToWorldDefault()
+	worldBoundsMinX = worldDefaultMinX
+	worldBoundsMaxX = worldDefaultMaxX
+	worldBoundsMinZ = worldDefaultMinZ
+	worldBoundsMaxZ = worldDefaultMaxZ
+	movementBoundsSource = WORLD_DEFAULT_BOUNDS_SOURCE
+
+	print(("[MOVEMENT BOUNDS] reset to world default source=%s minX=%.1f maxX=%.1f minZ=%.1f maxZ=%.1f"):format(
+		movementBoundsSource, worldBoundsMinX, worldBoundsMaxX, worldBoundsMinZ, worldBoundsMaxZ))
+end
+
+-- Resolve the BattleArena movement clamp from the EXPLICIT, correctly-tagged BattleArena
+-- floor only: Workspace/WOB_Generated/BattleArena/Floor with WOBArenaFloor==true AND
+-- WOBArenaRole=="BattleArena". No Map/Duel/Baseplate/first/largest/cached fallback. If the
+-- floor is missing or mis-tagged, the bounds are left UNCHANGED and we warn (never guess).
+function TankMovementService.applyBattleArenaMovementBounds()
+	local generatedRoot = Workspace:FindFirstChild(GENERATED_ROOT_NAME)
+	local container = generatedRoot ~= nil and generatedRoot:FindFirstChild(BATTLE_ARENA_CONTAINER_NAME) or nil
+	local floor = container ~= nil and container:FindFirstChild(BATTLE_ARENA_FLOOR_NAME) or nil
+
+	if floor == nil or not floor:IsA("BasePart") then
+		warn(("[MOVEMENT BOUNDS] BattleArena floor Workspace/%s/%s/%s not found as a BasePart; movement bounds unchanged (not guessing)."):format(
+			GENERATED_ROOT_NAME, BATTLE_ARENA_CONTAINER_NAME, BATTLE_ARENA_FLOOR_NAME))
+		return false
+	end
+
+	local floorTag = floor:GetAttribute(ARENA_FLOOR_ATTR)
+	local roleTag = floor:GetAttribute(ARENA_ROLE_ATTR)
+
+	if floorTag ~= true or roleTag ~= BATTLE_ARENA_ROLE then
+		warn(("[MOVEMENT BOUNDS] %s is not a correctly tagged BattleArena bounds part (WOBArenaFloor=%s, WOBArenaRole=%s; expected true / \"BattleArena\"); movement bounds unchanged (not guessing)."):format(
+			floor:GetFullName(), tostring(floorTag), tostring(roleTag)))
+		return false
+	end
+
+	local pos = floor.Position
+	local size = floor.Size
+	local halfX = size.X * 0.5
+	local halfZ = size.Z * 0.5
+
+	worldBoundsMinX = pos.X - halfX
+	worldBoundsMaxX = pos.X + halfX
+	worldBoundsMinZ = pos.Z - halfZ
+	worldBoundsMaxZ = pos.Z + halfZ
+	movementBoundsSource = floor:GetFullName()
+
+	print(("[MOVEMENT BOUNDS] BattleArena start: source=%s size=%s position=%s minX=%.1f maxX=%.1f minZ=%.1f maxZ=%.1f"):format(
+		movementBoundsSource,
+		formatVector3(size),
+		formatVector3(pos),
+		worldBoundsMinX,
+		worldBoundsMaxX,
+		worldBoundsMinZ,
+		worldBoundsMaxZ))
+
+	return true
 end
 
 function TankMovementService.resolveTankMovement(fromPosition, bodyYaw, desiredMove)

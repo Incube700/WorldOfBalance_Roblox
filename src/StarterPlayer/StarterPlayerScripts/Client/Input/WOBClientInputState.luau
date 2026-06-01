@@ -50,6 +50,13 @@ function WOBClientInputState.getMobileAimWorldPoint()
 	return mobileAimWorldPoint
 end
 
+-- Clears any latched aim point so the input controller falls back to the tank BODY forward
+-- vector (getForwardAimPosition). Used by the BattleArena arcade preset: shooting direction
+-- is the tank forward/body direction, never a separate turret/aim point.
+function WOBClientInputState.clearMobileAimWorldPoint()
+	mobileAimWorldPoint = nil
+end
+
 function WOBClientInputState.requestMobileShoot(aimWorldPoint)
 	if typeof(aimWorldPoint) == "Vector3" then
 		mobileAimWorldPoint = aimWorldPoint

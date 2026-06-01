@@ -17,13 +17,23 @@ local function getYawFromLookVector(lookVector)
 	return math.atan2(-unit.X, -unit.Z)
 end
 
-local function makeSpawnTransform(position, yaw, source)
+local function makeSpawnTransform(position, yaw, source, sourcePath)
 	return {
 		Position = position,
 		BodyYaw = yaw,
 		TurretYaw = yaw,
 		Source = source,
+		SourcePath = sourcePath,
 	}
+end
+
+-- A part is a valid BattleArena bot spawn ONLY if it lives in BattleArena/SpawnPoints and
+-- matches an explicit arena spawn name. ArenaSpawn* is the established name; BotSpawn* /
+-- ArenaBotSpawn* are accepted so a dedicated bot spawn can be authored without code changes.
+local function isArenaSpawnName(name)
+	return string.match(name, "^ArenaSpawn%d+$") ~= nil
+		or string.match(name, "^BotSpawn%d+$") ~= nil
+		or string.match(name, "^ArenaBotSpawn%d+$") ~= nil
 end
 
 function BotSpawnPlanner.new(root)
@@ -44,7 +54,7 @@ function BotSpawnPlanner:_getArenaSpawnParts()
 
 	if spawnFolder ~= nil then
 		for _, child in ipairs(spawnFolder:GetChildren()) do
-			if child:IsA("BasePart") and string.match(child.Name, "^ArenaSpawn%d+$") ~= nil then
+			if child:IsA("BasePart") and isArenaSpawnName(child.Name) then
 				table.insert(spawnParts, child)
 			end
 		end
@@ -57,29 +67,25 @@ function BotSpawnPlanner:_getArenaSpawnParts()
 	return spawnParts
 end
 
+-- Last-resort fallback ONLY: the centre of the BattleArena floor. Never the Duel area,
+-- never SafeArenaCenter guesswork. Used solely when no BattleArena spawn parts exist.
 function BotSpawnPlanner:_getFallbackTransform()
 	local arena = self:_getArenaFolder()
-	local arenaCenter = arena ~= nil and arena:GetAttribute("ArenaCenter") or nil
-	local halfSize = arena ~= nil and arena:GetAttribute("ArenaHalfSize") or nil
+	local floor = arena ~= nil and arena:FindFirstChild("Floor") or nil
 
-	if typeof(arenaCenter) ~= "Vector3" then
-		arenaCenter = BattleArenaConfig.SafeArenaCenter or Vector3.new(-340, 0, 320)
+	local center
+	if floor ~= nil and floor:IsA("BasePart") then
+		center = Vector3.new(floor.Position.X, floor.Position.Y + floor.Size.Y * 0.5 + 3, floor.Position.Z)
+		warn(("[ARENA SPAWN] No BattleArena spawn parts found in %s; using BattleArena floor centre %s as last-resort fallback."):format(
+			arena ~= nil and arena:GetFullName() or "Workspace.WOB_Generated.BattleArena (missing)",
+			tostring(center)))
+	else
+		-- No arena floor either: refuse to guess near Duel. Park at origin and warn loudly.
+		center = Vector3.new(0, 5, 0)
+		warn("[ARENA SPAWN] No BattleArena spawn parts AND no BattleArena/Floor found; cannot place arena bot safely. Parking at origin. Author Workspace.WOB_Generated.BattleArena.SpawnPoints.ArenaSpawn1.")
 	end
 
-	if typeof(halfSize) ~= "number" then
-		halfSize = 80
-	end
-
-	local spawnCount = math.max(1, tonumber(BattleArenaConfig.SpawnPointCount) or 8)
-	local index = self.NextSpawnIndex
-	self.NextSpawnIndex += 1
-
-	local angle = (math.pi * 2) * (((index - 1) % spawnCount) / spawnCount)
-	local radius = math.max(30, halfSize * 0.6)
-	local position = arenaCenter + Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
-	local yaw = getYawFromLookVector((arenaCenter - position).Unit)
-
-	return makeSpawnTransform(position, yaw, "ArenaBotFallback")
+	return makeSpawnTransform(center, 0, "ArenaBotFloorCentreFallback", "<fallback: BattleArena floor centre>")
 end
 
 function BotSpawnPlanner:GetNextSpawnTransform()
@@ -95,7 +101,8 @@ function BotSpawnPlanner:GetNextSpawnTransform()
 	return makeSpawnTransform(
 		spawnPart.Position,
 		getYawFromLookVector(spawnPart.CFrame.LookVector),
-		"ArenaBot:" .. spawnPart.Name
+		"ArenaBot:" .. spawnPart.Name,
+		spawnPart:GetFullName()
 	)
 end
 

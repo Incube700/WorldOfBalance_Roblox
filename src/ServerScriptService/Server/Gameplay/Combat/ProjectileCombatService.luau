@@ -209,6 +209,84 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 		return true
 	end
 
+	-- Phase Shot (PierceEnemies, Update 0.2): apply flat damage but keep flying so
+	-- the shell passes through the enemy. A short per-tank cooldown stops a single
+	-- shot from multi-hitting the same tank while it is inside the hitbox. After
+	-- the configured pierce limit is exhausted (PierceEnemyLimit), the shell
+	-- destroys on the next enemy hit instead of passing through. This branch is
+	-- fully skipped for the default cannon (PierceEnemies is nil/false), so default
+	-- ricochet behavior is unchanged.
+	if projectile.PierceEnemies == true and projectile.NoDamage ~= true then
+		local canPierceDamage = canDamageParticipant == nil
+			or canDamageParticipant(projectile, targetParticipant) == true
+
+		if canPierceDamage and damageParticipant ~= nil then
+			local now = os.clock()
+			local tankId = targetParticipant.TankId
+			projectile.PierceHitTimes = projectile.PierceHitTimes or {}
+
+			if (projectile.PierceHitTimes[tankId] or 0) <= now then
+				projectile.PierceHitTimes[tankId] = now + (projectile.PierceHitCooldownSeconds or 0.3)
+				projectile.LastHitResult = ProjectileHitResult.TankPenetration
+
+				if projectile.NoStats ~= true then
+					MatchStatsService.recordProjectileTankHitStats(projectile)
+				end
+
+				-- Armor matters for pierce too (anti-cheese): the shell does NOT deal flat full
+				-- damage through the front plate. Run the same armor resolver as normal hits, so
+				-- thick/angled armor cuts the pierce damage (or blocks it as a NoPen graze).
+				local pierceArmorHit = ArmorHitResolver.ResolveHit({
+					TankModel = getParticipantModel(targetParticipant),
+					BodyPart = targetParticipant.Body,
+					HitPosition = hitPosition,
+					ProjectileDirection = projectile.Direction,
+					BaseDamage = projectile.Damage,
+					PenetrationPower = projectile.PenetrationPower or projectile.Penetration,
+					ArmorZoneHint = armorZone,
+					-- Piercing ADDS to penetration power (so it crosses the armor threshold,
+					-- e.g. can pen the front plate), but armor still subtracts from damage.
+					PenetrationBonus = projectile.PenetrationBonus or 0,
+					MinDamageFloor = projectile.PierceDamageFloor or 0,
+				})
+				local pierceDamage = math.max(0, tonumber(pierceArmorHit.FinalDamage) or 0)
+
+				if createDamageHitVfx ~= nil then
+					createDamageHitVfx(hitPosition, pierceArmorHit.NormalWorld or hitNormal)
+				end
+
+				sendCombatFeedback(
+					"Damage",
+					hitPosition,
+					"-" .. math.floor(pierceDamage),
+					getFeedbackConfig().DamageColor or Color3.fromRGB(255, 105, 75),
+					getFeedbackOptions()
+				)
+
+				if pierceDamage > 0
+					and damageParticipant(targetParticipant, pierceDamage, projectile)
+					and projectile.NoStats ~= true
+				then
+					MatchStatsService.recordProjectileDamageStats(projectile, targetParticipant, pierceDamage)
+				end
+
+				-- Pierce-limit: each NEW enemy (cooldown gate passed) consumes one
+				-- pierce. When exhausted, destroy on this hit instead of passing
+				-- through.
+				if projectile.PierceEnemyLeft ~= nil then
+					projectile.PierceEnemyLeft -= 1
+
+					if projectile.PierceEnemyLeft <= 0 then
+						destroyProjectile(projectile)
+						return true
+					end
+				end
+			end
+		end
+
+		return false -- keep flying through the enemy
+	end
+
 	local canDamageTarget = projectile.NoDamage ~= true
 		and (canDamageParticipant == nil or canDamageParticipant(projectile, targetParticipant) == true)
 
@@ -274,6 +352,8 @@ function ProjectileCombatService.handleProjectileTankHit(projectile, targetParti
 		ProjectileDirection = projectile.Direction,
 		BaseDamage = projectile.Damage,
 		PenetrationPower = projectile.PenetrationPower or projectile.Penetration,
+		PenetrationBonus = projectile.PenetrationBonus or 0,
+		MinDamageFloor = projectile.PierceDamageFloor or 0,
 		ArmorZoneHint = armorZone,
 	})
 	local armorNormal = armorHit.NormalWorld or hitNormal
