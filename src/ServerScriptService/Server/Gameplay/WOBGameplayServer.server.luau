@@ -41,7 +41,6 @@ local TankRole = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankR
 local TankStatsProfile = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankStatsProfile"))
 local TankTemplateProvider = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankTemplateProvider"))
 local TankStatsProvider = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankStatsProvider"))
-local TankCustomizationService = require(script.Parent:WaitForChild("Tanks"):WaitForChild("TankCustomizationService"))
 local PlayerPossessionService = require(script.Parent:WaitForChild("Players"):WaitForChild("PlayerPossessionService"))
 local LobbyService = require(script.Parent:WaitForChild("Lobby"):WaitForChild("LobbyService"))
 local ArenaCombatService = require(script.Parent:WaitForChild("Arena"):WaitForChild("ArenaCombatService"))
@@ -776,7 +775,12 @@ local function explodeProjectile(projectile, position)
 	end
 
 	local vfxHelpers = ProjectileService.getVFXHelpers()
-	vfxHelpers.createDeathExplosion(position)
+	-- Rockets get their own detonation FX (falls back to the generic explosion if unset).
+	if vfxHelpers.createRocketExplosion ~= nil then
+		vfxHelpers.createRocketExplosion(position)
+	else
+		vfxHelpers.createDeathExplosion(position)
+	end
 	sendCombatFeedbackPayload("Explosion", position, "", Color3.fromRGB(255, 150, 60), true)
 
 	local radius = math.max(1, tonumber(projectile.ExplosionRadius) or 0)
@@ -920,7 +924,16 @@ AchievementService.init({
 })
 
 -- Etap 5: global winner podiums in the lobby (Arena Champion / Duel King).
-WinnerPodiumService.init()
+WinnerPodiumService.init({
+	-- Clone the base tank model for the winner display on the podium.
+	getTankTemplate = function()
+		local template = tankTemplateProvider:GetBaseTankTemplate()
+		return template
+	end,
+	applySkin = function(model, skinId)
+		TankCustomizationService.applySkin(model, skinId)
+	end,
+})
 
 -- Shop: buy/equip tank skins with Bolts.
 CosmeticShopService.init({
@@ -935,9 +948,10 @@ CosmeticShopService.init({
 	end,
 	applySkinToCurrentTank = function(player, skinId)
 		local participant = PlayerPossessionService.getPlayerParticipantByPlayer(player)
-		local model = participant ~= nil and TankParticipantRegistry.getParticipantPhysicalModel(participant) or nil
-		if model ~= nil then
-			TankCustomizationService.applySkin(model, skinId)
+		if participant ~= nil then
+			participant.Loadout = participant.Loadout or {}
+			participant.Loadout.SkinId = skinId
+			TankSpawnResetService.applyParticipantSkin(participant)
 		end
 	end,
 })
@@ -1012,7 +1026,7 @@ RoundMatchService.init(root, {
 				local player = participant ~= nil and participant.OwnerPlayer or nil
 				if player ~= nil and not counted[player.UserId] then
 					counted[player.UserId] = true
-					WinnerPodiumService.submitDuelCompletion(player.Name)
+					WinnerPodiumService.submitDuelCompletion(player.Name, CosmeticShopService.getEquippedSkin(player))
 				end
 			end
 		end
@@ -1089,7 +1103,7 @@ ArenaCombatService.init({
 	onArenaLevel = function(player, level)
 		AchievementService.onArenaLevel(player, level)
 		-- Etap 5: submit to the global Arena Champion podium (record = highest level).
-		WinnerPodiumService.submit("Arena", player.Name, level)
+		WinnerPodiumService.submit("Arena", player.Name, level, CosmeticShopService.getEquippedSkin(player))
 	end,
 })
 

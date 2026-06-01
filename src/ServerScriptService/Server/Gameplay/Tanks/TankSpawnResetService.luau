@@ -8,6 +8,8 @@ local TankConfig = require(configs:WaitForChild("TankConfig"))
 
 local TankParticipantRegistry = require(script.Parent.Parent:WaitForChild("TankParticipantRegistry"))
 local TankArmorPartsService = require(script.Parent:WaitForChild("TankArmorPartsService"))
+local TankCustomizationService = require(script.Parent:WaitForChild("TankCustomizationService"))
+local TankSkinApplier = require(script.Parent:WaitForChild("TankSkinApplier"))
 local TankRole = require(script.Parent:WaitForChild("TankRole"))
 -- Update 0.2: clear any temporary pickup weapon when a tank respawns/resets.
 local TemporaryWeaponService = require(script.Parent.Parent:WaitForChild("Weapons"):WaitForChild("TemporaryWeaponService"))
@@ -424,6 +426,37 @@ function TankSpawnResetService.restoreAllTankColors()
 	end
 end
 
+function TankSpawnResetService.applyParticipantSkin(participant)
+	if participant == nil then
+		return
+	end
+
+	local model = TankParticipantRegistry.getParticipantPhysicalModel(participant) or participant.Model
+
+	if model == nil then
+		return
+	end
+
+	local loadout = participant.Loadout
+	local skinId = nil
+
+	if typeof(loadout) == "table" then
+		skinId = loadout.SkinId
+	end
+
+	if skinId == nil then
+		skinId = model:GetAttribute("LoadoutSkinId") or model:GetAttribute("SkinId")
+	end
+
+	if skinId == nil then
+		return
+	end
+
+	TankCustomizationService.applySkin(model, skinId)
+	TankSkinApplier.Apply(model, { SkinId = skinId })
+	model:SetAttribute("LoadoutSkinId", model:GetAttribute("SkinId") or skinId)
+end
+
 function TankSpawnResetService.darkenTank(model)
 	for _, descendant in ipairs(model:GetDescendants()) do
 		if descendant:IsA("BasePart") then
@@ -570,6 +603,7 @@ function TankSpawnResetService.applySpawnToParticipant(participant, spawnState)
 	TemporaryWeaponService.resetParticipant(participant, "Respawn")
 
 	TankSpawnResetService.layoutTank(participant.Model, spawnState.Position, spawnState.BodyYaw, spawnState.TurretYaw)
+	TankSpawnResetService.applyParticipantSkin(participant)
 	TankSpawnResetService.ensureMovementTrail(participant)
 
 	-- Diagnostic trace for the Training dummy ONLY (no spam: fires per placement, plus one

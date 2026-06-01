@@ -86,8 +86,6 @@ local function getDesiredBotCount()
 		return 0
 	end
 
-	local battleArenaConfig = BotConfig.BattleArena or {}
-	local loopBotConfig = BattleArenaLoopConfig.Enabled == true and BattleArenaLoopConfig.Bots or {}
 	local playerCount = arenaCombatService.GetActivePlayerCount ~= nil
 		and arenaCombatService.GetActivePlayerCount()
 		or 0
@@ -96,23 +94,11 @@ local function getDesiredBotCount()
 		return 0
 	end
 
-	if loopBotConfig.MaintainMinBots == true then
-		local minBots = playerCount <= 1
-			and math.max(0, math.floor(tonumber(loopBotConfig.MinBotsSolo) or 0))
-			or math.max(0, math.floor(tonumber(loopBotConfig.MinBotsWithPlayers) or 0))
+	-- Bot count scales DOWN as live players go up so the arena always feels ~4 tanks:
+	--   1 player -> 3 bots, 2 -> 2, 3 -> 1, 4+ -> 0. Clamped to the configured bot limit.
+	local desired = math.max(0, 4 - playerCount)
 
-		return math.min(minBots, getConfiguredBotLimit())
-	end
-
-	local spawnThreshold = math.max(1, math.floor(tonumber(battleArenaConfig.SpawnWhenPlayerCountLessThan) or 2))
-
-	if playerCount >= spawnThreshold then
-		return 0
-	end
-
-	local minBots = math.max(0, math.floor(tonumber(battleArenaConfig.MinBots) or 0))
-
-	return math.min(minBots, getConfiguredBotLimit())
+	return math.min(desired, getConfiguredBotLimit())
 end
 
 local function getActiveBotRecords()

@@ -29,6 +29,7 @@ local PODIUMS = {
 local storesByBoard = {}
 local recordByBoard = { Arena = { Name = "—", Value = 0 }, Duel = { Name = "—", Value = 0 } }
 local warnedNoStore = false
+local deps = {}
 
 local function getStore(board)
 	if storesByBoard[board] ~= nil then
@@ -72,6 +73,88 @@ local function findPodiumPart(partName)
 		end
 	end
 	return nil
+end
+
+-- Finds the model that owns/contains the podium part (so we can place the display tank
+-- on its TankAnchor and store the display tank inside it).
+local function findPodiumModel(partName)
+	local part = findPodiumPart(partName)
+	if part == nil then
+		return nil
+	end
+	return part:FindFirstAncestorWhichIsA("Model") or part.Parent
+end
+
+-- Places a non-interactive display tank on the podium showing the winner's tank + skin.
+-- Rebuilds only when the displayed winner changed, so it doesn't churn every frame.
+local function refreshPodiumTank(board)
+	if deps.getTankTemplate == nil then
+		return -- display tank disabled (no template provider wired)
+	end
+
+	local container = findPodiumModel(PODIUMS[board].PartName)
+	if container == nil then
+		return
+	end
+
+	local anchor = container:FindFirstChild("TankAnchor", true)
+	if anchor == nil or not anchor:IsA("BasePart") then
+		return
+	end
+
+	local record = recordByBoard[board]
+	local key = (record.Name or "—") .. "|" .. tostring(record.SkinId or "")
+
+	-- Skip if the same winner/skin is already shown.
+	local existing = container:FindFirstChild("WinnerDisplayTank")
+	if existing ~= nil and existing:GetAttribute("DisplayKey") == key then
+		return
+	end
+	if existing ~= nil then
+		existing:Destroy()
+	end
+
+	-- No real winner yet: leave the podium empty.
+	if record.Name == nil or record.Name == "—" then
+		return
+	end
+
+	local template = deps.getTankTemplate()
+	if template == nil then
+		return
+	end
+
+	local clone = template:Clone()
+	clone.Name = "WinnerDisplayTank"
+	clone:SetAttribute("DisplayKey", key)
+
+	-- Strip anything that could make it act like a live tank (scripts, hitbox queries).
+	for _, d in ipairs(clone:GetDescendants()) do
+		if d:IsA("Script") or d:IsA("LocalScript") then
+			d:Destroy()
+		elseif d:IsA("BasePart") then
+			d.Anchored = true
+			d.CanCollide = false
+			d.CanQuery = false
+			d.CanTouch = false
+		end
+	end
+
+	-- Apply the winner's skin if we can.
+	if deps.applySkin ~= nil and record.SkinId ~= nil then
+		pcall(function()
+			deps.applySkin(clone, record.SkinId)
+		end)
+	end
+
+	clone.Parent = container
+	-- Sit it on the anchor, slightly raised, facing outward.
+	local ok = pcall(function()
+		clone:PivotTo(anchor.CFrame * CFrame.new(0, 2.5, 0))
+	end)
+	if not ok then
+		clone:Destroy()
+	end
 end
 
 -- Builds / refreshes the floating nameplate above a podium part. Display only.
@@ -132,6 +215,8 @@ local function refreshPodiumPlate(board)
 	gui.WinnerValue.Text = board == "Arena"
 		and ("Level " .. tostring(record.Value or 0))
 		or (tostring(record.Value or 0) .. " duels")
+
+	refreshPodiumTank(board)
 end
 
 local function loadRecord(board)
@@ -157,35 +242,37 @@ end
 -- Duel King counts COMPLETED DUELS (not kills). We keep the running total per player in the
 -- same OrderedDataStore (keyed by name): each completed duel does +1 via UpdateAsync, then we
 -- refresh the podium if it beats the shown record. Returns the new total (or nil on failure).
-function WinnerPodiumService.submitDuelCompletion(playerName)
+function WinnerPodiumService.submitDuelCompletion(playerName, skinId)
 	if typeof(playerName) ~= "string" or playerName == "" then
 		return nil
 	end
+	-- Local running tally so the podium works even without DataStore (Studio / unpublished).
+	local localTotal = (recordByBoard.Duel.Name == playerName and (recordByBoard.Duel.Value or 0) or 0) + 1
+
 	local store = getStore("Duel")
-	if store == nil then
-		return nil
-	end
-
-	local newTotal = nil
-	local ok = pcall(function()
-		newTotal = store:UpdateAsync(playerName, function(old)
-			return (tonumber(old) or 0) + 1
+	local newTotal = localTotal
+	if store ~= nil then
+		local ok, stored = pcall(function()
+			return store:UpdateAsync(playerName, function(old)
+				return (tonumber(old) or 0) + 1
+			end)
 		end)
-	end)
-	if not ok then
-		return nil
+		if ok and tonumber(stored) ~= nil then
+			newTotal = tonumber(stored)
+		end
 	end
 
-	newTotal = tonumber(newTotal) or 0
+	-- Update the podium even if DataStore is down (in-memory record).
 	if newTotal > (recordByBoard.Duel.Value or 0) then
-		recordByBoard.Duel = { Name = playerName, Value = newTotal }
+		recordByBoard.Duel = { Name = playerName, Value = newTotal, SkinId = skinId }
 		refreshPodiumPlate("Duel")
 	end
 	return newTotal
 end
 
 -- Submits a candidate record for a player. board = "Arena" | "Duel".
-function WinnerPodiumService.submit(board, playerName, value)
+-- skinId (optional) is shown on the podium's display tank.
+function WinnerPodiumService.submit(board, playerName, value, skinId)
 	if PODIUMS[board] == nil or typeof(playerName) ~= "string" or playerName == "" then
 		return
 	end
@@ -194,27 +281,29 @@ function WinnerPodiumService.submit(board, playerName, value)
 		return
 	end
 
+	-- Persist the MAX to OrderedDataStore when available (published place). When DataStore is
+	-- down (Studio/unpublished) we still update the local podium so it works in-session.
 	local store = getStore(board)
-	if store == nil then
-		return
-	end
-
-	-- OrderedDataStore keeps the MAX via UpdateAsync (only raise the player's stored value).
-	pcall(function()
-		store:UpdateAsync(playerName, function(old)
-			old = tonumber(old) or 0
-			return math.max(old, value)
+	if store ~= nil then
+		pcall(function()
+			store:UpdateAsync(playerName, function(old)
+				old = tonumber(old) or 0
+				return math.max(old, value)
+			end)
 		end)
-	end)
+	end
 
 	-- Update the local podium if this beats the shown record.
 	if value > (recordByBoard[board].Value or 0) then
-		recordByBoard[board] = { Name = playerName, Value = value }
+		recordByBoard[board] = { Name = playerName, Value = value, SkinId = skinId }
 		refreshPodiumPlate(board)
 	end
 end
 
-function WinnerPodiumService.init()
+-- options.getTankTemplate() -> a Model to clone for the display tank (e.g. BaseTankTemplate)
+-- options.applySkin(model, skinId) -> applies a skin to the cloned display tank
+function WinnerPodiumService.init(options)
+	deps = options or {}
 	-- Initial read for both boards (deferred so the lobby has loaded).
 	task.spawn(function()
 		for board in pairs(PODIUMS) do

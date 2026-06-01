@@ -54,6 +54,9 @@ local WorldHealthBarsConfig = {
 		"ReloadProgress",
 		"ReloadReady",
 		"OwnerDisplayName",
+		"OwnerUserId",
+		"IsBot",
+		"TankRole",
 	},
 }
 

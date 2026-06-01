@@ -11,25 +11,10 @@ local localPlayer = Players.LocalPlayer
 local root = Workspace:WaitForChild("WOB_Generated")
 local testObjects = root:WaitForChild("TestObjects")
 
-local FRIENDLY_BODY_COLOR = Color3.fromRGB(55, 185, 255)
-local FRIENDLY_TURRET_COLOR = Color3.fromRGB(80, 220, 160)
-local ENEMY_BODY_COLOR = Color3.fromRGB(230, 65, 70)
-local ENEMY_TURRET_COLOR = Color3.fromRGB(255, 105, 80)
-local DEAD_COLOR = Color3.fromRGB(30, 30, 30)
+local TEAM_HIGHLIGHT_NAME = "WOBTeamReadabilityHighlight"
+local FRIENDLY_OUTLINE_COLOR = Color3.fromRGB(85, 215, 255)
+local ENEMY_OUTLINE_COLOR = Color3.fromRGB(255, 82, 82)
 local DEBUG_VISUALS = false
-
-local VISUAL_PART_NAMES = {
-	Body = true,
-	Turret = true,
-	Barrel = true,
-}
-
-local ARMOR_HITBOX_NAMES = {
-	FrontArmor = true,
-	RearArmor = true,
-	LeftArmor = true,
-	RightArmor = true,
-}
 
 local loggedOwnedTankId = nil
 local elapsedSinceRefresh = 0
@@ -44,11 +29,7 @@ local function isVisualTankModel(model)
 		or model:GetAttribute("IsBot") == true
 end
 
-local function getTankColors(model)
-	if model:GetAttribute("IsDead") == true then
-		return DEAD_COLOR, DEAD_COLOR
-	end
-
+local function isLocalPlayerTank(model)
 	if model:GetAttribute("IsPlayerTank") == true
 		and model:GetAttribute("OwnerUserId") == localPlayer.UserId
 	then
@@ -59,31 +40,48 @@ local function getTankColors(model)
 			print("[PVP] local owned tank found: " .. tostring(tankId))
 		end
 
-		return FRIENDLY_BODY_COLOR, FRIENDLY_TURRET_COLOR
+		return true
 	end
 
-	return ENEMY_BODY_COLOR, ENEMY_TURRET_COLOR
+	return false
 end
 
-local function colorTank(model)
+local function ensureTeamHighlight(model)
 	if not isVisualTankModel(model) then
 		return
 	end
 
-	local bodyColor, turretColor = getTankColors(model)
+	local highlight = model:FindFirstChild(TEAM_HIGHLIGHT_NAME)
 
-	for _, descendant in ipairs(model:GetDescendants()) do
-		if descendant:IsA("BasePart")
-			and VISUAL_PART_NAMES[descendant.Name] == true
-			and ARMOR_HITBOX_NAMES[descendant.Name] ~= true
-		then
-			if descendant.Name == "Body" then
-				descendant.Color = bodyColor
-			else
-				descendant.Color = turretColor
-			end
-		end
+	if highlight == nil then
+		highlight = Instance.new("Highlight")
+		highlight.Name = TEAM_HIGHLIGHT_NAME
+		highlight.Adornee = model
+		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		highlight.FillTransparency = 1
+		highlight.Parent = model
+	elseif not highlight:IsA("Highlight") then
+		return
 	end
+
+	local isDead = model:GetAttribute("IsDead") == true
+		or model:GetAttribute("IsAlive") == false
+	local isActive = model:GetAttribute("IsActive") ~= false
+
+	highlight.Enabled = isActive and not isDead
+	highlight.OutlineColor = isLocalPlayerTank(model) and FRIENDLY_OUTLINE_COLOR or ENEMY_OUTLINE_COLOR
+	highlight.OutlineTransparency = isLocalPlayerTank(model) and 0.35 or 0.08
+	highlight.FillTransparency = 1
+end
+
+local function refreshTank(model)
+	if not isVisualTankModel(model) then
+		return
+	end
+
+	-- Do not recolor Body/Turret/Barrel here: tank color is now player cosmetic state
+	-- from the shop. This client-only layer keeps team readability separate from skins.
+	ensureTeamHighlight(model)
 end
 
 local function colorAllTanks()
@@ -95,7 +93,7 @@ local function colorAllTanks()
 
 			if colored[tankModel] ~= true then
 				colored[tankModel] = true
-				colorTank(tankModel)
+				refreshTank(tankModel)
 			end
 		end
 	end

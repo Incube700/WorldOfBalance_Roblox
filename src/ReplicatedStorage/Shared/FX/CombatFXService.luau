@@ -803,6 +803,82 @@ local function playClone(effectKey, template, effectDefinition, cframe, options)
 	return mounted, removedScripts, stoppedSounds, scaleApplied, stats, lifetime, sourceCFrame, finalCFrame, delta
 end
 
+-- Colors for the procedural fallback puff, by effect key (sensible per-effect tint).
+local PROCEDURAL_COLORS = {
+	Repair = Color3.fromRGB(90, 235, 140),
+	UpgradeSelect = Color3.fromRGB(250, 215, 110),
+	LevelUp = Color3.fromRGB(255, 235, 120),
+	ReflectShield = Color3.fromRGB(120, 200, 255),
+	RailGunShot = Color3.fromRGB(120, 220, 255),
+	RocketShot = Color3.fromRGB(255, 150, 70),
+	RocketExplosion = Color3.fromRGB(255, 130, 50),
+}
+
+-- Spawns a short particle puff when no authored template exists for an effect, so the event
+-- still reads on screen. Anchored, no scripts, auto-cleaned. Returns the holder part.
+function CombatFXService.PlayProceduralBurst(effectKey, positionOrCFrame, options)
+	options = options or {}
+	local position
+	if typeof(positionOrCFrame) == "CFrame" then
+		position = positionOrCFrame.Position
+	elseif typeof(positionOrCFrame) == "Vector3" then
+		position = positionOrCFrame
+	else
+		return nil
+	end
+
+	local yOffset = tonumber(options.YOffset) or 0
+	position = position + Vector3.new(0, yOffset, 0)
+
+	local folder = getRuntimeFolder()
+	if folder == nil then
+		return nil
+	end
+
+	local color = PROCEDURAL_COLORS[effectKey] or Color3.fromRGB(230, 230, 230)
+	local emitCount = math.max(1, math.floor(tonumber(options.EmitCount) or 24))
+	local lifetime = math.max(0.4, tonumber(options.Lifetime) or 1)
+
+	local holder = Instance.new("Part")
+	holder.Name = "WOBProceduralFX_" .. tostring(effectKey)
+	holder.Size = Vector3.new(0.4, 0.4, 0.4)
+	holder.Transparency = 1
+	holder.Anchored = true
+	holder.CanCollide = false
+	holder.CanQuery = false
+	holder.CanTouch = false
+	holder.CastShadow = false
+	holder.CFrame = CFrame.new(position)
+	holder.Parent = folder
+
+	local attachment = Instance.new("Attachment")
+	attachment.Parent = holder
+
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Texture = "rbxassetid://243660364"
+	emitter.Color = ColorSequence.new(color)
+	emitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1.6),
+		NumberSequenceKeypoint.new(1, 0.2),
+	})
+	emitter.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.25),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	emitter.Lifetime = NumberRange.new(0.35, 0.7)
+	emitter.Speed = NumberRange.new(6, 12)
+	emitter.SpreadAngle = Vector2.new(180, 180)
+	emitter.Rate = 0
+	emitter.LightEmission = 0.6
+	emitter.Enabled = false
+	emitter.Parent = attachment
+
+	emitter:Emit(emitCount)
+	Debris:AddItem(holder, lifetime + 0.5)
+
+	return holder
+end
+
 function CombatFXService.PlayAt(effectKey, positionOrCFrame, options)
 	options = options or {}
 	debugLog(options, ("request PlayAt key=%s"):format(tostring(effectKey)))
@@ -810,8 +886,11 @@ function CombatFXService.PlayAt(effectKey, positionOrCFrame, options)
 	local template, effectDefinition, missingReason, source = resolveTemplate(effectKey, options)
 
 	if template == nil or effectDefinition == nil then
-		debugLog(options, ("missing key=%s reason=%s"):format(tostring(effectKey), tostring(missingReason)))
-		return nil
+		debugLog(options, ("missing key=%s reason=%s -> procedural fallback"):format(tostring(effectKey), tostring(missingReason)))
+		-- PROCEDURAL FALLBACK: no authored asset yet (e.g. Repair/UpgradeSelect). Spawn a quick
+		-- particle puff so the event still reads. Replace by adding a real template to
+		-- Shared/Assets/VFX and pointing VfxRegistry at it.
+		return CombatFXService.PlayProceduralBurst(effectKey, positionOrCFrame, options)
 	end
 
 	local cframe = getEffectCFrame(positionOrCFrame, options, effectDefinition)
@@ -886,8 +965,11 @@ function CombatFXService.AttachTo(effectKey, parentInstance, options)
 	local template, effectDefinition, missingReason, source = resolveTemplate(effectKey, options)
 
 	if template == nil or effectDefinition == nil then
-		debugLog(options, ("missing key=%s reason=%s"):format(tostring(effectKey), tostring(missingReason)))
-		return nil
+		debugLog(options, ("missing key=%s reason=%s -> procedural fallback"):format(tostring(effectKey), tostring(missingReason)))
+		-- PROCEDURAL FALLBACK: no authored asset yet (e.g. Repair/UpgradeSelect). Spawn a quick
+		-- particle puff so the event still reads. Replace by adding a real template to
+		-- Shared/Assets/VFX and pointing VfxRegistry at it.
+		return CombatFXService.PlayProceduralBurst(effectKey, positionOrCFrame, options)
 	end
 
 	debugLog(

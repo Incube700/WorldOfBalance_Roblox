@@ -4,6 +4,8 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
 
 local localPlayer = Players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
@@ -119,15 +121,26 @@ layout.Padding = UDim.new(0, 8)
 layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Parent = list
 
-local function rowFor(item, equipped)
+local function rowFor(item, equipped, bolts)
+	local isEquipped = equipped == item.SkinId
 	local row = Instance.new("Frame")
 	row.Size = UDim2.new(1, -6, 0, 52)
-	row.BackgroundColor3 = Color3.fromRGB(30, 38, 50)
+	row.BackgroundColor3 = isEquipped and Color3.fromRGB(38, 52, 44) or Color3.fromRGB(30, 38, 50)
 	row.BorderSizePixel = 0
 	local c = Instance.new("UICorner")
 	c.CornerRadius = UDim.new(0, 8)
 	c.Parent = row
 
+	-- Equipped rows get a soft green border so the current skin is obvious.
+	if isEquipped then
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = Color3.fromRGB(90, 220, 130)
+		stroke.Thickness = 2
+		stroke.Transparency = 0.25
+		stroke.Parent = row
+	end
+
+	-- Preview swatch: body color with a turret-color stripe (mini tank preview).
 	local swatch = Instance.new("Frame")
 	swatch.Position = UDim2.fromOffset(10, 10)
 	swatch.Size = UDim2.fromOffset(32, 32)
@@ -137,6 +150,17 @@ local function rowFor(item, equipped)
 	sc.CornerRadius = UDim.new(0, 6)
 	sc.Parent = swatch
 	swatch.Parent = row
+
+	local turretDot = Instance.new("Frame")
+	turretDot.AnchorPoint = Vector2.new(0.5, 0.5)
+	turretDot.Position = UDim2.fromScale(0.5, 0.5)
+	turretDot.Size = UDim2.fromOffset(14, 14)
+	turretDot.BackgroundColor3 = item.TurretColor or Color3.fromRGB(200, 200, 200)
+	turretDot.BorderSizePixel = 0
+	local td = Instance.new("UICorner")
+	td.CornerRadius = UDim.new(0, 4)
+	td.Parent = turretDot
+	turretDot.Parent = swatch
 
 	local name = Instance.new("TextLabel")
 	name.BackgroundTransparency = 1
@@ -149,6 +173,9 @@ local function rowFor(item, equipped)
 	name.Text = item.DisplayName
 	name.Parent = row
 
+	local price = tonumber(item.Price) or 0
+	local canAfford = (tonumber(bolts) or 0) >= price
+
 	local sub = Instance.new("TextLabel")
 	sub.BackgroundTransparency = 1
 	sub.Position = UDim2.fromOffset(52, 28)
@@ -156,8 +183,13 @@ local function rowFor(item, equipped)
 	sub.Font = Enum.Font.Gotham
 	sub.TextXAlignment = Enum.TextXAlignment.Left
 	sub.TextSize = 13
-	sub.TextColor3 = Color3.fromRGB(180, 200, 225)
-	sub.Text = item.Owned and "Owned" or (item.Price .. " Bolts")
+	if item.Owned then
+		sub.Text = isEquipped and "Equipped" or "Owned"
+		sub.TextColor3 = Color3.fromRGB(150, 220, 170)
+	else
+		sub.Text = price .. " Bolts"
+		sub.TextColor3 = canAfford and Color3.fromRGB(255, 225, 120) or Color3.fromRGB(220, 120, 120)
+	end
 	sub.Parent = row
 
 	local action = Instance.new("TextButton")
@@ -172,13 +204,22 @@ local function rowFor(item, equipped)
 	action.Parent = row
 
 	if not item.Owned then
-		action.Text = "Buy"
-		action.BackgroundColor3 = Color3.fromRGB(40, 110, 70)
-		action.TextColor3 = Color3.fromRGB(220, 255, 230)
-		action.MouseButton1Click:Connect(function()
-			buyEvent:FireServer(item.SkinId)
-		end)
-	elseif equipped == item.SkinId then
+		if canAfford then
+			action.Text = "Buy"
+			action.BackgroundColor3 = Color3.fromRGB(40, 110, 70)
+			action.TextColor3 = Color3.fromRGB(220, 255, 230)
+			action.AutoButtonColor = true
+			action.MouseButton1Click:Connect(function()
+				buyEvent:FireServer(item.SkinId)
+			end)
+		else
+			-- Disabled: can't afford. No click handler, dimmed.
+			action.Text = "Need " .. price
+			action.BackgroundColor3 = Color3.fromRGB(48, 40, 44)
+			action.TextColor3 = Color3.fromRGB(170, 130, 130)
+			action.AutoButtonColor = false
+		end
+	elseif isEquipped then
 		action.Text = "Equipped"
 		action.BackgroundColor3 = Color3.fromRGB(60, 64, 72)
 		action.TextColor3 = Color3.fromRGB(200, 210, 225)
@@ -187,12 +228,18 @@ local function rowFor(item, equipped)
 		action.Text = "Equip"
 		action.BackgroundColor3 = Color3.fromRGB(40, 90, 140)
 		action.TextColor3 = Color3.fromRGB(220, 240, 255)
+		action.AutoButtonColor = true
 		action.MouseButton1Click:Connect(function()
 			equipEvent:FireServer(item.SkinId)
 		end)
 	end
 
 	return row
+end
+
+-- Ask the server for a fresh catalog + current balance (empty skinId = sync request).
+local function requestSync()
+	buyEvent:FireServer("")
 end
 
 local function rebuild()
@@ -211,7 +258,7 @@ local function rebuild()
 		return (tonumber(a.Price) or 0) < (tonumber(b.Price) or 0)
 	end)
 	for i, item in ipairs(latestData.Items) do
-		local row = rowFor(item, latestData.Equipped)
+		local row = rowFor(item, latestData.Equipped, latestData.Bolts)
 		row.LayoutOrder = i
 		row.Parent = list
 	end
@@ -220,6 +267,7 @@ end
 openBtn.MouseButton1Click:Connect(function()
 	panel.Visible = not panel.Visible
 	if panel.Visible then
+		requestSync()
 		rebuild()
 	end
 end)
@@ -242,5 +290,99 @@ openBindable.Name = "WOBOpenShop"
 openBindable.Parent = screenGui
 openBindable.Event:Connect(function()
 	panel.Visible = true
+	requestSync()
 	rebuild()
+end)
+
+-- ---------------------------------------------------------------------------
+-- Drive onto the TankSkinsShowcase stand in the lobby to open the shop, drive away to close.
+-- The showcase lives in Workspace.WOB_Generated.Lobby.Showcases.TankSkinsShowcase. We use
+-- its DisplayPlatform (or Base) part as the trigger area and check the local tank's distance.
+-- ---------------------------------------------------------------------------
+local OPEN_RADIUS = 14
+local autoOpened = false
+
+local function findShowcaseTrigger()
+	local generated = Workspace:FindFirstChild("WOB_Generated")
+	local lobby = generated and generated:FindFirstChild("Lobby")
+	local showcases = lobby and lobby:FindFirstChild("Showcases")
+	local stand = showcases and showcases:FindFirstChild("TankSkinsShowcase")
+	if stand == nil then
+		return nil
+	end
+	if stand:IsA("BasePart") then
+		return stand
+	end
+	return stand:FindFirstChild("DisplayPlatform")
+		or stand:FindFirstChild("Base")
+		or stand:FindFirstChildWhichIsA("BasePart")
+end
+
+local function getLocalTankPosition()
+	local generated = Workspace:FindFirstChild("WOB_Generated")
+	local testObjects = generated and generated:FindFirstChild("TestObjects")
+	if testObjects == nil then
+		return nil
+	end
+	for _, model in ipairs(testObjects:GetDescendants()) do
+		if model:IsA("Model")
+			and model:GetAttribute("IsPlayerTank") == true
+			and model:GetAttribute("OwnerUserId") == localPlayer.UserId
+		then
+			local ok, pivot = pcall(function()
+				return model:GetPivot().Position
+			end)
+			if ok then
+				return pivot
+			end
+		end
+	end
+	return nil
+end
+
+-- The shop is a LOBBY-only feature: hide the SHOP button (and force-close the panel)
+-- whenever the player is not in the lobby (in a match / arena / duel / queued).
+local function isInLobby()
+	local mode = localPlayer:GetAttribute("PlayerMode")
+	-- Lobby is the default free-roam state. Anything else (InMatch / InBattleArena /
+	-- QueuedForDuel / ArenaRespawning / Result) hides the shop.
+	return mode == nil or mode == "Lobby"
+end
+
+local accum = 0
+RunService.Heartbeat:Connect(function(dt)
+	accum += dt
+	if accum < 0.25 then
+		return
+	end
+	accum = 0
+
+	local inLobby = isInLobby()
+	openBtn.Visible = inLobby
+	if not inLobby then
+		-- Leaving the lobby closes the shop and clears the proximity latch.
+		if panel.Visible then
+			panel.Visible = false
+		end
+		autoOpened = false
+		return
+	end
+
+	local trigger = findShowcaseTrigger()
+	local tankPos = getLocalTankPosition()
+	if trigger == nil or tankPos == nil then
+		return
+	end
+
+	local near = (Vector3.new(tankPos.X, 0, tankPos.Z) - Vector3.new(trigger.Position.X, 0, trigger.Position.Z)).Magnitude <= OPEN_RADIUS
+
+	if near and not autoOpened then
+		autoOpened = true
+		panel.Visible = true
+		requestSync()
+		rebuild()
+	elseif not near and autoOpened then
+		autoOpened = false
+		panel.Visible = false
+	end
 end)

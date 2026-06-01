@@ -214,9 +214,12 @@ function CosmeticShopService.init(options)
 
 	if buyEvent ~= nil then
 		buyEvent.OnServerEvent:Connect(function(player, skinId)
-			if typeof(skinId) == "string" then
-				CosmeticShopService.tryBuy(player, skinId)
+			-- Empty/"" skinId = a sync request (client opened the shop): push fresh data.
+			if typeof(skinId) ~= "string" or skinId == "" then
+				syncToClient(player)
+				return
 			end
+			CosmeticShopService.tryBuy(player, skinId)
 		end)
 	end
 	if equipEvent ~= nil then
@@ -227,12 +230,25 @@ function CosmeticShopService.init(options)
 		end)
 	end
 
+	-- Keep the shop's shown Bolts balance fresh: re-sync whenever the wallet balance changes
+	-- (the wallet writes it to the PersistentBolts player attribute). Without this the shop
+	-- keeps the login-time balance (often 0) and every Buy looks unaffordable.
+	local function bindBalanceSync(player)
+		player:GetAttributeChangedSignal("PersistentBolts"):Connect(function()
+			syncToClient(player)
+		end)
+	end
+
 	Players.PlayerAdded:Connect(function(player)
 		CosmeticShopService.loadPlayer(player)
+		bindBalanceSync(player)
 	end)
 	Players.PlayerRemoving:Connect(function(player)
 		CosmeticShopService.savePlayer(player)
 	end)
+	for _, player in ipairs(Players:GetPlayers()) do
+		bindBalanceSync(player)
+	end
 	for _, player in ipairs(Players:GetPlayers()) do
 		CosmeticShopService.loadPlayer(player)
 	end

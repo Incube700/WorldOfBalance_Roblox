@@ -3,6 +3,14 @@ local Workspace = game:GetService("Workspace")
 local TankHealthBarRecord = {}
 TankHealthBarRecord.__index = TankHealthBarRecord
 
+local FRIENDLY_FILL_COLOR = Color3.fromRGB(90, 225, 115)
+local FRIENDLY_NAME_COLOR = Color3.fromRGB(185, 245, 255)
+local ENEMY_FILL_COLOR = Color3.fromRGB(235, 74, 74)
+local ENEMY_NAME_COLOR = Color3.fromRGB(255, 160, 160)
+local NEUTRAL_FILL_COLOR = Color3.fromRGB(255, 220, 95)
+local NEUTRAL_NAME_COLOR = Color3.fromRGB(235, 240, 255)
+local DEPLETED_BAR_COLOR = Color3.fromRGB(22, 24, 28)
+
 local function getNumberAttribute(instance, names)
 	for _, name in ipairs(names) do
 		local value = instance:GetAttribute(name)
@@ -59,6 +67,33 @@ local function getReloadRatio(model, config)
 	return 1
 end
 
+local function getRelationship(model, localPlayer)
+	if localPlayer ~= nil and model:GetAttribute("OwnerUserId") == localPlayer.UserId then
+		return "Friendly"
+	end
+
+	if model:GetAttribute("IsBot") == true
+		or model:GetAttribute("TankRole") == "Dummy"
+		or model:GetAttribute("OwnerUserId") ~= nil
+	then
+		return "Enemy"
+	end
+
+	return "Neutral"
+end
+
+local function getRelationshipPalette(model, localPlayer)
+	local relationship = getRelationship(model, localPlayer)
+
+	if relationship == "Friendly" then
+		return FRIENDLY_FILL_COLOR, FRIENDLY_NAME_COLOR
+	elseif relationship == "Enemy" then
+		return ENEMY_FILL_COLOR, ENEMY_NAME_COLOR
+	end
+
+	return NEUTRAL_FILL_COLOR, NEUTRAL_NAME_COLOR
+end
+
 function TankHealthBarRecord.new(model, context)
 	local billboard = context.Factory:CreateBillboard()
 	billboard.Name = "TankHealthBillboard_" .. model.Name
@@ -70,6 +105,7 @@ function TankHealthBarRecord.new(model, context)
 		Scanner = context.Scanner,
 		Factory = context.Factory,
 		AnchorService = context.AnchorService,
+		LocalPlayer = context.LocalPlayer,
 		OnInvalid = context.OnInvalid,
 		Billboard = billboard,
 		AnchorPart = context.AnchorService:CreateAnchor(model),
@@ -173,13 +209,16 @@ function TankHealthBarRecord:Update()
 		self.RedBar.AnchorPoint = Vector2.new(0, 0.5)
 		self.RedBar.Position = UDim2.fromScale(0, 0.5)
 		self.RedBar.Size = UDim2.fromScale(1, 1)
+		self.RedBar.BackgroundColor3 = DEPLETED_BAR_COLOR
 		self.RedBar.Visible = true
 	end
 
 	if self.GreenBar ~= nil then
+		local fillColor = getRelationshipPalette(self.Model, self.LocalPlayer)
 		self.GreenBar.AnchorPoint = Vector2.new(0, 0.5)
 		self.GreenBar.Position = UDim2.fromScale(0, 0.5)
 		self.GreenBar.Size = UDim2.new(ratio, 0, 1, 0)
+		self.GreenBar.BackgroundColor3 = fillColor
 		self.GreenBar.Visible = ratio > 0
 	end
 
@@ -202,6 +241,8 @@ function TankHealthBarRecord:UpdatePlayerName()
 		if label.Text ~= name then
 			label.Text = name
 		end
+		local _, nameColor = getRelationshipPalette(self.Model, self.LocalPlayer)
+		label.TextColor3 = nameColor
 		label.Visible = true
 	else
 		label.Visible = false

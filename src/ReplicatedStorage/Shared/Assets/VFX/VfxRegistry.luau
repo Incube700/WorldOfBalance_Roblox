@@ -53,6 +53,20 @@ VfxRegistry.Variants = {
 		Canonical = { Template = "MuzzleFlash_Default" }, -- moved into flat folder
 		LegacyFallback = { Template = "MuzzleFlash_LegacyFallback" }, -- moved into flat folder
 	},
+	-- Per-weapon muzzle/shot FX. No asset yet -> procedural fallback fires (see CombatFXService).
+	-- Drop a template named below into Shared/Assets/VFX and it'll be used automatically.
+	RailGunShot = {
+		Default = { Template = "RailGunShot_Default", Missing = true },
+	},
+	RocketShot = {
+		Default = { Template = "RocketShot_Default", Missing = true },
+	},
+	-- Rocket detonation FX: reuses the ProjectileImpact burst, scaled up bigger (see
+	-- GameplayFXCatalog.RocketExplosion ScaleMultiplier/EmitCount). Swap Template to a
+	-- dedicated RocketExplosion_Default later if you author one.
+	RocketExplosion = {
+		Default = { Template = "ProjectileImpact_Default" },
+	},
 	ProjectileTrail = {
 		-- NOTE: legacy asset name is misspelled ("Deafult"); kept as a variant so old refs work.
 		Default = { Template = "ProjectileTrail_Default" }, -- moved into flat folder (correct spelling)

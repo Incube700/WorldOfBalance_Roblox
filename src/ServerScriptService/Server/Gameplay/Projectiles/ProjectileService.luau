@@ -457,7 +457,7 @@ local function createFlash(position, config, name, direction, skipParticleBurst)
 	return flash
 end
 
-local function createMuzzleFlash(position, direction)
+local function createMuzzleFlash(position, direction, weaponId)
 	if not isMuzzleVfxEnabled() then
 		return
 	end
@@ -469,7 +469,15 @@ local function createMuzzleFlash(position, direction)
 		flatDirection = flatDirection.Unit
 	end
 
-	if playGameplayFXAt("MuzzleFlash", position, flatDirection) then
+	-- Weapon-specific muzzle FX when defined (RailGun/Rocket), else the generic muzzle flash.
+	local muzzleKey = "MuzzleFlash"
+	if weaponId == "RailGun" then
+		muzzleKey = "RailGunShot"
+	elseif weaponId == "Rocket" then
+		muzzleKey = "RocketShot"
+	end
+
+	if playGameplayFXAt(muzzleKey, position, flatDirection) then
 		return
 	end
 
@@ -776,6 +784,18 @@ local function createDeathExplosion(position)
 	return createProceduralDeathExplosion(position, deathExplosionConfig)
 end
 
+-- Rocket detonation: its OWN explosion FX (RocketExplosion). Falls back to the death
+-- explosion / procedural burst if no authored rocket asset exists yet.
+local function createRocketExplosion(position)
+	if not isImpactVfxEnabled() then
+		return false
+	end
+	if playGameplayFXAt("RocketExplosion", position, Vector3.yAxis) then
+		return true
+	end
+	return createDeathExplosion(position)
+end
+
 local function createBurningTank(position)
 	if not isImpactVfxEnabled() then
 		return false
@@ -1080,7 +1100,7 @@ function ProjectileService.createProjectile(ownerParticipant, origin, direction,
 		MaxSpeed = projectileMaxSpeed,
 	}
 	table.insert(projectiles, projectile)
-	createMuzzleFlash(origin, flatDirection)
+	createMuzzleFlash(origin, flatDirection, weaponOverride ~= nil and weaponOverride.Id or nil)
 end
 
 function ProjectileService.tryShoot(participant, direction, options_isChargedShot)
@@ -1413,6 +1433,7 @@ function ProjectileService.getVFXHelpers()
 		createRicochetVfx = createRicochetVfx,
 		createShieldReflectVfx = createShieldReflectVfx,
 		createDeathExplosion = createDeathExplosion,
+		createRocketExplosion = createRocketExplosion,
 		createBurningTank = createBurningTank,
 		destroyProjectile = ProjectileService.destroyProjectile,
 	}

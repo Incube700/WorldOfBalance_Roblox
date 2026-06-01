@@ -403,8 +403,13 @@ local function updateCollection()
 		end
 
 		if record.Available then
-			for _, participant in ipairs(registry.getPlayerParticipants()) do
-				if participant.OwnerPlayer ~= nil
+			-- Players AND arena bots can collect (bots use the same grant paths). Only living,
+			-- active arena participants are eligible.
+			for _, participant in ipairs(registry.getParticipants()) do
+				local isArenaParticipant = participant.OwnerPlayer ~= nil
+					or (participant.IsBot == true and participant.ParticipantState == "InBattleArena")
+
+				if isArenaParticipant
 					and not registry.getParticipantIsDead(participant)
 					and participant.IsActive ~= false
 				then

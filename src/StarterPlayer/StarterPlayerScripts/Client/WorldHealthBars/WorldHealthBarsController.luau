@@ -66,6 +66,7 @@ function WorldHealthBarsController:EnsureRecord(model)
 		Scanner = self.Scanner,
 		Factory = self.Factory,
 		AnchorService = self.AnchorService,
+		LocalPlayer = self.LocalPlayer,
 		GuiFolder = self.GuiFolder,
 		OnInvalid = function(invalidModel)
 			self:CleanupModel(invalidModel)

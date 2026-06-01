@@ -87,14 +87,25 @@ local function shouldShootNow(brainState, brainConfig, rng, now)
 	return rng:NextNumber() <= (tonumber(brainConfig.FireChance) or 0.55)
 end
 
-local function makeIdleDecision(botPosition, bodyYaw, brainState, brainConfig, rng, now)
+local function makeIdleDecision(botPosition, bodyYaw, brainState, brainConfig, rng, now, centerPosition)
 	refreshJitter(brainState, brainConfig, rng, now)
+
+	-- With no target, head toward the arena CENTER (so bots don't idle alone in corners while
+	-- the player drives around). Blend a little wander in so it's not a dead-straight line.
+	local moveDir = getDirectionFromYaw(brainState.WanderYaw or bodyYaw or 0)
+	if typeof(centerPosition) == "Vector3" then
+		local toCenter, centerDist = getFlatDirection(botPosition, centerPosition)
+		if toCenter ~= nil and centerDist > 8 then
+			local blended = (toCenter * 0.8 + moveDir * 0.2)
+			moveDir = blended.Magnitude > 0.001 and blended.Unit or toCenter
+		end
+	end
 
 	return {
 		TargetParticipant = nil,
-		MoveDirection = getDirectionFromYaw(brainState.WanderYaw or bodyYaw or 0),
-		AimWorldPoint = botPosition + getDirectionFromYaw(bodyYaw or 0) * 40,
-		Throttle = 0.18,
+		MoveDirection = moveDir,
+		AimWorldPoint = botPosition + moveDir * 40,
+		Throttle = 0.35,
 		WantsShoot = false,
 		TargetDistance = nil,
 	}
@@ -116,7 +127,7 @@ function BotBrain.Decide(params)
 	end
 
 	if typeof(targetPosition) ~= "Vector3" then
-		return makeIdleDecision(botPosition, bodyYaw, brainState, brainConfig, rng, now)
+		return makeIdleDecision(botPosition, bodyYaw, brainState, brainConfig, rng, now, params.CenterPosition)
 	end
 
 	refreshJitter(brainState, brainConfig, rng, now)
@@ -125,7 +136,7 @@ function BotBrain.Decide(params)
 	local directionToTarget, distance = getFlatDirection(botPosition, targetPosition)
 
 	if directionToTarget == nil then
-		return makeIdleDecision(botPosition, bodyYaw, brainState, brainConfig, rng, now)
+		return makeIdleDecision(botPosition, bodyYaw, brainState, brainConfig, rng, now, params.CenterPosition)
 	end
 
 	local preferredDistance = math.max(1, tonumber(brainConfig.PreferredDistance) or 45)
@@ -135,25 +146,72 @@ function BotBrain.Decide(params)
 	local moveDirection = directionToTarget
 	local throttle = moveThrottle
 
-	if distance <= tooCloseDistance then
-		if rng:NextNumber() <= (tonumber(brainConfig.ReverseChanceWhenTooClose) or 0.35) then
-			throttle = reverseThrottle
-			moveDirection = directionToTarget
-		else
-			local lateral = Vector3.new(-directionToTarget.Z, 0, directionToTarget.X)
-				* (brainState.StrafeDirection or 1)
-
-			moveDirection = lateral.Magnitude > 0.001 and lateral.Unit or directionToTarget
-			throttle = moveThrottle * 0.45
+	-- PRIORITY: detour to grab a nearby pickup (weapon/shield) when it's not far off the
+	-- path to the enemy and the bot isn't being rushed. Set by the controller in params.
+	local pickupPos = params.PickupPosition
+	if typeof(pickupPos) == "Vector3" and distance > tooCloseDistance + 6 then
+		local toPickup, pickupDist = getFlatDirection(botPosition, pickupPos)
+		if toPickup ~= nil and pickupDist <= (tonumber(brainConfig.PickupSeekRadius) or 60) then
+			moveDirection = toPickup
+			throttle = moveThrottle
+			-- still aim/shoot at the enemy while driving to the pickup (handled below)
+			refreshAimJitter(brainState, brainConfig, rng, now, distance)
+			local aimJ = brainState.AimJitter
+			if typeof(aimJ) ~= "Vector3" then aimJ = Vector3.zero end
+			return {
+				TargetParticipant = targetParticipant,
+				MoveDirection = moveDirection,
+				AimWorldPoint = targetPosition + aimJ,
+				Throttle = throttle,
+				WantsShoot = targetParticipant ~= nil and shouldShootNow(brainState, brainConfig, rng, now),
+				TargetDistance = distance,
+			}
 		end
+	end
+
+	-- PRIORITY: hide behind cover when low on HP (controller passes a cover point + low-HP).
+	local coverPos = params.CoverPosition
+	if params.WantsCover == true and typeof(coverPos) == "Vector3" then
+		local toCover = getFlatDirection(botPosition, coverPos)
+		if toCover ~= nil then
+			refreshAimJitter(brainState, brainConfig, rng, now, distance)
+			local aimJ = brainState.AimJitter
+			if typeof(aimJ) ~= "Vector3" then aimJ = Vector3.zero end
+			return {
+				TargetParticipant = targetParticipant,
+				MoveDirection = toCover,
+				AimWorldPoint = targetPosition + aimJ,
+				Throttle = moveThrottle,
+				WantsShoot = false, -- focus on getting to cover
+				TargetDistance = distance,
+			}
+		end
+	end
+
+	-- DISTANCE KEEPING: bots prefer to fight from RANGE. Back off if closer than preferred,
+	-- hold ground near the sweet spot, and only close in if the enemy is very far.
+	if distance <= tooCloseDistance then
+		-- Too close: reverse away while still facing the enemy.
+		throttle = reverseThrottle
+		moveDirection = directionToTarget
 	elseif distance < preferredDistance then
+		-- Inside preferred range: back up a bit + strafe, so they keep their distance.
 		local lateral = Vector3.new(-directionToTarget.Z, 0, directionToTarget.X)
 			* (brainState.StrafeDirection or 1)
-
-		moveDirection = lateral.Magnitude > 0.001 and lateral.Unit or directionToTarget
-		throttle = moveThrottle * 0.35
-	elseif distance < preferredDistance + 12 then
+		local backV = -directionToTarget * 0.6
+		local mixed = (lateral.Unit * 0.6 + backV)
+		moveDirection = mixed.Magnitude > 0.001 and mixed.Unit or -directionToTarget
 		throttle = moveThrottle * 0.5
+	elseif distance < preferredDistance + 18 then
+		-- In the sweet spot: strafe to be a moving target (this is what lets shots clip
+		-- their SIDE armor — intentional, so flank hits happen).
+		local lateral = Vector3.new(-directionToTarget.Z, 0, directionToTarget.X)
+			* (brainState.StrafeDirection or 1)
+		moveDirection = lateral.Magnitude > 0.001 and lateral.Unit or directionToTarget
+		throttle = moveThrottle * 0.4
+	else
+		-- Far: close the gap toward preferred range.
+		throttle = moveThrottle
 	end
 
 	refreshAimJitter(brainState, brainConfig, rng, now, distance)
@@ -163,12 +221,22 @@ function BotBrain.Decide(params)
 		aimJitter = Vector3.zero
 	end
 
+	-- TARGET LEADING: aim slightly ahead of where the target is moving, so long-range shots
+	-- connect. Target velocity comes from the controller (params.TargetVelocity).
+	local aimPoint = targetPosition + aimJitter
+	local targetVel = params.TargetVelocity
+	if typeof(targetVel) == "Vector3" and targetVel.Magnitude > 0.5 then
+		local shellSpeed = math.max(60, tonumber(brainConfig.ShellSpeedEstimate) or 200)
+		local lead = math.clamp(distance / shellSpeed, 0, 0.6)
+		aimPoint = aimPoint + Vector3.new(targetVel.X, 0, targetVel.Z) * lead
+	end
+
 	local wantsShoot = targetParticipant ~= nil and shouldShootNow(brainState, brainConfig, rng, now)
 
 	return {
 		TargetParticipant = targetParticipant,
 		MoveDirection = moveDirection,
-		AimWorldPoint = targetPosition + aimJitter,
+		AimWorldPoint = aimPoint,
 		Throttle = throttle,
 		WantsShoot = wantsShoot,
 		TargetDistance = distance,

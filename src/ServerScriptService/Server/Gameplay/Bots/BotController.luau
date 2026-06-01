@@ -1,4 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
@@ -174,15 +175,47 @@ function BotController:_refreshDecision(deltaTime)
 		targetPosition = self.GetControlZonePosition()
 	end
 
+	local now = os.clock()
+
+	-- TARGET VELOCITY (for aim leading): derive from how the target moved since last think.
+	local targetVelocity = nil
+	if typeof(targetPosition) == "Vector3" then
+		if typeof(self.LastTargetPos) == "Vector3" and self.LastTargetAt ~= nil then
+			local dt = math.max(0.01, now - self.LastTargetAt)
+			targetVelocity = (targetPosition - self.LastTargetPos) / dt
+		end
+		self.LastTargetPos = targetPosition
+		self.LastTargetAt = now
+	end
+
+	-- LOW HP -> wants cover. Cover point = behind the nearest obstacle from the enemy.
+	local wantsCover, coverPosition = false, nil
+	local hp = self.TankParticipantRegistry.getParticipantHealth ~= nil
+		and self.TankParticipantRegistry.getParticipantHealth(participant) or nil
+	local maxHp = self.TankParticipantRegistry.getParticipantMaxHealth ~= nil
+		and self.TankParticipantRegistry.getParticipantMaxHealth(participant) or nil
+	if hp ~= nil and maxHp ~= nil and maxHp > 0 and (hp / maxHp) <= 0.4 then
+		wantsCover = true
+		coverPosition = self:_findCoverPoint(botPosition, targetPosition)
+	end
+
+	-- NEAREST PICKUP to seek (weapon/shield/repair markers in the runtime arena).
+	local pickupPosition = self:_findNearestPickup(botPosition)
+
 	self.Decision = BotBrain.Decide({
 		BrainConfig = brainConfig,
 		BotPosition = botPosition,
 		TargetPosition = targetPosition,
 		TargetParticipant = target,
+		TargetVelocity = targetVelocity,
+		PickupPosition = pickupPosition,
+		WantsCover = wantsCover,
+		CoverPosition = coverPosition,
+		CenterPosition = self:_getArenaCenter(),
 		BodyYaw = state ~= nil and state.BodyYaw or 0,
 		BrainState = self.BrainState,
 		Random = self.Random,
-		Now = os.clock(),
+		Now = now,
 	})
 
 	if BotConfig.Debug == true and target ~= nil then
@@ -195,6 +228,65 @@ function BotController:_refreshDecision(deltaTime)
 	end
 
 	return self.Decision
+end
+
+-- Finds the nearest live pickup marker/model in the runtime arena, or nil. Looks in
+-- WOB_Runtime/ArenaMode/ArenaPickups (live pickup models spawned by ArenaPickupService).
+function BotController:_findNearestPickup(botPosition)
+	if typeof(botPosition) ~= "Vector3" then
+		return nil
+	end
+	local runtime = Workspace:FindFirstChild("WOB_Runtime")
+	local arenaMode = runtime and runtime:FindFirstChild("ArenaMode")
+	local pickups = arenaMode and arenaMode:FindFirstChild("ArenaPickups")
+	if pickups == nil then
+		return nil
+	end
+	local best, bestDist = nil, math.huge
+	for _, model in ipairs(pickups:GetChildren()) do
+		local part = model:IsA("BasePart") and model
+			or (model:IsA("Model") and (model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")))
+		if part ~= nil then
+			local d = (Vector3.new(part.Position.X, 0, part.Position.Z)
+				- Vector3.new(botPosition.X, 0, botPosition.Z)).Magnitude
+			if d < bestDist then
+				bestDist = d
+				best = part.Position
+			end
+		end
+	end
+	return best
+end
+
+-- Returns a point on the far side of the nearest obstacle from the enemy (simple cover): step
+-- away from the threat. Good enough to break line of sight without full pathfinding.
+function BotController:_findCoverPoint(botPosition, threatPosition)
+	if typeof(botPosition) ~= "Vector3" or typeof(threatPosition) ~= "Vector3" then
+		return nil
+	end
+	-- Move directly away from the threat by a fixed distance; the movement resolver handles
+	-- walls, so the bot will tuck behind whatever obstacle is in that direction.
+	local away = Vector3.new(botPosition.X - threatPosition.X, 0, botPosition.Z - threatPosition.Z)
+	if away.Magnitude < 0.001 then
+		return nil
+	end
+	return botPosition + away.Unit * 30
+end
+
+-- Arena center = the BattleArena floor centre (cached). Bots steer here when they have no
+-- target, so they gather mid-arena instead of idling in corners.
+function BotController:_getArenaCenter()
+	if self.CachedArenaCenter ~= nil then
+		return self.CachedArenaCenter
+	end
+	local generated = Workspace:FindFirstChild("WOB_Generated")
+	local arena = generated and generated:FindFirstChild("BattleArena")
+	local floor = arena and arena:FindFirstChild("Floor")
+	if floor ~= nil and floor:IsA("BasePart") then
+		self.CachedArenaCenter = Vector3.new(floor.Position.X, 0, floor.Position.Z)
+		return self.CachedArenaCenter
+	end
+	return nil
 end
 
 function BotController:_applyMovement(deltaTime, decision)
@@ -234,8 +326,18 @@ function BotController:_applyMovement(deltaTime, decision)
 	end
 
 	if antiStuckSeconds > 0 and self.StuckElapsed >= antiStuckSeconds then
+		-- Stuck (likely a corner): point the wander toward the arena centre and reverse a
+		-- moment so the next think drives back out instead of grinding the wall.
+		local center = self:_getArenaCenter()
+		if typeof(center) == "Vector3" then
+			local toCenter = Vector3.new(center.X - resolvedPosition.X, 0, center.Z - resolvedPosition.Z)
+			if toCenter.Magnitude > 0.001 then
+				self.BrainState.WanderYaw = getYawFromFlatDirection(toCenter.Unit, resolvedBodyYaw)
+			end
+		else
+			self.BrainState.WanderYaw = (self.BrainState.WanderYaw or resolvedBodyYaw) + self.Random:NextNumber(-1.7, 1.7)
+		end
 		self.BrainState.NextMoveJitterAt = 0
-		self.BrainState.WanderYaw = (self.BrainState.WanderYaw or resolvedBodyYaw) + self.Random:NextNumber(-1.7, 1.7)
 		self.Decision = nil
 		self.StuckElapsed = 0
 	end
@@ -253,6 +355,10 @@ function BotController:_applyMovement(deltaTime, decision)
 
 	if model ~= nil and self.TankSpawnResetService ~= nil then
 		self.TankSpawnResetService.layoutTank(model, state.Position, state.BodyYaw, state.TurretYaw)
+		-- Movement dust for arena bots: smoke only while actually driving.
+		if self.TankSpawnResetService.setTrailActive ~= nil then
+			self.TankSpawnResetService.setTrailActive(participant, math.abs(throttle) > 0.05)
+		end
 	end
 
 	return true

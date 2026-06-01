@@ -15,6 +15,39 @@ GameplayFXCatalog.Effects = table.freeze({
 		DebugName = "Muzzle Flash",
 	}),
 
+	-- Per-weapon shot/explosion FX (no authored asset yet -> procedural fallback).
+	RailGunShot = table.freeze({
+		Key = "RailGunShot",
+		FolderName = "RailGunShotFX",
+		TemplateName = "RailGunShot_Default",
+		EmitCount = 16,
+		Lifetime = 0.4,
+		ScaleMultiplier = 0.8,
+		DebugName = "Rail Gun Shot",
+	}),
+
+	RocketShot = table.freeze({
+		Key = "RocketShot",
+		FolderName = "RocketShotFX",
+		TemplateName = "RocketShot_Default",
+		EmitCount = 14,
+		Lifetime = 0.4,
+		ScaleMultiplier = 0.8,
+		DebugName = "Rocket Shot",
+	}),
+
+	RocketExplosion = table.freeze({
+		Key = "RocketExplosion",
+		FolderName = "RocketExplosionFX",
+		-- Reuses the ProjectileImpact template, but BIGGER (more particles, larger scale).
+		TemplateName = "ProjectileImpact_Default",
+		EmitCount = 55,
+		Lifetime = 1.4,
+		YOffset = 0.6,
+		ScaleMultiplier = 2.4,
+		DebugName = "Rocket Explosion",
+	}),
+
 	ProjectileTrail = table.freeze({
 		Key = "ProjectileTrail",
 		FolderName = "ProjectileTrailFX",
