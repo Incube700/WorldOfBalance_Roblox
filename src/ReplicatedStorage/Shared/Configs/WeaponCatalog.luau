@@ -131,8 +131,12 @@ WeaponCatalog.Weapons = table.freeze({
 		BehaviorType = "Explosive",
 		ExplosionRadius = 14,
 		ExplosionDamage = 100,
-		ProjectileColor = Color3.fromRGB(255, 138, 60),
-		ProjectileRadius = 0.85,
+		ProjectileColor = Color3.fromRGB(255, 150, 70),
+		ProjectileRadius = 1.15, -- bigger, heavier-looking shell (was 0.85)
+		-- Scarlet exhaust tail + extra glow so an incoming rocket reads instantly.
+		ProjectileTrailColor = Color3.fromRGB(235, 35, 25),
+		ProjectileLightBoost = 1.6,
+		ProjectileTrailWidthScale = 1.7,
 		NotifyText = "Rocket x3!",
 	}),
 
@@ -197,8 +201,13 @@ WeaponCatalog.Weapons = table.freeze({
 		DamageMultiplier = 1.7, -- ~190 dmg vs 110 default; a punishing precision shot.
 		ProjectileSpeed = 420,
 		ProjectileLifetime = 2.4,
-		ProjectileColor = Color3.fromRGB(120, 220, 255),
-		ProjectileRadius = 0.32,
+		ProjectileColor = Color3.fromRGB(150, 230, 255),
+		ProjectileRadius = 0.34,
+		-- Bright electric-blue beam tail, strong glow and a wide streak so the long line shot
+		-- is unmistakable as it crosses the arena (and through walls).
+		ProjectileTrailColor = Color3.fromRGB(60, 170, 255),
+		ProjectileLightBoost = 2.2,
+		ProjectileTrailWidthScale = 1.5,
 		NotifyText = "Rail Gun x4!",
 		-- ARMOR-PIERCING: big penetration bonus so it crosses the front-plate threshold; armor
 		-- still subtracts from damage. Pierces up to 2 enemies AND flies through walls.

@@ -19,7 +19,9 @@ local testObjects = root:WaitForChild("TestObjects")
 local localPlayer = Players.LocalPlayer
 
 local DEBUG_AIM_LASER = false
-local LASER_TARGET_REFRESH_INTERVAL = 0.5
+-- Walls don't move, so refresh the (heavy) target-list scan infrequently. Was 0.5s, which
+-- walked the whole arena tree twice a second and contributed to client hitching.
+local LASER_TARGET_REFRESH_INTERVAL = 3
 local playerTank = nil
 local loggedOwnedTankId = nil
 local smoothedStartPosition = nil

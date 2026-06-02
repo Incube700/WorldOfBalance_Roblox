@@ -1630,7 +1630,12 @@ root:GetAttributeChangedSignal("MatchLoserTankId"):Connect(updateResultOverlay)
 root:GetAttributeChangedSignal("MatchResultAt"):Connect(updateResultOverlay)
 root:GetAttributeChangedSignal("ResultStartsIn"):Connect(updateResultOverlay)
 
-root.DescendantAdded:Connect(function()
+-- PERF: skip the combat flood of projectile/VFX parts; only tank Models need a refresh.
+root.DescendantAdded:Connect(function(child)
+	if not child:IsA("Model") then
+		return
+	end
+
 	if isHudVisible() then
 		refreshTanks()
 	end

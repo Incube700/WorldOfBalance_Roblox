@@ -172,8 +172,13 @@ local function updateCamera()
 	camera.CFrame = CFrame.lookAt(cameraPosition, lookAt, activeUpVector)
 end
 
--- Следим за добавлением потомков, чтобы быстрее найти танк при спавне/ремонте модели
-root.DescendantAdded:Connect(function()
+-- Следим за добавлением потомков, чтобы быстрее найти танк при спавне/ремонте модели.
+-- PERF: реагируем только на Model — снаряды/частицы боя не должны дёргать поиск.
+root.DescendantAdded:Connect(function(child)
+	if not child:IsA("Model") then
+		return
+	end
+
 	if isCameraFollowEnabled() and not ownedTank then
 		ownedTank = findOwnedTank()
 	end

@@ -53,13 +53,12 @@ VfxRegistry.Variants = {
 		Canonical = { Template = "MuzzleFlash_Default" }, -- moved into flat folder
 		LegacyFallback = { Template = "MuzzleFlash_LegacyFallback" }, -- moved into flat folder
 	},
-	-- Per-weapon muzzle/shot FX. No asset yet -> procedural fallback fires (see CombatFXService).
-	-- Drop a template named below into Shared/Assets/VFX and it'll be used automatically.
+	-- Per-weapon muzzle/shot FX. Templates authored via tools/studio/BuildVfxTemplates.commandbar.luau.
 	RailGunShot = {
-		Default = { Template = "RailGunShot_Default", Missing = true },
+		Default = { Template = "RailGunShot_Default" },
 	},
 	RocketShot = {
-		Default = { Template = "RocketShot_Default", Missing = true },
+		Default = { Template = "RocketShot_Default" },
 	},
 	-- Rocket detonation FX: reuses the ProjectileImpact burst, scaled up bigger (see
 	-- GameplayFXCatalog.RocketExplosion ScaleMultiplier/EmitCount). Swap Template to a
@@ -88,15 +87,13 @@ VfxRegistry.Variants = {
 		SFX = { Template = "ExplosionTankSFX" },
 	},
 	Repair = {
-		-- No asset file exists yet (only an empty FX folder); procedural until authored.
-		Default = { Template = "Repair_Default", Missing = true },
+		Default = { Template = "Repair_Default" },
 	},
 	ReflectShield = {
 		Default = { Template = "ReflectShield_Default" },
 	},
 	UpgradeSelect = {
-		-- No asset file exists yet (only an empty FX folder); procedural until authored.
-		Default = { Template = "UpgradeSelect_Default", Missing = true },
+		Default = { Template = "UpgradeSelect_Default" },
 	},
 	LevelUp = {
 		Default = { Template = "LevelUp_Default" }, -- moved into flat folder

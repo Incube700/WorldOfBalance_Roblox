@@ -1060,6 +1060,9 @@ ArenaCombatService.init({
 			TankSpawnResetService.restoreTankColors(participant.TankId)
 		end
 	end,
+	playArenaAudio = function(_session, effectKey, position)
+		sendCombatFeedbackPayload(effectKey, position, "", Color3.fromRGB(180, 235, 255), true)
+	end,
 	-- Update 0.2 (fix pass): arena session lifecycle hooks. These drive maze/pickup/
 	-- breakable spawn + teardown so nothing appears in the lobby.
 	arenaSessionStarted = function(_player)

@@ -78,8 +78,10 @@ function TankModelScanner.ScanGenerated(generated, config)
 		return models
 	end
 
+	-- Tanks & bots all live under TestObjects. We deliberately do NOT GetDescendants the
+	-- BattleArena (hundreds of wall/neon-trim parts) here — that big tree walk every
+	-- DISCOVERY_INTERVAL caused a ~1s client hitch and finds no tanks anyway.
 	scanRoot(generated:FindFirstChild("TestObjects"), config, models)
-	scanRoot(generated:FindFirstChild("BattleArena"), config, models)
 
 	return models
 end

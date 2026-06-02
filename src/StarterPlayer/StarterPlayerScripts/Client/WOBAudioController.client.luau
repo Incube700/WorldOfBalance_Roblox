@@ -1,19 +1,24 @@
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local SoundService = game:GetService("SoundService")
 local Workspace = game:GetService("Workspace")
 
 local localPlayer = Players.LocalPlayer
+local playerGui = localPlayer:WaitForChild("PlayerGui")
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local configs = shared:WaitForChild("Configs")
+local utils = shared:WaitForChild("Utils")
 local AudioConfig = require(configs:WaitForChild("AudioConfig"))
 local AudioCatalog = require(configs:WaitForChild("AudioCatalog"))
+local TankModelResolver = require(utils:WaitForChild("TankModelResolver"))
 
 if AudioConfig.Enabled ~= true then
 	return
 end
 
+local root = Workspace:WaitForChild("WOB_Generated")
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local combatFeedbackEvent = remotes:FindFirstChild("CombatFeedbackEvent")
 local runtimeVfxFolder = nil
@@ -23,6 +28,20 @@ local lastRoundResult = nil
 local rng = Random.new()
 local playedSoundTimes = {}
 local lastPlayedByCategory = {}
+local hookedButtons = setmetatable({}, { __mode = "k" })
+local engineSound = nil
+local engineParent = nil
+local engineUpdateAccumulator = 0
+
+local ENGINE_SOUND_NAME = "WOB_EngineLoop"
+local ARENA_MIN_ROLLOFF_MAX_DISTANCE = 360
+local ENGINE_PLAYER_MODES = table.freeze({
+	Lobby = true,
+	QueuedForDuel = true,
+	InMatch = true,
+	InBattleArena = true,
+	ArenaRespawning = true,
+})
 
 local function getOrCreateFolder(parent, name)
 	local folder = parent:FindFirstChild(name)
@@ -144,6 +163,17 @@ local function getPlaybackSpeed(soundDefinition)
 	return baseSpeed * (1 + rng:NextNumber(-pitchJitter, pitchJitter))
 end
 
+local function getRollOffMaxDistance(soundDefinition)
+	local rollOffMaxDistance = tonumber(soundDefinition.RollOffMaxDistance) or 120
+	local mode = localPlayer:GetAttribute("PlayerMode")
+
+	if mode == "InBattleArena" or mode == "ArenaRespawning" then
+		return math.max(rollOffMaxDistance, ARENA_MIN_ROLLOFF_MAX_DISTANCE)
+	end
+
+	return rollOffMaxDistance
+end
+
 local function cleanupSound(sound, holder, fallbackLifetime)
 	local cleaned = false
 
@@ -172,8 +202,17 @@ local function configureSound(sound, soundDefinition, is2D)
 
 	if is2D ~= true then
 		sound.RollOffMode = Enum.RollOffMode.InverseTapered
-		sound.RollOffMaxDistance = soundDefinition.RollOffMaxDistance or 120
+		sound.RollOffMaxDistance = getRollOffMaxDistance(soundDefinition)
 	end
+end
+
+local function configureLoopSound(sound, soundDefinition)
+	sound.SoundId = soundDefinition.SoundId
+	sound.Volume = getVolume(soundDefinition, false)
+	sound.PlaybackSpeed = tonumber(soundDefinition.PlaybackSpeed) or 1
+	sound.Looped = true
+	sound.RollOffMode = Enum.RollOffMode.InverseTapered
+	sound.RollOffMaxDistance = getRollOffMaxDistance(soundDefinition)
 end
 
 local function play2DSound(category, payload)
@@ -239,6 +278,108 @@ local function play3DSound(category, worldPosition, payload)
 	cleanupSound(sound, holder, math.max(3, sound.TimeLength + 1))
 end
 
+local function hasAncestorNamed(instance, ancestorName)
+	local current = instance.Parent
+
+	while current ~= nil do
+		if current.Name == ancestorName then
+			return true
+		end
+
+		current = current.Parent
+	end
+
+	return false
+end
+
+local function hookButtonClick(instance)
+	if not instance:IsA("GuiButton") or hookedButtons[instance] == true then
+		return
+	end
+
+	if hasAncestorNamed(instance, "WOBMobileControls") then
+		return
+	end
+
+	hookedButtons[instance] = true
+
+	instance.Activated:Connect(function()
+		play2DSound("ButtonClick")
+	end)
+end
+
+local function getCurrentTankFocusPart()
+	local tankId = localPlayer:GetAttribute("TankId")
+	local tankModel = nil
+
+	if tankId ~= nil and tankId ~= "" then
+		tankModel = TankModelResolver.findTankByTankId(root, tankId, true)
+	end
+
+	if tankModel == nil then
+		tankModel = TankModelResolver.findOwnedTank(root, localPlayer.UserId, true)
+	end
+
+	return TankModelResolver.findFocusPart(tankModel)
+end
+
+local function stopEngineLoop()
+	if engineSound ~= nil then
+		if engineSound.Parent ~= nil then
+			engineSound:Destroy()
+		end
+
+		engineSound = nil
+	end
+
+	engineParent = nil
+end
+
+local function updateEngineLoop()
+	local mode = tostring(localPlayer:GetAttribute("PlayerMode") or "")
+
+	if ENGINE_PLAYER_MODES[mode] ~= true then
+		stopEngineLoop()
+		return
+	end
+
+	local _, soundDefinition = resolveSoundDefinition("EngineLoop")
+
+	if not canPlay(soundDefinition) then
+		stopEngineLoop()
+		return
+	end
+
+	local focusPart = getCurrentTankFocusPart()
+
+	if focusPart == nil then
+		stopEngineLoop()
+		return
+	end
+
+	if engineSound == nil or engineSound.Parent == nil or engineParent ~= focusPart then
+		stopEngineLoop()
+
+		local existing = focusPart:FindFirstChild(ENGINE_SOUND_NAME)
+
+		if existing ~= nil and existing:IsA("Sound") then
+			engineSound = existing
+		else
+			engineSound = Instance.new("Sound")
+			engineSound.Name = ENGINE_SOUND_NAME
+			engineSound.Parent = focusPart
+		end
+
+		engineParent = focusPart
+	end
+
+	configureLoopSound(engineSound, soundDefinition)
+
+	if not engineSound.IsPlaying then
+		engineSound:Play()
+	end
+end
+
 local function upperText(value)
 	return string.upper(tostring(value or ""))
 end
@@ -278,6 +419,8 @@ local function chooseSoundCategory(payload)
 	elseif payloadType == "NoPenetration" then
 		return "NoPenetration"
 	elseif payloadType == "TankDestroyed" then
+		return "TankExplosion"
+	elseif payloadType == "Explosion" then
 		return "TankExplosion"
 	elseif payloadType == "ShieldReflect" then
 		return "ReflectShield"
@@ -347,19 +490,38 @@ local function handleCrystalReward()
 end
 
 local function handleRoundResult()
-	local result = tostring(localPlayer:GetAttribute("RoundResult") or "")
+	local tankId = localPlayer:GetAttribute("TankId")
+	local winnerTankId = root:GetAttribute("RoundWinnerTankId")
+	local loserTankId = root:GetAttribute("RoundLoserTankId")
+	local result = tostring(root:GetAttribute("RoundResult") or "")
 
-	if result == "" or result == lastRoundResult then
+	if tankId ~= nil and winnerTankId == tankId then
+		result = "Win"
+	elseif tankId ~= nil and loserTankId == tankId then
+		result = "Lose"
+	end
+
+	local resultKey = table.concat({
+		result,
+		tostring(winnerTankId or ""),
+		tostring(loserTankId or ""),
+	}, ":")
+
+	if result == "" or result == "Playing" or resultKey == lastRoundResult then
 		return
 	end
 
-	lastRoundResult = result
+	lastRoundResult = resultKey
 
 	if result == "Win" then
 		play2DSound("Win")
-	elseif result == "Lose" then
+	elseif result == "Lose" or result == "Loss" then
 		play2DSound("Lose")
 	end
+end
+
+local function scheduleRoundResultAudio()
+	task.defer(handleRoundResult)
 end
 
 if combatFeedbackEvent ~= nil then
@@ -382,6 +544,30 @@ localPlayer:GetAttributeChangedSignal("LastCrystalsRewardAmount"):Connect(functi
 		end
 	end
 end)
-localPlayer:GetAttributeChangedSignal("RoundResult"):Connect(handleRoundResult)
+localPlayer:GetAttributeChangedSignal("TankId"):Connect(scheduleRoundResultAudio)
+root:GetAttributeChangedSignal("RoundResult"):Connect(scheduleRoundResultAudio)
+root:GetAttributeChangedSignal("RoundWinnerTankId"):Connect(scheduleRoundResultAudio)
+root:GetAttributeChangedSignal("RoundLoserTankId"):Connect(scheduleRoundResultAudio)
 
-print("[WOB] Audio controller started")
+for _, descendant in ipairs(playerGui:GetDescendants()) do
+	hookButtonClick(descendant)
+end
+
+playerGui.DescendantAdded:Connect(hookButtonClick)
+localPlayer:GetAttributeChangedSignal("PlayerMode"):Connect(updateEngineLoop)
+localPlayer:GetAttributeChangedSignal("TankId"):Connect(updateEngineLoop)
+RunService.Heartbeat:Connect(function(deltaTime)
+	engineUpdateAccumulator += deltaTime
+
+	if engineUpdateAccumulator < 1 then
+		return
+	end
+
+	engineUpdateAccumulator = 0
+	updateEngineLoop()
+end)
+task.defer(updateEngineLoop)
+
+if AudioConfig.Debug == true then
+	print("[WOB] Audio controller started")
+end

@@ -35,6 +35,7 @@ local callbacks = {
 	setPlayerMode = nil,
 	clearPlayerInput = nil,
 	restoreTankColors = nil,
+	playArenaAudio = nil,
 }
 
 local sessionRepository = ArenaSessionRepository.new()
@@ -448,12 +449,14 @@ local function scheduleSpawnShieldExpiry(session)
 			return
 		end
 
+		-- The spawn-shield window for THIS token has elapsed. Clear it UNCONDITIONALLY:
+		-- a hair-early timer (GetServerTimeNow drift) must never leave the shield bubble
+		-- stuck on forever. ShieldToken already guarantees no newer grant is in flight,
+		-- so it is always correct to end the spawn shield here. Reflect-charge shields are
+		-- untouched (publishShieldAttributes recomputes shieldActive from charges too).
 		local now = getServerTimeNow()
-
-		if (tonumber(session.SpawnShieldUntil) or 0) <= now then
-			session.SpawnShieldUntil = 0
-			publishShieldAttributes(session, now)
-		end
+		session.SpawnShieldUntil = 0
+		publishShieldAttributes(session, now)
 	end)
 end
 
@@ -800,6 +803,7 @@ function ArenaCombatService.init(options)
 	callbacks.setPlayerMode = options.setPlayerMode
 	callbacks.clearPlayerInput = options.clearPlayerInput
 	callbacks.restoreTankColors = options.restoreTankColors
+	callbacks.playArenaAudio = options.playArenaAudio
 	-- Update 0.2: arena session lifecycle. Fires once per new session entry / exit.
 	-- Optional; nil-safe at every call site.
 	callbacks.arenaSessionStarted = options.arenaSessionStarted
@@ -1086,6 +1090,10 @@ playArenaGameplayFX = function(session, effectKey, options)
 	end
 
 	GameplayCombatFXService.PlayAt(effectKey, position, options)
+
+	if callbacks.playArenaAudio ~= nil then
+		callbacks.playArenaAudio(session, effectKey, position)
+	end
 end
 
 local function isParticipantAlive(participant)

@@ -821,6 +821,12 @@ local function createProjectilePart(position, direction, visualOverride, visualS
 	visualScale = math.clamp(tonumber(visualScale) or 1, 1, 1.5)
 	local overrideColor = visualOverride ~= nil and visualOverride.ProjectileColor or nil
 	local overrideRadius = visualOverride ~= nil and tonumber(visualOverride.ProjectileRadius) or nil
+	-- Per-weapon FX flavor (temporary pickup weapons): a dedicated trail tail color, an extra
+	-- light punch, and a wider trail. Falls back to the projectile color so any weapon with just
+	-- a ProjectileColor still gets a tinted tail. nil override = default cannon, unchanged.
+	local overrideTrailColor = visualOverride ~= nil and visualOverride.ProjectileTrailColor or nil
+	local overrideLightBoost = visualOverride ~= nil and tonumber(visualOverride.ProjectileLightBoost) or nil
+	local overrideTrailWidth = visualOverride ~= nil and tonumber(visualOverride.ProjectileTrailWidthScale) or nil
 	local partSize = (overrideRadius ~= nil and (overrideRadius * 2) or visualConfig.Size) * visualScale
 	local partColor = overrideColor or visualConfig.Color or Color3.fromRGB(255, 235, 140)
 	local part = Instance.new("Part")
@@ -838,9 +844,9 @@ local function createProjectilePart(position, direction, visualOverride, visualS
 	part.Transparency = 0
 	part.Parent = projectileFolder
 	local light = Instance.new("PointLight")
-	light.Brightness = (visualConfig.LightBrightness or 1) * visualScale
-	light.Range = (visualConfig.LightRange or 6) * visualScale
-	light.Color = overrideColor or visualConfig.Color or Color3.fromRGB(255, 235, 140)
+	light.Brightness = (visualConfig.LightBrightness or 1) * visualScale * (overrideLightBoost or 1)
+	light.Range = (visualConfig.LightRange or 6) * visualScale * (overrideLightBoost ~= nil and 1.35 or 1)
+	light.Color = overrideTrailColor or overrideColor or visualConfig.Color or Color3.fromRGB(255, 235, 140)
 	light.Parent = part
 	local trailHalfLength = math.max(0.45, visualConfig.Size * 0.55)
 	local frontAttachment = Instance.new("Attachment")
@@ -855,8 +861,19 @@ local function createProjectilePart(position, direction, visualOverride, visualS
 	trail.Name = "ProjectileTrail"
 	trail.Attachment0 = frontAttachment
 	trail.Attachment1 = backAttachment
-	trail.Color = visualConfig.TrailColor
-		or ColorSequence.new(Color3.fromRGB(255, 235, 140), Color3.fromRGB(255, 95, 40))
+	if overrideTrailColor ~= nil then
+		-- Per-weapon flavored tail: a hot near-white core fading into the weapon's signature
+		-- color (e.g. RailGun bright-blue beam, Rocket scarlet exhaust) so the shot reads instantly.
+		local core = partColor:Lerp(Color3.new(1, 1, 1), 0.55)
+		trail.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, core),
+			ColorSequenceKeypoint.new(0.35, overrideTrailColor),
+			ColorSequenceKeypoint.new(1, overrideTrailColor),
+		})
+	else
+		trail.Color = visualConfig.TrailColor
+			or ColorSequence.new(Color3.fromRGB(255, 235, 140), Color3.fromRGB(255, 95, 40))
+	end
 	trail.Transparency = visualConfig.TrailTransparency
 		or NumberSequence.new({
 			NumberSequenceKeypoint.new(0, 0.12),
@@ -867,10 +884,11 @@ local function createProjectilePart(position, direction, visualOverride, visualS
 	trail.LightEmission = 1
 	trail.LightInfluence = 0
 	trail.FaceCamera = true
-	trail.WidthScale = visualConfig.TrailWidth
+	local widthMul = overrideTrailWidth or 1
+	trail.WidthScale = (overrideTrailWidth == nil and visualConfig.TrailWidth)
 		or NumberSequence.new({
-			NumberSequenceKeypoint.new(0, 1.1),
-			NumberSequenceKeypoint.new(0.6, 0.55),
+			NumberSequenceKeypoint.new(0, 1.1 * widthMul),
+			NumberSequenceKeypoint.new(0.6, 0.55 * widthMul),
 			NumberSequenceKeypoint.new(1, 0),
 		})
 	trail.Enabled = true
@@ -1161,14 +1179,36 @@ function ProjectileService.tryShoot(participant, direction, options_isChargedSho
 		chargeOrb.CanTouch = false
 		chargeOrb.CastShadow = false
 		chargeOrb.Material = Enum.Material.Neon
-		chargeOrb.Color = Color3.fromRGB(120, 220, 255)
+		chargeOrb.Color = Color3.fromRGB(150, 230, 255)
 		chargeOrb.CFrame = CFrame.new(shootPoint.Position)
 		chargeOrb.Parent = projectileFolder
 		local chargeLight = Instance.new("PointLight")
-		chargeLight.Color = Color3.fromRGB(120, 220, 255)
-		chargeLight.Range = 8
-		chargeLight.Brightness = 2
+		chargeLight.Color = Color3.fromRGB(90, 190, 255)
+		chargeLight.Range = 16
+		chargeLight.Brightness = 5
 		chargeLight.Parent = chargeOrb
+		-- Inward-pulling sparks: energy visibly gathering into the orb, so allies and enemies
+		-- both clearly read "RailGun is charging here". Pure visual on the anchored orb.
+		local chargeSpark = Instance.new("Attachment")
+		chargeSpark.Parent = chargeOrb
+		local chargeEmitter = Instance.new("ParticleEmitter")
+		chargeEmitter.Color = ColorSequence.new(Color3.fromRGB(180, 240, 255), Color3.fromRGB(60, 170, 255))
+		chargeEmitter.LightEmission = 1
+		chargeEmitter.LightInfluence = 0
+		chargeEmitter.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1.1),
+			NumberSequenceKeypoint.new(1, 0),
+		})
+		chargeEmitter.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.2),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		chargeEmitter.Lifetime = NumberRange.new(0.25, 0.45)
+		chargeEmitter.Rate = 60
+		chargeEmitter.Speed = NumberRange.new(-9, -6) -- negative = pulled inward toward the orb
+		chargeEmitter.SpreadAngle = Vector2.new(360, 360)
+		chargeEmitter.Acceleration = Vector3.new(0, 0, 0)
+		chargeEmitter.Parent = chargeSpark
 		local growTween = TweenService:Create(
 			chargeOrb,
 			TweenInfo.new(chargeSeconds, Enum.EasingStyle.Quad, Enum.EasingDirection.In),

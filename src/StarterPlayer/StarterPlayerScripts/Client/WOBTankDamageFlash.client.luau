@@ -328,11 +328,11 @@ end
 
 local function discoverTankModels()
 	local models = {}
+	-- Tanks/bots live under TestObjects only. Don't walk BattleArena's huge geometry tree
+	-- every DiscoveryInterval — it caused a ~1s client hitch and contains no tanks.
 	local testObjects = root:FindFirstChild("TestObjects")
-	local battleArena = root:FindFirstChild("BattleArena")
 
 	collectModelsFromRoot(testObjects, models)
-	collectModelsFromRoot(battleArena, models)
 
 	for model in pairs(models) do
 		if shouldWatchModel(model) then

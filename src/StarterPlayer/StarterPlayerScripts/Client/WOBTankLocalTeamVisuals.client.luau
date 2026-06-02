@@ -99,13 +99,18 @@ local function colorAllTanks()
 	end
 end
 
+-- PERF: WOB_Generated gets a flood of descendants during combat (every projectile part,
+-- attachment, trail, light and VFX particle). Reacting to all of them with a full
+-- colorAllTanks() rescan caused per-burst stutter. Only tank Models matter here, so ignore
+-- everything else; the 0.25s Heartbeat below is the catch-all safety refresh.
 root.DescendantAdded:Connect(function(child)
-	if child:IsA("Model") then
-		child:GetAttributeChangedSignal("OwnerUserId"):Connect(colorAllTanks)
-		child:GetAttributeChangedSignal("IsActive"):Connect(colorAllTanks)
-		child:GetAttributeChangedSignal("IsDead"):Connect(colorAllTanks)
+	if not child:IsA("Model") then
+		return
 	end
 
+	child:GetAttributeChangedSignal("OwnerUserId"):Connect(colorAllTanks)
+	child:GetAttributeChangedSignal("IsActive"):Connect(colorAllTanks)
+	child:GetAttributeChangedSignal("IsDead"):Connect(colorAllTanks)
 	colorAllTanks()
 end)
 

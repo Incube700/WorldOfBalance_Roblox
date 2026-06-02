@@ -784,6 +784,11 @@ local function getShieldHudState()
 	}
 end
 
+-- Death screen: hold off the panel for a beat after death so the destruction (explosion/FX)
+-- reads before the UI takes over. deathScreenSince = os.clock() of the moment death began.
+local DEATH_SCREEN_DELAY_SECONDS = 1
+local deathScreenSince = nil
+
 local function updateOverlay()
 	local visible = isArenaMode()
 	screenGui.Enabled = visible
@@ -865,7 +870,19 @@ local function updateOverlay()
 	upgradeHud:SetActiveUpgradeIds(upgrades)
 	upgradeHud:SetShieldState(getShieldHudState())
 
-	deathPanel.Visible = isDead
+	-- Delay the death panel ~1s after death begins (lets the explosion play first).
+	if isDead then
+		if deathScreenSince == nil then
+			deathScreenSince = os.clock()
+		end
+	else
+		deathScreenSince = nil
+	end
+	local deathScreenReady = isDead
+		and deathScreenSince ~= nil
+		and (os.clock() - deathScreenSince) >= DEATH_SCREEN_DELAY_SECONDS
+
+	deathPanel.Visible = deathScreenReady
 
 	if isDead then
 		local revivePending = localPlayer:GetAttribute("ArenaRevivePending") == true

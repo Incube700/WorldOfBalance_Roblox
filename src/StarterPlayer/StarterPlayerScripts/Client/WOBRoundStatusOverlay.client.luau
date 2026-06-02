@@ -1203,7 +1203,13 @@ localPlayer:GetAttributeChangedSignal("PlayerMode"):Connect(function()
 	updateSeriesStatus()
 end)
 
-root.DescendantAdded:Connect(function()
+-- PERF: only tank Models warrant a target/health rescan. Ignoring the combat flood of
+-- projectile parts, attachments, trails and VFX particles avoids per-shot stutter.
+root.DescendantAdded:Connect(function(child)
+	if not child:IsA("Model") then
+		return
+	end
+
 	refreshTankTargets()
 	updateEnemyHealth()
 	updateHealth()
