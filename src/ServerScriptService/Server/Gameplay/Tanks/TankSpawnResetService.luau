@@ -395,6 +395,7 @@ function TankSpawnResetService.layoutTank(tank, position, bodyYaw, turretYaw)
 	tankBarrel.CFrame = turretCFrame * CFrame.new(0, 0, -5.8)
 	tankShootPoint.CFrame = turretCFrame * CFrame.new(0, 0, -10)
 	TankArmorPartsService.Configure(tank)
+	TankSkinApplier.PinVisuals(tank)
 end
 
 function TankSpawnResetService.captureTankColors(participantId, model)

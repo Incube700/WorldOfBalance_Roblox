@@ -301,6 +301,24 @@ local function destroyShieldVisual(session)
 	if visual ~= nil and visual.Parent ~= nil then
 		visual:Destroy()
 	end
+
+	local participant = session ~= nil and session.Participant or nil
+	local model = participant ~= nil and TankParticipantRegistry.getParticipantPhysicalModel(participant) or nil
+
+	if model == nil and participant ~= nil then
+		model = participant.Model
+	end
+
+	if model ~= nil then
+		for _, descendant in ipairs(model:GetDescendants()) do
+			if descendant.Name == "ArenaReflectShieldVisual"
+				or descendant.Name == "ArenaReflectShieldVisualHighlight"
+				or descendant.Name == "ArenaReflectShieldVisualWeld"
+			then
+				descendant:Destroy()
+			end
+		end
+	end
 end
 
 local function createFallbackShieldVisual(anchorPart)
